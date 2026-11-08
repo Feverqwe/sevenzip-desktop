@@ -179,12 +179,8 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.raise();
                     window_.activateWindow();
                 }
-                if (interactionRevision_ == interaction && window_.app_.IsPanelVisible(focus)) {
-                    if (!window_.panelUi_[focus].locationUnavailable)
-                        RequestListFocus(focus);
-                    else if (auto *retry = panels_[focus].retry; retry && retry->isVisible())
-                        retry->setFocus(Qt::OtherFocusReason);
-                }
+                if (interactionRevision_ == interaction)
+                    RequestListFocus(focus);
                 if (finished)
                     finished();
             };

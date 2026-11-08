@@ -27,8 +27,15 @@ void QtWindowWorkspace::CompleteListFocusIfReady() {
     if (window_.scanningPanelMask() & (1u << index))
         return;
     CancelListFocus();
+    if (!window_.app_.IsPanelVisible(index) || !window_.panelUi_[index].container)
+        return;
     window_.activatePanelUi(index);
     window_.app_.SetFocusedPanel(index);
+    if (window_.panelUi_[index].locationUnavailable) {
+        if (auto *retry = panels_[index].retry; retry && retry->isVisible())
+            retry->setFocus(Qt::OtherFocusReason);
+        return;
+    }
     window_.app_.Panels[index].SetFocusToList();
     // Address FocusOut can occur while modal progress disables the pane.
     // Finish its presentation only after the owning list-focus request is delivered.
