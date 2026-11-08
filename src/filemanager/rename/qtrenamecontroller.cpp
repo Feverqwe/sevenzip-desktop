@@ -1,6 +1,8 @@
 #include "filemanager/rename/qtrenamecontroller.h"
+#include "7zip/UI/FileManager/resource.h"
 #include "archive/backend/archivebackend.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include <QAbstractItemDelegate>
 #include <QFileInfo>
@@ -75,7 +77,7 @@ void QtRenameController::Begin(int row) {
     const bool archive = window_.projectedUi().state == MainWindow::State::Viewing;
     if (window_.projectedUi().state != MainWindow::State::Filesystem && !archive && !streams)
         return;
-    if (!window_.rename_->isEnabled() || row < 0 ||
+    if (!window_.commands_->CanExecuteCommand(IDM_RENAME) || row < 0 ||
         row >= window_.projectedUi().table->rowCount() || panel.OnBeginLabelEdit(row))
         return;
     const QModelIndex item = window_.projectedUi().table->model()->index(row, 0);

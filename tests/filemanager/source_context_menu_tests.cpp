@@ -64,6 +64,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         for (const auto *name : {"a.txt", "b.txt", "c.txt"}) {
             QFile file(fixture.filePath(name));
             QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(name), qint64(5));
         }
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -95,7 +96,13 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             if (menu) {
                 menuShown = menu->objectName() == "panelContextMenu";
-                menu->close();
+                const auto close = qScopeGuard([&] { menu->close(); });
+                if (!keyboard) {
+                    auto *rename = menuAction(*menu, "renameAction");
+                    QVERIFY(rename && rename->isEnabled());
+                    menu->setActiveAction(rename);
+                    QTest::keyClick(menu, Qt::Key_Return);
+                }
             }
         });
         QContextMenuEvent event(keyboard ? QContextMenuEvent::Keyboard : QContextMenuEvent::Mouse,
@@ -104,6 +111,21 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(menuShown);
         QCOMPARE(selection->currentIndex(), keyboard ? focused : hit);
         QCOMPARE(selection->selectedRows(), selected);
+        if (!keyboard) {
+            auto *editor = view->findChild<QLineEdit *>();
+            QVERIFY(editor);
+            QCOMPARE(editor->text(), QString("b.txt"));
+            editor->setText("renamed.txt");
+            QTest::keyClick(editor, Qt::Key_Return);
+            QFile renamed(fixture.filePath("renamed.txt"));
+            QTRY_VERIFY(renamed.exists());
+            QVERIFY(renamed.open(QIODevice::ReadOnly));
+            QCOMPARE(renamed.readAll(), QByteArray("b.txt"));
+            QVERIFY(!QFileInfo::exists(fixture.filePath("b.txt")));
+            QFile peer(fixture.filePath("a.txt"));
+            QVERIFY(peer.open(QIODevice::ReadOnly));
+            QCOMPARE(peer.readAll(), QByteArray("a.txt"));
+        }
     }
 
     void owningPanel_data() {
