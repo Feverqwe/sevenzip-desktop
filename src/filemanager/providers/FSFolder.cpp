@@ -329,11 +329,20 @@ Z7_COM7F_IMF(CFSFolder::Rename(UInt32 index, const wchar_t *newName, IProgress *
     FString fullPrefix = _path;
     if (fi.Parent >= 0)
         fullPrefix += Folders[fi.Parent];
+    const FString sourcePath = fullPrefix + fi.Name;
+    const FString targetPath = fullPrefix + us2fs(newName);
+    const QFileInfo source(QtPath(sourcePath)), target(QtPath(targetPath));
+    if (source.fileName() == target.fileName()) {
+        const QString sourceParent = QFileInfo(source.path()).canonicalFilePath();
+        if (!sourceParent.isEmpty() &&
+            sourceParent == QFileInfo(target.path()).canonicalFilePath() &&
+            (source.exists() || source.isSymLink()))
+            return S_OK;
+    }
 #ifdef _WIN32
-    if (!NWindows::NFile::NDir::MyMoveFile(fullPrefix + fi.Name, fullPrefix + us2fs(newName)))
+    if (!NWindows::NFile::NDir::MyMoveFile(sourcePath, targetPath))
 #else
-    if (!QtRenameFileSystemEntryWithoutReplacing(QtPath(fullPrefix + fi.Name),
-                                                 QtPath(fullPrefix + us2fs(newName))))
+    if (!QtRenameFileSystemEntryWithoutReplacing(QtPath(sourcePath), QtPath(targetPath)))
 #endif
         return GetLastError_noZero_HRESULT();
     return S_OK;

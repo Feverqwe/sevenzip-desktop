@@ -31,19 +31,25 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<QString>("destination");
         QTest::addColumn<QString>("visible");
         QTest::addColumn<bool>("throughLink");
+        QTest::addColumn<bool>("unchanged");
         QTest::newRow("same-folder")
-            << QString("./renamed δ.txt") << QString("renamed δ.txt") << false;
+            << QString("./renamed δ.txt") << QString("renamed δ.txt") << false << false;
         QTest::newRow("subfolder")
-            << QString("target folder/renamed δ.txt") << QString("target folder") << false;
+            << QString("target folder/renamed δ.txt") << QString("target folder") << false << false;
+        QTest::newRow("same-name-in-subfolder")
+            << QString("target folder/original.txt") << QString("target folder") << false << false;
+        QTest::newRow("unchanged-relative-path")
+            << QString("target folder/../original.txt") << QString("original.txt") << false << true;
 #ifdef Q_OS_UNIX
         QTest::newRow("linked-folder")
-            << QString("./renamed δ.txt") << QString("renamed δ.txt") << true;
+            << QString("./renamed δ.txt") << QString("renamed δ.txt") << true << false;
 #endif
     }
     void relativeDestinationSelectsVisibleItem() {
         QFETCH(QString, destination);
         QFETCH(QString, visible);
         QFETCH(bool, throughLink);
+        QFETCH(bool, unchanged);
         QTemporaryDir fixture;
         QTemporaryDir aliases;
         QVERIFY(fixture.isValid());
@@ -83,13 +89,23 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         action(window, "renameAction")->trigger();
         auto *editor = view->findChild<QLineEdit *>();
         QVERIFY(editor && editor->isVisible());
+        bool errorShown = false;
+        QTimer closeError;
+        connect(&closeError, &QTimer::timeout, &window, [&] {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (TestProgressDialog::DismissVisibleResult(widget))
+                    errorShown = true;
+        });
+        closeError.start(2);
         editor->setText(destination);
         QTest::keyClick(editor, Qt::Key_Return);
+        QCoreApplication::processEvents();
         QTRY_VERIFY(QFileInfo::exists(output));
         QTRY_VERIFY(filesystemRow(observer, QFileInfo(output).fileName()) >= 0);
-        QCOMPARE(filesystemRow(observer, "original.txt"), -1);
-        QVERIFY(!QFileInfo::exists(source));
+        QCOMPARE(QFileInfo::exists(source), unchanged);
+        QVERIFY(!errorShown);
         QTRY_COMPARE(view->currentIndex().data().toString(), visible);
+        QCOMPARE(filesystemRow(window, "original.txt") >= 0, unchanged);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QFile payload(output);
         QVERIFY(payload.open(QIODevice::ReadOnly));
