@@ -108,6 +108,10 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("control"), qint64(7));
         file.close();
+        QFile larger(fixture.filePath("z larger.txt"));
+        QVERIFY(larger.open(QIODevice::WriteOnly));
+        QCOMPARE(larger.write("larger payload"), qint64(14));
+        larger.close();
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -134,7 +138,19 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         const bool peerAscending = views[0]->sourcePanel->_ascending;
         QVERIFY(action(window, "sort0Action")->isChecked());
         CMyComPtr<IFolderFolder> peer = views[0]->sourcePanel->GetFolder();
+        const auto firstName = [](FileTable &view) {
+            return view.model()->index(0, 0).data(QtPanelList::NameRole).toString();
+        };
+        const QString control = QStringLiteral("control 文件.txt");
+        QCOMPARE(firstName(*views[0]), control);
+        QCOMPARE(firstName(*views[1]), control);
+        views[1]->selectRow(0);
         views[1]->sortItems(2, Qt::DescendingOrder);
+        QCOMPARE(firstName(*views[1]), QString("z larger.txt"));
+        QCOMPARE(firstName(*views[0]), control);
+        const auto selected = views[1]->selectionModel()->selectedRows();
+        QCOMPARE(selected.size(), 1);
+        QCOMPARE(selected.front().data(QtPanelList::NameRole).toString(), control);
         QCOMPARE(views[1]->sourcePanel->_sortID, PROPID(kpidSize));
         QVERIFY(!views[1]->sourcePanel->_ascending);
         QCOMPARE(views[0]->sourcePanel->_sortID, peerSort);
