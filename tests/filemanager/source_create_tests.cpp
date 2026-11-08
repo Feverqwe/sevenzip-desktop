@@ -42,7 +42,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_COMPARE(view->rowCount(), 0);
         view->setFocus();
-        const QString finalName = QStringLiteral("corrected 空");
+        const QString finalName = QStringLiteral("corrected folder");
         action(window, "createFolderAction")->trigger();
         auto *name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
@@ -53,7 +53,9 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
         QCOMPARE(view->rowCount(), 0);
         QCOMPARE(observed->rowCount(), 0);
-        name->setText(finalName);
+        QCOMPARE(name->selectedText(), name->text());
+        QTest::keyClicks(name, finalName);
+        QCOMPARE(name->text(), finalName);
         QTest::keyClick(name, Qt::Key_Return);
         const QFileInfo created(fixture.filePath(finalName));
         QVERIFY(created.isDir());
@@ -363,6 +365,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
         QCOMPARE(name->text(), QString("keep.bin"));
+        QCOMPARE(name->selectedText(), QString("keep.bin"));
         const QString corrected = QStringLiteral("corrected папка");
         if (deferred) {
             QVERIFY(!view->isEnabled());

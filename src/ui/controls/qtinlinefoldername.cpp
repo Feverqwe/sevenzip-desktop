@@ -48,6 +48,8 @@ void QtInlineFolderName::ClearError() { error_->hide(); }
 void QtInlineFolderName::ShowError(const QString &message, bool focusName) {
     error_->setText(message);
     error_->show();
-    if (focusName)
+    if (focusName) {
         name_->setFocus();
+        name_->selectAll();
+    }
 }

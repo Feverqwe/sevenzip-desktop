@@ -665,6 +665,7 @@ class SourceBrowseDialogTests final : public QObject {
             auto *error = dialog->findChild<QLabel *>("inlineFolderError");
             QVERIFY(error && error->isVisible() && !error->text().isEmpty());
             QCOMPARE(name->text(), QString("occupied"));
+            QCOMPARE(name->selectedText(), QString("occupied"));
             QVERIFY(dialog->isVisible());
             QCOMPARE(Names(*list), before);
             auto *path = dialog->findChild<QLineEdit *>("browsePath");
@@ -679,6 +680,10 @@ class SourceBrowseDialogTests final : public QObject {
                 QVERIFY(UiInspection::writeReport(
                     *dialog, QString("source-browser-folder-error-%1").arg(size.width())));
             }
+            QTest::keyClicks(name, "retry folder");
+            QTest::keyClick(name, Qt::Key_Return);
+            QVERIFY(!name->isVisible());
+            QVERIFY(Names(*list).contains("retry folder"));
             observed = true;
         });
         QVERIFY(!browse.BrowseForFile(Filters()));
