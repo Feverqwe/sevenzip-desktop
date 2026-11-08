@@ -601,7 +601,7 @@ class CompressionPathTests final : public QObject {
         QVERIFY(editor);
         QTest::keyClicks(editor, "new.7z");
         QCOMPARE(name->text(), QDir::toNativeSeparators("./new.7z"));
-        submit(dialog);
+        QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources()), S_OK);
         QVERIFY(QFileInfo(fixture.filePath("new.7z")).isFile());
