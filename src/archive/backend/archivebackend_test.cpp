@@ -116,6 +116,8 @@ void ArchiveBackend::finishReadOperation() {
     const bool listingJob = job_ == Job::List;
     const bool sourceExtractJob = job_ == Job::SourceExtract;
     const bool extractJob = job_ == Job::Extract || sourceExtractJob;
+    const bool partialExtraction =
+        job_ == Job::Extract && operation->ExtractStatus && !operation->ExtractStatus->Complete;
     if (job_ == Job::Extract)
         lastExtractStatus_ = operation->ExtractStatus;
     const QString path = archive_;
@@ -165,6 +167,9 @@ void ArchiveBackend::finishReadOperation() {
         result == S_OK
             ? listingJob
                   ? QCoreApplication::translate("archivebackend_completion", "Archive opened.")
+              : partialExtraction
+                  ? QCoreApplication::translate("ProgressRedesign",
+                                                "Completed with skipped items or messages")
               : extractJob
                   ? QCoreApplication::translate("archivebackend_completion",
                                                 "Extraction completed.")

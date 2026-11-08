@@ -527,14 +527,22 @@ class ExtractionOptionsTests : public QObject {
                  QByteArray("existing version"));
 
         flat.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
+        QSignalSpy completion(&backend, &ArchiveBackend::finished);
         backend.extract(archive, destination, {}, {}, flat);
         await(backend, true);
+        QCOMPARE(completion.size(), 1);
+        QCOMPARE(completion.takeFirst().at(1).toString(),
+                 QCoreApplication::translate("ProgressRedesign",
+                                             "Completed with skipped items or messages"));
         QCOMPARE(readFile(destination + QStringLiteral("/δ file.txt")),
                  QByteArray("existing version"));
 
         flat.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
         backend.extract(archive, destination, {}, {}, flat);
         await(backend, true);
+        QCOMPARE(completion.size(), 1);
+        QCOMPARE(completion.takeFirst().at(1).toString(),
+                 QCoreApplication::translate("archivebackend_completion", "Extraction completed."));
         QCOMPARE(readFile(destination + QStringLiteral("/δ file.txt")),
                  QByteArray("archive version"));
 
