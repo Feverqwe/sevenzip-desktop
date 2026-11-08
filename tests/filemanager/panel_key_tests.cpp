@@ -20,11 +20,15 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void typingAndEnterOpenTheMatchingFolder_data() {
         QTest::addColumn<int>("mode");
-        QTest::newRow("details") << 3;
-        QTest::newRow("icons") << 0;
+        QTest::addColumn<bool>("switchView");
+        QTest::newRow("details") << 3 << false;
+        QTest::newRow("icons") << 0 << false;
+        QTest::newRow("details-to-icons") << 3 << true;
+        QTest::newRow("icons-to-details") << 0 << true;
     }
     void typingAndEnterOpenTheMatchingFolder() {
         QFETCH(int, mode);
+        QFETCH(bool, switchView);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString expected = fixture.filePath(QStringLiteral("Журнал"));
@@ -45,9 +49,22 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         const int row = filesystemRow(window, "alpha");
         view->setCurrentCell(row, 0);
         view->selectRow(row);
+        if (mode == 3 && switchView) {
+            const int sizeColumn = view->columnForProperty(kpidSize);
+            QVERIFY(sizeColumn > 0);
+            view->setCurrentCell(row, sizeColumn, QItemSelectionModel::NoUpdate);
+        }
         QKeyEvent letter(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("ж"));
         QApplication::sendEvent(active, &letter);
-        PanelKeys::openSelection(active);
+        if (switchView) {
+            action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
+            active = mode == 3 ? window.findChild<QAbstractItemView *>("iconList") : view;
+            QVERIFY(active);
+            QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(active));
+        }
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                 QStringLiteral("Журнал"));
+        PanelKeys::openSelection(window.focusWidget());
         QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())),
                      expected);
         QTRY_VERIFY(active->hasFocus());
