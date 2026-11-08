@@ -79,7 +79,7 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
         s.Add_LF();
         if (fileInfo.Size_IsDefined)
             AddSizeValue(s, fileInfo.Size);
-        else if (ShowExtraButtons)
+        else
             s += UString((QtLangText(IDS_PROP_SIZE) + ": " +
                           QCoreApplication::translate("ConflictRedesign", "Unknown"))
                              .toStdWString()
@@ -91,7 +91,7 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
             char t[64];
             ConvertUtcFileTimeToString(fileInfo.Time, t);
             s += t;
-        } else if (ShowExtraButtons)
+        } else
             s += UString((QtLangText(IDS_PROP_MTIME) + ": " +
                           QCoreApplication::translate("ConflictRedesign", "Unknown"))
                              .toStdWString()

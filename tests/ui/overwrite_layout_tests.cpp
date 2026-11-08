@@ -132,10 +132,14 @@ class OverwriteLayoutTests final : public QObject {
         dialog.OldFileInfo.Path = (existing + "old.txt").toStdWString().c_str();
         dialog.NewFileInfo.Path = (incoming + "new.txt").toStdWString().c_str();
         dialog.OldFileInfo.SetSize(12345);
-        dialog.NewFileInfo.SetSize(67890);
         QVERIFY(dialog.OnInit());
-        QVERIFY(dialog.findChild<QLabel *>("overwriteOldFile")->text().contains(existing));
-        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(incoming));
+        const QString oldDetails = dialog.findChild<QLabel *>("overwriteOldFile")->text();
+        const QString newDetails = dialog.findChild<QLabel *>("overwriteNewFile")->text();
+        const QString unknown = QCoreApplication::translate("ConflictRedesign", "Unknown");
+        QVERIFY(oldDetails.contains(existing));
+        QVERIFY(newDetails.contains(incoming));
+        QCOMPARE(oldDetails.count(unknown), 1);
+        QCOMPARE(newDetails.count(unknown), 2);
         dialog.resize(width, width < 500 ? 300 : 440);
         dialog.show();
         QApplication::processEvents();
