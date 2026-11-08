@@ -1214,12 +1214,15 @@ class FileTransferTests : public QObject {
                                    true);
         QSignalSpy result(&move, &FileTransferOperation::result);
         connect(
-            &move, &FileTransferOperation::overwriteRequested, &move, [&move]() { move.cancel(); },
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&move] { move.submitOverwriteAnswer(NOverwriteAnswer::kCancel); },
             Qt::DirectConnection);
         move.start();
         QVERIFY(move.wait(30000));
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(!result.first().first().toBool());
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Canceled);
+        QCOMPARE(result.first().at(1).toString(), QStringLiteral("Operation canceled."));
         QVERIFY(source.open(QIODevice::ReadOnly));
         QCOMPARE(source.readAll(), QByteArray("new"));
         QVERIFY(target.open(QIODevice::ReadOnly));

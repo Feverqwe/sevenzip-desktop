@@ -104,10 +104,15 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
     const bool merged = NFsFolder::CopyFolder(state, source, stage);
     *writtenSources = callback.writtenSources;
     *error = !state.ErrorMessage.isEmpty() ? state.ErrorMessage : callback.errorMessage;
-    if (!merged && error->isEmpty())
-        *error =
-            QCoreApplication::translate("qtfiletransfertransaction", "Could not merge folders: %1")
-                .arg(target);
+    if (!merged && error->isEmpty()) {
+        if (worker_.canceled_)
+            *error =
+                QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+        else
+            *error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                 "Could not merge folders: %1")
+                         .arg(target);
+    }
     return merged;
 }
 
