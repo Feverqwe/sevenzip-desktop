@@ -3,6 +3,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QStandardPaths>
@@ -339,6 +340,9 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(external.paths.isEmpty());
         QCOMPARE(errors.size(), 1);
         QVERIFY(errors.constFirst().normalized(QString::NormalizationForm_C).contains(name));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view.hasFocus());
+        QCOMPARE(view.currentIndex().siblingAtColumn(0), index);
         QVERIFY(view.selectionModel()->isSelected(index));
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.close();
