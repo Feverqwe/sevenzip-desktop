@@ -116,13 +116,19 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
 
     void tableKeepsPartiallyVisibleRowAcrossRefresh_data() {
         QTest::addColumn<bool>("manual");
-        QTest::newRow("automatic") << false;
-        QTest::newRow("manual") << true;
+        QTest::addColumn<bool>("throughLink");
+        QTest::newRow("automatic") << false << false;
+        QTest::newRow("manual") << true << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("linked-folder") << true << true;
+#endif
     }
 
     void tableKeepsPartiallyVisibleRowAcrossRefresh() {
         QFETCH(bool, manual);
+        QFETCH(bool, throughLink);
         QTemporaryDir fixture;
+        QTemporaryDir aliases;
         QVERIFY(fixture.isValid());
         CurrentDirectoryGuard directoryGuard;
         QVERIFY(QDir::setCurrent(fixture.path()));
@@ -134,6 +140,18 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         window.show();
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && files->rowCount() == 80);
+        if (throughLink) {
+            QVERIFY(aliases.isValid());
+            const QString alias = aliases.filePath("folder link");
+            QVERIFY(QFile::link(fixture.path(), alias));
+            COpenResult opened;
+            QCOMPARE(files->sourcePanel->BindToPath(ToUString(alias + '/'), UString(), opened),
+                     S_OK);
+            QCOMPARE(files->sourcePanel->RefreshListCtrl(), S_OK);
+            QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                     alias);
+            QTRY_COMPARE(files->rowCount(), 80);
+        }
         if (manual)
             files->sourcePanel->Set_AutoRefresh_Mode(false);
         files->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);

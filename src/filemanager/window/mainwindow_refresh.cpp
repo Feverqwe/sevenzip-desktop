@@ -38,8 +38,13 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
     const bool archive = panel.IsArcFolder();
     const bool root = !archive && (panel.IsRootFolder() || panel.IsFSDrivesFolder() ||
                                    panel.IsNetFolder() || panel.IsAltStreamsFolder());
-    if (archive || root || projectedUi().state != State::Filesystem ||
-        QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) != projectedUi().directory) {
+    const bool filesystem =
+        !archive && !root && projectedUi().state == State::Filesystem && panel.GetFolder();
+    const QString boundPath =
+        filesystem ? QDir::cleanPath(ToQString(GetFolderPath(panel.GetFolder()))) : QString();
+    const QString &displayedPath = projectedUi().directory;
+    if (!filesystem ||
+        (boundPath != displayedPath && QFileInfo(boundPath).canonicalFilePath() != displayedPath)) {
         const bool updateAddress = !selection.CalledFromTimer && !reloadingFileListSettings_;
         const HRESULT loaded =
             root ? renderRootFolder(updateAddress) : renderBoundFolder(updateAddress);
