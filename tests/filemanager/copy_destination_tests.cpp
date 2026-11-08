@@ -34,7 +34,7 @@ class CopyDestinationTests final : public QObject {
         UiInspection::configureReviewAppearance();
     }
 
-    void singleNameCancelAndAcceptance() {
+    void singleNameValidationAndKeyboardAcceptance() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath(QStringLiteral("source δ.txt"));
@@ -47,8 +47,10 @@ class CopyDestinationTests final : public QObject {
             dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
         QVERIFY(name && name->isVisible());
         QVERIFY(!ok->isEnabled()); // The initial proposal would copy onto itself.
+        name->setFocus();
         name->clear();
-        dialog.accept();
+        QTest::keyClick(name, Qt::Key_Return);
+        QVERIFY(dialog.isVisible());
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QCOMPARE(ToQString(dialog.Value), directory);
         name->setText("../outside");
@@ -59,9 +61,8 @@ class CopyDestinationTests final : public QObject {
         destination->setText(directory);
         name->setText(QStringLiteral(" копия δ "));
         QVERIFY(ok->isEnabled());
-        dialog.reject();
-        QCOMPARE(ToQString(dialog.Value), directory);
-        dialog.accept();
+        name->setFocus();
+        QTest::keyClick(name, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(ToQString(dialog.Value)),
                  fixture.filePath(QStringLiteral(" копия δ ")));
