@@ -206,7 +206,8 @@ Archive/staging and mount resource owners retain their protected close boundarie
 The independent-operation registry projects live presentation and pending reviews
 to the Operations menu. UI entries carry stable IDs; activation resolves their
 current owner again, so a stale menu cannot restart finished work. Recent successes
-retain only bounded display values and have no event-loop hold or session storage.
+and warnings retain only bounded display values and have no event-loop hold or
+session storage.
 They do not replace pending review ownership or the child's own terminal view.
 
 Selected properties use an owned snapshot from the native panel collector.

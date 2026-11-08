@@ -10,6 +10,12 @@
 #include <QMenu>
 
 namespace {
+using Outcome = QtOperationResult::Outcome;
+
+bool NeedsReview(const QtOperationListing &entry) {
+    return entry.Result && *entry.Result != Outcome::Success && *entry.Result != Outcome::Warning;
+}
+
 QString Text(const char *source) {
     return QCoreApplication::translate("QtOperationsButton", source);
 }
@@ -28,8 +34,10 @@ QString OperationName(QtOperationJob::Command command) {
     return {};
 }
 QString Status(const QtOperationListing &entry) {
+    if (entry.Result == Outcome::Warning)
+        return Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Done with warnings"));
     if (entry.Result)
-        return Text(*entry.Result == QtOperationResult::Outcome::Success
+        return Text(*entry.Result == Outcome::Success
                         ? QT_TRANSLATE_NOOP("QtOperationsButton", "Done")
                         : QT_TRANSLATE_NOOP("QtOperationsButton", "Review result"));
     switch (entry.Presentation.Phase) {
@@ -73,7 +81,7 @@ void QtOperationsButton::Refresh() {
     bool needsReview = false;
     for (const auto &entry : entries) {
         active += !entry.Result.has_value();
-        needsReview |= entry.Result && *entry.Result != QtOperationResult::Outcome::Success;
+        needsReview |= NeedsReview(entry);
     }
     const QString suffix = needsReview ? Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Results"))
                            : active    ? QString::number(active)
@@ -108,7 +116,7 @@ void QtOperationsButton::Populate() {
             menu_->addAction(QtLiteralMenuText(title) + " · " + QtLiteralMenuText(Status(entry)));
         action->setData(entry.Id);
         action->setToolTip("<qt>" + source.toHtmlEscaped().replace('\n', "<br>") + "</qt>");
-        action->setEnabled(!entry.Result || *entry.Result != QtOperationResult::Outcome::Success);
+        action->setEnabled(!entry.Result || NeedsReview(entry));
         connect(action, &QAction::triggered, this,
                 [id = entry.Id] { QtOperationRegistry::Application().Show(id); });
     }

@@ -7585,6 +7585,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     </context>
     <context>
         <name>QtOperationsButton</name>
+        <message><source>Done with warnings</source><translation>С предупреждениями</translation></message>
         <message><source>Operations</source><translation>Операции</translation></message>
         <message><source>Operations · %1</source><translation>Операции · %1</translation></message>
         <message><source>Test archive</source><translation>Проверка архива</translation></message>

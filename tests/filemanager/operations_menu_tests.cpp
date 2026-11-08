@@ -7,6 +7,7 @@
 #include "operations/qtoperationregistry.h"
 #include "settings/RegistryUtils.h"
 #include "support/operation_kill.h"
+#include "support/scoped_environment.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonDocument>
 #include <QScopeGuard>
@@ -154,6 +155,50 @@ class OperationsMenuTests final : public QObject {
         QVERIFY(SourceExtractFixture::writeFile(fixture.filePath("0.release"), "cancel draft"));
         QTRY_COMPARE_WITH_TIMEOUT(cancelled.size(), 1, 15000);
         QVERIFY(!qvariant_cast<QtOperationResult>(cancelled[0][0]).CancellationNeedsReview);
+    }
+    void keepsExtractionWarningAfterClosingTheOperation() {
+        using namespace SourceExtractFixture;
+        QTemporaryDir fixture;
+        const auto archive = makeArchive(fixture.path(), "incoming bytes");
+        QVERIFY(!archive.isEmpty());
+        const auto output = fixture.filePath("output");
+        const auto existing = QDir(output).filePath(kName);
+        QVERIFY(writeFile(existing, "retained bytes"));
+        const ScopedTestEnvironment answer("SEVENZIP_OPERATION_OVERWRITE", "overwriteNo");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QtOperationJob job;
+        job.Operation = QtOperationJob::Command::Extract;
+        job.Paths = {archive};
+        job.Destination = output;
+        job.ShowDialog = false;
+        QString error;
+        QPointer<QtOperationLauncher> operation =
+            QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
+        QVERIFY2(operation, qPrintable(error));
+        const auto cleanup = qScopeGuard([&] {
+            if (operation && operation->active())
+                KillOperationProbe(operation->processId());
+        });
+        const auto id = QtOperationRegistry::Application().Registration(*operation);
+        QSignalSpy finished(operation, &QtOperationLauncher::finished);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
+        QCOMPARE(qvariant_cast<QtOperationResult>(finished[0][0]).Status,
+                 QtOperationResult::Outcome::Warning);
+        QTRY_VERIFY(!operation);
+        QCOMPARE(readFile(existing), QByteArray("retained bytes"));
+        auto *button = window.findChild<QToolButton *>("operationsButton");
+        QVERIFY(button && button->isVisible());
+        auto *menu = button->menu();
+        menu->popup(button->mapToGlobal(QPoint(0, button->height())));
+        QTRY_VERIFY(menu->isVisible());
+        const auto *warning = Entry(*menu, id);
+        QVERIFY(warning && !warning->isEnabled());
+        QVERIFY(warning->text().contains(
+            QCoreApplication::translate("QtOperationsButton", "Done with warnings")));
+        QVERIFY(UiInspection::writeReport(*menu, "operations-extraction-warning"));
+        menu->hide();
     }
     void reopensSamePendingResultAfterLanguageSwitch() {
         QTemporaryDir fixture;
