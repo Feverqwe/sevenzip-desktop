@@ -623,7 +623,10 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             QCOMPARE(backend.Selections.last().size(), 2);
             QCOMPARE(readFile(first), firstBefore);
             QCOMPARE(readFile(second), secondBefore);
-            return;
+            source->selectRow(firstRow);
+            QTRY_VERIFY(action(window, "extractArchiveAction")->isEnabled());
+            backend.Results.clear();
+            backend.Selections.clear();
         }
         backend.ExtractDestination = output;
         backend.ExtractDialogReport = fixture.filePath("extract-dialog.json");
