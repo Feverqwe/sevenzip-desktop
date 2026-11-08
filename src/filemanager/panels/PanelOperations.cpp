@@ -18,6 +18,7 @@
 #include "platform/trash/qttrashoperation.h"
 #include "platform/trash/qttrashservice.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileIconProvider>
 #include <QFileInfo>
@@ -106,8 +107,12 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
     QStringList diagnostics;
     const HRESULT result =
         QtMoveItemsToTrash(paths, trash, GetParent(), review != nullptr, &diagnostics, &movedCount);
-    if (review && result != S_OK)
+    if (review && result != S_OK) {
+        diagnostics.append(
+            QCoreApplication::translate("DeleteRedesign", "Items moved to Trash (%1)")
+                .arg(movedCount));
         *review = std::move(diagnostics);
+    }
     if (moved)
         *moved = movedCount;
     if (movedCount && state.FocusedItem > 0) {

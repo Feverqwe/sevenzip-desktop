@@ -147,8 +147,16 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         });
         responder.start(1);
         CSelectedState selected;
-        QCOMPARE(panel.MoveItemsToTrash(trash, selected, &indices), lastItem ? S_OK : E_ABORT);
+        std::optional<QStringList> review;
+        QCOMPARE(panel.MoveItemsToTrash(trash, selected, &indices, true, nullptr, &review),
+                 lastItem ? S_OK : E_ABORT);
         responder.stop();
+        if (lastItem) {
+            QVERIFY(!review);
+        } else {
+            QVERIFY(review);
+            QVERIFY(review->contains(QStringLiteral("Items moved to Trash (1)")));
+        }
         QVERIFY(stopped);
         QCOMPARE(trash.calls, 1);
         QVERIFY(!QFileInfo::exists(fixture.filePath(first)));
@@ -588,6 +596,9 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         if (partial) {
             QVERIFY(refreshedBeforeReview);
             QVERIFY(errorDetails.contains(secondDeleted));
+            QVERIFY(errorDetails.contains(language == "ru"
+                                              ? QStringLiteral("Перемещено в Корзину (1)")
+                                              : QStringLiteral("Items moved to Trash (1)")));
             QVERIFY(errorDetails.contains(
                 language == "ru" ? QStringLiteral("Не удалось переместить объект в Корзину.")
                                  : QStringLiteral("Could not move the item to Trash.")));
