@@ -43,7 +43,11 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("input.zip");
+#ifdef Q_OS_WIN
         const QString blocked = fixture.filePath("blocked");
+#else
+        const QString blocked = fixture.filePath("blocked <b>folder");
+#endif
         const QString output = fixture.filePath("output");
         QVERIFY(QDir().mkpath(QDir(blocked).filePath("selected.txt")));
         QVERIFY(QDir().mkpath(output));
@@ -61,6 +65,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         view->selectRow(rowWithPath(window, "selected.txt"));
         QString destination = blocked;
         QString diagnostic;
+        Qt::TextFormat diagnosticFormat = Qt::AutoText;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &window, [&] {
             auto *modal = QApplication::activeModalWidget();
@@ -69,6 +74,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
                 copy->accept();
             } else if (auto *warning = qobject_cast<QMessageBox *>(modal)) {
                 diagnostic = warning->text();
+                diagnosticFormat = warning->textFormat();
                 warning->accept();
             }
         });
@@ -77,7 +83,8 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(copy->isEnabled());
         copy->trigger();
         QTRY_VERIFY(copy->isEnabled());
-        QVERIFY(diagnostic.contains("selected.txt"));
+        QCOMPARE(diagnosticFormat, Qt::PlainText);
+        QVERIFY(diagnostic.contains(QDir(blocked).filePath("selected.txt")));
         QVERIFY(QFileInfo(QDir(blocked).filePath("selected.txt")).isDir());
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(view->selectionModel()->selectedRows().front().data().toString(),

@@ -26,7 +26,10 @@ QString PrepareExtractionDestination(ArchiveBackend &backend, QtArchiveFileResou
         nativeIndexes && resource.UsesNativeMetadata() ? resource.NativeArchiveLink()->GetArc()
                                                        : nullptr);
     if (!output) {
-        QMessageBox::warning(parent, QtLangText(IDS_PROGRESS_EXTRACTING), output.error());
+        QMessageBox warning(QMessageBox::Warning, QtLangText(IDS_PROGRESS_EXTRACTING),
+                            output.error(), QMessageBox::Ok, parent);
+        warning.setTextFormat(Qt::PlainText);
+        warning.exec();
         return {};
     }
     return *output;
