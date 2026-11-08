@@ -168,7 +168,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QApplication::clipboard()->setMimeData(clipboard);
         const QString pasteLabel = action(window, "pasteFilesAction")->text();
         bool pasteChosen = false;
-        QTimer::singleShot(0, &window, [&] {
+        const auto choosePaste = [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             QVERIFY(menu);
             const auto close = qScopeGuard([&] { menu->close(); });
@@ -181,7 +181,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     return;
                 }
             QFAIL("Paste action missing");
-        });
+        };
         QString report;
         QTimer dismiss;
         connect(&dismiss, &QTimer::timeout, &window, [&] {
@@ -195,6 +195,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         dismiss.start(5);
         const QPoint point =
             owner->visualRect(owner->model()->index(row(*owner, "child"), 0)).center();
+        QTimer::singleShot(0, &window, choosePaste);
         QVERIFY(QMetaObject::invokeMethod(owner, "customContextMenuRequested", Qt::DirectConnection,
                                           Q_ARG(QPoint, point)));
         QVERIFY(pasteChosen);
@@ -215,9 +216,17 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(row(*owner, "control.txt") >= 0);
         writeSource(missingName, "restored bytes");
-        auto *paste = action(window, "pasteFilesAction");
-        QTRY_VERIFY(paste->isEnabled());
-        paste->trigger();
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+        const QString peerStatus = QStringLiteral("Peer status");
+        window.statusBar()->showMessage(peerStatus, 10000);
+        pasteChosen = false;
+        QTimer::singleShot(0, &window, choosePaste);
+        const QPoint retryPoint =
+            owner->visualRect(owner->model()->index(row(*owner, "control.txt"), 0)).center();
+        QVERIFY(QMetaObject::invokeMethod(owner, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, retryPoint)));
+        QVERIFY(pasteChosen);
         QTRY_VERIFY(owner->isEnabled() && row(*owner, missingName) >= 0 &&
                     row(*owner, existingName) >= 0);
         QFile restored(QDir(child).filePath(missingName));
@@ -226,6 +235,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(existing.open(QIODevice::ReadOnly));
         QCOMPARE(restored.readAll(), QByteArray("restored bytes"));
         QCOMPARE(existing.readAll(), QByteArray("ready bytes"));
+        QCOMPARE(window.statusBar()->currentMessage(), peerStatus);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTest::mouseClick(owner->viewport(), Qt::LeftButton, Qt::NoModifier, retryPoint);
+        QTRY_COMPARE(window.statusBar()->currentMessage(),
+                     QCoreApplication::translate("qtfiletransfertransaction", "Items copied."));
     }
 
     void owningPanel_data() {

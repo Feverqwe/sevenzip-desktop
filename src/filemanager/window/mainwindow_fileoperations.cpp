@@ -13,6 +13,7 @@
 #include "localization/qtlangcontrols.h"
 #include "platform/trash/qttrashservice.h"
 #include "settings/ViewSettings.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QFile>
 #include <QScopedValueRollback>
@@ -55,8 +56,6 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                     return;
                 if (fileTask_ == task)
                     fileTask_ = nullptr;
-                if (success)
-                    showStatusMessage(message);
                 // OnCopy's continuation owns both reloads, saved selections
                 // and final focus after this worker releases its operation.
                 // A context-menu transfer may outlive its temporary panel projection.
@@ -65,6 +64,8 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                     app_.QtOperations().End();
                 withPanelProjection(owner, [this] { setState(State::Filesystem); });
                 appPresentation_->CopyFinished(canceled || (move && partial));
+                if (success && guard)
+                    statusStrip_->SetMessage(&app_.Panels[owner], message);
             });
     setState(State::Operating);
     task->Start();

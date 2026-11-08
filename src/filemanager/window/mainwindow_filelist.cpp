@@ -21,6 +21,8 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
         return E_FAIL;
     }
     const QString next = info.canonicalFilePath();
+    if (projectedUi().state != State::Filesystem || projectedUi().directory != next)
+        clearStatusMessage();
     Q_UNUSED(remember);
     cancelListPublication();
     if (!sourceAlreadyBound)
