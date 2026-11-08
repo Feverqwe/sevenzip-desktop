@@ -6,6 +6,7 @@
 #include <QClipboard>
 #include <QImage>
 #include <QScopeGuard>
+#include <QStatusBar>
 
 class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -95,9 +96,12 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         });
         dismiss.start(5);
         QTest::keySequence(files, QKeySequence::Paste);
-        QTRY_VERIFY(!report.isEmpty() && files->isEnabled());
+        QTRY_VERIFY((!report.isEmpty() || !window.statusBar()->currentMessage().isEmpty()) &&
+                    files->isEnabled());
         dismiss.stop();
-        QVERIFY(report.contains(QStringLiteral("Source and destination are the same:")));
+        QVERIFY(report.isEmpty());
+        QVERIFY(window.statusBar()->currentMessage().contains(
+            QStringLiteral("Source and destination are the same:")));
         QCOMPARE(files->rowCount(), 1);
         QVERIFY(QFileInfo::exists(input));
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), QList{QUrl::fromLocalFile(input)});

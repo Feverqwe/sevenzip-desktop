@@ -223,14 +223,24 @@ void QtFileClipboard::Paste() {
     const QStringList paths = ClipboardFilePaths(mime);
     if (paths.isEmpty())
         return;
+    const QDir destination(window_.projectedUi().directory);
+    for (const auto &path : paths) {
+        const QString target = destination.filePath(QFileInfo(path).fileName());
+        if (QDir::cleanPath(path) == QDir::cleanPath(target)) {
+            window_.showStatusMessage(
+                QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Source and destination are the same: %1")
+                    .arg(target));
+            return;
+        }
+    }
     const bool move = ClipboardMovesFiles(*mime, paths);
     // Existing transfer owns collisions, path validation, cancellation,
     // metadata and progress; clipboard only supplies source URLs/destination.
     const QPointer<const QMimeData> original(mime);
     const QPointer<QtFileClipboard> owner(this);
     const auto revision = revision_;
-    const QString destination = window_.projectedUi().directory;
-    window_.transferFiles(paths, destination, move, false,
+    window_.transferFiles(paths, destination.path(), move, false,
                           [owner, original, paths, revision](const QStringList &movedSources) {
                               if (!owner)
                                   return;
