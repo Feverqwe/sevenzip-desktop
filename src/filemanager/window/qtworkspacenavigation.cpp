@@ -1,3 +1,4 @@
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtnativeplaces.h"
@@ -297,7 +298,12 @@ void QtWindowWorkspace::Travel(int direction) {
     const int destination =
         locationState.cursor + (window_.projectedUi().locationUnavailable ? 0 : direction);
     const Visit target = locationState.visits[destination];
-    Navigate([&] {
+    auto &ui = window_.panelUi_[panel];
+    const auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+    const auto revision = address->UserEditRevision();
+    const auto draft =
+        ui.path->isModified() ? std::optional(QtAddressDraft(*ui.path)) : std::nullopt;
+    const auto openTarget = [&] {
         auto &request = *navigation_[panel];
         request.destination = destination;
         if (target.diskFolder && !QFileInfo(QDir::cleanPath(target.path)).isDir())
@@ -339,5 +345,15 @@ void QtWindowWorkspace::Travel(int direction) {
                 return HRESULT(E_FAIL);
         }
         return window_.navigateTo(path, true);
+    };
+    Navigate(openTarget, [this, panel, revision, draft](HRESULT result) {
+        if (result == S_OK || window_.app_.QtOperations().closed())
+            return;
+        auto &owner = window_.panelUi_[panel];
+        const auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
+        const auto restored =
+            combo->UserEditRevision() == revision ? draft : combo->LastUserDraft();
+        if (restored)
+            restored->Restore(*owner.path);
     });
 }
