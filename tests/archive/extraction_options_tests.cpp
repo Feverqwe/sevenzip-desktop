@@ -398,8 +398,8 @@ class ExtractionOptionsTests : public QObject {
         await(backend, true);
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
-        for (const int answer :
-             {NOverwriteAnswer::kNoToAll, NOverwriteAnswer::kYesToAll, NOverwriteAnswer::kCancel}) {
+        for (const int answer : {NOverwriteAnswer::kNoToAll, NOverwriteAnswer::kYesToAll,
+                                 NOverwriteAnswer::kAutoRename, NOverwriteAnswer::kCancel}) {
             const QString output = temp.filePath(QStringLiteral("output-%1").arg(answer));
             QVERIFY(QDir().mkpath(output + "/source"));
             writeFile(output + "/source/one", "old");
@@ -421,6 +421,13 @@ class ExtractionOptionsTests : public QObject {
                      answer == NOverwriteAnswer::kYesToAll ? QByteArray("new") : QByteArray("old"));
             QCOMPARE(readFile(output + "/source/two"),
                      answer == NOverwriteAnswer::kYesToAll ? QByteArray("new") : QByteArray("old"));
+            const QDir directory(output + "/source");
+            QStringList copies = directory.entryList(QDir::Files | QDir::Hidden);
+            copies.removeAll("one");
+            copies.removeAll("two");
+            QCOMPARE(copies.size(), answer == NOverwriteAnswer::kAutoRename ? 2 : 0);
+            for (const QString &copy : copies)
+                QCOMPARE(readFile(directory.filePath(copy)), QByteArray("new"));
             disconnect(connection);
         }
     }
