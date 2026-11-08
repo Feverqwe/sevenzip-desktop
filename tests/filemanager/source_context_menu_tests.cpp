@@ -131,7 +131,13 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         }
     }
 
+    void failedPasteLeavesTheDestinationPanelUsable_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("cut") << true;
+    }
     void failedPasteLeavesTheDestinationPanelUsable() {
+        QFETCH(bool, move);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
         QTemporaryDir destination, peerDirectory;
@@ -165,6 +171,8 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                   QUrl::fromLocalFile(peerDirectory.filePath(missingName))};
         auto *clipboard = new QMimeData;
         clipboard->setUrls(sources);
+        if (move)
+            clipboard->setData("application/x-kde-cutselection", "1");
         QApplication::clipboard()->setMimeData(clipboard);
         const QString pasteLabel = action(window, "pasteFilesAction")->text();
         bool pasteChosen = false;
@@ -205,6 +213,9 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(!QFileInfo::exists(destination.filePath(missingName)));
         QVERIFY(!QFileInfo::exists(destination.filePath(existingName)));
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), sources);
+        QCOMPARE(QApplication::clipboard()->mimeData()->data("application/x-kde-cutselection"),
+                 move ? QByteArray("1") : QByteArray());
+        QVERIFY(QFileInfo::exists(peerDirectory.filePath(existingName)));
         QTRY_VERIFY(action(window, "settingsAction")->isEnabled());
         window.activateWindow();
         QVERIFY(WindowActivation::waitForActive(window));
@@ -235,11 +246,17 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(existing.open(QIODevice::ReadOnly));
         QCOMPARE(restored.readAll(), QByteArray("restored bytes"));
         QCOMPARE(existing.readAll(), QByteArray("ready bytes"));
+        QCOMPARE(QFileInfo::exists(peerDirectory.filePath(existingName)), !move);
+        QCOMPARE(QFileInfo::exists(peerDirectory.filePath(missingName)), !move);
+        if (move)
+            QVERIFY(!QApplication::clipboard()->mimeData() ||
+                    !QApplication::clipboard()->mimeData()->hasUrls());
         QCOMPARE(window.statusBar()->currentMessage(), peerStatus);
         QVERIFY(WindowActivation::waitForActive(window));
         QTest::mouseClick(owner->viewport(), Qt::LeftButton, Qt::NoModifier, retryPoint);
         QTRY_COMPARE(window.statusBar()->currentMessage(),
-                     QCoreApplication::translate("qtfiletransfertransaction", "Items copied."));
+                     QCoreApplication::translate("qtfiletransfertransaction",
+                                                 move ? "Items moved." : "Items copied."));
     }
 
     void owningPanel_data() {
