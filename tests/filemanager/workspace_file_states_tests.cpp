@@ -272,6 +272,33 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QTRY_VERIFY(!paste->isEnabled());
     }
 
+    void copyingAMissingFileKeepsThePreviousClipboard() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("selected file.txt");
+        const QString path = fixture.filePath(name);
+        write(path);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        files->selectRow(rowFor(*files, name));
+        auto *clipboard = QApplication::clipboard();
+        clipboard->setText("previous clipboard text");
+        auto *copy = action(window, "copyFilesAction");
+        QTRY_VERIFY(copy->isEnabled());
+        QVERIFY(QFile::remove(path));
+        copy->trigger();
+        QCOMPARE(clipboard->text(), QString("previous clipboard text"));
+        QVERIFY(window.statusBar()->currentMessage().contains(name));
+        write(path);
+        copy->trigger();
+        QTRY_COMPARE(clipboard->mimeData()->urls(), QList<QUrl>{QUrl::fromLocalFile(path)});
+    }
+
     void pasteRejectsAnOpenedFolderReplacedByALink() {
 #ifndef Q_OS_UNIX
         QSKIP("Requires filesystem symbolic links");

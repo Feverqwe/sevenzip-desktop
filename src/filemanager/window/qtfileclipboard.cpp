@@ -162,8 +162,17 @@ void QtFileClipboard::Copy(bool move) {
     if (source.IsFSFolder()) {
         UStringVector paths;
         source.GetFilePaths(indices, paths);
-        FOR_VECTOR(i, paths)
-        urls.append(QUrl::fromLocalFile(ToQString(paths[i])));
+        FOR_VECTOR(i, paths) {
+            const QString path = ToQString(paths[i]);
+            const QFileInfo entry(path);
+            if (!entry.exists() && !entry.isSymLink() && !entry.isJunction()) {
+                window_.showStatusMessage(QCoreApplication::translate("qtfiletransfertransaction",
+                                                                      "Source unavailable: %1")
+                                              .arg(path));
+                return;
+            }
+            urls.append(QUrl::fromLocalFile(path));
+        }
     } else {
         // Materialize with the same native copy owner as drag/export. Never
         // expose URLs until the engine reports a complete successful copy.
