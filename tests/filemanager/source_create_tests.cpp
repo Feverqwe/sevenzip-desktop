@@ -112,7 +112,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         view->setFocus();
         const auto initial = view->selectionModel()->selection();
         const QString entered = QStringLiteral("new folder 空/child");
-        action(window, "createFolderAction")->trigger();
+        QTRY_COMPARE(window.focusWidget(), view);
+        QTest::keyClick(window.focusWidget(), Qt::Key_F7);
         QPointer<QLineEdit> name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
         name->setText(entered);
@@ -126,7 +127,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(!name);
         QCOMPARE(view->selectionModel()->selection(), initial);
         QVERIFY(!QFileInfo::exists(fixture.filePath(entered)));
-        action(window, "createFolderAction")->trigger();
+        QTRY_COMPARE(window.focusWidget(), view);
+        QTest::keyClick(window.focusWidget(), Qt::Key_F7);
         name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
         name->setText(entered);
@@ -141,6 +143,13 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(selectedNames.Size(), 1u);
         QCOMPARE(ToQString(selectedNames[0]), focused);
         QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
+        QCOMPARE(peer->rowCount(), 0);
+        QTRY_COMPARE(window.focusWidget(), view);
+        QVERIFY(action(window, "openItemAction")->isEnabled());
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())),
+                     QFileInfo(fixture.filePath(focused)).canonicalFilePath());
+        QTRY_VERIFY(row(view, "child") >= 0);
         QCOMPARE(peer->rowCount(), 0);
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));

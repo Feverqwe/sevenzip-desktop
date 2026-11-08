@@ -212,8 +212,10 @@ void QtFileManagerCommands::CreateFolder() {
                     application->FilesystemPublished({destinationDirectory}, &window_);
                 window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
             }
-            if (focusOwner)
+            if (focusOwner) {
                 window_.workspace_->RequestListFocus(index);
+                window_.refreshSelectionActions();
+            }
             return;
         }
         editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail,
