@@ -64,7 +64,7 @@ void CExtractDialog::BuildPresentation() {
     auto *destination = QtCreateDialogForm();
     destination->addRow(destinationLabel, pathRow);
     layout->addLayout(destination);
-    _destinationError = new QLabel(this);
+    _destinationError = new QtWrappingLabel(this);
     _destinationError->setObjectName("extractDestinationError");
     _destinationError->setTextFormat(Qt::PlainText);
     _destinationError->setWordWrap(true);

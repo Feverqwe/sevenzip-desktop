@@ -569,6 +569,41 @@ class ExtractDialogTests final : public QObject {
         const QString output = fixture.filePath(QFileInfo(target).completeBaseName() + "_1.zip");
         QCOMPARE(SourceExtractFixture::readFile(output), payload);
     }
+    void compactDestinationErrorKeepsFieldAndButtonsVisible() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString blocked = fixture.filePath(QString(180, u'w'));
+        QVERIFY(SourceExtractFixture::writeFile(blocked, "unchanged"));
+        CExtractDialog dialog(fixture.path(), {});
+        auto *destination = path(dialog);
+        auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+        auto *buttons = dialog.findChild<QDialogButtonBox *>();
+        auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+        QVERIFY(error && buttons && scroll);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QApplication::processEvents();
+        dialog.resize(360, 300);
+        dialog.findChild<QToolButton *>("extractAdvancedToggle")->setChecked(true);
+        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
+        destination->setEditText(blocked);
+        scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
+        const QSize before = dialog.size();
+        buttons->button(QDialogButtonBox::Ok)->click();
+        QVERIFY(dialog.isVisible());
+        QVERIFY(error->text().contains(blocked));
+        QTRY_VERIFY(UiInspection::fullyVisible(*error, dialog));
+        QVERIFY(UiInspection::labelFits(*error));
+        QVERIFY(UiInspection::fullyVisible(*destination, dialog));
+        QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
+        QCOMPARE(dialog.size(), before);
+        QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        QVERIFY(UiInspection::writeReport(dialog, "extract-compact-destination-error"));
+        destination->setEditText(fixture.filePath("corrected"));
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+    }
+
     void blockedSubfolderFocusesItsOwnField() {
 #ifndef Q_OS_UNIX
         QSKIP("Requires a searchable, read-only directory with a writable child");

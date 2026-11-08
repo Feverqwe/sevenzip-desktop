@@ -16,6 +16,7 @@
 #include <QEvent>
 #include <QFileInfo>
 #include <QLabel>
+#include <QScrollArea>
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QTimer>
@@ -276,6 +277,11 @@ void CExtractDialog::OnOK() {
             _pathName->setFocus();
         else
             _path->setFocus();
+        QTimer::singleShot(0, this, [this] {
+            if (_destinationError->isVisible())
+                if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll"))
+                    scroll->ensureWidgetVisible(_destinationError);
+        });
         return;
     }
     const int pathMode2 = _pathMode->currentData().toInt();
