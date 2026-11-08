@@ -201,7 +201,7 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
             PanelKeys::focusAddress(address);
             QVERIFY(address->hasFocus());
             address->setText(large);
-            address->setCursorPosition(draftCursor);
+            address->setSelection(draftCursor - 2, 2);
             QTest::keyClick(address, Qt::Key_Return);
         }
         QTRY_COMPARE(failed.size(), 1);
@@ -219,6 +219,8 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
             window.activateWindow();
             QVERIFY(QTest::qWaitForWindowActive(&window));
             QTRY_VERIFY_WITH_TIMEOUT(address->hasFocus(), 2000);
+            QCOMPARE(address->selectedText(), large.mid(draftCursor - 2, 2));
+            QCOMPARE(address->cursorPosition(), draftCursor);
         }
         QCOMPARE(QFileInfo(ToQString(GetFolderPath(panel.GetFolder()))).canonicalFilePath(),
                  QFileInfo(reload ? large : smallPath).canonicalFilePath());

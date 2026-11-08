@@ -152,6 +152,9 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         });
         dismiss.start(5);
         address->setText(draft);
+        const int selectionStart = draft.lastIndexOf(QStringLiteral("архив"));
+        QVERIFY(selectionStart >= 0);
+        address->setSelection(selectionStart + 5, -5);
         QTest::keyClick(address, Qt::Key_Return);
         dismiss.stop();
         QApplication::processEvents();
@@ -167,6 +170,8 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         }
         QVERIFY(address->isVisible());
         QCOMPARE(address->text(), draft);
+        QCOMPARE(address->selectedText(), QStringLiteral("архив"));
+        QCOMPARE(address->cursorPosition(), selectionStart);
         if (virtualPath && result != E_ABORT)
             QVERIFY(window.statusBar()->currentMessage().contains(draft));
         if (virtualPath && result == E_ABORT)

@@ -82,24 +82,21 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             if (app_.QtOperations().closed())
                 return E_ABORT;
             auto &ui = panelUi_[index];
-            const QString draft = ui.path->text();
-            const int cursor = ui.path->cursorPosition();
+            const QtAddressDraft draft(*ui.path);
             activatePanelUi(index);
             if (projectedPanel_ != index)
                 return E_ABORT;
             return workspace_->Navigate([&] { return navigateToImpl(path, sourcePath); },
-                                        [this, index, draft, cursor](HRESULT result) {
+                                        [this, index, draft](HRESULT result) {
                                             if (result == S_OK || app_.QtOperations().closed())
                                                 return;
                                             auto &owner = panelUi_[index];
-                                            owner.path->setText(draft);
-                                            owner.path->setCursorPosition(cursor);
+                                            draft.Restore(*owner.path);
                                             if (projectedPanel_ == index) {
                                                 static_cast<QtPanelAddressCombo *>(owner.pathCombo)
                                                     ->CancelPendingListFocus();
                                                 appPresentation_->CancelInitialFocus();
-                                                workspace_->RestoreAddressFocus(index, draft,
-                                                                                cursor);
+                                                workspace_->RestoreAddressFocus(index, draft);
                                             }
                                         });
         },

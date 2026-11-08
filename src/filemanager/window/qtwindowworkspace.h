@@ -23,6 +23,7 @@ class QtNativePlaces;
 class QtRecentPlacesStore;
 struct QtRecentPlace;
 struct QtFavorite;
+struct QtAddressDraft;
 class QtArchiveMountManager;
 
 // CApp owns the two panel bindings. The workspace keeps navigation state and
@@ -44,7 +45,7 @@ class QtWindowWorkspace final : public QObject {
     bool CanRefreshPublishedArchives() const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RetainListFocus(unsigned panel);
-    void RestoreAddressFocus(unsigned panel, const QString &draft, int cursor);
+    void RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft);
     void ExitExternalWorkers(bool hardExit);
     void Dispose();
     QtArchiveMountManager *CurrentMountManager(bool create);

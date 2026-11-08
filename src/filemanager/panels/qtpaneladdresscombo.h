@@ -9,6 +9,19 @@
 #include <vector>
 
 class CPanel;
+class QLineEdit;
+
+struct QtAddressDraft {
+    explicit QtAddressDraft(const QLineEdit &edit);
+    void Restore(QLineEdit &edit) const;
+
+    QString text;
+
+  private:
+    int cursor_;
+    int anchor_;
+};
+
 enum class QtAddressCommand { DropDown, SelectionAccepted };
 enum class QtAddressEditReason { Escape, Return };
 

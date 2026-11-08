@@ -1,3 +1,4 @@
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
@@ -27,16 +28,16 @@ void QtWindowWorkspace::RetainListFocus(unsigned panel) {
     WhenReady([this, panel, request, focused] { RestoreListFocus(panel, request, focused); });
 }
 
-void QtWindowWorkspace::RestoreAddressFocus(unsigned panel, const QString &draft, int cursor) {
+void QtWindowWorkspace::RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft) {
     const auto request = ++focusRequest_;
-    WhenReady([this, panel, draft, cursor, request] {
+    WhenReady([this, panel, draft, request] {
         auto &ui = window_.panelUi_[panel];
         if (focusRequest_ != request || window_.projectedPanel_ != panel ||
-            ui.path->text() != draft)
+            ui.path->text() != draft.text)
             return;
         ui.navigation->ResumeEditing();
         ui.path->setFocus(Qt::OtherFocusReason);
-        ui.path->setCursorPosition(cursor);
+        draft.Restore(*ui.path);
     });
 }
 

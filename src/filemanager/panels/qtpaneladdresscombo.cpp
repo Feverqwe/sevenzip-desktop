@@ -190,16 +190,29 @@ void QtPanelAddressCombo::GetLogicalDriveStrings(FStringVector &paths) {
 }
 UString QtPanelAddressCombo::GetText() const { return ToUString(currentText()); }
 void QtPanelAddressCombo::SetText(const UString &text) { lineEdit()->setText(ToQString(text)); }
+QtAddressDraft::QtAddressDraft(const QLineEdit &edit)
+    : text(edit.text()), cursor_(edit.cursorPosition()), anchor_(cursor_) {
+    if (edit.hasSelectedText())
+        anchor_ = edit.selectionStart() == cursor_ ? edit.selectionEnd() : edit.selectionStart();
+}
+
+void QtAddressDraft::Restore(QLineEdit &edit) const {
+    if (edit.text() != text)
+        edit.setText(text);
+    if (anchor_ == cursor_)
+        edit.setCursorPosition(cursor_);
+    else
+        edit.setSelection(anchor_, cursor_ - anchor_);
+}
+
 HRESULT QtPanelAddressCombo::BindToPathAndRefresh(const UString &path, bool sourcePath) {
-    const QString draft = currentText();
-    const int cursor = lineEdit()->cursorPosition();
+    const QtAddressDraft draft(*lineEdit());
     const HRESULT result =
         panel_ ? navigate_(ToQString(CPanel::PrepareBindPath(path)), sourcePath) : E_ABORT;
     if (result != S_OK) {
-        lineEdit()->setText(draft);
-        lineEdit()->setCursorPosition(cursor);
         if (window()->isActiveWindow())
             lineEdit()->setFocus();
+        draft.Restore(*lineEdit());
     }
     return result;
 }
