@@ -84,6 +84,9 @@ void CreateArchiveDialog::validateAndAccept() {
                               : error == CCompressDialog::kPasswordTooLong ? IDS_PASSWORD_TOO_LONG
                                                                            : IDS_PASSWORD_NOT_MATCH;
             ShowErrorMessageHwndResQt(this, id);
+            auto *field =
+                error == CCompressDialog::kPasswordNotMatch ? passwordConfirmation_ : password_;
+            field->setFocus();
             return;
         }
     }
