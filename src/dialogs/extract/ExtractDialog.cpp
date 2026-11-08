@@ -238,16 +238,13 @@ void CExtractDialog::changeEvent(QEvent *event) {
 void CExtractDialog::OnButtonSetPath() {
     const QString draft = _path->currentText().trimmed();
     FString initial;
-    if (!draft.isEmpty() && !ResolveOutputDirectory(draft, initial)) {
-        _destinationError->setText(InvalidOutputDirectory());
-        _destinationError->show();
-        _path->setFocus();
-        return;
-    }
+    if (!ResolveOutputDirectory(draft, initial))
+        initial.Empty();
     UString path;
     if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), fs2us(initial),
                           path))
         _path->setEditText(ToQString(path));
+    _path->setFocus();
 }
 
 void CExtractDialog::OnOK() {

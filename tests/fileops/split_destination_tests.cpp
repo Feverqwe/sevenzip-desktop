@@ -163,7 +163,13 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(QDir::cleanPath(path(latest)->itemText(1)), lower);
     }
 
+    void browsingUsesTheSameDestinationAsExtraction_data() {
+        QTest::addColumn<bool>("invalidDraft");
+        QTest::newRow("resolved-path") << false;
+        QTest::newRow("replace-invalid-path") << true;
+    }
     void browsingUsesTheSameDestinationAsExtraction() {
+        QFETCH(bool, invalidDraft);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString start = fixture.filePath(QStringLiteral("папка с пробелом"));
@@ -177,7 +183,7 @@ class SplitDestinationTests final : public QObject {
         CExtractDialog dialog(start, {});
         auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
         QVERIFY(browse);
-        const QString draft = "  " + start + "  ";
+        const QString draft = invalidDraft ? start + QChar::Null : "  " + start + "  ";
         path(dialog)->setEditText(draft);
         enabled(dialog)->setChecked(true);
         name(dialog)->setText(QStringLiteral("подпапка"));
@@ -203,7 +209,9 @@ class SplitDestinationTests final : public QObject {
             });
             answer.start(1);
             browse->click();
-            QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
+            QVERIFY(!openedDirectory.isEmpty());
+            if (!invalidDraft)
+                QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
             QCOMPARE(name(dialog)->text(), QStringLiteral("подпапка"));
             if (accept)
                 QCOMPARE(QFileInfo(path(dialog)->currentText()).canonicalFilePath(),
