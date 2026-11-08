@@ -315,12 +315,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                     continue;
                 if (auto *box = dynamic_cast<COverwriteDialog *>(widget)) {
                     ++overwritePrompts;
-                    if (cancelBatchMove && overwritePrompts == 1)
+                    if (retry || (cancelBatchMove && overwritePrompts == 1))
                         box->findChild<QPushButton *>("overwriteYes")->click();
                     else if (cancelBatchMove)
                         QTest::keyClick(box, Qt::Key_Escape);
-                    else if (retry)
-                        box->findChild<QPushButton *>("overwriteYes")->click();
                     else
                         box->findChild<QPushButton *>(skip ? "overwriteNo" : "overwriteCancel")
                             ->click();
@@ -388,14 +386,24 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         inspectCompletedPanels(
             window, *sourceView, *peerView,
             QString("copy-outside-peer-%1-%2-%3").arg(sourceIndex).arg(large).arg(outcome));
-        if (cancel) {
+        if (cancel || (overwrite && !skip)) {
+            const int promptsBeforeRetry = overwritePrompts;
             retry = true;
             seen = false;
-            QTest::keyClick(window.focusWidget(), Qt::Key_F5);
+            QTest::keyClick(window.focusWidget(), move ? Qt::Key_F6 : Qt::Key_F5);
             QVERIFY(seen);
             QTRY_COMPARE(read(QDir(output).filePath(name)), QByteArray("control bytes"));
             QTRY_COMPARE(peerView->rowCount(), originalRows + 1);
-            QCOMPARE(read(QDir(input).filePath(name)), QByteArray("control bytes"));
+            QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+            QCOMPARE(overwritePrompts - promptsBeforeRetry, cancelBatchMove ? 2 : int(overwrite));
+            if (cancelBatchMove) {
+                QVERIFY(!QFileInfo::exists(QDir(input).filePath(name)));
+                QVERIFY(!QFileInfo::exists(QDir(input).filePath(other)));
+                QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            } else {
+                QCOMPARE(read(QDir(input).filePath(name)), QByteArray("control bytes"));
+            }
+            QTRY_COMPARE(window.focusWidget(), sourceView);
         }
         if (outcome == "copy" || outcome == "move") {
             QTRY_COMPARE(window.focusWidget(), sourceView);
