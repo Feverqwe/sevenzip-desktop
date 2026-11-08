@@ -522,14 +522,17 @@ class CompressionPathTests final : public QObject {
         }
     }
     void occupiedArchiveNameCanBeCorrected_data() {
-        QTest::addColumn<bool>("dangling");
+        QTest::addColumn<QString>("obstruction");
 #ifdef Q_OS_UNIX
-        QTest::newRow("dangling-link") << true;
+        QTest::newRow("dangling-link") << QString("link");
 #endif
-        QTest::newRow("read-only-archive") << false;
+        QTest::newRow("read-only-archive") << QString("read-only");
+        QTest::newRow("existing-folder") << QString("folder");
     }
     void occupiedArchiveNameCanBeCorrected() {
-        QFETCH(bool, dangling);
+        QFETCH(QString, obstruction);
+        const bool dangling = obstruction == "link";
+        const bool folder = obstruction == "folder";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString missing = fixture.filePath("missing.7z");
@@ -541,7 +544,9 @@ class CompressionPathTests final : public QObject {
             if (originalPermissions)
                 QFile::setPermissions(occupied, originalPermissions);
         });
-        if (dangling)
+        if (folder)
+            QVERIFY(QDir().mkdir(occupied));
+        else if (dangling)
             QVERIFY(QFile::link(missing, occupied));
         else {
             QCOMPARE(SourceCreationFixture::Create(backend, occupied, {source_}), S_OK);
@@ -568,13 +573,17 @@ class CompressionPathTests final : public QObject {
         submit(dialog);
         QVERIFY(dialog.isVisible());
         QVERIFY2(diagnostic.contains(QDir::toNativeSeparators(occupied)), qPrintable(diagnostic));
+        if (folder)
+            QVERIFY2(diagnostic.contains("Archive path is a folder"), qPrintable(diagnostic));
         QCOMPARE(name->text(), QString("old.7z"));
         name->setText("new.7z");
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources()), S_OK);
         QVERIFY(QFileInfo(fixture.filePath("new.7z")).isFile());
-        if (dangling) {
+        if (folder) {
+            QVERIFY(QFileInfo(occupied).isDir());
+        } else if (dangling) {
             QVERIFY(QFileInfo(occupied).isSymLink());
             QVERIFY(!QFileInfo::exists(missing));
         } else {

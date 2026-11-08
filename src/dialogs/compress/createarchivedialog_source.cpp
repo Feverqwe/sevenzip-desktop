@@ -147,10 +147,14 @@ void CreateArchiveDialog::validateAndAccept() {
     const QFileInfo target(resolved);
     const bool singleVolume = volumeInfo.VolumeSizes.IsEmpty();
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
-    QString pathError = !hasFileName || invalidName || invalidFolder || resolved.isEmpty() ||
-                                target.isDir() || danglingTarget
-                            ? InvalidArchivePath()
-                            : ArchiveDirectoryError(target.absolutePath());
+    QString pathError =
+        !hasFileName || invalidName || invalidFolder || resolved.isEmpty() || danglingTarget
+            ? InvalidArchivePath()
+            : ArchiveDirectoryError(target.absolutePath());
+    if (pathError.isEmpty() && target.isDir())
+        pathError =
+            QCoreApplication::translate("CreateArchiveDialog", "Archive path is a folder: %1")
+                .arg(QDir::toNativeSeparators(resolved));
     if (danglingTarget)
         pathError += '\n' + QDir::toNativeSeparators(resolved);
     if (pathError.isEmpty() && singleVolume && target.exists()) {

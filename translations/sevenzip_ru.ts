@@ -621,6 +621,7 @@
     </context>
     <context>
         <name>CreateArchiveDialog</name>
+        <message><source>Archive path is a folder: %1</source><translation>Путь архива указывает на папку: %1</translation></message>
         <message>
             <location filename="../src/dialogs/compress/createarchivedialog.cpp" line="+51" />
             <source>Incorrect archive path</source>
