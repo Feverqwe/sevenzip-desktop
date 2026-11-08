@@ -69,6 +69,13 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
                                       : path;
     const QFileInfo info(nativeAddress);
     if (!sourceAddress && info.isDir() && !IsSparseBundleName(ToUString(nativeAddress))) {
+        auto &panel = app_.GetFocusedPanel();
+        if (projectedUi().state == State::Filesystem && !projectedUi().scanningDisk &&
+            panel.IsFSFolder() && info.canonicalFilePath() == projectedUi().directory) {
+            CSelectedState selection;
+            panel.SaveSelectedState(selection);
+            return refreshFilesystem(selection, true, captureListViewport());
+        }
         workspace_->ProtectNavigation(nativeAddress);
         return showDirectory(nativeAddress, true);
     } else if (!sourceAddress && IsArchiveFileOrPackage(info))
