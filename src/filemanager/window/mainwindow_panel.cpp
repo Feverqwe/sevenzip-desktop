@@ -178,12 +178,12 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     connect(projectedUi().table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             [this, index] {
                 if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
-                    refreshActions();
+                    refreshSelectionActions();
             });
     connect(projectedUi().table->selectionModel(), &QItemSelectionModel::currentChanged, this,
             [this, index] {
                 if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
-                    refreshActions();
+                    refreshSelectionActions();
             });
     if (!panelSplitter_) {
         panelSplitter_ = new QtFileManagerSplitter(this);

@@ -35,6 +35,7 @@ class QtWindowWorkspace final : public QObject {
     explicit QtWindowWorkspace(MainWindow &window);
     void AttachPanel(unsigned panel, QVBoxLayout &layout);
     void Refresh();
+    void RefreshChrome();
     QJsonObject Save();
     void Restore(const QJsonObject &state, std::function<void()> finished = {},
                  std::function<void()> canceled = {}, const QtArchiveLocation &firstArchive = {});
@@ -152,7 +153,6 @@ class QtWindowWorkspace final : public QObject {
                                  const QtArchiveLocation &archive, QString *failure = nullptr);
     bool LocationMatches(unsigned panel, const QString &path);
     void CreateActions(unsigned panel, QVBoxLayout &layout);
-    void RefreshChrome();
     void ShowArchiveChangeNotice(unsigned panel);
     void AddFavorite();
     void OpenFavorite(const QtFavorite &favorite);

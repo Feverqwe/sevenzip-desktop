@@ -83,6 +83,17 @@ void MainWindow::refreshActions() {
         clipboard_->Refresh();
 }
 
+void MainWindow::refreshSelectionActions() {
+    if (commands_) {
+        commands_->RefreshActions();
+        if (!projectedUi().scanningDisk && !projectedUi().scanningArchive)
+            app_.GetFocusedPanel().Refresh_StatusBar();
+    }
+    workspace_->RefreshChrome();
+    if (clipboard_)
+        clipboard_->Refresh();
+}
+
 void MainWindow::refreshPanelStatus() {
     auto &panel = app_.GetFocusedPanel();
     panel.Refresh_StatusBar();

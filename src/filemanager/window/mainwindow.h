@@ -271,6 +271,7 @@ class MainWindow : public QMainWindow {
     HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index);
     void setState(State state);
     void refreshActions();
+    void refreshSelectionActions();
     void refreshPanelStatus();
     void showPanelStatus(unsigned panel, const CPanelStatus &status);
     void showStatusMessage(const QString &message, int timeout = 5000);
