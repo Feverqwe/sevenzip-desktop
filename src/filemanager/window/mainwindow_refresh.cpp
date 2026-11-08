@@ -64,16 +64,18 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
 
     auto *view = qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
     int topRow = -1;
-    int iconOffset = 0;
+    int topOffset = 0;
     if (view == projectedUi().table) {
         topRow = projectedUi().table->rowAt(0);
+        if (topRow >= 0)
+            topOffset = projectedUi().table->rowViewportPosition(topRow);
     } else {
         const QRect visible = view->viewport()->rect();
         for (int row = 0; row < view->model()->rowCount(); ++row) {
             const QRect item = view->visualRect(view->model()->index(row, 0));
             if (visible.intersects(item)) {
                 topRow = row;
-                iconOffset = item.top();
+                topOffset = item.top();
                 break;
             }
         }
@@ -82,7 +84,7 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
     const FilesystemViewport viewport(
         view, projectedUi().directory, topPath,
         QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
-        iconOffset);
+        topOffset);
     return refreshFilesystem(selection, true, viewport);
 }
 
@@ -220,12 +222,18 @@ void MainWindow::restoreAutoRefreshViewport() {
         view->verticalScrollBar()->setValue(viewport->scrollPosition.y());
     } else if (view == projectedUi().table) {
         view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtTop);
+        if (view->verticalScrollMode() == QAbstractItemView::ScrollPerPixel) {
+            auto *scroll = view->verticalScrollBar();
+            const int displacement =
+                projectedUi().table->rowViewportPosition(row) - viewport->topOffset;
+            scroll->setValue(scroll->value() + displacement);
+        }
     } else {
         auto *scroll = view->verticalScrollBar();
         scroll->setValue(viewport->scrollPosition.y());
         const QModelIndex anchor = view->model()->index(row, 0);
         // Keep the original offset even when the icon is partly scrolled out.
-        const int displacement = view->visualRect(anchor).top() - viewport->iconTopOffset;
+        const int displacement = view->visualRect(anchor).top() - viewport->topOffset;
         scroll->setValue(scroll->value() + displacement);
     }
     view->horizontalScrollBar()->setValue(viewport->scrollPosition.x());

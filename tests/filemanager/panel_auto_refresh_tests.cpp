@@ -114,6 +114,48 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(view->selectionModel()->isRowSelected(files->currentRow(), {}));
     }
 
+    void tableKeepsPartiallyVisibleRowAcrossRefresh_data() {
+        QTest::addColumn<bool>("manual");
+        QTest::newRow("automatic") << false;
+        QTest::newRow("manual") << true;
+    }
+
+    void tableKeepsPartiallyVisibleRowAcrossRefresh() {
+        QFETCH(bool, manual);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        CurrentDirectoryGuard directoryGuard;
+        QVERIFY(QDir::setCurrent(fixture.path()));
+        for (int i = 0; i < 80; ++i)
+            QVERIFY(writeFile(fixture.filePath(QString("file-%1.txt").arg(i, 3, 10, QChar('0')))));
+
+        MainWindow window;
+        window.resize(640, 400);
+        window.show();
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 80);
+        if (manual)
+            files->sourcePanel->Set_AutoRefresh_Mode(false);
+        files->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        const QString anchorName = QStringLiteral("file-035.txt");
+        const int row = filesystemRow(window, anchorName);
+        QVERIFY(row >= 0);
+        files->scrollTo(files->model()->index(row, 0), QAbstractItemView::PositionAtTop);
+        auto *scroll = files->verticalScrollBar();
+        scroll->setValue(scroll->value() + files->rowHeight(row) / 2);
+        QCOMPARE(files->rowAt(0), row);
+        const int topOffset = files->rowViewportPosition(row);
+        QVERIFY(topOffset < 0);
+
+        QVERIFY(writeFile(fixture.filePath("000-new.txt")));
+        if (manual)
+            action(window, "refreshAction")->trigger();
+        QTRY_VERIFY_WITH_TIMEOUT(files->isEnabled() && files->rowCount() == 81, 5000);
+        const int restoredRow = filesystemRow(window, anchorName);
+        QCOMPARE(files->rowAt(0), restoredRow);
+        QCOMPARE(files->rowViewportPosition(restoredRow), topOffset);
+    }
+
     void detectsChangesAndPreservesSelectionAndScroll() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
