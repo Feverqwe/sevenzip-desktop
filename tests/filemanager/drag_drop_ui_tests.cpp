@@ -277,6 +277,11 @@ class DragDropUiTests final : public QObject {
         auto *table = window.findChild<FileTable *>("archiveTable");
         QVERIFY(table);
         QTRY_VERIFY(table->isVisible() && table->dragEnabled() && Row(*table, name) >= 0);
+        const auto sourceReady = [&] {
+            return table->isEnabled() && table->dragEnabled() &&
+                   table->currentIndex().data(QtPanelList::NameRole).toString() == name &&
+                   table->selectionModel()->isSelected(table->currentIndex());
+        };
         const QRect item = table->visualRect(table->model()->index(Row(*table, name), 0));
         const QPoint itemPoint(item.left() + 26, item.center().y());
         QPoint from = table->viewport()->mapToGlobal(itemPoint);
@@ -379,6 +384,7 @@ class DragDropUiTests final : public QObject {
             for (const auto &entry : QtOwnedTempRegistry().Entries())
                 QVERIFY(!QFileInfo::exists(QDir(entry.path).filePath(name)));
             QCOMPARE(SourceExtractFixture::readFile(archive), original);
+            QTRY_VERIFY(sourceReady());
             return;
         }
 #else
@@ -429,6 +435,7 @@ class DragDropUiTests final : public QObject {
             for (const auto &entry : QtOwnedTempRegistry().Entries())
                 QVERIFY(!QFileInfo::exists(QDir(entry.path).filePath(name)));
             QCOMPARE(SourceExtractFixture::readFile(archive), original);
+            QTRY_VERIFY(sourceReady());
             return;
         }
 #endif
