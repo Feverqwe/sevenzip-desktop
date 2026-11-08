@@ -351,6 +351,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         }
 
         bool answered = false;
+        bool retrying = false;
         QTimer drive;
         dialogs_.connectResponder(drive, &destinationWindow, [&] {
             auto *dialog = dialogs_.activeDialog();
@@ -360,7 +361,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 answered = true;
                 if (replaceClipboard)
                     QApplication::clipboard()->setText("new clipboard data");
-                if (cancel)
+                if (retrying)
+                    question->findChild<QPushButton *>("overwriteYes")->click();
+                else if (cancel)
                     QTest::keyClick(question, Qt::Key_Escape);
                 else
                     question->findChild<QPushButton *>("overwriteNo")->click();
@@ -397,10 +400,11 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(urls.size(), cancel ? 2 : 1);
         QVERIFY(urls.contains(skippedUrl));
         QCOMPARE(urls.contains(movedUrl), cancel);
-        QVERIFY(QFile::remove(destination + '/' + skipped));
+        answered = false;
+        retrying = true;
         QVERIFY(paste->isEnabled());
         paste->trigger();
-        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
         QCOMPARE(read(destination + '/' + moved), QByteArray("moved bytes"));
         QVERIFY(!QFileInfo::exists(source + '/' + moved));
