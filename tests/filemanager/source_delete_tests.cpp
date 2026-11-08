@@ -637,6 +637,10 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         trash.failAfter = -1;
         MainWindow window(&backend, {}, &trash);
         window.show();
+        action(window, "twoPanelsAction")->trigger();
+        auto *peer = openPanel(window, 1, fixture.path());
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 258);
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 258);
         QVERIFY(WindowActivation::waitForActive(window));
@@ -652,8 +656,11 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         view->selectRow(130);
         view->selectionModel()->select(view->model()->index(120, 0),
                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
         action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
-        auto *active = icons ? window.findChild<QAbstractItemView *>("iconList") : view;
+        auto *active =
+            icons ? view->parentWidget()->findChild<QAbstractItemView *>("iconList") : view;
         QVERIFY(active && active->isVisible());
         active->setFocus();
         QSemaphore resume;
@@ -679,6 +686,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         answer.stop();
         QVERIFY(sawProgress);
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 256);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 256);
         QCOMPARE(window.focusWidget(), active);
         QVERIFY(panel.ShouldProcessNotifications());
         QVERIFY(!QFileInfo::exists(fixture.filePath(removed)));

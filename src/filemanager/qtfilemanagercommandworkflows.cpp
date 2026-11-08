@@ -102,9 +102,8 @@ void QtFileManagerCommands::MoveToTrash() {
     window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
     if (moved && !directory.isEmpty()) {
         if (auto *application = QtWorkspaceApplication::Find())
-            application->FilesystemPublished({directory});
-        else
-            window_.guiOutputRefresh_->Enqueue({directory}, {});
+            application->FilesystemPublished({directory}, &window_);
+        window_.guiOutputRefresh_->Enqueue({directory}, {}, int(index));
     }
     if (review) {
         window_.workspace_->WhenReady(
