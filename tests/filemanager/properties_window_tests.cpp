@@ -7,6 +7,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#include "support/window_activation.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
@@ -217,8 +218,20 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(!second);
         QVERIFY(first && first->isVisible());
         QTRY_COMPARE(QApplication::focusWidget(), focusTarget);
+        ControlledBackend otherBackend;
+        MainWindow other(&otherBackend);
+        other.show();
+        QVERIFY(WindowActivation::waitForActive(other));
+        QWidget *otherView = table(other);
+        if (!otherView->isVisible())
+            otherView = other.findChild<QListView *>("iconList");
+        QVERIFY(otherView && otherView->isVisible());
+        otherView->setFocus();
+        QTRY_VERIFY(otherView->hasFocus());
         first->close();
         QTRY_VERIFY(!first);
+        QCOMPARE(QApplication::activeWindow(), static_cast<QWidget *>(&other));
+        QCOMPARE(QApplication::focusWidget(), otherView);
         QCOMPARE(backend.extractCalls, 0);
     }
     void overflowingSourceTotalIsNotShownAsZero() {
