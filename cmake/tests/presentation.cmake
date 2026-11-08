@@ -34,6 +34,10 @@ if(BUILD_TESTING)
                 "$<TARGET_FILE:drag_drop_ui_tests>" -silent
                 fileExportCanBeCopiedByRecipient:filesystem-clipboard
                 fileExportCanBeCopiedByRecipient:archive-clipboard)
+            add_test(NAME native_file_drag COMMAND "${SEVENZIP_XVFB_RUN}" -a
+                "$<TARGET_FILE:drag_drop_ui_tests>" -silent archiveDragReachesNativeDropReceiver)
+            set_tests_properties(native_file_drag PROPERTIES TIMEOUT 30 ENVIRONMENT
+                "QT_QPA_PLATFORM=xcb;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-file-drag.ini")
             set(sevenzip_clipboard_qpa xcb)
         endif()
     endif()

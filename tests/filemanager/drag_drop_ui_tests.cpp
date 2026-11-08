@@ -15,6 +15,7 @@
 #include <QContextMenuEvent>
 #include <QDrag>
 #include <QDragLeaveEvent>
+#include <QLibrary>
 #include <QMouseEvent>
 #include <QProcess>
 #include <QScopeGuard>
@@ -46,12 +47,120 @@ bool CopyExport(const QMimeData *mime, const QString &destination) {
     return urls.size() == 1 && urls.front().isLocalFile() &&
            QFile::copy(urls.front().toLocalFile(), destination);
 }
+
+#ifdef Q_OS_LINUX
+class NativeDropReceiver final : public QWidget {
+  public:
+    QString Destination;
+    bool Entered = false;
+
+    explicit NativeDropReceiver(const QString &destination) : Destination(destination) {
+        setAcceptDrops(true);
+    }
+    void dragEnterEvent(QDragEnterEvent *event) override {
+        if (event->mimeData()->hasUrls()) {
+            Entered = true;
+            event->acceptProposedAction();
+        }
+    }
+    void dropEvent(QDropEvent *event) override {
+        if (CopyExport(event->mimeData(), Destination))
+            event->acceptProposedAction();
+    }
+};
+#endif
 } // namespace
 
 class DragDropUiTests final : public QObject {
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+#ifdef Q_OS_LINUX
+    void archiveDragReachesNativeDropReceiver() {
+        if (QGuiApplication::platformName() != QStringLiteral("xcb"))
+            QSKIP("Requires an isolated X11 display");
+        QLibrary x11("X11", 6), xtest("Xtst", 6);
+        const auto open = reinterpret_cast<void *(*)(const char *)>(x11.resolve("XOpenDisplay"));
+        const auto close = reinterpret_cast<int (*)(void *)>(x11.resolve("XCloseDisplay"));
+        const auto flush = reinterpret_cast<int (*)(void *)>(x11.resolve("XFlush"));
+        const auto motion = reinterpret_cast<int (*)(void *, int, int, int, unsigned long)>(
+            xtest.resolve("XTestFakeMotionEvent"));
+        const auto button = reinterpret_cast<int (*)(void *, unsigned, int, unsigned long)>(
+            xtest.resolve("XTestFakeButtonEvent"));
+        QVERIFY(open && close && flush && motion && button);
+        auto *display = open(nullptr);
+        QVERIFY(display);
+        const auto closeDisplay = qScopeGuard([&] { close(display); });
+        const auto pointAt = [&](const QPoint &point) {
+            motion(display, -1, point.x(), point.y(), 0);
+            flush(display);
+        };
+        const auto press = [&](bool down) {
+            button(display, 1, down, 0);
+            flush(display);
+        };
+        const auto release = qScopeGuard([&] { press(false); });
+
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
+                                             fixture.filePath("owned-temp"));
+        const auto cleanup = qScopeGuard([] {
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                QDir(entry.path).removeRecursively();
+        });
+        const QString name = QStringLiteral("архивный файл 空.bin");
+        const QByteArray payload("native drag\0payload", 19);
+        const QString archive = fixture.filePath("input.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{ name, payload }}, "zip"));
+        const auto original = SourceExtractFixture::readFile(archive);
+        const auto destination = fixture.filePath(name);
+        NativeDropReceiver receiver(destination);
+        receiver.setGeometry(1000, 100, 220, 300);
+        receiver.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&receiver));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.setGeometry(10, 50, 850, 540);
+        window.show();
+        window.openArchive(archive);
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.findChild<QAction *>("viewMode3Action")->trigger();
+        auto *table = window.findChild<FileTable *>("archiveTable");
+        QVERIFY(table);
+        QTRY_VERIFY(table->isVisible() && table->dragEnabled() && Row(*table, name) >= 0);
+        const QRect item = table->visualRect(table->model()->index(Row(*table, name), 0));
+        const QPoint from =
+            table->viewport()->mapToGlobal(QPoint(item.left() + 26, item.center().y()));
+        const QPoint to = receiver.mapToGlobal(receiver.rect().center());
+        QTimer drive, watchdog;
+        connect(&drive, &QTimer::timeout, &window, [&] {
+            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+            if (receiver.Entered) {
+                drive.stop();
+                press(false);
+            } else if (window.findChild<QDrag *>()) {
+                pointAt(to);
+            }
+        });
+        connect(&watchdog, &QTimer::timeout, &window, [&] {
+            drive.stop();
+            press(false);
+            QDrag::cancel();
+        });
+        watchdog.setSingleShot(true);
+        pointAt(from);
+        press(true);
+        QTimer::singleShot(50, &window, [&] {
+            pointAt(from + QPoint(QApplication::startDragDistance() + 10, 0));
+        });
+        drive.start(10);
+        watchdog.start(7000);
+        QTRY_COMPARE_WITH_TIMEOUT(SourceExtractFixture::readFile(destination), payload, 8000);
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+    }
+#endif
 
     void fileExportCanBeCopiedByRecipient_data() {
         QTest::addColumn<bool>("archiveSource");
