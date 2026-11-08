@@ -50,6 +50,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QFETCH(QString, visible);
         QFETCH(bool, throughLink);
         QFETCH(bool, unchanged);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         QTemporaryDir aliases;
         QVERIFY(fixture.isValid());

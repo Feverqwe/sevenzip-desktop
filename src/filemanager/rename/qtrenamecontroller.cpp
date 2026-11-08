@@ -195,6 +195,7 @@ void QtRenameController::Apply(const Request &request) {
 void QtRenameController::Finish(const Request &request, CPanel &panel) {
     QString destinationDirectory;
     QString publishedArchive;
+    HRESULT result = E_INVALIDARG;
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
         if (request.name.contains(QChar::Null) ||
@@ -202,8 +203,8 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
             CPanel::CDisableTimerProcessing disableTimer(panel);
             panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         } else
-            panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name),
-                                 &destinationDirectory, &publishedArchive);
+            result = panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name),
+                                          &destinationDirectory, &publishedArchive);
     }
     const auto selection = panel.TakeRefreshSelection();
     if (!selection) {
@@ -214,7 +215,9 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     }
     // The source worker owns operation errors. Its posted reload ignores the
     // publication result and must not add a second rename diagnostic.
-    if (window_.renderBoundFolder() == S_OK)
+    if (result != S_OK && panel.IsFSFolder())
+        panel.RefreshListCtrl(*selection);
+    else if (window_.renderBoundFolder() == S_OK)
         window_.restoreListSelection(*selection);
     if (!publishedArchive.isEmpty()) {
         if (auto *application = QtWorkspaceApplication::Find())

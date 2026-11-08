@@ -1,7 +1,9 @@
 #include "filemanager/support/window_state_support.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include <QInputMethodEvent>
+#include <QScrollBar>
 #include <QStyledItemDelegate>
 
 namespace {
@@ -176,14 +178,17 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QFETCH(bool, icons);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString original = fixture.filePath("a.txt");
+        const QString originalName = QStringLiteral("m060.txt");
+        const QString original = fixture.filePath(originalName);
         const QString renamed = fixture.filePath("z.txt");
         QFile input(original);
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("payload"), qint64(7));
         input.close();
-        for (int i = 0; i < 120; ++i) {
-            QFile peer(fixture.filePath(QString("m%1.txt").arg(i)));
+        for (int i = 0; i <= 120; ++i) {
+            if (i == 60)
+                continue;
+            QFile peer(fixture.filePath(QString("m%1.txt").arg(i, 3, 10, QChar('0'))));
             QVERIFY(peer.open(QIODevice::WriteOnly));
         }
         ControlledBackend backend;
@@ -198,12 +203,38 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         auto *active = icons ? window.findChild<QAbstractItemView *>("iconList") : view;
         QVERIFY(active);
         active->setFocus();
-        const auto first = active->model()->index(0, 0);
-        active->setCurrentIndex(first);
+        const int row = filesystemRow(window, originalName);
+        QVERIFY(row >= 0);
+        const auto source = active->model()->index(row, 0);
+        active->setCurrentIndex(source);
+        active->scrollTo(source, QAbstractItemView::PositionAtCenter);
         action(window, "renameAction")->trigger();
         auto *editor = active->findChild<QLineEdit *>();
         QVERIFY(editor);
-        QCOMPARE(editor->text(), QString("a.txt"));
+        QCOMPARE(editor->text(), originalName);
+        const int position = active->verticalScrollBar()->value();
+        QVERIFY(position > 0);
+        bool reported = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                reported = true;
+                TestProgressDialog::CloseResult(*result);
+            }
+        });
+        responder.start(2);
+        editor->setText("m061.txt");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(reported && active->isEnabled());
+        responder.stop();
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), originalName);
+        QCOMPARE(active->verticalScrollBar()->value(), position);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(active->hasFocus());
+        QTest::keyClick(active, Qt::Key_F2);
+        editor = active->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
         editor->setText("z.txt");
         QTest::keyClick(editor, Qt::Key_Return);
         QTRY_COMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
