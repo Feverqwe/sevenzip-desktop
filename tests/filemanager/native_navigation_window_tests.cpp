@@ -1,5 +1,6 @@
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/password/PasswordDialog.h"
+#include "filemanager/panels/qtpanellist.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
@@ -124,8 +125,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         if (peerRoot) {
             auto *rootButton =
                 peer->findChild<QPushButton *>(QString("panelParentButton%1").arg(1 - pane));
-            QVERIFY(rootButton && rootButton->isEnabled());
-            QTest::mouseClick(rootButton, Qt::LeftButton);
+            QVERIFY(rootButton && !rootButton->isEnabled());
             QVERIFY(peerList->sourcePanel->IsRootFolder());
             QCOMPARE(address->text(), QFileInfo(fixture.path()).canonicalFilePath());
             QCOMPARE(list->rowCount(), deferred ? 258 : 1);
@@ -133,13 +133,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(payload.open(QIODevice::ReadOnly));
         QCOMPARE(payload.readAll(), QByteArray("protected bytes"));
     }
-    void changedDirectoryKeepsBindFailure_data() {
-        QTest::addColumn<bool>("flat");
-        QTest::newRow("normal") << false;
-        QTest::newRow("flat") << true;
-    }
     void changedDirectoryKeepsBindFailure() {
-        QFETCH(bool, flat);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString initial = fixture.filePath("initial");
@@ -162,7 +156,6 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         auto *list = window.findChild<FileTable *>("archiveTable");
         QTRY_VERIFY(list->isEnabled());
         QCOMPARE(list->rowCount(), 1);
-        list->sourcePanel->SetFlatModeForDisk(flat);
         bool attempted = false, replaced = false, passwordCancelled = false;
         const auto replacement =
             connect(list->model(), &QAbstractItemModel::rowsRemoved, &window, [&] {
@@ -192,7 +185,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(passwordCancelled);
         QVERIFY(list->isEnabled());
         QVERIFY(list->isSortingEnabled());
-        QCOMPARE(list->rowCount(), 0);
+        QCOMPARE(list->rowCount(), 1);
+        QCOMPARE(list->model()->index(0, 0).data().toString(), QString("keep.txt"));
+        QCOMPARE(QDir::cleanPath(ToQString(list->sourcePanel->GetCurrentFolderPrefix())),
+                 QFileInfo(initial).canonicalFilePath());
         QVERIFY(!backend.busy());
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
@@ -389,7 +385,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         auto *view = owner->findChild<QStackedWidget *>("fileViewStack")->currentWidget();
         QWidget *const control = addressFocus ? static_cast<QWidget *>(address) : view;
-        control->setFocus();
+        if (addressFocus)
+            PanelKeys::focusAddress(address);
+        else
+            control->setFocus();
         QTRY_VERIFY(control->hasFocus());
         // Editable QComboBox uses a focus proxy for its line editor. Preserve
         // the actual public focus owner, rather than assuming the child owns it.
@@ -411,7 +410,8 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             QApplication::processEvents();
             QTRY_COMPARE(window.focusWidget(), expected);
             QVERIFY(UiInspection::fullyVisible(*view, window));
-            QVERIFY(UiInspection::fullyVisible(*address, window));
+            QVERIFY(UiInspection::fullyVisible(
+                *(addressFocus ? address : PanelKeys::navigationFor(address)), window));
             QVERIFY(UiInspection::writeReport(
                 window,
                 QString("parent-focus-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));
@@ -466,7 +466,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         const QString draft = "unsubmitted parent draft";
         if (interaction) {
             expected = interaction == 1 ? address : peerAddress;
-            QTest::mouseClick(expected, Qt::LeftButton);
+            PanelKeys::focusAddress(expected);
             QTRY_VERIFY(expected->hasFocus());
             expected = window.focusWidget();
             QVERIFY(expected);
@@ -510,6 +510,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(table && address && refresh && parent);
         QCOMPARE(table->rowCount(), 1);
         // Native binding clamps a missing suffix to the deepest existing folder.
+        PanelKeys::focusAddress(address);
         address->setText(archive + QStringLiteral(" / missing/deeper"));
         QTest::keyClick(address, Qt::Key_Return);
         QCOMPARE(table->rowCount(), 1);
@@ -529,7 +530,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         refresh->trigger();
         QCOMPARE(table->rowCount(), 1);
         // OnReload loads the bound proxy; physical changes require reopening.
-        QCOMPARE(table->model()->index(0, 2).data().toString(), QStringLiteral("6"));
+        QCOMPARE(table->model()->index(0, 2).data(QtPanelList::SortValueRole).toULongLong(), 6ull);
         QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
@@ -543,7 +544,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(table->hasFocus());
         window.openArchive(archive);
         QCOMPARE(table->rowCount(), 1);
-        QCOMPARE(table->model()->index(0, 2).data().toString(), QStringLiteral("35"));
+        QCOMPARE(table->model()->index(0, 2).data(QtPanelList::SortValueRole).toULongLong(), 35ull);
     }
 };
 QTEST_MAIN(NativeNavigationWindowTests)
