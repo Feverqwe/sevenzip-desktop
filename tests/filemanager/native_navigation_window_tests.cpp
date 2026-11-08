@@ -98,6 +98,11 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         peerList->setCurrentCell(0, 0);
         peerList->selectRow(0);
         const QString originalPeer = peerAddress->text();
+        PanelKeys::focusAddress(peerAddress);
+        QTRY_VERIFY(peerAddress->hasFocus());
+        peerAddress->selectAll();
+        QTest::keyClicks(peerAddress, "unfinished peer path");
+        peerAddress->setSelection(2, 5);
 
         openFilesystemPanel(window, 0, selectedFolder ? parent : source);
         QVERIFY(!QTest::currentTestFailed());
@@ -116,13 +121,19 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                 workspace = owner;
         QVERIFY(workspace);
         QVERIFY(QDir().rename(source, moved));
+        const auto draft = peerAddress->text();
+        QCOMPARE(draft, QString("unfinished peer path"));
+        const auto selectedText = peerAddress->selectedText();
+        const int cursor = peerAddress->cursorPosition();
         if (selectedFolder)
             command();
         else
             QCOMPARE(workspace->OpenFolderInPeer(0), HRESULT(S_FALSE));
         QVERIFY(window.statusBar()->currentMessage().contains(source));
         QTRY_VERIFY(peerList->isEnabled());
-        QCOMPARE(peerAddress->text(), originalPeer);
+        QCOMPARE(peerAddress->text(), draft);
+        QCOMPARE(peerAddress->selectedText(), selectedText);
+        QCOMPARE(peerAddress->cursorPosition(), cursor);
         QCOMPARE(peerList->currentIndex().data().toString(), QStringLiteral("peer.txt"));
         QCOMPARE(peerList->selectionModel()->selectedRows(),
                  QModelIndexList{peerList->currentIndex()});
@@ -133,6 +144,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         command();
         QTRY_COMPARE(peerList->rowCount(), extraEntries + 1);
         QTRY_VERIFY(peerList->isEnabled());
+        QCOMPARE(QDir::cleanPath(peerAddress->text()), QDir::cleanPath(source));
         QTRY_COMPARE(peerList->model()->index(0, 0).data().toString(),
                      QStringLiteral("source.txt"));
         QTRY_VERIFY(window.statusBar()->currentMessage().isEmpty());
