@@ -153,8 +153,9 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
 
+        const QString missingName = QStringLiteral("missing 文件.txt");
         auto *clipboard = new QMimeData;
-        clipboard->setUrls({QUrl::fromLocalFile(peerDirectory.filePath("missing.txt"))});
+        clipboard->setUrls({QUrl::fromLocalFile(peerDirectory.filePath(missingName))});
         QApplication::clipboard()->setMimeData(clipboard);
         const QString pasteLabel = action(window, "pasteFilesAction")->text();
         bool pasteChosen = false;
@@ -172,12 +173,15 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                 }
             QFAIL("Paste action missing");
         });
-        bool reported = false;
+        QString report;
         QTimer dismiss;
         connect(&dismiss, &QTimer::timeout, &window, [&] {
             for (auto *widget : QApplication::topLevelWidgets())
-                if (TestProgressDialog::DismissVisibleResult(widget))
-                    reported = true;
+                if (auto *result = TestProgressDialog::ResultWindow(widget);
+                    result && result->isVisible()) {
+                    report = TestProgressDialog::ReportText(*result);
+                    TestProgressDialog::CloseResult(*result);
+                }
         });
         dismiss.start(5);
         const QPoint point =
@@ -185,9 +189,10 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QMetaObject::invokeMethod(owner, "customContextMenuRequested", Qt::DirectConnection,
                                           Q_ARG(QPoint, point)));
         QVERIFY(pasteChosen);
-        QTRY_VERIFY(reported);
+        QTRY_VERIFY(!report.isEmpty());
         dismiss.stop();
-        QVERIFY(!QFileInfo::exists(destination.filePath("missing.txt")));
+        QVERIFY(report.contains(missingName));
+        QVERIFY(!QFileInfo::exists(destination.filePath(missingName)));
         QTRY_VERIFY(action(window, "settingsAction")->isEnabled());
         window.activateWindow();
         QVERIFY(WindowActivation::waitForActive(window));

@@ -156,16 +156,23 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
     }
     for (const QString &source : worker_.sources_) {
         const QFileInfo info(source);
+        const bool sourceLink = QtIsFileSystemLink(source);
+        auto member =
+            sourceLink || info.isFile() || info.isDir() ? captureMember(source) : std::nullopt;
+        if (!member) {
+            error =
+                QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
+                    .arg(source);
+            return {};
+        }
         const QString target = directPath ? worker_.destination_
                                           : QDir(destinationDirectory_).filePath(info.fileName());
         const QFileInfo targetInfo(target);
-        const bool sourceLink = QtIsFileSystemLink(source);
         const bool samePath = QDir::cleanPath(info.absoluteFilePath()) ==
                                   QDir::cleanPath(targetInfo.absoluteFilePath()) ||
                               (!sourceLink && targetInfo.exists() &&
                                info.canonicalFilePath() == targetInfo.canonicalFilePath());
-        if ((!sourceLink && (!info.exists() || (!info.isFile() && !info.isDir()))) ||
-            QtIsFileSystemLink(target) || samePath ||
+        if (QtIsFileSystemLink(target) || samePath ||
             std::any_of(targets.cbegin(), targets.cend(),
                         [&target](const TransferPath &path) { return path.target == target; }) ||
             (!sourceLink && info.isDir() &&
@@ -173,13 +180,6 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
             error = QCoreApplication::translate(
                 "qtfiletransfertransaction",
                 "Source or destination unavailable, or the name is already in use.");
-            return {};
-        }
-        auto member = captureMember(source);
-        if (!member) {
-            error =
-                QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
-                    .arg(source);
             return {};
         }
         targets.append({source, target, std::move(*member)});

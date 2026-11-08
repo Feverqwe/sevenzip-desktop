@@ -69,8 +69,10 @@ class FileTransferTests : public QObject {
             QFile file(last);
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("last bytes"));
-        } else
+        } else {
             QVERIFY(!QFileInfo::exists(last));
+            QVERIFY(result.first().at(1).toString().contains(last));
+        }
         QCOMPARE(
             QDir(destination).entryList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot),
             QStringList{name});
