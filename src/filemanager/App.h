@@ -23,6 +23,7 @@ class IQtFileManagerMenuCommandServices;
 struct QtArchiveTransferResult {
     HRESULT Result;
     QString Error;
+    bool Published = false;
 };
 
 void SetButtonText(int commandID, UString &s);

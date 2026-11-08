@@ -545,15 +545,23 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             write(QDir(output).filePath("seed.txt"), "seed control");
         const QByteArray sourceBefore = sourceArchive ? read(source) : QByteArray();
         QtWorkspaceApplication application(*qApp);
-        ArchiveBackend backend, observerBackend;
+        ArchiveBackend backend, observerBackend, sourceObserverBackend;
         MainWindow window(&backend);
         std::unique_ptr<MainWindow> observer;
-        if (targetArchive && !sourceArchive && !typedArchivePath) {
+        if (targetArchive && !typedArchivePath) {
             observer = std::make_unique<MainWindow>(&observerBackend);
             observer->show();
             observer->openArchive(target);
             QTRY_VERIFY(row(*table(*observer), "seed.txt") >= 0);
             table(*observer)->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
+        std::unique_ptr<MainWindow> sourceObserver;
+        if (sourceArchive && targetArchive && move && !typedArchivePath) {
+            sourceObserver = std::make_unique<MainWindow>(&sourceObserverBackend);
+            sourceObserver->show();
+            sourceObserver->openArchive(source);
+            QTRY_VERIFY(row(*table(*sourceObserver), first) >= 0);
+            table(*sourceObserver)->sourcePanel->Set_AutoRefresh_Mode(false);
         }
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
@@ -612,6 +620,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QVERIFY(row(*targetView, second) < 0);
         QCOMPARE(read(QDir(input).filePath(second)), secondBytes);
         if (sourceArchive) {
+            if (sourceObserver) {
+                QTRY_COMPARE(row(*table(*sourceObserver), first), -1);
+                QVERIFY(row(*table(*sourceObserver), second) >= 0);
+            }
             if (!move)
                 QCOMPARE(read(source), sourceBefore);
             QTRY_COMPARE(sourceView->rowCount(), move ? 1 : 2);
