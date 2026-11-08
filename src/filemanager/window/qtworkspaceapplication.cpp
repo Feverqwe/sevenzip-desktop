@@ -1,5 +1,6 @@
 #include "filemanager/window/qtworkspaceapplication.h"
 
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagerstartup.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
@@ -105,6 +106,16 @@ void QtWorkspaceApplication::NewWindowFrom(MainWindow &source) {
         const QJsonObject panel{{"path", ui.directory}};
         OpenWindow({{"panels", QJsonArray{panel}}, {"count", 1}}, {});
         return;
+    }
+    if (ui.scanningArchive) {
+        auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+        const auto &panel = source.app_.GetFocusedPanel();
+        const auto archive = QtArchiveLocation::Capture(panel, address->LocationSegments());
+        if (!archive.physicalPath.isEmpty()) {
+            const QJsonObject location{{"path", ToQString(panel.GetCurrentFolderPrefix())}};
+            OpenWindow({{"panels", QJsonArray{location}}, {"count", 1}}, archive);
+            return;
+        }
     }
     auto &workspace = *source.workspace_;
     const QString path = workspace.CurrentLocation();

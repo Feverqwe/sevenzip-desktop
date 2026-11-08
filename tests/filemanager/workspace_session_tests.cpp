@@ -1,3 +1,4 @@
+#include "archive/support/native_archive_fixture.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
@@ -196,22 +197,48 @@ class WorkspaceSessionTests final : public QObject {
         QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
     }
+    void newWindowOpensTheFolderBeingScanned_data() {
+        QTest::addColumn<bool>("archive");
+        QTest::newRow("filesystem") << false;
+        QTest::newRow("archive") << true;
+    }
     void newWindowOpensTheFolderBeingScanned() {
+        QFETCH(bool, archive);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+        QList<NativeArchiveFixture::Item> items;
         for (int i = 0; i < 301; ++i) {
-            QFile file(fixture.filePath(QString("file-%1.txt").arg(i)));
-            QVERIFY(file.open(QIODevice::WriteOnly));
+            const QString name = QString("file-%1.txt").arg(i);
+            if (archive)
+                items.append({QString("folder/") + name, "archive content"});
+            else {
+                QFile file(fixture.filePath(name));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+            }
         }
+        const QString path = archive ? fixture.filePath("loading.zip") : fixture.path();
+        if (archive)
+            QVERIFY(NativeArchiveFixture::Write(path, items, "zip"));
         QtWorkspaceApplication application(*qApp);
-        ControlledBackend backend;
+        ArchiveBackend backend;
         MainWindow source(&backend);
         source.show();
         source.findChild<QAction *>("openRootAction")->trigger();
         auto *table = active(source);
         QVERIFY(table);
         QCOMPARE(QtNativePlaces::RootIdentity(*table->sourcePanel), QString("computer"));
-        source.openPath(fixture.path());
+        QString warning;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &source, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                warning = box->text();
+                box->reject();
+            }
+        });
+        dismiss.start(5);
+        const QString locationPath = archive ? path + "/folder" : path;
+        source.openPath(locationPath);
+        QVERIFY2(warning.isEmpty(), qPrintable(warning));
         QVERIFY(!table->isEnabled());
         source.findChild<QAction *>("newWindowAction")->trigger();
         QPointer<MainWindow> copy;
@@ -226,7 +253,9 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(copy);
         QTRY_VERIFY(active(*copy) && active(*copy)->isEnabled() &&
                     active(*copy)->rowCount() == 301);
-        QCOMPARE(location(*copy), QFileInfo(fixture.path()).canonicalFilePath());
+        const QString canonical = QFileInfo(path).canonicalFilePath();
+        QCOMPARE(location(*copy), archive ? canonical + "/folder" : canonical);
+        QCOMPARE(active(*copy)->sourcePanel->IsArcFolder(), archive);
     }
 
     void newWindowKeepsNativeRootAcrossDeferredLanguageChange() {
