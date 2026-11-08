@@ -288,8 +288,9 @@ After Copy publication verify original source/destination saved states: ordinary
 Copy/Move clears source marks on completion, preserves the captured current
 item and peer selection, updates the source title and restores source list focus.
 Cancelling a transfer between filesystem locations or between disk and an open
-archive keeps the original source marks. A partial
-filesystem Move keeps the remaining source items selected. Shift keeps
+archive keeps the original source marks. A partial filesystem Move keeps the
+remaining source items selected. A failed transfer between archives keeps the
+selection for items still present in the source. Shift keeps
 its source saved-selection semantics. Inspect both source-panel roles under
 EN/RU1100×640/640×400, including both address/list groups and toolbar. Do not
 let delayed progress destruction replace the restored title. Offscreen window

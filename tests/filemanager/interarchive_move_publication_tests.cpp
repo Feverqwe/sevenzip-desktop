@@ -172,6 +172,14 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
         QCOMPARE(SourceExtractFixture::readFile(QDir(targetOut).filePath(targetKept)),
                  targetKept.toUtf8());
         const bool rolledBack = failure == 1 || failure == 3;
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        if (rolledBack) {
+            const auto selected = views[0]->selectionModel()->selectedRows();
+            QCOMPARE(selected.size(), 1);
+            QCOMPARE(selected.front().data().toString(), moved);
+        } else {
+            QVERIFY(views[0]->selectionModel()->selectedRows().isEmpty());
+        }
         QCOMPARE(QFileInfo::exists(QDir(sourceOut).filePath(moved)), rolledBack);
         QCOMPARE(QFileInfo::exists(QDir(targetOut).filePath(moved)), !rolledBack);
         QCOMPARE(SourceExtractFixture::readFile(

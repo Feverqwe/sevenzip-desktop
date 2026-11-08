@@ -99,6 +99,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
             this, QtLangText(IDS_COPYING),
             QCoreApplication::translate("mainwindow_archive_transfer",
                                         "Transfer between these archives is unavailable."));
+        appPresentation_->CopyFinished(true);
         return true;
     }
     if (indices.IsEmpty())
@@ -125,6 +126,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
             this, QtLangText(IDS_MOVING),
             QCoreApplication::translate("mainwindow_archive_transfer",
                                         "Could not save destination archive for rollback."));
+        appPresentation_->CopyFinished(true);
         return true;
     }
     enum class Outcome { Stopped, Updated, Retained, RolledBack, RollbackFailed };
@@ -179,7 +181,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         publish(destinationArchive, outcome == Outcome::Stopped ? nullptr : &target);
     if (sourcePublished)
         publish(sourceArchive, &source);
-    if (result == E_ABORT)
+    if (outcome != Outcome::Updated)
         appPresentation_->CopyFinished(true);
     if (outcome == Outcome::RollbackFailed) {
         terminalDiagnostics.prepend(QCoreApplication::translate(
