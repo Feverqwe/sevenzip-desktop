@@ -131,6 +131,11 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
         return true;
     }
     locationState.archiveLocation = location;
+    auto &ui = window_.panelUi_[panel];
+    auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+    const auto editRevision = address->UserEditRevision();
+    const auto draft =
+        ui.path->isModified() ? std::optional(QtAddressDraft(*ui.path)) : std::nullopt;
     CSelectedState selection;
     source.SaveSelectedState(selection);
     const auto previousState = window_.panelUi_[panel].state;
@@ -173,6 +178,12 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
             view->verticalScrollBar()->setValue(scroll.y());
         }
     });
+    const auto restored =
+        address->UserEditRevision() == editRevision ? draft : address->LastUserDraft();
+    if (restored) {
+        restored->Restore(*ui.path);
+        ui.path->setModified(true);
+    }
     if (locationState.archiveRevision != locationState.archiveApplied)
         pending();
     auto *currentWindow = QApplication::activeWindow();
