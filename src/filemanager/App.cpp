@@ -96,7 +96,8 @@ void CApp::NotifyPanelFocus(unsigned index) {
 }
 
 void CApp::RefreshTitle(bool always) {
-    if (_qtOperations.closed())
+    if (_qtOperations.closed() ||
+        (_presentation && !_presentation->AllowPanelTitleChange(GetFocusedPanelIndex())))
         return;
     UString path = GetFocusedPanel().GetCurrentFolderPrefix();
     if (path.IsEmpty())

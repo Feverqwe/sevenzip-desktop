@@ -144,6 +144,10 @@ bool QtAppPresentation::AllowPanelFocusChange(unsigned index) const {
     return !window_.panelProjectionDepth_ || window_.projectedPanel_ == index;
 }
 
+bool QtAppPresentation::AllowPanelTitleChange(unsigned index) const {
+    return index == window_.statusPanel_;
+}
+
 void QtAppPresentation::PrepareFolderChange(unsigned index) {
     window_.withPanelProjection(index, [this] {
         window_.cancelListPublication();

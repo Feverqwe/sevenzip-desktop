@@ -14,6 +14,7 @@ class QtAppPresentation final : public IQtAppPresentation {
     bool CreatePanel(CPanel &panel, unsigned index) override;
     CPanelCallback *PanelCallback(unsigned index) override;
     bool AllowPanelFocusChange(unsigned index) const override;
+    bool AllowPanelTitleChange(unsigned index) const override;
     void PrepareFolderChange(unsigned index) override;
     bool OpenFolderInPeer(unsigned index, std::optional<UInt32> item) override;
     bool OpenBoundFolderInPeer(unsigned source, IFolderFolder *folder,

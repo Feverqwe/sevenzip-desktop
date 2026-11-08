@@ -62,6 +62,7 @@ class IQtAppPresentation {
     virtual bool CreatePanel(CPanel &panel, unsigned index) = 0;
     virtual CPanelCallback *PanelCallback(unsigned index) = 0;
     virtual bool AllowPanelFocusChange(unsigned) const { return true; }
+    virtual bool AllowPanelTitleChange(unsigned) const { return true; }
     virtual void PrepareFolderChange(unsigned) {}
     virtual bool OpenFolderInPeer(unsigned, std::optional<UInt32> = {}) { return false; }
     virtual bool OpenBoundFolderInPeer(unsigned, IFolderFolder *, const UString & = {}) {
