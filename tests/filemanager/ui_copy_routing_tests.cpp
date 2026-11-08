@@ -201,6 +201,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::newRow("relative-move") << 1u << false << QString("relative-move");
         QTest::newRow("overwrite-cancel-move") << 0u << false << QString("overwrite-cancel-move");
         QTest::newRow("overwrite-skip-move") << 0u << false << QString("overwrite-skip-move");
+        QTest::newRow("missing-copy") << 0u << false << QString("missing-copy");
+        QTest::newRow("missing-move") << 1u << false << QString("missing-move");
         QTest::newRow("link-copy") << 0u << false << QString("link-copy");
     }
     void outsidePeerStillRefreshesDestination() {
@@ -209,6 +211,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(QString, outcome);
         const bool cancel = outcome == "dialog-cancel";
         const bool skip = outcome == "overwrite-skip-move";
+        const bool missing = outcome.startsWith("missing-");
         const bool overwrite = skip || outcome.startsWith("overwrite-cancel");
         const bool move = outcome.endsWith("move");
         const bool relative = outcome.startsWith("relative-");
@@ -233,7 +236,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         const QString name = QStringLiteral("payload δ.txt");
         const QString other = QStringLiteral("another file.txt");
         write(QDir(input).filePath(name), "control bytes");
-        if (skip)
+        if (skip || missing)
             write(QDir(input).filePath(other), "move these bytes");
         write(QDir(peer).filePath("seed.txt"), "seed control");
         if (overwrite)
@@ -255,7 +258,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             static_cast<FileTable *>(view)->sourcePanel->Set_AutoRefresh_Mode(false);
         peerView->selectRow(row(*peerView, "seed.txt"));
         sourceView->selectRow(row(*sourceView, name));
-        if (skip)
+        if (skip || missing)
             sourceView->selectionModel()->select(
                 sourceView->model()->index(row(*sourceView, other), 0),
                 QItemSelectionModel::Select | QItemSelectionModel::Rows);
@@ -263,6 +266,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         sourceView->setFocus();
         QTRY_VERIFY(sourceView->hasFocus());
         bool seen = false;
+        bool removed = false;
+        bool reviewed = false;
         int refusedDestinations = 0;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
@@ -282,6 +287,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                     }
                 }
                 path->setText(relative ? "../unneeded/../output/" : output + '/');
+                if (missing)
+                    removed = QFile::remove(QDir(input).filePath(other));
                 if (cancel)
                     QTest::keyClick(dialog->findChild<QLineEdit *>("copyDestination"),
                                     Qt::Key_Escape);
@@ -299,7 +306,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 else if (auto *box = qobject_cast<QMessageBox *>(widget))
                     box->accept();
                 else
-                    TestProgressDialog::DismissVisibleResult(widget);
+                    reviewed |= TestProgressDialog::DismissVisibleResult(widget);
             }
         });
         driver.start(1);
@@ -308,19 +315,23 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         if (linked)
             QCOMPARE(refusedDestinations, 3);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        if (cancel || overwrite) {
+        if (cancel || overwrite || missing) {
             QTRY_COMPARE(window.focusWidget(), sourceView);
             QCOMPARE(sourceView->selectionModel()->selectedRows().size(), 1);
             QCOMPARE(sourceView->selectionModel()->selectedRows().front().data().toString(), name);
         }
         QTRY_COMPARE_WITH_TIMEOUT(peerView->rowCount(), originalRows + (cancel ? 0 : 1), 1000);
-        QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel);
+        QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel && !missing);
         QVERIFY(!QFileInfo::exists(fixture.filePath("unneeded")));
-        QCOMPARE(read(QDir(output).filePath(name)), cancel      ? QByteArray()
+        QCOMPARE(read(QDir(output).filePath(name)), cancel || missing ? QByteArray()
                                                     : overwrite ? QByteArray("existing control")
                                                                 : QByteArray("control bytes"));
         QCOMPARE(read(QDir(input).filePath(name)),
-                 move && !overwrite ? QByteArray() : QByteArray("control bytes"));
+                 move && !overwrite && !missing ? QByteArray() : QByteArray("control bytes"));
+        if (missing) {
+            QVERIFY(removed && reviewed);
+            QVERIFY(!QFileInfo::exists(QDir(output).filePath(other)));
+        }
         if (skip) {
             QVERIFY(!QFileInfo::exists(QDir(input).filePath(other)));
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));

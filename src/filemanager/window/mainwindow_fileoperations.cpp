@@ -77,7 +77,8 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                 if (projectedPanel_ != owner)
                     app_.QtOperations().End();
                 withPanelProjection(owner, [this] { setState(State::Filesystem); });
-                appPresentation_->CopyFinished(canceled || (move && partial));
+                appPresentation_->CopyFinished(!success || (move && partial),
+                                               !success && !canceled);
                 if (success && guard)
                     statusStrip_->SetMessage(&app_.Panels[owner], message);
             });

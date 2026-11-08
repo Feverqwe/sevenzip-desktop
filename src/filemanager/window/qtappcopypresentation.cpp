@@ -28,11 +28,12 @@ void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceI
         CopyFinished();
 }
 
-void QtAppPresentation::CopyFinished(bool preserveSourceSelection) {
+void QtAppPresentation::CopyFinished(bool preserveSourceSelection, bool refreshSource) {
     if (!copy_)
         return;
     copy_->finished = true;
     copy_->preserveSourceSelection |= preserveSourceSelection;
+    copy_->refreshSource |= refreshSource;
     CompleteCopyIfReady();
 }
 

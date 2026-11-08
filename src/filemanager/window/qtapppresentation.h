@@ -23,7 +23,7 @@ class QtAppPresentation final : public IQtAppPresentation {
     void SetListSettings(unsigned index, const CFmSettings &settings) override;
     void ShowPanel(unsigned index, bool visible) override;
     void MoveSubWindows() override;
-    void CopyFinished(bool preserveSourceSelection = false);
+    void CopyFinished(bool preserveSourceSelection = false, bool refreshSource = false);
     void CompleteCopyIfReady();
     void CopyDestinationRefreshed(unsigned index);
     void RefreshCopyPanel(unsigned index);
