@@ -57,7 +57,12 @@ class PasswordDialogTests final : public QObject {
         CPasswordDialog dialog;
         dialog.Password = "initial";
         dialog.OnInit();
+        dialog.show();
         dialog.findChild<QLineEdit *>("passwordEdit")->setText("discarded");
+        auto *show = dialog.findChild<QCheckBox *>("passwordShow");
+        show->click();
+        QVERIFY(show->isChecked());
+        QCOMPARE(dialog.findChild<QLineEdit *>("passwordEdit")->echoMode(), QLineEdit::Normal);
         dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Cancel)->click();
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QCOMPARE(QString::fromWCharArray(dialog.Password), QString("initial"));
