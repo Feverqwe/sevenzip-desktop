@@ -298,8 +298,8 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         auto *peer = openPanel(window, 1 - pane, peerDirectory.path());
         QVERIFY(peer);
         QTRY_COMPARE(peer->rowCount(), 1);
-        peer->setCurrentCell(0, 0);
-        peer->selectRow(0);
+        peer->clearSelection();
+        peer->selectionModel()->setCurrentIndex({}, QItemSelectionModel::NoUpdate);
         peer->setFocus();
         CMyComPtr<IFolderFolder> ownerFolder = owner->sourcePanel->GetFolder();
         CMyComPtr<IFolderFolder> peerFolder = peer->sourcePanel->GetFolder();
@@ -362,6 +362,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     auto *rename = menuAction(*menu, "renameAction");
                     auto *create = menuAction(*menu, "createFolderAction");
                     QVERIFY(open && rename && create);
+                    QVERIFY(rename->isEnabled());
                     QVERIFY(menu->actions().indexOf(open) >= 0);
                     QVERIFY(menu->actions().indexOf(open) < menu->actions().indexOf(rename));
                     auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
@@ -399,6 +400,18 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                                              .arg(icons)
                                                              .arg(width)
                                                              .arg(keyboard)));
+                    if (!keyboard && width == 980 && pane == 0 && !icons && language == "-") {
+                        auto *cut = action(window, "cutFilesAction");
+                        QVERIFY(!cut->isEnabled());
+                        for (auto *item : menu->actions())
+                            if (item->text() == cut->text()) {
+                                QVERIFY(item->isEnabled());
+                                menu->setActiveAction(item);
+                                QTest::keyClick(menu, Qt::Key_Return);
+                                return;
+                            }
+                        QFAIL("Cut action missing");
+                    }
                     QTest::keyClick(menu, Qt::Key_Escape);
                 });
                 cancel.start(5);
@@ -409,6 +422,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                                   Qt::DirectConnection, Q_ARG(QPoint, point)));
                 QVERIFY(cancelled);
                 QVERIFY(!QTest::currentTestFailed());
+                if (!keyboard && width == 980 && pane == 0 && !icons && language == "-") {
+                    const auto clear = qScopeGuard([] { QApplication::clipboard()->clear(); });
+                    const QList<QUrl> expected{QUrl::fromLocalFile(fixture.filePath(original))};
+                    QCOMPARE(QApplication::clipboard()->mimeData()->urls(), expected);
+                }
                 QVERIFY(action(window, "settingsAction")->isEnabled());
                 QCOMPARE(owner->sourcePanel->GetFolder(), (IFolderFolder *)ownerFolder);
                 QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
