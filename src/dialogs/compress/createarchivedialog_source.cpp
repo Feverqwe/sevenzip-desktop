@@ -27,7 +27,8 @@ QString ArchiveDirectoryError(QString path) {
             if (!entry.isDir())
                 return InvalidArchivePath();
             if (!entry.isWritable())
-                return QCoreApplication::translate("CopyRedesign", "The destination is read-only.");
+                return QCoreApplication::translate("CopyRedesign", "The folder is read-only: %1")
+                    .arg(QDir::toNativeSeparators(path));
             return {};
         }
         const QString parent = entry.absolutePath();

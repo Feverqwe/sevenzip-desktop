@@ -464,6 +464,8 @@ class CompressionPathTests final : public QObject {
         submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
+        if (readOnly)
+            QVERIFY(diagnostic.contains(QDir::toNativeSeparators(blocker)));
         QCOMPARE(dialog.focusWidget(), folder);
         QCOMPARE(folder->text(), blocked);
         QCOMPARE(archiveName->text(), name);
@@ -473,6 +475,8 @@ class CompressionPathTests final : public QObject {
         submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
+        if (readOnly)
+            QVERIFY(diagnostic.contains(QDir::toNativeSeparators(blocker)));
         QWidget *nameEditor = dialog.focusWidget();
         QVERIFY(nameEditor);
         QTest::keyClick(nameEditor, Qt::Key_End);
