@@ -46,17 +46,31 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void clipboardCopyPublishesDestinationWithoutAutoRefresh_data() {
+        QTest::addColumn<bool>("linkedDestination");
+        QTest::newRow("directory") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("directory-symlink") << true;
+#endif
+    }
     void clipboardCopyPublishesDestinationWithoutAutoRefresh() {
+        QFETCH(bool, linkedDestination);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath(QStringLiteral("source 空.txt"));
         const QString destination = fixture.filePath("destination folder");
         QVERIFY(write(source, "source bytes"));
         QVERIFY(QDir().mkpath(destination));
+        QString opened = destination;
+        if (linkedDestination) {
+            opened = fixture.filePath("directory link");
+            QVERIFY(QFile::link(destination, opened));
+            QVERIFY(QFileInfo(opened).isSymLink());
+        }
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        window.openPath(destination);
+        window.openPath(opened);
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled());
         QVERIFY(WindowActivation::waitForActive(window));
@@ -73,6 +87,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
         QCOMPARE(read(source), QByteArray("source bytes"));
+        if (linkedDestination)
+            QVERIFY(QFileInfo(opened).isSymLink());
         QVERIFY(paste->isEnabled());
         QTRY_COMPARE(window.focusWidget(), view);
     }
