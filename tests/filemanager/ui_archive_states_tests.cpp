@@ -37,7 +37,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
-    void openArchivePickerStartsBesideTheOuterArchive() {
+    void nestedArchiveUsesTheOuterArchivesFolder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString inner = fixture.filePath("inner.zip");
@@ -71,6 +71,39 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         open->trigger();
         QCOMPARE(directory, QDir(fixture.path()).canonicalPath());
         QVERIFY(rowWithPath(window, "payload.txt") >= 0);
+        responder.stop();
+
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        const int row = rowWithPath(window, "payload.txt");
+        view->setFocus();
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        QString destination;
+        QTimer copyResponder;
+        connect(&copyResponder, &QTimer::timeout, &window, [&] {
+            auto *dialog = QApplication::activeModalWidget();
+            if (auto *copy = dynamic_cast<CopyDialog *>(dialog)) {
+                if (destination.isEmpty()) {
+                    destination = copy->findChild<QLineEdit *>("copyDestination")->text();
+                    copy->accept();
+                } else
+                    copy->reject();
+            } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
+                TestProgressDialog::CloseResult(*report);
+            else if (auto *box = qobject_cast<QMessageBox *>(dialog))
+                box->accept();
+        });
+        copyResponder.start(5);
+        auto *copy = action(window, "copyAction");
+        QVERIFY(copy->isEnabled());
+        copy->trigger();
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(destination)), fixture.path());
+        const QString extracted = fixture.filePath("payload.txt");
+        QTRY_VERIFY(QFileInfo(extracted).isFile());
+        QFile output(extracted);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("payload"));
     }
     void batchArchiveCommandKeepsTheNewActiveWindow_data() {
         QTest::addColumn<QByteArray>("actionName");
