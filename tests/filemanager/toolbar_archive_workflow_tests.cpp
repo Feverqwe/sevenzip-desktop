@@ -353,9 +353,13 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("данные δ.txt");
         const QByteArray payload("source toolbar bytes");
+        const QString other = QStringLiteral("second entry.txt");
+        const QByteArray otherPayload("second entry bytes");
         QVERIFY(writeFile(fixture.filePath(name), payload));
+        QVERIFY(writeFile(fixture.filePath(other), otherPayload));
         const QString archive = fixture.filePath("source.zip");
         QVERIFY(makeArchive(fixture.path(), archive, "zip", name));
+        QVERIFY(makeArchive(fixture.path(), archive, "zip", other));
         const QByteArray before = readFile(archive);
         const QString output = fixture.filePath("peer output");
         QVERIFY(writeFile(QDir(output).filePath("peer.txt"), "peer bytes"));
@@ -370,23 +374,29 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QTRY_COMPARE(peer->rowCount(), 1);
         peer->selectRow(0);
         auto *source = openPanel(window, pane, archive);
-        QTRY_COMPARE(source->rowCount(), 1);
+        QTRY_COMPARE(source->rowCount(), 2);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        source->selectRow(0);
+        source->selectAll();
         source->setFocus();
         CMyComPtr<IFolderFolder> provider = source->sourcePanel->GetFolder();
         QString modalName;
         QString destination;
+        QStringList errors;
+        QStringList successes;
+        bool retry = false;
         QTimer driver;
         dialogs_.connectResponder(driver, &window, [&] {
-            if (auto *dialog = qobject_cast<QDialog *>(dialogs_.activeDialog())) {
-                modalName = dialog->objectName();
-                if (auto *copy = dynamic_cast<CopyDialog *>(dialog)) {
-                    destination = copy->destination();
+            if (auto *copy = dynamic_cast<CopyDialog *>(dialogs_.activeDialog())) {
+                modalName = copy->objectName();
+                destination = copy->destination();
+                if (retry)
+                    copy->accept();
+                else {
                     inspectDialog(*copy, QString("toolbar-archive-copy-%1").arg(pane));
+                    copy->reject();
                 }
-                dialog->reject();
-            }
+            } else
+                dismissResults(dialogs_, errors, successes);
         });
         driver.start(1);
         action(window, "extractArchiveAction")->trigger();
@@ -397,8 +407,23 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QCOMPARE(readFile(archive), before);
         QCOMPARE(readFile(QDir(output).filePath("peer.txt")), QByteArray("peer bytes"));
         QVERIFY(!QFileInfo::exists(QDir(output).filePath(name)));
+        QVERIFY(!QFileInfo::exists(QDir(output).filePath(other)));
         QCOMPARE(peer->selectionModel()->selectedRows().size(), 1);
         QVERIFY(source->sourcePanel->ShouldProcessNotifications());
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 2);
+        QTRY_COMPARE(window.focusWidget(), source);
+        retry = true;
+        modalName.clear();
+        driver.start(1);
+        PanelKeys::command(window.focusWidget(), Qt::Key_E,
+                           Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(modalName, QString("copyDialog"));
+        QTRY_COMPARE(peer->rowCount(), 3);
+        driver.stop();
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(readFile(QDir(output).filePath(name)), payload);
+        QCOMPARE(readFile(QDir(output).filePath(other)), otherPayload);
+        QCOMPARE(readFile(archive), before);
     }
     void filesystemShellCommandsUseIndependentOperations_data() {
         QTest::addColumn<QString>("verb");
