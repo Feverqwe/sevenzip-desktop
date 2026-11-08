@@ -390,6 +390,7 @@ class DragArchiveTests : public QObject {
         QCOMPARE(row->isSelected(),
                  outcome == 2 || outcome == 4 || outcome == 5 || outcome == 6 || outcome == 7);
         if (outcome == 1 || outcome == 5 || outcome == 6 || outcome == 7 || outcome == 9) {
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
             QCOMPARE(Read(delivered), payload);
             QtOwnedTempRegistry registry;
             bool found = false;

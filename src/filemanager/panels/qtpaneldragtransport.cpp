@@ -14,7 +14,8 @@
 #include <QWidget>
 #include <new>
 
-QtPanelDragMime::QtPanelDragMime(CDataObject &data) : data_(data) {
+QtPanelDragMime::QtPanelDragMime(CDataObject &data)
+    : owner_(data.weak_from_this().lock()), data_(data) {
     QList<QUrl> urls;
     FOR_VECTOR(i, data.Names) urls.append(QUrl::fromLocalFile(ToQString(data.Names[i])));
     setUrls(urls);
@@ -91,14 +92,17 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
         data.Copy_HRESULT = E_FAIL;
         return DRAGDROP_S_CANCEL;
     }
-    QDrag drag(widget_);
-    drag.setMimeData(new QtPanelDragMime(data));
+    auto drag = std::make_unique<QDrag>(widget_);
+    drag->setMimeData(new QtPanelDragMime(data));
     Qt::DropActions actions = Qt::IgnoreAction;
     if (allowed & DROPEFFECT_COPY)
         actions |= Qt::CopyAction;
     if (allowed & DROPEFFECT_MOVE)
         actions |= Qt::MoveAction;
-    const Qt::DropAction action = executor_(drag, actions);
+    // X11 may still serve selection requests after exec() returns. A native
+    // QDrag and its MIME data remain owned by Qt through that transaction.
+    auto *operation = nativeExecutor_ ? drag.release() : drag.get();
+    const Qt::DropAction action = executor_(*operation, actions);
     if (action == Qt::CopyAction)
         effect = DROPEFFECT_COPY;
     else if (action == Qt::MoveAction)
