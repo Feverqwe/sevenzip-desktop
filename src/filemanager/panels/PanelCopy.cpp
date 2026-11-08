@@ -125,8 +125,8 @@ HRESULT CPanelCopyThread::ProcessVirt() {
     if (!options->hashMethods.IsEmpty()) {
         ResultsPending = !CompletedFiles.IsEmpty() ||
                          (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors);
-    } else if (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors) {
-        if (options->testMode) {
+    } else if (options->testMode) {
+        if (result2 == S_OK && !FinalMessage.HadErrors) {
             CProgressMessageBoxPair &pair =
                 GetMessagePair(false); // GetMessagePair(ExtractCallback->Hash.NumErrors != 0);
             if (!options->TestScope.IsEmpty()) {
@@ -134,6 +134,9 @@ HRESULT CPanelCopyThread::ProcessVirt() {
                 pair.Message.Add_LF();
             }
             AddHashBundleRes(pair.Message, Hash);
+        } else if (result2 != E_ABORT && (FAILED(result2) || FinalMessage.HadErrors) &&
+                   !options->TestScope.IsEmpty()) {
+            Sync.AddError_Message(options->TestScope);
         }
     }
 

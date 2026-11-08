@@ -96,11 +96,11 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         view->clearSelection();
         window.testArchive();
         QCOMPARE(reports.size(), 2);
+        QVERIFY(reports.last().contains("Scope: entire archive"));
         if (corrupt) {
             QVERIFY(reports.last().contains("damaged.txt"));
             QVERIFY(reports.last().contains("CRC", Qt::CaseInsensitive));
-        } else
-            QVERIFY(reports.last().contains("Scope: entire archive"));
+        }
 
         openRow(window, rowWithPath(window, "folder"));
         QTRY_VERIFY(rowWithPath(window, "folder/inside.txt") >= 0);
