@@ -33,6 +33,39 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
     }
     void cleanup() { QApplication::clipboard()->clear(); }
 
+    void duplicateClipboardTargetsAreRejectedWithoutStartingPaste() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const QString &directory : {"first", "second", "output"})
+            QVERIFY(QDir().mkpath(fixture.filePath(directory)));
+        const QString first = fixture.filePath("first/file.txt");
+        const QString second = fixture.filePath("second/file.txt");
+        const QString output = fixture.filePath("output");
+        write(first);
+        write(second);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(output);
+        auto *files = table(window);
+        files->setFocus();
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        const QList<QUrl> urls{QUrl::fromLocalFile(first), QUrl::fromLocalFile(second)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        QApplication::clipboard()->setMimeData(mime);
+        QVERIFY(action(window, "pasteFilesAction")->isEnabled());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Multiple items would use the same destination: %1")
+                     .arg(QDir(output).filePath("file.txt")));
+        QVERIFY(!QFileInfo::exists(QDir(output).filePath("file.txt")));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+    }
+
     void keyboardClipboardWorksWhileThePeerRefreshes_data() {
         QTest::addColumn<bool>("move");
         QTest::newRow("copy") << false;

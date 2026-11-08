@@ -228,6 +228,7 @@ void QtFileClipboard::Paste() {
     if (paths.isEmpty())
         return;
     const QDir destination(window_.projectedUi().directory);
+    QSet<QString> targets;
     for (const auto &path : paths) {
         const QFileInfo entry(path);
         if (const QString error = MissingClipboardSource(entry); !error.isEmpty()) {
@@ -235,6 +236,14 @@ void QtFileClipboard::Paste() {
             return;
         }
         const QString target = destination.filePath(entry.fileName());
+        if (targets.contains(target)) {
+            window_.showStatusMessage(
+                QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Multiple items would use the same destination: %1")
+                    .arg(target));
+            return;
+        }
+        targets.insert(target);
         if (QDir::cleanPath(path) == QDir::cleanPath(target)) {
             window_.showStatusMessage(
                 QCoreApplication::translate("qtfiletransfertransaction",
