@@ -158,15 +158,25 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(multiple.findChild<QLabel *>("propertiesModified")->text(),
                  QString("Not applicable"));
         const QString englishSelection = QtSelectedItemsText(3);
+        copy(multiple);
+        const QString englishReport = QApplication::clipboard()->text();
+        QVERIFY(englishReport.contains(englishSelection));
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(UString("ru"), settings);
         ReloadLang(settings);
         QtNotifyLanguageChanged();
-        QVERIFY(!multiple.Information().contains(englishSelection));
-        QVERIFY(multiple.Information().contains(QtSelectedItemsText(3)));
+        copy(multiple);
+        const QString russianReport = QApplication::clipboard()->text();
+        QVERIFY(!russianReport.contains(englishSelection));
+        QVERIFY(russianReport.contains(QtSelectedItemsText(3)));
+        for (const QString &name :
+             {QStringLiteral("unknown"), QStringLiteral("zero"), QStringLiteral("folder")})
+            QVERIFY(russianReport.split(u'\n').contains(name));
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
         QtNotifyLanguageChanged();
+        copy(multiple);
+        QCOMPARE(QApplication::clipboard()->text(), englishReport);
         for (const auto &[window, tag] :
              {std::pair{&missing, "unknown"}, std::pair{&empty, "zero"},
               std::pair{&contents, "folder"}, std::pair{&multiple, "multiple"}}) {
