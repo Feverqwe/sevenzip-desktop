@@ -83,22 +83,27 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                 return E_ABORT;
             auto &ui = panelUi_[index];
             const QtAddressDraft draft(*ui.path);
+            const auto editRevision =
+                static_cast<QtPanelAddressCombo *>(ui.pathCombo)->UserEditRevision();
             activatePanelUi(index);
             if (projectedPanel_ != index)
                 return E_ABORT;
-            return workspace_->Navigate([&] { return navigateToImpl(path, sourcePath); },
-                                        [this, index, draft](HRESULT result) {
-                                            if (result == S_OK || app_.QtOperations().closed())
-                                                return;
-                                            auto &owner = panelUi_[index];
-                                            draft.Restore(*owner.path);
-                                            if (projectedPanel_ == index) {
-                                                static_cast<QtPanelAddressCombo *>(owner.pathCombo)
-                                                    ->CancelPendingListFocus();
-                                                appPresentation_->CancelInitialFocus();
-                                                workspace_->RestoreAddressFocus(index, draft);
-                                            }
-                                        });
+            return workspace_->Navigate(
+                [&] { return navigateToImpl(path, sourcePath); },
+                [this, index, draft, editRevision](HRESULT result) {
+                    if (result == S_OK || app_.QtOperations().closed())
+                        return;
+                    auto &owner = panelUi_[index];
+                    auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
+                    const QtAddressDraft restored =
+                        combo->UserEditRevision() == editRevision ? draft : combo->LastUserDraft();
+                    restored.Restore(*owner.path);
+                    if (projectedPanel_ == index) {
+                        combo->CancelPendingListFocus();
+                        appPresentation_->CancelInitialFocus();
+                        workspace_->RestoreAddressFocus(index, restored);
+                    }
+                });
         },
         central, [this, index] { appPresentation_->RequestListFocus(index); });
     projectedUi().pathCombo->setObjectName("pathCombo");

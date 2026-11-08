@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QPointer>
 #include <functional>
+#include <optional>
 #include <vector>
 
 class CPanel;
@@ -71,6 +72,8 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     HRESULT BindToPathAndRefresh(const UString &path, bool sourcePath) override;
     void SetFocusToList() override;
     void CancelPendingListFocus() { listFocusPending_ = false; }
+    quint64 UserEditRevision() const { return userEditRevision_; }
+    const QtAddressDraft &LastUserDraft() const { return *lastUserDraft_; }
 
   private:
     void CompleteListFocus();
@@ -80,6 +83,8 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     std::function<void()> focusList_;
     QAction *currentIcon_ = nullptr;
     bool listFocusPending_ = false;
+    quint64 userEditRevision_ = 0;
+    std::optional<QtAddressDraft> lastUserDraft_;
     UString segmentsPath_;
     UInt64 segmentsRevision_ = UInt64(-1);
     std::vector<QtAddressSegment> segments_;

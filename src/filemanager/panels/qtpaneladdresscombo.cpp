@@ -61,6 +61,16 @@ QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
         if (panel_)
             panel_->OnNotifyComboBoxEndEdit(QtAddressEditReason::Return, *this);
     });
+    connect(lineEdit(), &QLineEdit::textEdited, &callbacks_, [this] {
+        ++userEditRevision_;
+        lastUserDraft_.emplace(*lineEdit());
+    });
+    const auto updateSelection = [this] {
+        if (lastUserDraft_ && lastUserDraft_->text == lineEdit()->text())
+            lastUserDraft_.emplace(*lineEdit());
+    };
+    connect(lineEdit(), &QLineEdit::selectionChanged, &callbacks_, updateSelection);
+    connect(lineEdit(), &QLineEdit::cursorPositionChanged, &callbacks_, updateSelection);
 }
 
 QtPanelAddressCombo::~QtPanelAddressCombo() {

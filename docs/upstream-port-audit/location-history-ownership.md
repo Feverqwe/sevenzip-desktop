@@ -108,9 +108,10 @@ language cases were run directly with the same built QtTest executable.
 Reviewed original Panel.cpp address Enter and PanelFolderChange.cpp binding
 against the existing 7-Zip baseline and the Qt address, filesystem publication
 and workspace rollback owners. The original requests list focus after a
-successful synchronous bind. Qt restores the submitted address and caret
-after a deferred failure rolls back the source location, then returns editing
-focus to the initiating pane if it is still current. The native binding and
+successful synchronous bind. After a deferred failure rolls back the source
+location, Qt restores the address draft, including edits made while the
+folder was loading, and returns editing focus to the initiating pane if it
+is still current. The native binding and
 error result are unchanged. No source import or baseline revision changes.
 
 Focused Linux checks passed for filesystem reload, address navigation,

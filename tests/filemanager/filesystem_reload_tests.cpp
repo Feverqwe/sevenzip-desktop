@@ -129,19 +129,22 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("flat");
         QTest::addColumn<bool>("reload");
+        QTest::addColumn<bool>("newInput");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
                 for (bool flat : {false, true})
                     for (bool reload : {false, true})
                         QTest::newRow(qPrintable(
                             QString("%1-%2-%3-%4").arg(index).arg(language).arg(flat).arg(reload)))
-                            << index << language << flat << reload;
+                            << index << language << flat << reload << false;
+        QTest::newRow("edit-while-opening") << 0u << QString("-") << false << false << true;
     }
     void workerFailureRetainsSourceResult() {
         QFETCH(unsigned, sourceIndex);
         QFETCH(QString, language);
         QFETCH(bool, flat);
         QFETCH(bool, reload);
+        QFETCH(bool, newInput);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -195,6 +198,7 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         });
         driver.start(0);
         const int draftCursor = large.size() - 2;
+        const QString newerDraft = QStringLiteral("new folder draft");
         if (reload)
             action(window, "refreshAction")->trigger();
         else {
@@ -203,6 +207,12 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
             address->setText(large);
             address->setSelection(draftCursor - 2, 2);
             QTest::keyClick(address, Qt::Key_Return);
+            if (newInput) {
+                PanelKeys::focusAddress(address);
+                address->selectAll();
+                QTest::keyClicks(address, newerDraft);
+                address->setSelection(4, 6);
+            }
         }
         QTRY_COMPARE(failed.size(), 1);
         driver.stop();
@@ -212,15 +222,15 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(shown, ToQString(HResultToMessage(result)));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         if (!reload) {
-            QCOMPARE(address->text(), large);
-            QCOMPARE(address->cursorPosition(), draftCursor);
+            QCOMPARE(address->text(), newInput ? newerDraft : large);
             // The headless window system may leave the owner inactive after
             // closing the modal error. Return to it before sending another key.
             window.activateWindow();
             QVERIFY(QTest::qWaitForWindowActive(&window));
             QTRY_VERIFY_WITH_TIMEOUT(address->hasFocus(), 2000);
-            QCOMPARE(address->selectedText(), large.mid(draftCursor - 2, 2));
-            QCOMPARE(address->cursorPosition(), draftCursor);
+            QCOMPARE(address->selectedText(),
+                     newInput ? QStringLiteral("folder") : large.mid(draftCursor - 2, 2));
+            QCOMPARE(address->cursorPosition(), newInput ? 10 : draftCursor);
         }
         QCOMPARE(QFileInfo(ToQString(GetFolderPath(panel.GetFolder()))).canonicalFilePath(),
                  QFileInfo(reload ? large : smallPath).canonicalFilePath());
@@ -234,8 +244,11 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         disconnect(restart);
         if (reload)
             panel.OnReload();
-        else
+        else {
+            if (newInput)
+                address->setText(large);
             QTest::keyClick(QApplication::focusWidget(), Qt::Key_Return);
+        }
         QTRY_COMPARE(view->rowCount(), 301);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QCOMPARE(completed.size(), 1);
