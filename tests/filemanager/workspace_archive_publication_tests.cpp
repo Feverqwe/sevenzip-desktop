@@ -66,6 +66,15 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         const int addressCursor = address->cursorPosition();
         QVERIFY(address->isModified());
         auto *observed = table(observer);
+        const QStringList selectedNames{"file-001.txt", "file-003.txt"};
+        observed->clearSelection();
+        for (const QString &name : selectedNames) {
+            const int selectedRow = names(observer).indexOf(name);
+            QVERIFY(selectedRow >= 0);
+            observed->selectionModel()->select(observed->model()->index(selectedRow, 0),
+                                               QItemSelectionModel::Select |
+                                                   QItemSelectionModel::Rows);
+        }
         auto *scroll = observed->verticalScrollBar();
         QTRY_VERIFY(scroll->maximum() > 2);
         scroll->setValue(scroll->maximum() / 2);
@@ -83,6 +92,11 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QVERIFY(names(observer).indexOf("new folder") < names(observer).indexOf(anchor));
         QCOMPARE(observed->model()->index(observed->rowAt(0), 0).data().toString(), anchor);
         QCOMPARE(observed->rowViewportPosition(observed->rowAt(0)), offset);
+        QStringList selectionAfterRefresh;
+        for (const auto &index : observed->selectionModel()->selectedRows())
+            selectionAfterRefresh.append(index.data().toString());
+        selectionAfterRefresh.sort();
+        QCOMPARE(selectionAfterRefresh, selectedNames);
         auto *view = table(writer);
         const int row = names(writer).indexOf("original.txt");
         QVERIFY(row >= 0);
