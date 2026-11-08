@@ -16,6 +16,7 @@
 #include "ui/support/address_popup_support.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
+#include <QFileDialog>
 #include <QLineEdit>
 #include <QProgressBar>
 #include <QScopeGuard>
@@ -36,6 +37,41 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void openArchivePickerStartsBesideTheOuterArchive() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString inner = fixture.filePath("inner.zip");
+        const QString outer = fixture.filePath("outer.7z");
+        QVERIFY(NativeArchiveFixture::Write(inner, {{"payload.txt", "payload"}}, "zip"));
+        QFile bytes(inner);
+        QVERIFY(bytes.open(QIODevice::ReadOnly));
+        QVERIFY(NativeArchiveFixture::Write(outer, {{"inner.zip", bytes.readAll()}}, "7z"));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(outer);
+        QTRY_VERIFY(rowWithPath(window, "inner.zip") >= 0);
+        openRow(window, rowWithPath(window, "inner.zip"));
+        QTRY_VERIFY(rowWithPath(window, "payload.txt") >= 0);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QString directory;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget())) {
+                directory = picker->directory().canonicalPath();
+                picker->reject();
+            } else if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+                dialog->reject();
+            }
+        });
+        responder.start(5);
+        auto *open = action(window, "openArchiveAction");
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        QCOMPARE(directory, QDir(fixture.path()).canonicalPath());
+        QVERIFY(rowWithPath(window, "payload.txt") >= 0);
+    }
     void batchArchiveCommandKeepsTheNewActiveWindow_data() {
         QTest::addColumn<QByteArray>("actionName");
         QTest::newRow("test") << QByteArray("testArchiveAction");

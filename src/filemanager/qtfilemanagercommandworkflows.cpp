@@ -269,9 +269,13 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
         break;
     case OpenArchivePicker: {
         const unsigned owner = window_.app_.GetFocusedPanelIndex();
-        const QString directory = window_.projectedUi().state == MainWindow::State::Viewing
-                                      ? QFileInfo(window_.projectedUi().archive).absolutePath()
-                                      : window_.projectedUi().directory;
+        const auto &ui = window_.projectedUi();
+        const auto &parents = window_.app_.Panels[owner].GetParentFolders();
+        const QString directory =
+            ui.state == MainWindow::State::Viewing
+                ? QFileInfo(parents.IsEmpty() ? ui.archive : ToQString(parents.Front().VirtualPath))
+                      .absolutePath()
+                : ui.directory;
         const QString path = BrowseForExistingFile(
             &window_, QCoreApplication::translate("qtfilemanagercommandworkflows", "Open archive"),
             directory, window_.backend_->openDialogFilter());
