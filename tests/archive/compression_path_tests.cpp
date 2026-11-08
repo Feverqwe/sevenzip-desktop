@@ -416,7 +416,11 @@ class CompressionPathTests final : public QObject {
         const bool readOnly = obstruction == "permissions";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+#ifdef Q_OS_WIN
         QFile occupied(fixture.filePath("occupied"));
+#else
+        QFile occupied(fixture.filePath("occupied <b>file"));
+#endif
         QVERIFY(occupied.open(QIODevice::WriteOnly));
         QCOMPARE(occupied.write("keep"), qint64(4));
         occupied.close();
@@ -450,12 +454,14 @@ class CompressionPathTests final : public QObject {
         folder->setText(blocked);
         dialog.show();
         QString diagnostic;
+        Qt::TextFormat diagnosticFormat = Qt::AutoText;
         const auto submitAndDismissError = [&] {
             diagnostic.clear();
             QTimer::singleShot(0, &dialog, [&] {
                 if (auto *message =
                         qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                     diagnostic = message->text();
+                    diagnosticFormat = message->textFormat();
                     message->accept();
                 }
             });
@@ -464,8 +470,9 @@ class CompressionPathTests final : public QObject {
         submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
-        if (readOnly)
+        if (obstruction != "empty-component")
             QVERIFY(diagnostic.contains(QDir::toNativeSeparators(blocker)));
+        QCOMPARE(diagnosticFormat, Qt::PlainText);
         QCOMPARE(dialog.focusWidget(), folder);
         QCOMPARE(folder->text(), blocked);
         QCOMPARE(archiveName->text(), name);
@@ -475,7 +482,7 @@ class CompressionPathTests final : public QObject {
         submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
-        if (readOnly)
+        if (obstruction != "empty-component")
             QVERIFY(diagnostic.contains(QDir::toNativeSeparators(blocker)));
         QWidget *nameEditor = dialog.focusWidget();
         QVERIFY(nameEditor);

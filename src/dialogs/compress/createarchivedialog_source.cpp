@@ -25,7 +25,8 @@ QString ArchiveDirectoryError(QString path) {
         const QFileInfo entry(path);
         if (entry.exists() || entry.isSymLink()) {
             if (!entry.isDir())
-                return InvalidArchivePath();
+                return QCoreApplication::translate("CopyRedesign", "Not a folder: %1")
+                    .arg(QDir::toNativeSeparators(path));
             if (!entry.isWritable())
                 return QCoreApplication::translate("CopyRedesign", "The folder is read-only: %1")
                     .arg(QDir::toNativeSeparators(path));
