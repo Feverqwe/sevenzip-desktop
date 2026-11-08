@@ -1,6 +1,12 @@
 #include "filemanager/panels/qtpaneldragtransport.h"
 #include "filemanager/panels/qtpaneldragnative.h"
 #include "filemanager/panels/qtpanelfolder.h"
+#ifdef Q_OS_MACOS
+#include "filemanager/panels/Panel.h"
+#include "filemanager/panels/qtmacfilepromisedrag.h"
+#include "fileops/links/qtlinkservices.h"
+#include "platform/temp/qtownedtempregistry.h"
+#endif
 #include <QDrag>
 #include <QGuiApplication>
 #include <QScopedValueRollback>
@@ -31,6 +37,46 @@ HRESULT QtPanelDragTransport::DoDragDrop(CDataObject &data, CDropSource &source,
 #ifdef _WIN32
     if (nativeExecutor_ && QGuiApplication::platformName() == QStringLiteral("windows"))
         return DoNativePanelDrag(data, source, allowed, effect);
+#endif
+#ifdef Q_OS_MACOS
+    if (nativeExecutor_ && data.IsTempFiles && data.Panel && promiseMaterializer_ &&
+        QGuiApplication::platformName() == QStringLiteral("cocoa")) {
+        const auto owner = data.weak_from_this().lock();
+        if (owner && data.BeginExternalReceiver()) {
+            QList<QtMacPromisedItem> items;
+            FOR_VECTOR(i, data.Names)
+            items.append({ToQString(data.Names[i]), data.Panel->IsItem_Folder(data.Indices[i])});
+            const QPointer<CPanel> panel(data.Panel);
+            const CMyComPtr<IFolderFolder> folder(data.Panel->GetFolder());
+            data.DeferredTempFiles = true;
+            data.UsePreGlobal = false;
+            const auto accepted = QtRunMacFilePromiseDrag(
+                *widget_, items, &data,
+                [owner, panel, folder, materialize = promiseMaterializer_] {
+                    if (owner->Copy_WasCalled)
+                        return owner->Copy_HRESULT == S_OK && owner->Messages.IsEmpty();
+                    return panel && panel->GetFolder() == folder.Interface() &&
+                           materialize(*owner, *panel);
+                },
+                [owner] {
+                    owner->FinishExternalReceiver();
+                    const auto &lease = owner->OwnedTempLease;
+                    const QString path = lease->path();
+                    lease->RemoveIfUnused(path, [&] { QtRemoveFileSystemEntry(path); });
+                });
+            if (accepted) {
+                effect = *accepted ? DROPEFFECT_COPY : DROPEFFECT_NONE;
+                source.GiveFeedback(effect);
+                const HRESULT copyResult = data.Copy_HRESULT;
+                const HRESULT result = source.QueryContinueDrag(!*accepted, 0);
+                data.Copy_HRESULT = copyResult;
+                data.CompleteExternalDrag(!*accepted);
+                return result;
+            }
+            data.DeferredTempFiles = false;
+            data.FinishExternalReceiver();
+        }
+    }
 #endif
     // Qt has no cross-platform release-before-drop hook equivalent to OLE
     // QueryContinueDrag. Prepare real bytes before exec so native receivers

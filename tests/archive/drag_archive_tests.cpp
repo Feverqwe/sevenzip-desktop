@@ -75,11 +75,15 @@ class DragArchiveTests : public QObject {
     void cleanup() { qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", previousRegistry); }
     void nativeArchiveDropUsesCorrectExecutionOwner_data() {
         QTest::addColumn<bool>("archiveTarget");
-        QTest::newRow("archive-to-disk") << false;
-        QTest::newRow("archive-to-archive") << true;
+        QTest::addColumn<bool>("deferred");
+        QTest::newRow("archive-to-disk") << false << false;
+        QTest::newRow("archive-to-archive") << true << false;
+        QTest::newRow("deferred-to-disk") << false << true;
+        QTest::newRow("deferred-to-archive") << true << true;
     }
     void nativeArchiveDropUsesCorrectExecutionOwner() {
         QFETCH(bool, archiveTarget);
+        QFETCH(bool, deferred);
         QTemporaryDir root;
         const QString name = QStringLiteral("из архива с пробелом.bin");
         const QByteArray payload("transfer\0bytes", 14);
@@ -142,19 +146,40 @@ class DragArchiveTests : public QObject {
         HRESULT entered = E_FAIL, dropped = E_FAIL;
         UInt32 flags = 0;
         QString temporary;
-        QtPanelDragTransport transport(&list, [&](QDrag &drag, Qt::DropActions) {
-            auto *mime = dynamic_cast<const QtPanelDragMime *>(drag.mimeData());
-            if (!mime)
-                return Qt::IgnoreAction;
-            temporary = ToQString(mime->Data().SrcDirPrefix_Temp);
+        bool materializedOnEnter = false;
+        const auto executeDrop = [&](CDataObject &data) {
+            temporary = ToQString(data.SrcDirPrefix_Temp);
             DWORD effect = DROPEFFECT_COPY;
-            entered = app.DropTarget().DragEnter(&mime->Data(), MK_CONTROL, 0, 0, &effect);
+            entered = app.DropTarget().DragEnter(&data, MK_CONTROL, 0, 0, &effect);
+            materializedOnEnter = QFileInfo::exists(QDir(temporary).filePath(name));
             effect = DROPEFFECT_COPY;
-            dropped = app.DropTarget().Drop(&mime->Data(), MK_CONTROL, 0, 0, &effect);
-            flags = mime->Data().m_Transfer.Target.Flags;
-            return effect ? Qt::CopyAction : Qt::IgnoreAction;
+            dropped = app.DropTarget().Drop(&data, MK_CONTROL, 0, 0, &effect);
+            flags = data.m_Transfer.Target.Flags;
+            return effect;
+        };
+        QtPanelDragTransport transport(&list, [&](QDrag &drag, Qt::DropActions) {
+            const auto *mime = dynamic_cast<const QtPanelDragMime *>(drag.mimeData());
+            return mime && executeDrop(mime->Data()) ? Qt::CopyAction : Qt::IgnoreAction;
         });
-        app.Panels[0].AttachDragServices(&transport);
+        class DeferredTransport final : public IQtPanelDragServices {
+            const std::function<DWORD(CDataObject &)> execute_;
+
+          public:
+            explicit DeferredTransport(std::function<DWORD(CDataObject &)> execute)
+                : execute_(std::move(execute)) {}
+            HRESULT DoDragDrop(CDataObject &data, CDropSource &, DWORD, DWORD &effect) override {
+                data.DeferredTempFiles = true;
+                data.UsePreGlobal = false;
+                effect = execute_(data);
+                return effect ? DRAGDROP_S_DROP : DRAGDROP_S_CANCEL;
+            }
+            HRESULT CompressFiles(CPanel &, const UString &, const UString &, const UStringVector &,
+                                  bool) override {
+                return E_NOTIMPL;
+            }
+        } deferredTransport(executeDrop);
+        app.Panels[0].AttachDragServices(
+            deferred ? static_cast<IQtPanelDragServices *>(&deferredTransport) : &transport);
         QStringList errors;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &list, [&] {
@@ -183,6 +208,7 @@ class DragArchiveTests : public QObject {
                                                   .arg(targetResult)));
         QCOMPARE(entered, S_OK);
         QCOMPARE(dropped, S_OK);
+        QCOMPARE(materializedOnEnter, !deferred);
         QVERIFY(flags & (archiveTarget ? k_TargetFlags_WasProcessed
                                        : k_TargetFlags_MustBeProcessedBySource));
         QCOMPARE(Read(sourceZip), original);

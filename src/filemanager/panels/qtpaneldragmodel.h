@@ -77,6 +77,7 @@ class CDataObject : public std::enable_shared_from_this<CDataObject> {
     UString SrcDirPrefix_Temp, DestDirPrefix_FromTarget;
     bool IsRightButton = false, IsTempFiles = false, UsePreGlobal = false;
     bool DoNotProcessInTarget = false, NeedCall_Copy = false, Copy_WasCalled = false;
+    bool DeferredTempFiles = false;
     HRESULT Copy_HRESULT = S_OK;
     bool m_Transfer_WasSet = false;
     CDataObject_SetTransfer m_Transfer;
@@ -88,7 +89,7 @@ class CDataObject : public std::enable_shared_from_this<CDataObject> {
     UInt32 GetTransferFlags() const;
     bool ReadTransferFlags(UInt32 &flags) const;
     HRESULT GetData(UStringVector &names);
-    void CopyFromPanelTo_Folder();
+    void CopyFromPanelTo_Folder(CPanel *source = nullptr);
     bool BeginExternalReceiver();
     void CompleteExternalDrag(bool cancellationConfirmed);
     void FinishExternalReceiver();

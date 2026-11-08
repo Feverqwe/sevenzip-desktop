@@ -1,5 +1,8 @@
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/window/mainwindow.h"
+#ifdef Q_OS_MACOS
+#include "filemanager/panels/qtmacfilepromisedrag.h"
+#endif
 #include <QContextMenuEvent>
 #include <QDropEvent>
 #include <QMouseEvent>
@@ -22,6 +25,10 @@ bool QtFileManagerDrag::eventFilter(QObject *object, QEvent *event) {
 CDataObject *QtFileManagerDrag::ReadData(const QMimeData &mime) {
     if (auto *internal = dynamic_cast<const QtPanelDragMime *>(&mime))
         return &internal->Data();
+#ifdef Q_OS_MACOS
+    if (auto *source = QtMacFilePromiseDragSource(mime))
+        return static_cast<CDataObject *>(source);
+#endif
     external_.NativeData.reset();
 #ifdef _WIN32
     if (nativeConverter_)

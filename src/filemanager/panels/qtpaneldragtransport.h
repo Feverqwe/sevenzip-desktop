@@ -29,11 +29,20 @@ class QtPanelDragTransport final : public IQtPanelDragServices {
     HRESULT CompressFiles(CPanel &, const UString &, const UString &, const UStringVector &,
                           bool) override;
     bool Active() const { return active_; }
+#ifdef Q_OS_MACOS
+    using PromiseMaterializer = std::function<bool(CDataObject &, CPanel &)>;
+    void SetPromiseMaterializer(PromiseMaterializer materializer) {
+        promiseMaterializer_ = std::move(materializer);
+    }
+#endif
 
   private:
     QPointer<QWidget> widget_;
     const bool nativeExecutor_;
     Executor executor_;
     Compression compression_;
+#ifdef Q_OS_MACOS
+    PromiseMaterializer promiseMaterializer_;
+#endif
     bool active_ = false;
 };

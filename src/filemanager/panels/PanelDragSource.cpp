@@ -26,6 +26,9 @@ void CDataObject::SetTransfer(const CTargetTransferInfo &target) {
             needProcessBySource = false;
     }
     DoNotProcessInTarget = needProcessBySource;
+    if (DeferredTempFiles && target.FuncType == k_DragTargetMode_Drop_Begin &&
+        !(target.Flags & k_TargetFlags_WasCanceled))
+        NeedCall_Copy = !needProcessBySource;
 }
 UInt32 CDataObject::GetTransferFlags() const {
     UInt32 flags = 0;
@@ -93,8 +96,10 @@ void CDataObject::CompleteExternalDrag(bool cancellationConfirmed) {
         FinishExternalReceiver();
 }
 
-void CDataObject::CopyFromPanelTo_Folder() {
-    if (!Panel) {
+void CDataObject::CopyFromPanelTo_Folder(CPanel *source) {
+    if (!source)
+        source = Panel;
+    if (!source) {
         Copy_HRESULT = E_ABORT;
         return;
     }
@@ -104,7 +109,7 @@ void CDataObject::CopyFromPanelTo_Folder() {
         // Qt owns mouse capture; CopyTo uses the existing progress adapter.
         Copy_WasCalled = true;
         Copy_HRESULT = E_FAIL;
-        Copy_HRESULT = Panel->CopyTo(options, Indices, &Messages);
+        Copy_HRESULT = source->CopyTo(options, Indices, &Messages);
     } catch (...) {
         Copy_HRESULT = E_FAIL;
     }

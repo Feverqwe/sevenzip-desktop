@@ -7,6 +7,9 @@
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#ifdef Q_OS_MACOS
+#include "filemanager/panels/qtmacfilepromisedrag.h"
+#endif
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QStorageInfo>
@@ -14,6 +17,8 @@
 QtFileManagerDrag::QtFileManagerDrag(MainWindow &window) : QObject(&window), window_(window) {
 #ifdef _WIN32
     nativeConverter_ = QtNativePanelDragConverter::ForApplication();
+#elif defined(Q_OS_MACOS)
+    QtRegisterMacFilePromiseDrag();
 #endif
     window.app_.DropTarget().AttachPresentation(this);
     window.setAcceptDrops(true);
@@ -81,6 +86,17 @@ HRESULT QtFileManagerDrag::DoDragDrop(CDataObject &data, CDropSource &source, DW
     const auto &ui = window_.panelUi_[i];
     QWidget *view = ui.viewStack ? ui.viewStack->currentWidget() : ui.table;
     QtPanelDragTransport transport(view);
+#ifdef Q_OS_MACOS
+    transport.SetPromiseMaterializer(
+        [window = QPointer<MainWindow>(&window_)](CDataObject &promise, CPanel &panel) {
+            if (!window || window->app_.QtOperations().closed() ||
+                window->app_.QtOperations().active() || window->backend_->busy())
+                return false;
+            QScopedValueRollback<bool> guard(window->sourceArchiveProgress_, true);
+            promise.CopyFromPanelTo_Folder(&panel);
+            return promise.Copy_HRESULT == S_OK && promise.Messages.IsEmpty();
+        });
+#endif
     return transport.DoDragDrop(data, source, allowed, effect);
 }
 int QtFileManagerDrag::PanelAtPoint(int x, int y) const {
