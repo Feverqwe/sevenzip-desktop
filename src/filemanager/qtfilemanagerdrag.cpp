@@ -88,9 +88,10 @@ HRESULT QtFileManagerDrag::DoDragDrop(CDataObject &data, CDropSource &source, DW
     QtPanelDragTransport transport(view);
 #if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
     transport.SetPromiseMaterializer(
-        [window = QPointer<MainWindow>(&window_)](CDataObject &promise, CPanel &panel) {
+        [window = QPointer<MainWindow>(&window_), i](CDataObject &promise, CPanel &panel) {
             if (!window || window->app_.QtOperations().closed() ||
-                window->app_.QtOperations().active() || window->backend_->busy())
+                window->app_.QtOperations().blocking() ||
+                (window->scanningPanelMask() & (1u << i)) || window->backend_->busy())
                 return false;
             QScopedValueRollback<bool> guard(window->sourceArchiveProgress_, true);
             promise.CopyFromPanelTo_Folder(&panel);

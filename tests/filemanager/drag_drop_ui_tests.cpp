@@ -109,6 +109,7 @@ class NativeDropReceiver final : public QWidget {
     QString Destination;
     QString EnteredMarker;
     bool ReadPathsOnEnter = false;
+    std::function<void()> BeforeDrop;
     std::atomic_bool Entered = false;
 
     explicit NativeDropReceiver(const QString &destination) : Destination(destination) {
@@ -129,6 +130,8 @@ class NativeDropReceiver final : public QWidget {
         }
     }
     void dropEvent(QDropEvent *event) override {
+        if (BeforeDrop)
+            BeforeDrop();
         if (CopyExport(event->mimeData(), Destination)) {
             event->acceptProposedAction();
             if (!EnteredMarker.isEmpty())
@@ -154,6 +157,7 @@ class DragDropUiTests final : public QObject {
 #ifdef Q_OS_LINUX
         QTest::newRow("external") << false << true << false;
         QTest::newRow("external-reads-on-enter") << false << true << true;
+        QTest::newRow("peer-refresh") << false << false << false;
         if (qEnvironmentVariableIsSet("SEVENZIP_TEST_DOLPHIN")) {
             QTest::newRow("dolphin-cancel") << true << true << false;
             QTest::newRow("dolphin-clipboard") << false << true << false;
@@ -278,6 +282,28 @@ class DragDropUiTests final : public QObject {
         auto *table = window.findChild<FileTable *>("archiveTable");
         QVERIFY(table);
         QTRY_VERIFY(table->isVisible() && table->dragEnabled() && Row(*table, name) >= 0);
+        FileTable *peer = nullptr;
+        if (QByteArrayView(QTest::currentDataTag()) == "peer-refresh") {
+            const QString folder = fixture.filePath("peer");
+            QVERIFY(QDir().mkpath(folder));
+            window.findChild<QAction *>("twoPanelsAction")->trigger();
+            auto *peerPane = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(peerPane && peerPane->isVisible());
+            Navigate(*peerPane, folder);
+            peer = peerPane->findChild<FileTable *>("archiveTable");
+            QVERIFY(peer);
+            QTRY_VERIFY(peer->isEnabled());
+            peer->sourcePanel->Set_AutoRefresh_Mode(false);
+            for (int i = 0; i < 301; ++i)
+                QVERIFY(SourceExtractFixture::writeFile(
+                    QDir(folder).filePath(QString("peer-%1.txt").arg(i)), "peer update"));
+            table->setFocus();
+            QTRY_VERIFY(table->hasFocus());
+            receiver.BeforeDrop = [peer] {
+                QCOMPARE(peer->sourcePanel->RefreshListCtrl(), S_OK);
+                QVERIFY(!peer->isEnabled());
+            };
+        }
         const auto sourceReady = [&] {
             return table->isEnabled() && table->dragEnabled() &&
                    table->currentIndex().data(QtPanelList::NameRole).toString() == name &&
@@ -451,6 +477,8 @@ class DragDropUiTests final : public QObject {
         QCOMPARE(extractedBeforeRelease, earlyRequest);
         QCOMPARE(SourceExtractFixture::readFile(destination), payload);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
+        if (peer)
+            QTRY_VERIFY(peer->isEnabled() && peer->rowCount() >= 301);
         if (external && !wayland) {
             QTRY_COMPARE(recipient.state(), QProcess::NotRunning);
             QCOMPARE(recipient.exitCode(), 0);
