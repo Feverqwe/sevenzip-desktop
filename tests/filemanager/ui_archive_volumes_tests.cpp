@@ -137,6 +137,12 @@ class UiArchiveVolumesTests final : public QObject, protected MainWindowTestSupp
         auto *retry = window.findChild<QPushButton *>("navigationRetry0");
         QTRY_VERIFY(retry && retry->isVisible());
         QCOMPARE(table(window)->rowCount(), 2);
+        const QString retained = fixture.filePath("retained output");
+        const int extractionErrors = answers.Errors;
+        window.extractTo(retained);
+        QCOMPARE(readFile(QDir(retained).filePath(kName)), QByteArray(400000, 'x'));
+        QCOMPARE(answers.Errors, extractionErrors);
+        QVERIFY(retry->isVisible());
         QVERIFY(QFile::rename(parked, second));
         retry->click();
         QTRY_VERIFY(!retry->isVisible());
