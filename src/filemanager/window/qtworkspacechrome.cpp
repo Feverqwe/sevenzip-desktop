@@ -140,6 +140,8 @@ void QtWindowWorkspace::RefreshChrome() {
         const auto native = window_.commands_->AvailabilityForPanel(panel);
         const auto clipboard = window_.clipboard_->AvailabilityForPanel(panel);
         auto *container = window_.panelUi_[panel].container;
+        if (auto *recent = window_.panelUi_[panel].recentPlaces)
+            recent->setEnabled(!window_.app_.QtOperations().active());
         if (auto *button = container->findChild<QAbstractButton *>(
                 QStringLiteral("panelParentButton%1").arg(panel)))
             button->setEnabled(native.value(window_.up_->property("nativeCommandID").toUInt()));

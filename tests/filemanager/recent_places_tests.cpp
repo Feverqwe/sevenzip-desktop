@@ -73,6 +73,33 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
 
+    void recentPlacesReenableAfterFolderScan() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("first");
+        const QString large = fixture.filePath("large");
+        directory(first);
+        directory(large, 301);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(first);
+        QTRY_COMPARE(location(window), first);
+        auto *button = window.findChild<QToolButton *>("panelRecentPlacesButton0");
+        QVERIFY(button && button->isEnabled());
+        window.openPath(large);
+        QVERIFY(!active(window)->isEnabled());
+        QVERIFY(!button->isEnabled());
+        QTRY_VERIFY(button->isEnabled());
+        QTest::mouseClick(button, Qt::LeftButton);
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        auto *menu = RecentPlacesMenu::Visible(window);
+        auto *entry = RecentPlacesMenu::Find(*menu, first);
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*menu, *entry);
+        QTRY_COMPARE(location(window), first);
+    }
+
     void addressMenuLimitsHistoryAndEscapePreservesLocation_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<QSize>("size");
