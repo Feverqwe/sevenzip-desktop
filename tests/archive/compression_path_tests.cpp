@@ -617,6 +617,7 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(format->currentText(), QString("zip"));
         QCOMPARE(name->text(), QDir::toNativeSeparators(entered));
         dialog.show();
+        name->setCursorPosition(0);
         bool errorShown = false;
         QTimer::singleShot(0, &dialog, [&] {
             if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
@@ -629,11 +630,14 @@ class CompressionPathTests final : public QObject {
         QVERIFY(errorShown);
         QCOMPARE(name->text(), QDir::toNativeSeparators(entered));
         QVERIFY(!QFileInfo::exists(output.filePath("new folder")));
-        name->setText("new folder/archive.zip");
+        const QString prefix = entered.left(entered.lastIndexOf('/') + 1);
+        QCOMPARE(name->selectedText(), entered.mid(prefix.size()));
+        QTest::keyClicks(name, "archive.zip");
+        QCOMPARE(name->text(), QDir::toNativeSeparators(prefix + "archive.zip"));
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(dialog.target()),
-                 output.filePath("new folder/archive.zip"));
+                 output.filePath(prefix + "archive.zip"));
     }
     void destinationPickerRetainsNameAndCancelDraft_data() {
         QTest::addColumn<QString>("form");
