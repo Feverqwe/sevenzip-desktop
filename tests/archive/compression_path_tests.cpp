@@ -375,6 +375,9 @@ class CompressionPathTests final : public QObject {
     void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName_data() {
         QTest::addColumn<QString>("obstruction");
         QTest::newRow("file") << QString("file");
+#ifdef Q_OS_WIN
+        QTest::newRow("empty-windows-component") << QString("empty-component");
+#endif
 #ifndef Q_OS_WIN
         QTest::newRow("dangling-link") << QString("link");
         QTest::newRow("read-only") << QString("permissions");
@@ -391,9 +394,10 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(occupied.write("keep"), qint64(4));
         occupied.close();
         const QString missing = fixture.filePath("missing folder");
-        const QString blocker = danglingLink ? fixture.filePath("old shortcut")
-                                : readOnly   ? fixture.filePath("read only")
-                                             : occupied.fileName();
+        const QString blocker = obstruction == "empty-component" ? fixture.filePath(" ... ")
+                                : danglingLink                   ? fixture.filePath("old shortcut")
+                                : readOnly                       ? fixture.filePath("read only")
+                                                                 : occupied.fileName();
         if (danglingLink)
             QVERIFY(QFile::link(missing, blocker));
         const QString name = QStringLiteral("архив с пробелом.7z");

@@ -1,6 +1,7 @@
 #include "Windows/FileName.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "fileops/links/qtlinkservices.h"
+#include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
@@ -14,7 +15,6 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
-#include <algorithm>
 #include <utility>
 
 namespace {
@@ -37,18 +37,6 @@ bool SameExistingPath(const QFileInfo &first, const QFileInfo &second) {
     return !canonical.isEmpty() && canonical == second.canonicalFilePath();
 }
 
-bool IsEmptyWindowsName([[maybe_unused]] const QString &name,
-                        [[maybe_unused]] const QString &path) {
-#ifdef Q_OS_WIN
-    return !name.isEmpty() &&
-           !NWindows::NFile::NName::IsSuperOrDevicePath(
-               ToUString(QDir::toNativeSeparators(path))) &&
-           std::all_of(name.cbegin(), name.cend(), [](QChar c) { return c == ' ' || c == '.'; });
-#else
-    return false;
-#endif
-}
-
 bool IsName(const QString &name, const QString &directory) {
     if (name.isEmpty() || name == "." || name == ".." || name.contains(QChar::Null) ||
         name.contains('/'))
@@ -57,19 +45,8 @@ bool IsName(const QString &name, const QString &directory) {
     if (name.contains('\\'))
         return false;
 #endif
-    return !IsEmptyWindowsName(name, directory);
-}
-
-bool HasEmptyWindowsPathComponent([[maybe_unused]] const QString &path,
-                                  [[maybe_unused]] const QString &resolved) {
-#ifdef Q_OS_WIN
-    const auto components = QDir::fromNativeSeparators(path).split('/', Qt::SkipEmptyParts);
-    return std::any_of(components.cbegin(), components.cend(), [&resolved](const QString &part) {
-        return part != "." && part != ".." && IsEmptyWindowsName(part, resolved);
-    });
-#else
-    return false;
-#endif
+    return !HasEmptyWindowsPathComponent(ToUString(name),
+                                         ToUString(QDir::toNativeSeparators(directory)));
 }
 
 enum class DirectoryStatus { Writable, Blocked, ReadOnly };
@@ -228,7 +205,9 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
     else if (path.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Choose a destination."));
     else if (path.contains(QChar::Null) ||
-             (filesystemDestination && HasEmptyWindowsPathComponent(path, preview)))
+             (filesystemDestination &&
+              HasEmptyWindowsPathComponent(ToUString(QDir::toNativeSeparators(path)),
+                                           ToUString(QDir::toNativeSeparators(preview)))))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (nameAvailable && !IsName(_name->text(), preview))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));

@@ -7,6 +7,8 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/operations/Update.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "fileops/native/correctfspath.h"
+#include "settings/ViewSettings.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QCoreApplication>
@@ -102,10 +104,19 @@ void CreateArchiveDialog::validateAndAccept() {
     const UString leaf(draftName.Ptr(unsigned(draftName.ReverseFind_PathSepar() + 1)));
     const bool hasFileName = !leaf.IsEmpty() && !leaf.IsEqualTo(".") && !leaf.IsEqualTo("..");
     const QString resolved = archivePath();
+    const UString nativeResolved = ToUString(QDir::toNativeSeparators(resolved));
+    const bool relativeName = NWindows::NFile::NName::GetRootPrefixSize(draftName) == 0;
+    const bool invalidName = HasEmptyWindowsPathComponent(
+        ToUString(QDir::toNativeSeparators(name_->text())), nativeResolved);
+    const bool invalidFolder =
+        relativeName &&
+        HasEmptyWindowsPathComponent(ToUString(QDir::toNativeSeparators(archiveFolder_->text())),
+                                     nativeResolved);
     const QFileInfo target(resolved);
     const bool singleVolume = !volume_->isEnabled() || volume_->currentText().trimmed().isEmpty();
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
-    QString pathError = !hasFileName || resolved.isEmpty() || target.isDir() || danglingTarget
+    QString pathError = !hasFileName || invalidName || invalidFolder || resolved.isEmpty() ||
+                                target.isDir() || danglingTarget
                             ? InvalidArchivePath()
                             : ArchiveDirectoryError(target.absolutePath());
     if (pathError.isEmpty() && singleVolume && target.exists()) {
@@ -132,10 +143,10 @@ void CreateArchiveDialog::validateAndAccept() {
         const std::wstring message = pathError.toStdWString();
         ShowErrorMessageQt(this, message.c_str());
         auto *field = name_;
-        if (archiveFolder_->text().contains(QChar::Null))
+        if (archiveFolder_->text().contains(QChar::Null) || (invalidFolder && !invalidName))
             field = archiveFolder_;
-        else if (hasFileName && !name_->text().contains(QChar::Null) &&
-                 NWindows::NFile::NName::GetRootPrefixSize(draftName) == 0) {
+        else if (hasFileName && !invalidName && !name_->text().contains(QChar::Null) &&
+                 relativeName) {
             CCompressDialog base = archiveNameState_;
             base.m_ArchivePath.clear();
             QString directory;

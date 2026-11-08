@@ -832,6 +832,25 @@ static void RemoveDotsAndSpaces(UString &path) {
     }
 }
 
+bool HasEmptyWindowsPathComponent(const UString &path, const UString &resolved) {
+    using namespace NWindows::NFile::NName;
+    if (IsSuperOrDevicePath(resolved))
+        return false;
+    for (unsigned start = 0; start < path.Len();) {
+        const int separator = FindSepar(path.Ptr(start));
+        const unsigned length = separator < 0 ? path.Len() - start : unsigned(separator);
+        UString component;
+        component.SetFrom(path.Ptr(start), length);
+        if (!component.IsEmpty() && !component.IsEqualTo(".") && !component.IsEqualTo("..")) {
+            RemoveDotsAndSpaces(component);
+            if (component.IsEmpty())
+                return true;
+        }
+        start += length + 1;
+    }
+    return false;
+}
+
 bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result) {
     using namespace NWindows::NFile;
     using namespace NWindows::NFile::NName;
@@ -891,6 +910,8 @@ bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result
     return true;
 }
 #else
+bool HasEmptyWindowsPathComponent(const UString &, const UString &) { return false; }
+
 bool CorrectFsPath(const UString & /* relBase */, const UString &path, UString &result) {
     result = path;
     return true;
