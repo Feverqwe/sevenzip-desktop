@@ -87,9 +87,7 @@ void MainWindow::runArchiveBatchCommand(bool test) {
         if (!app_.QtOperations().closed()) {
             activatePanelUi(source);
             setState(previous);
-            activateWindow();
-            if (focus && focus->isEnabled())
-                focus->setFocus();
+            appPresentation_->RestoreWidgetFocus(focus);
         }
     });
     setState(State::Operating);

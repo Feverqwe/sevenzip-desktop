@@ -36,6 +36,65 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void batchArchiveCommandKeepsTheNewActiveWindow_data() {
+        QTest::addColumn<bool>("extract");
+        QTest::newRow("test") << false;
+        QTest::newRow("extract") << true;
+    }
+    void batchArchiveCommandKeepsTheNewActiveWindow() {
+        QFETCH(bool, extract);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("batch.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"file.txt", "payload"}}, "zip"));
+        MainWindow peer;
+        peer.show();
+        peer.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(peer, "batch.zip") >= 0);
+        auto *peerView = table(peer);
+        struct SwitchingBackend : ControlledBackend {
+            QWidget *peer = nullptr;
+            QWidget *view = nullptr;
+            void switchWindow() {
+                QApplication::setActiveWindow(peer);
+                view->setFocus();
+            }
+            QtOperationLauncher *startGuiTest(const QStringList &paths, QString &error,
+                                              bool hashMode) override {
+                switchWindow();
+                return ControlledBackend::startGuiTest(paths, error, hashMode);
+            }
+            QtOperationLauncher *startGuiExtract(const QStringList &paths, const QString &folder,
+                                                 bool showDialog, bool elimDup, quint32 zone,
+                                                 QString &error) override {
+                switchWindow();
+                return ControlledBackend::startGuiExtract(paths, folder, showDialog, elimDup, zone,
+                                                          error);
+            }
+        } backend;
+        backend.peer = &peer;
+        backend.view = peerView;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(filesystemRow(window, "batch.zip") >= 0);
+        auto *view = table(window);
+        view->setFocus();
+        const int row = filesystemRow(window, "batch.zip");
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        auto *command = action(window, extract ? "extractArchiveAction" : "testArchiveAction");
+        QVERIFY(command->isEnabled());
+        command->trigger();
+        QCOMPARE(backend.GuiRequests.size(), 1);
+        QCoreApplication::processEvents();
+        QCOMPARE(QApplication::activeWindow(), &peer);
+        QCOMPARE(QApplication::focusWidget(), peerView);
+        QCOMPARE(window.focusWidget(), view);
+    }
+
     void testReportIdentifiesWhichItemsWereChecked_data() {
         QTest::addColumn<bool>("corrupt");
         QTest::newRow("healthy") << false;
