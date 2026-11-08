@@ -169,11 +169,14 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         writeSource(existingName, "ready bytes");
         const QList<QUrl> sources{QUrl::fromLocalFile(peerDirectory.filePath(existingName)),
                                   QUrl::fromLocalFile(peerDirectory.filePath(missingName))};
-        auto *clipboard = new QMimeData;
-        clipboard->setUrls(sources);
-        if (move)
-            clipboard->setData("application/x-kde-cutselection", "1");
-        QApplication::clipboard()->setMimeData(clipboard);
+        const auto publishFiles = [&] {
+            auto *clipboard = new QMimeData;
+            clipboard->setUrls(sources);
+            if (move)
+                clipboard->setData("application/x-kde-cutselection", "1");
+            QApplication::clipboard()->setMimeData(clipboard);
+        };
+        publishFiles();
         const QString pasteLabel = action(window, "pasteFilesAction")->text();
         bool pasteChosen = false;
         const auto choosePaste = [&] {
@@ -183,6 +186,10 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             for (auto *item : menu->actions())
                 if (item->text() == pasteLabel) {
                     QVERIFY(item->isEnabled());
+                    QApplication::clipboard()->setText("plain text");
+                    QTRY_VERIFY(!item->isEnabled());
+                    publishFiles();
+                    QTRY_VERIFY(item->isEnabled());
                     pasteChosen = true;
                     menu->setActiveAction(item);
                     QTest::keyClick(menu, Qt::Key_Return);

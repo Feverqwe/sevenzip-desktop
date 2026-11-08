@@ -10,6 +10,7 @@
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
+#include <QClipboard>
 
 struct QtPanelContextMenu::Impl {
     MainWindow &window;
@@ -173,6 +174,11 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
                                                      : clipboardAvailability.paste);
         local->setProperty("fileClipboard", QVariant::fromValue(source));
         state.popup.insertAction(before, local);
+        if (source == clipboard.paste)
+            QObject::connect(QApplication::clipboard(), &QClipboard::dataChanged, local,
+                             [clipboard = &clipboard, local, owner] {
+                                 local->setEnabled(clipboard->AvailabilityForPanel(owner).paste);
+                             });
     }
     auto *archives =
         state.popup.addMenu(QCoreApplication::translate("QtWindowWorkspace", "Archive"));
