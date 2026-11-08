@@ -199,6 +199,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                         << sourceIndex << large << QString::fromLatin1(outcome);
         QTest::newRow("relative-copy") << 0u << false << QString("relative-copy");
         QTest::newRow("relative-move") << 1u << false << QString("relative-move");
+        QTest::newRow("new-batch-folder") << 0u << false << QString("new-batch-folder");
         QTest::newRow("overwrite-cancel-move") << 0u << false << QString("overwrite-cancel-move");
         QTest::newRow("overwrite-skip-move") << 0u << false << QString("overwrite-skip-move");
         QTest::newRow("missing-copy") << 0u << false << QString("missing-copy");
@@ -215,14 +216,17 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         const bool overwrite = skip || outcome.startsWith("overwrite-cancel");
         const bool move = outcome.endsWith("move");
         const bool relative = outcome.startsWith("relative-");
+        const bool newBatchFolder = outcome == "new-batch-folder";
         const bool linked = outcome == "link-copy";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath("input");
         const QString peer = fixture.filePath("peer");
         const QString output = fixture.filePath("output");
-        for (const QString &path : {input, peer, output})
+        for (const QString &path : {input, peer})
             QVERIFY(QDir().mkpath(path));
+        if (!newBatchFolder)
+            QVERIFY(QDir().mkpath(output));
         const QString link = fixture.filePath("linked destination");
         const QString alias = fixture.filePath("linked parent");
         if (linked) {
@@ -236,7 +240,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         const QString name = QStringLiteral("payload δ.txt");
         const QString other = QStringLiteral("another file.txt");
         write(QDir(input).filePath(name), "control bytes");
-        if (skip || missing)
+        if (skip || missing || newBatchFolder)
             write(QDir(input).filePath(other), "move these bytes");
         write(QDir(peer).filePath("seed.txt"), "seed control");
         if (overwrite)
@@ -258,7 +262,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             static_cast<FileTable *>(view)->sourcePanel->Set_AutoRefresh_Mode(false);
         peerView->selectRow(row(*peerView, "seed.txt"));
         sourceView->selectRow(row(*sourceView, name));
-        if (skip || missing)
+        if (skip || missing || newBatchFolder)
             sourceView->selectionModel()->select(
                 sourceView->model()->index(row(*sourceView, other), 0),
                 QItemSelectionModel::Select | QItemSelectionModel::Rows);
@@ -286,7 +290,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                             ++refusedDestinations;
                     }
                 }
-                path->setText(relative ? "../unneeded/../output/" : output + '/');
+                if (relative)
+                    path->setText(move ? "../unneeded/../output/" : "../unneeded/../output");
+                else
+                    path->setText(newBatchFolder ? output : output + '/');
                 if (missing)
                     removed = QFile::remove(QDir(input).filePath(other));
                 if (cancel)
@@ -335,6 +342,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         if (skip) {
             QVERIFY(!QFileInfo::exists(QDir(input).filePath(other)));
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+        }
+        if (newBatchFolder) {
+            QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
         }
         QCOMPARE(peerView->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(peerView->model()

@@ -21,6 +21,7 @@
         outsidePeerStillRefreshesDestination:missing-move
         outsidePeerStillRefreshesDestination:relative-copy
         outsidePeerStillRefreshesDestination:relative-move
+        outsidePeerStillRefreshesDestination:new-batch-folder
         outsidePeerStillRefreshesDestination:link-copy
         unselectedItemsReachSourceSmartCopy:0-0-0---440
         unselectedItemsReachSourceSmartCopy:1-1-1-ru-360
