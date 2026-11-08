@@ -165,6 +165,13 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(files->rowAt(0), row);
         const int topOffset = files->rowViewportPosition(row);
         QVERIFY(topOffset < 0);
+        files->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+        files->setColumnWidth(0, files->viewport()->width() + 200);
+        auto *horizontal = files->horizontalScrollBar();
+        QTRY_VERIFY(horizontal->maximum() > 0);
+        horizontal->setValue(horizontal->maximum() / 2);
+        const int horizontalOffset = horizontal->value();
+        QVERIFY(horizontalOffset > 0);
 
         QVERIFY(writeFile(fixture.filePath("000-new.txt")));
         if (manual)
@@ -173,6 +180,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         const int restoredRow = filesystemRow(window, anchorName);
         QCOMPARE(files->rowAt(0), restoredRow);
         QCOMPARE(files->rowViewportPosition(restoredRow), topOffset);
+        QCOMPARE(horizontal->value(), horizontalOffset);
     }
 
     void detectsChangesAndPreservesSelectionAndScroll() {
