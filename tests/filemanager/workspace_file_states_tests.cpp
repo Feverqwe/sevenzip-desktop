@@ -180,12 +180,21 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         mime->setUrls({QUrl::fromLocalFile(source)});
         QApplication::clipboard()->setMimeData(mime);
         QTRY_VERIFY(paste->isEnabled());
+        openListedArchive(window, backend, fixture.filePath("view.zip"),
+                          {ArchiveEntry{"inside.txt", 1, 1}});
+        QTRY_VERIFY(files->isEnabled() && files->sourcePanel->IsArcFolder());
+        QVERIFY(!paste->isEnabled());
         window.openPath(destination);
         QVERIFY(!files->isEnabled());
         QVERIFY(!paste->isEnabled());
         QTRY_VERIFY(files->isEnabled() && paste->isEnabled());
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
                  QList<QUrl>{QUrl::fromLocalFile(source)});
+        paste->trigger();
+        QFile output(QDir(destination).filePath("incoming.txt"));
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "incoming.txt") >= 0);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("file state fixture"));
     }
 
     void externalCutHints_data() {
