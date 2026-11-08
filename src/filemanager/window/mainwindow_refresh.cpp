@@ -188,7 +188,8 @@ void MainWindow::pollAutoRefresh() {
     for (unsigned index = 0; index < kNumPanelsMax; ++index)
         if (app_.IsPanelVisible(index) && !app_.Panels[index].ShouldProcessNotifications())
             return;
-    for (unsigned index = 0; index < kNumPanelsMax; ++index) {
+    for (unsigned offset = 0; offset < kNumPanelsMax; ++offset) {
+        const unsigned index = (nextAutoRefreshPanel_ + offset) % kNumPanelsMax;
         if (!app_.IsPanelVisible(index) || !panelUi_[index].container ||
             panelUi_[index].state != State::Filesystem || panelUi_[index].locationUnavailable ||
             renameController_->PendingFor(index))
@@ -206,8 +207,10 @@ void MainWindow::pollAutoRefresh() {
             }
             panel.OnTimer();
         });
-        if (app_.QtOperations().active())
+        if (app_.QtOperations().active()) {
+            nextAutoRefreshPanel_ = (index + 1) % kNumPanelsMax;
             break;
+        }
     }
 }
 

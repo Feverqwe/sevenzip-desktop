@@ -365,6 +365,25 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             }
             QTRY_VERIFY(views[1]->hasFocus());
         }
+
+        // A directory receiving continuous writes must not monopolize the
+        // refresh timer while the other pane has an update waiting.
+        const QString changing = QDir(folders[0]).filePath(selectedNames[0]);
+        int size = 50;
+        QVERIFY(writeFile(changing, QByteArray(size, 'x')));
+        QTimer writer;
+        connect(&writer, &QTimer::timeout, this,
+                [&] { QVERIFY(writeFile(changing, QByteArray(++size, 'x'))); });
+        writer.start(100);
+        const QString newName = QStringLiteral("новый справа.txt");
+        QVERIFY(writeFile(QDir(folders[1]).filePath(newName)));
+        auto *right = views[1];
+        QTRY_VERIFY_WITH_TIMEOUT(right->isEnabled() && right->rowCount() == 272, 5000);
+        QVERIFY(
+            !right->model()
+                 ->match(right->model()->index(0, 0), Qt::DisplayRole, newName, 1, Qt::MatchExactly)
+                 .isEmpty());
+        QTRY_VERIFY(right->hasFocus());
     }
 
     void idleTicksKeepActiveTitleAndAddressDraft_data() {

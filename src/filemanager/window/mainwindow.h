@@ -372,6 +372,7 @@ class MainWindow : public QMainWindow {
     PanelUiState &projectedUi() { return panelUi_[projectedPanel_]; }
     const PanelUiState &projectedUi() const { return panelUi_[projectedPanel_]; }
     QTimer *autoRefreshTimer_ = nullptr;
+    unsigned nextAutoRefreshPanel_ = 0;
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     State previousState_ = State::Filesystem;
     struct PendingArchiveMove {
