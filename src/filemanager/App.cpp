@@ -11,6 +11,8 @@
 #include "filemanager/qtfilemanagercommandservices.h"
 #include "localization/LangUtils.h"
 #include "settings/ViewSettings.h"
+#include <QDir>
+#include <QFileInfo>
 #include <QWidget>
 
 static const unsigned kParentIndex = (unsigned)(int)-1;
@@ -189,6 +191,11 @@ HRESULT CApp::CreateOnePanel(unsigned panelIndex, const UString &mainPath, const
     if (mainPath.IsEmpty()) {
         if (!ReadPanelPath(panelIndex, path, _settingsPath))
             path.Empty();
+        else if (!path.IsEmpty()) {
+            const QFileInfo saved(QDir::cleanPath(ToQString(path)));
+            if (saved.isFile())
+                path = ToUString(saved.absolutePath());
+        }
     } else
         path = mainPath;
     const unsigned id = 1000 + 100 * panelIndex; // check it

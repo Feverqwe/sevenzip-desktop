@@ -33,6 +33,7 @@ QJsonObject QtWindowWorkspace::Save() {
                        : QFileInfo(locationState.archiveLocation.physicalPath).absolutePath();
         panels.append(QJsonObject{
             {"path", path},
+            {"diskFolder", ui.scanningDisk || locationState.diskFolder},
             {"nativePlace", !ui.scanningDisk && locationState.archiveLocation.physicalPath.isEmpty()
                                 ? locationState.nativePlaceIdentity
                                 : QString()},
@@ -89,16 +90,18 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
     locationState = {};
     locationState.path = object.value("path").toString();
     locationState.nativePlaceIdentity = object.value("nativePlace").toString();
+    locationState.diskFolder = object.value("diskFolder").toBool();
     // Earlier workspace settings persisted open archive chains. Resume
     // the containing directory, just like CApp's single-window Save.
     const auto archive = object.value("archiveLocation").toObject();
     const QString physical = archive.value("physical").toString();
     if (!liveArchive.physicalPath.isEmpty()) {
         locationState.archiveLocation = liveArchive;
+        locationState.diskFolder = false;
     } else if (!physical.isEmpty()) {
         locationState.path = QFileInfo(physical).absolutePath();
         locationState.nativePlaceIdentity.clear();
-    } else if (QFileInfo(locationState.path).isFile()) {
+    } else if (!locationState.diskFolder && QFileInfo(locationState.path).isFile()) {
         locationState.path = QFileInfo(locationState.path).absolutePath();
         locationState.nativePlaceIdentity.clear();
     }
@@ -110,7 +113,9 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
                            locationState.nativePlaceIdentity,
                            locationState.archiveLocation,
                            {},
-                           {}};
+                           {},
+                           UInt32(locationState.viewMode),
+                           locationState.diskFolder};
         Navigate(
             [&] {
                 const QScopedValueRollback<bool> changing(changing_, true);
@@ -128,6 +133,7 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
                 auto &location = panels_[panel].location;
                 location.nativePlaceIdentity = target.nativePlaceIdentity;
                 location.archiveLocation = target.archiveLocation;
+                location.diskFolder = target.diskFolder;
                 CompleteLocationOpen(panel, target.path, result);
                 window_.refreshActions();
             },

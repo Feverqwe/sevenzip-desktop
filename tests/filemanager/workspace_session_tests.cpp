@@ -454,6 +454,51 @@ class WorkspaceSessionTests final : public QObject {
         }
     }
 
+    void sessionKeepsUnavailableFolderAndAllowsRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("saved folder");
+        const QString parked = fixture.filePath("renamed folder");
+        QVERIFY(QDir().mkpath(folder));
+        const auto payload = QStringLiteral("entry.txt");
+        QFile file(QDir(folder).filePath(payload));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        QJsonObject saved;
+        {
+            ControlledBackend backend;
+            MainWindow source(&backend);
+            source.show();
+            source.openPath(folder);
+            QTRY_COMPARE(location(source), folder);
+            QTRY_VERIFY(active(source)->rowCount() > 0 && active(source)->isEnabled());
+            saved = workspace(source)->Save();
+        }
+        QVERIFY(QDir().rename(folder, parked));
+        QFile replacement(folder);
+        QVERIFY(replacement.open(QIODevice::WriteOnly));
+        QCOMPARE(replacement.write("replacement"), qint64(11));
+        replacement.close();
+        ControlledBackend backend;
+        MainWindow restored(&backend);
+        restored.show();
+        QVERIFY(!active(restored)->sourcePanel->IsArcFolder());
+        bool done = false;
+        workspace(restored)->Restore(saved, [&] { done = true; });
+        QTRY_VERIFY(done);
+        auto *retry = restored.findChild<QPushButton *>("navigationRetry0");
+        QVERIFY(retry && retry->isVisible());
+        QCOMPARE(QDir::cleanPath(restored.findChild<QLineEdit *>("archivePath")->text()), folder);
+        QVERIFY(replacement.remove());
+        retry->click();
+        QVERIFY(retry->isVisible());
+        QVERIFY(QDir().rename(parked, folder));
+        retry->click();
+        QTRY_COMPARE(location(restored), folder);
+        QTRY_VERIFY(active(restored)->isEnabled() && !retry->isVisible());
+        QVERIFY(active(restored)->rowCount() > 0);
+    }
+
     void sessionSavedDuringFolderScanRestoresTheFolder_data() {
         QTest::addColumn<bool>("unavailable");
         QTest::newRow("system-place") << false;
