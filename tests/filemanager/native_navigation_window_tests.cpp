@@ -825,6 +825,12 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                 window,
                 QString("parent-focus-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));
         }
+        if (!addressFocus) {
+            PanelKeys::openSelection(window.focusWidget());
+            QTRY_COMPARE(address->text(), QFileInfo(child).canonicalFilePath());
+            QTRY_COMPARE(window.focusWidget(), expected);
+            QCOMPARE(peerAddress->text(), draft);
+        }
         QVERIFY(payload.open(QIODevice::ReadOnly));
         QCOMPARE(payload.readAll(), bytes);
         QCOMPARE(backend.extractCalls, 0);
