@@ -88,7 +88,7 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(QFileInfo::exists(source + "/Alpha.txt"));
     }
 
-    void pasteRequiresWritableFolder() {
+    void cutAndPasteRequireWritableFolder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString writable = fixture.filePath("writable");
@@ -98,6 +98,7 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(QDir().mkpath(blocked));
         write(source);
         write(QDir(blocked).filePath("existing.txt"));
+        write(QDir(writable).filePath("existing.txt"));
         const auto restore = qScopeGuard([&] {
             QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
         });
@@ -113,13 +114,22 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         mime->setUrls({QUrl::fromLocalFile(source)});
         QApplication::clipboard()->setMimeData(mime);
         auto *paste = action(window, "pasteFilesAction");
+        auto *cut = action(window, "cutFilesAction");
+        auto *copy = action(window, "copyFilesAction");
         QTRY_VERIFY(paste->isEnabled());
 
         window.openPath(blocked);
-        QTRY_VERIFY(rowFor(*table(window), "existing.txt") >= 0);
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "existing.txt") >= 0);
+        files->selectRow(rowFor(*files, "existing.txt"));
+        QVERIFY(copy->isEnabled());
+        QVERIFY(!cut->isEnabled());
         QVERIFY(!paste->isEnabled());
         window.openPath(writable);
         QTRY_VERIFY(paste->isEnabled());
+        files->selectRow(rowFor(*files, "existing.txt"));
+        QVERIFY(copy->isEnabled());
+        QVERIFY(cut->isEnabled());
     }
 
     void externalCutHints_data() {

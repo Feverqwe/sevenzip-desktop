@@ -97,12 +97,13 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
         source.Get_ItemIndices_Operated(indices);
     Availability available;
     available.copy = ready && !indices.IsEmpty() && source.DoesItSupportOperations();
-    available.cut = available.copy && source.IsFSFolder() && !source.IsThereReadOnlyFolder();
     const QFileInfo destination(ui.directory);
-    available.paste = ready && source.GetFolder() && source.IsFSFolder() &&
-                      !source.IsThereReadOnlyFolder() &&
-                      !ClipboardFilePaths(QApplication::clipboard()->mimeData()).isEmpty() &&
-                      destination.isDir() && destination.isWritable();
+    const bool writableFolder = ready && source.GetFolder() && source.IsFSFolder() &&
+                                !source.IsThereReadOnlyFolder() && destination.isDir() &&
+                                destination.isWritable();
+    available.cut = available.copy && writableFolder;
+    available.paste =
+        writableFolder && !ClipboardFilePaths(QApplication::clipboard()->mimeData()).isEmpty();
     return available;
 }
 
