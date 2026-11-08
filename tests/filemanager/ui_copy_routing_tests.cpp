@@ -302,7 +302,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                     path->setText(newBatchFolder ? output : output + '/');
                 if (missing)
                     removed = QFile::remove(QDir(input).filePath(other));
-                if (cancel)
+                if (cancel && !retry)
                     QTest::keyClick(dialog->findChild<QLineEdit *>("copyDestination"),
                                     Qt::Key_Escape);
                 else
@@ -388,6 +388,15 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         inspectCompletedPanels(
             window, *sourceView, *peerView,
             QString("copy-outside-peer-%1-%2-%3").arg(sourceIndex).arg(large).arg(outcome));
+        if (cancel) {
+            retry = true;
+            seen = false;
+            QTest::keyClick(window.focusWidget(), Qt::Key_F5);
+            QVERIFY(seen);
+            QTRY_COMPARE(read(QDir(output).filePath(name)), QByteArray("control bytes"));
+            QTRY_COMPARE(peerView->rowCount(), originalRows + 1);
+            QCOMPARE(read(QDir(input).filePath(name)), QByteArray("control bytes"));
+        }
     }
     void unselectedItemsReachSourceSmartCopy_data() {
         QTest::addColumn<bool>("archive");
