@@ -55,6 +55,10 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), directory);
         name->setText("../outside");
         QVERIFY(!ok->isEnabled());
+#ifdef Q_OS_WIN
+        name->setText(" ... ");
+        QVERIFY(!ok->isEnabled());
+#endif
         auto *destination = dialog.findChild<QLineEdit *>("copyDestination");
         destination->setText(source);
         QVERIFY(!ok->isEnabled());

@@ -14,6 +14,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
+#include <algorithm>
 #include <utility>
 
 namespace {
@@ -36,12 +37,16 @@ bool SameExistingPath(const QFileInfo &first, const QFileInfo &second) {
     return !canonical.isEmpty() && canonical == second.canonicalFilePath();
 }
 
-bool IsName(const QString &name) {
+bool IsName(const QString &name, [[maybe_unused]] const QString &directory) {
     if (name.isEmpty() || name == "." || name == ".." || name.contains(QChar::Null) ||
         name.contains('/'))
         return false;
 #ifdef Q_OS_WIN
     if (name.contains('\\'))
+        return false;
+    if (!NWindows::NFile::NName::IsSuperOrDevicePath(
+            ToUString(QDir::toNativeSeparators(directory))) &&
+        std::all_of(name.cbegin(), name.cend(), [](QChar c) { return c == ' ' || c == '.'; }))
         return false;
 #endif
     return true;
@@ -204,7 +209,7 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Choose a destination."));
     else if (path.contains(QChar::Null))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
-    else if (nameAvailable && !IsName(_name->text()))
+    else if (nameAvailable && !IsName(_name->text(), preview))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
     else if (directoryStatus == DirectoryStatus::ReadOnly)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
