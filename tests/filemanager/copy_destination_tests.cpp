@@ -2,6 +2,7 @@
 #include "settings/ViewSettings.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -330,7 +331,14 @@ class CopyDestinationTests final : public QObject {
 #endif
     }
 
+    void batchDestinationConflictCanBeCorrected_data() {
+        QTest::addColumn<bool>("replacePath");
+        QTest::newRow("same-destination") << false;
+        QTest::newRow("replace-destination") << true;
+    }
+
     void batchDestinationConflictCanBeCorrected() {
+        QFETCH(bool, replacePath);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString first = fixture.filePath("first.txt");
@@ -381,10 +389,20 @@ class CopyDestinationTests final : public QObject {
         QTest::keyClick(path, Qt::Key_Return);
         QVERIFY(dialog.isVisible());
         QVERIFY(message->isVisible());
-        QVERIFY(QDir(blocked).rmdir(secondName));
+        QString destination = blocked + '/';
+        if (replacePath) {
+            destination = fixture.filePath(QStringLiteral("другая папка")) + '/';
+            auto *clipboard = QApplication::clipboard();
+            const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+            clipboard->setText(destination);
+            QTest::keySequence(path, QKeySequence::Paste);
+            QCOMPARE(path->text(), destination);
+        } else {
+            QVERIFY(QDir(blocked).rmdir(secondName));
+        }
         QTest::keyClick(path, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(ToQString(dialog.Value), blocked + '/');
+        QCOMPARE(ToQString(dialog.Value), destination);
     }
 
     void destinationBelowReadOnlyFolderCanBeCorrected() {

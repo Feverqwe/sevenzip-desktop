@@ -259,6 +259,7 @@ void CCopyDialog::OnOK() {
     if (!UpdateDestination(true)) {
         if (couldSubmit) {
             _pathEdit->setFocus();
+            _pathEdit->selectAll();
             QTimer::singleShot(0, this, [this] {
                 auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
                 if (!scroll || !_destinationMessage->isVisible())
