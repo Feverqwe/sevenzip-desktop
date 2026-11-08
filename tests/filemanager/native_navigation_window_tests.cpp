@@ -143,12 +143,19 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         action(window, "backAction")->trigger();
         QTRY_COMPARE(peerAddress->text(), originalPeer);
     }
+    void failedPeerArchiveOpenKeepsAddressDraft_data() {
+        QTest::addColumn<bool>("cancelPassword");
+        QTest::newRow("missing-archive") << false;
+        QTest::newRow("password-cancelled") << true;
+    }
     void failedPeerArchiveOpenKeepsAddressDraft() {
+        QFETCH(bool, cancelPassword);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("source.7z");
         const QString previous = fixture.filePath("previous");
-        QVERIFY(NativeArchiveFixture::Write(archive, {{"source.txt", "payload"}}));
+        const QString password = cancelPassword ? QStringLiteral("fixture password") : QString();
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"source.txt", "payload"}}, "7z", password));
         QVERIFY(QDir().mkpath(previous));
         QFile entry(QDir(previous).filePath("previous.txt"));
         QVERIFY(entry.open(QIODevice::WriteOnly));
@@ -167,6 +174,21 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
         source->setFocus();
         QTRY_VERIFY(source->hasFocus());
+        bool reject = false;
+        int passwordRequests = 0;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget())) {
+                ++passwordRequests;
+                if (reject)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->accept();
+                }
+            }
+        });
+        responder.start(1);
         window.openArchive(archive);
         QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("source.txt"));
         QVERIFY(WindowActivation::waitForActive(window));
@@ -180,9 +202,16 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         const QString selection = edit->selectedText();
         const int cursor = edit->cursorPosition();
         QVERIFY(edit->isModified());
-        QVERIFY(QFile::rename(archive, fixture.filePath("moved.7z")));
+        reject = true;
+        if (!cancelPassword)
+            QVERIFY(QFile::rename(archive, fixture.filePath("moved.7z")));
         PanelKeys::command(source, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
-        QTRY_VERIFY(window.statusBar()->currentMessage().contains("source.7z"));
+        if (cancelPassword) {
+            QCOMPARE(passwordRequests, 2);
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        } else {
+            QTRY_VERIFY(window.statusBar()->currentMessage().contains("source.7z"));
+        }
         QCOMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("previous.txt"));
         QCOMPARE(edit->text(), QStringLiteral("unfinished path"));
         QCOMPARE(edit->selectedText(), selection);
