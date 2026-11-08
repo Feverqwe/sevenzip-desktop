@@ -5,6 +5,7 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "fileops/native/Dialog.h"
 #include <QApplication>
 #include <QPointer>
@@ -78,6 +79,13 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
             return E_ABORT;
         return window->reloadPanelPresentation(index, selection);
     });
+    panel.AttachArchivePublication(
+        [window = QPointer<MainWindow>(&window_)](const QString &archive, const CPanel *updated) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->ArchivePublished(archive, updated);
+            else if (window)
+                window->ArchivePublished(archive, updated);
+        });
     if (window_.drag_)
         window_.drag_->AttachPanel(index);
     if (hadPrevious && index != previous) {

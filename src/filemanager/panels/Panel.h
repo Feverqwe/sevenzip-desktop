@@ -308,6 +308,9 @@ class CPanel : public QObject {
     void AttachReloadPresentation(std::function<HRESULT(const CSelectedState &)> reload) {
         _reloadPresentation = std::move(reload);
     }
+    void AttachArchivePublication(std::function<void(const QString &, const CPanel *)> publish) {
+        _archivePublication = std::move(publish);
+    }
     void AttachInvalidationPresentation(std::function<void()> invalidate) {
         _invalidatePresentation = std::move(invalidate);
     }
@@ -706,6 +709,7 @@ class CPanel : public QObject {
     QPointer<QWidget> _parentWindow;
     std::function<bool(CPanel &)> _createPresentation;
     std::function<HRESULT(const CSelectedState &)> _reloadPresentation;
+    std::function<void(const QString &, const CPanel *)> _archivePublication;
     std::function<void(HRESULT)> _reloadCompletion;
     std::function<void()> _invalidatePresentation;
     std::function<void(const CPanelStatus &)> _statusPresentation;

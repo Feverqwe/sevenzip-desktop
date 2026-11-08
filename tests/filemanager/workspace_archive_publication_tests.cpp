@@ -73,6 +73,70 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
     }
 
+    void savingNestedChangesRefreshesAnotherWindow_data() {
+        QTest::addColumn<bool>("closeWriter");
+        QTest::newRow("up") << false;
+        QTest::newRow("close") << true;
+    }
+
+    void savingNestedChangesRefreshesAnotherWindow() {
+        QFETCH(bool, closeWriter);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString inner = fixture.filePath("child.7z");
+        const QString outer = fixture.filePath("parent.zip");
+        QVERIFY(NativeArchiveFixture::Write(inner, {{"original.txt", "payload"}}));
+        QVERIFY(NativeArchiveFixture::Write(outer, {{"child.7z", readFile(inner)}}, "zip"));
+        const QByteArray original = readFile(outer);
+        QtWorkspaceApplication application(*qApp);
+        bool asked = false;
+        bool save = false;
+        QTimer responder;
+        MainWindow observer, writer;
+        dialogs_.connectResponder(responder, this, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
+                if (box->objectName() == "modifiedArchiveQuestion") {
+                    asked = true;
+                    box->button(save ? QMessageBox::Yes : QMessageBox::No)->click();
+                } else
+                    box->accept();
+            }
+        });
+        responder.start(1);
+        for (auto *window : {&observer, &writer}) {
+            window->show();
+            window->openArchive(outer);
+            QTRY_COMPARE(names(*window), QStringList{"child.7z"});
+            table(*window)->selectRow(0);
+            table(*window)->setCurrentCell(0, 0);
+            QTRY_VERIFY(action(*window, "openInsideAction")->isEnabled());
+            action(*window, "openInsideAction")->trigger();
+            QTRY_COMPARE(names(*window), QStringList{"original.txt"});
+        }
+        table(observer)->sourcePanel->Set_AutoRefresh_Mode(false);
+        QVERIFY(WindowActivation::waitForActive(writer));
+        QTRY_VERIFY(action(writer, "createFolderAction")->isEnabled());
+        action(writer, "createFolderAction")->trigger();
+        auto *folder = writer.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(folder && folder->isVisible());
+        folder->setText("new folder");
+        QTest::keyClick(folder, Qt::Key_Return);
+        QTRY_VERIFY(names(writer).contains("new folder"));
+        QCOMPARE(readFile(outer), original);
+        QVERIFY(!names(observer).contains("new folder"));
+
+        QTRY_VERIFY(action(writer, "upAction")->isEnabled());
+        save = true;
+        if (closeWriter)
+            QVERIFY(writer.close());
+        else
+            action(writer, "upAction")->trigger();
+        QTRY_VERIFY(asked);
+        QTRY_VERIFY(names(observer).contains("new folder"));
+        QVERIFY(names(observer).contains("original.txt"));
+        QVERIFY(readFile(outer) != original);
+    }
+
     void reopenPublishedChain_data() {
         QTest::addColumn<int>("scenario");
         QTest::newRow("active-nested") << 0;

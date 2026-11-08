@@ -159,12 +159,16 @@ bool CPanel::CloseOneLevel(bool allowCancel) {
     if (link.ParentFolder)
         SetNewFolder(link.ParentFolder);
     _library.Attach(link.Library.Detach());
+    QString publishedArchive;
     if (nested && !link.KeepOnOutdatedClose) {
         bool removeCopy = true;
         if (!_archiveContextOutdated && answer == QMessageBox::Yes) {
             const auto &parent = _parentFolders[_parentFolders.Size() - 2];
-            removeCopy = OnOpenItemChanged(link.FileIndex, fs2us(link.FilePath), parent.UsePassword,
-                                           parent.Password.native()) == S_OK;
+            const auto updated = UpdateExternalFile(link.FileIndex, fs2us(link.FilePath),
+                                                    parent.UsePassword, parent.Password.native());
+            if (_parentFolders.Size() == 2 && updated.Published == true)
+                publishedArchive = ToQString(parent.VirtualPath);
+            removeCopy = updated.Result == S_OK;
             if (!removeCopy)
                 MessageBox_Error(MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(link.FilePath)));
         }
@@ -176,6 +180,8 @@ bool CPanel::CloseOneLevel(bool allowCancel) {
         _archiveContextOutdated = false;
         _flatMode = _flatModeForDisk;
     }
+    if (!publishedArchive.isEmpty() && _archivePublication)
+        _archivePublication(publishedArchive, _locationTransactions.empty() ? this : nullptr);
     return true;
 }
 
