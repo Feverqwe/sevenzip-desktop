@@ -385,7 +385,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
 #ifdef Q_OS_MACOS
         PanelKeys::command(view, Qt::Key_Backspace, Qt::ControlModifier);
 #else
-        action(window, "deleteAction")->trigger();
+        QTest::keyClick(view, Qt::Key_Delete);
 #endif
         refusal.stop();
         QVERIFY(observed);
@@ -397,6 +397,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(view->rowCount(), 1);
         QCOMPARE(panel.GetFolder(), (IFolderFolder *)folder);
         QCOMPARE(view->selectionModel()->selection(), selection);
+        QTRY_COMPARE(window.focusWidget(), view);
         QVERIFY(panel.ShouldProcessNotifications());
         QCOMPARE(trash.calls, 0);
         QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
