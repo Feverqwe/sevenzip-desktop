@@ -91,13 +91,24 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QtWorkspaceApplication application(*qApp);
         bool asked = false;
         bool save = false;
+        bool explicitChoiceRequired = false;
         QTimer responder;
         MainWindow observer, writer;
         dialogs_.connectResponder(responder, this, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
                 if (box->objectName() == "modifiedArchiveQuestion") {
                     asked = true;
-                    box->button(save ? QMessageBox::Yes : QMessageBox::No)->click();
+                    if (save && closeWriter) {
+                        QTest::keyClick(box, Qt::Key_Escape);
+                        explicitChoiceRequired = box->isVisible() && !box->close();
+                        if (!box->isVisible())
+                            return;
+                    }
+                    auto *discard = box->button(QMessageBox::Discard);
+                    box->button(save      ? QMessageBox::Yes
+                                : discard ? QMessageBox::Discard
+                                          : QMessageBox::No)
+                        ->click();
                 } else
                     box->accept();
             }
@@ -132,6 +143,8 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         else
             action(writer, "upAction")->trigger();
         QTRY_VERIFY(asked);
+        if (closeWriter)
+            QVERIFY(explicitChoiceRequired);
         QTRY_VERIFY(names(observer).contains("new folder"));
         QVERIFY(names(observer).contains("original.txt"));
         QVERIFY(readFile(outer) != original);

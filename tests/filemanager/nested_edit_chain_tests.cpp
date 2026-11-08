@@ -117,7 +117,8 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
                 if (box->objectName() == "modifiedArchiveQuestion") {
                     parentPrompt = true;
-                    box->button(QMessageBox::No)->click();
+                    auto *discard = box->button(QMessageBox::Discard);
+                    (discard ? discard : box->button(QMessageBox::No))->click();
                 } else {
                     error = true;
                     openingMessage += box->text() + '\n';
@@ -463,7 +464,7 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
                     box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning;
                 parentPrompt |= box->objectName() == "modifiedArchiveQuestion";
                 if (closing && box->objectName() == "modifiedArchiveQuestion") {
-                    box->button(QMessageBox::No)->click();
+                    box->button(QMessageBox::Discard)->click();
                     return;
                 }
                 if (cancelParent && box->objectName() == "modifiedArchiveQuestion") {

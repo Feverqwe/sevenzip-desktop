@@ -152,15 +152,15 @@ bool CPanel::CloseOneLevel(bool allowCancel) {
     if (nested && !_archiveContextOutdated && current.Find(link.FilePath) &&
         link.WasChanged_from_FolderLink(current)) {
         const UString message = MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, link.RelPath);
-        auto buttons = QMessageBox::Yes | QMessageBox::No;
-        if (allowCancel)
-            buttons |= QMessageBox::Cancel;
+        const auto buttons = allowCancel ? QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+                                         : QMessageBox::Yes | QMessageBox::Discard;
         QMessageBox box(QMessageBox::Question, QStringLiteral("7-Zip"),
                         QString::fromWCharArray(message.Ptr()), buttons, GetParent());
         box.setObjectName("modifiedArchiveQuestion");
         box.setTextFormat(Qt::PlainText);
         box.setDefaultButton(QMessageBox::Yes);
-        box.setEscapeButton(allowCancel ? QMessageBox::Cancel : QMessageBox::No);
+        if (allowCancel)
+            box.setEscapeButton(QMessageBox::Cancel);
         answer = box.exec();
         if (allowCancel && answer != QMessageBox::Yes && answer != QMessageBox::No)
             return false;

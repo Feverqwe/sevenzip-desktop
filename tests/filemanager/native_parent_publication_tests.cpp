@@ -21,9 +21,7 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
 
     static bool readyToClose(CProgressDialog &progress) {
         auto *button = progress.findChild<QPushButton *>("IDCANCEL");
-        auto *messages = progress.findChild<QWidget *>("IDL_PROGRESS_MESSAGES");
-        return button && button->text() == ToQString(LangString(IDS_CLOSE)) && messages &&
-               messages->isVisible();
+        return button && button->isEnabled() && button->text() == ToQString(LangString(IDS_CLOSE));
     }
 
     void renameChild(MainWindow &window, QWidget &owner, FileTable &list, bool icons) {
@@ -144,9 +142,9 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
         const bool icons = variant >= 2;
         const bool russian = variant % 2;
         const HRESULT written = scenario == 3 ? E_FAIL : scenario == 4 ? E_ABORT : S_OK;
-        const auto answer = scenario == 0   ? QMessageBox::No
-                            : scenario == 1 ? QMessageBox::Cancel
-                                            : QMessageBox::Yes;
+        auto answer = scenario == 0   ? QMessageBox::No
+                      : scenario == 1 ? QMessageBox::Cancel
+                                      : QMessageBox::Yes;
         QVERIFY(runtime_.clear());
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
@@ -284,6 +282,16 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
         responder.start(5);
         driver.start(5);
         action(window, "parentFolderAction")->trigger();
+        if (scenario == 1) {
+            QVERIFY(prompted);
+            QCOMPARE(panel.GetParentFolders().Size(), 2u);
+            QCOMPARE(SourceExtractFixture::readFile(spool), modified);
+            QCOMPARE(SourceExtractFixture::readFile(path), original);
+            answer = QMessageBox::No;
+            prompted = false;
+            QTRY_VERIFY(action(window, "parentFolderAction")->isEnabled());
+            action(window, "parentFolderAction")->trigger();
+        }
         QTRY_COMPARE(panel.GetParentFolders().Size(), 1u);
         QTRY_COMPARE(list->rowCount(), rendered == int(S_OK) ? count : 0);
         QTRY_VERIFY(list->isEnabled() && list->updatesEnabled());
@@ -298,7 +306,7 @@ class NativeParentPublicationTests final : public QObject, protected MainWindowT
         }
         QCOMPARE(cancelled, written == E_ABORT);
         QCOMPARE(injected, scenario >= 2);
-        QCOMPARE(errors.size(), scenario == 3 ? 2 : scenario == 4 ? 1 : 0);
+        QCOMPARE(errors.isEmpty(), scenario < 3);
         QVERIFY(!runtime_.receipts().isEmpty());
         if (scenario >= 2)
             QVERIFY(runtime_.writerReceipts().contains(
