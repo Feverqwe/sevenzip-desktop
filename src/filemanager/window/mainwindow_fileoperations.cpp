@@ -45,7 +45,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     if (transferOutput)
         connect(task, &QtLocalFileTask::transferOutput, task, std::move(transferOutput));
     connect(task, &QtLocalFileTask::finished, this,
-            [this, task](bool success, bool, const QString &message) {
+            [this, task](bool success, bool canceled, const QString &message) {
                 if (app_.QtOperations().closed())
                     return;
                 const QPointer<MainWindow> guard(this);
@@ -58,7 +58,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                 // OnCopy's continuation owns both reloads, saved selections
                 // and final focus after this worker releases its operation.
                 setState(State::Filesystem);
-                appPresentation_->CopyFinished();
+                appPresentation_->CopyFinished(canceled);
             });
     setState(State::Operating);
     task->Start();

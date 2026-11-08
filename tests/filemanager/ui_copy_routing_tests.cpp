@@ -149,6 +149,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                         << sourceIndex << large << QString::fromLatin1(outcome);
         QTest::newRow("relative-copy") << 0u << false << QString("relative-copy");
         QTest::newRow("relative-move") << 1u << false << QString("relative-move");
+        QTest::newRow("overwrite-cancel-move") << 0u << false << QString("overwrite-cancel-move");
         QTest::newRow("link-copy") << 0u << false << QString("link-copy");
     }
     void outsidePeerStillRefreshesDestination() {
@@ -156,7 +157,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(bool, large);
         QFETCH(QString, outcome);
         const bool cancel = outcome == "dialog-cancel";
-        const bool overwrite = outcome == "overwrite-cancel";
+        const bool overwrite = outcome.startsWith("overwrite-cancel");
         const bool move = outcome.endsWith("move");
         const bool relative = outcome.startsWith("relative-");
         const bool linked = outcome == "link-copy";
@@ -247,7 +248,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         if (linked)
             QCOMPARE(refusedDestinations, 3);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        if (cancel) {
+        if (cancel || overwrite) {
             QTRY_COMPARE(window.focusWidget(), sourceView);
             QCOMPARE(sourceView->selectionModel()->selectedRows().size(), 1);
         }
@@ -258,7 +259,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                                                     : overwrite ? QByteArray("existing control")
                                                                 : QByteArray("control bytes"));
         QCOMPARE(read(QDir(input).filePath(name)),
-                 move ? QByteArray() : QByteArray("control bytes"));
+                 move && !overwrite ? QByteArray() : QByteArray("control bytes"));
         QCOMPARE(peerView->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(peerView->model()
                      ->index(peerView->selectionModel()->selectedRows().first().row(), 0)

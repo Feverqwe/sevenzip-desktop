@@ -284,8 +284,9 @@ an enabled no-op; busy/read-only/provider restrictions still apply. Retained
 timer/notify guards must survive async handoff and release before terminal
 synchronous panel refresh.
 After Copy publication verify original source/destination saved states: ordinary
-Copy/Move clears source marks, preserves the captured current item and peer
-selection, updates the source title and restores source list focus. Shift keeps
+Copy/Move clears source marks on completion, preserves the captured current
+item and peer selection, updates the source title and restores source list focus.
+Cancelling a filesystem transfer keeps the original source marks. Shift keeps
 its source saved-selection semantics. Inspect both source-panel roles under
 EN/RU1100×640/640×400, including both address/list groups and toolbar. Do not
 let delayed progress destruction replace the restored title. Offscreen window

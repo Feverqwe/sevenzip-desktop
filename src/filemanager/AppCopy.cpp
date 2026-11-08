@@ -307,7 +307,7 @@ void CApp::CompleteCopy(bool preserveSourceSelection) {
     CPanel::CDisableNotify disableNotify1(destPanel);
     CPanel::CDisableNotify disableNotify2(srcPanel);
     RefreshTitleAlways();
-    if (request->CopyToSame || request->Move)
+    if (request->CopyToSame || request->Move || preserveSourceSelection)
         srcPanel.RestoreLoadedSelection(request->SourceSelection);
     if (!request->CopyToSame) {
         destPanel.RestoreLoadedSelection(request->DestinationSelection);
