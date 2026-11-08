@@ -170,11 +170,13 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
     const bool directory =
         !path.isEmpty() &&
         (path.endsWith('/') || path.endsWith(QDir::separator()) || destination.isDir());
+    const bool needsDirectory = directory || _sources.size() > 1;
     const bool peerDestination =
         _destinationContext &&
         (_destinationContext->PeerIsArchive
              ? CopyPathMatchesArchivePanel(preview, _destinationContext->PeerDestination)
-             : SameDirectory(preview, _destinationContext->PeerDestination));
+             : (!_destinationContext->PeerIsFilesystem || needsDirectory) &&
+                   SameDirectory(preview, _destinationContext->PeerDestination));
     const bool nameAvailable = _destinationContext && _name && directory &&
                                !(peerDestination && _destinationContext->PeerIsArchive) &&
                                _destinationContext->CanRename &&
@@ -184,7 +186,6 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
         _nameLabel->setVisible(nameAvailable);
     }
     _useName = nameAvailable && _name->text() != _destinationContext->SourceName;
-    const bool needsDirectory = directory || _sources.size() > 1;
     const bool filesystemDestination = !peerDestination || _destinationContext->PeerIsFilesystem;
     const bool localTransfer =
         _destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination;

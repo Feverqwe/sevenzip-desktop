@@ -172,21 +172,49 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         files->setFocus();
         QVERIFY(action(window, "copyAction")->isEnabled());
 
+        const QString output = fixture.filePath("manual output");
+        QVERIFY(QDir().mkpath(output));
+        const QString destination = state == "file" ? peer : output + '/';
         bool shown = false;
+        int overwritePrompts = 0;
+        QTimer overwrite;
+        connect(&overwrite, &QTimer::timeout, &window, [&] {
+            for (auto *widget : QApplication::topLevelWidgets()) {
+                if (auto *box = dynamic_cast<COverwriteDialog *>(widget); box && box->isVisible()) {
+                    ++overwritePrompts;
+                    box->findChild<QPushButton *>("overwriteYes")->click();
+                } else
+                    TestProgressDialog::DismissVisibleResult(widget);
+            }
+        });
+        overwrite.start(5);
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             if (!dialog)
                 return;
             shown = true;
-            const auto cancel = qScopeGuard([&] { dialog->reject(); });
+            const auto cancel = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
             auto *path = dialog->findChild<QLineEdit *>("copyDestination");
             auto *otherPanel = dialog->findChild<QPushButton *>("copyPeerDestination");
             QVERIFY(path && otherPanel && otherPanel->isVisible());
             QCOMPARE(QDir::cleanPath(path->text()), QFileInfo(source).canonicalFilePath());
             QVERIFY(!otherPanel->isEnabled());
+            path->setText(destination);
+            auto *ok =
+                dialog->findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+            QVERIFY(ok->isEnabled());
+            dialog->accept();
         });
         action(window, "copyAction")->trigger();
         QVERIFY(shown);
+        QTRY_COMPARE(read(state == "file" ? peer : output + "/file.txt"),
+                     QByteArray("source bytes"));
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        QCOMPARE(overwritePrompts, state == "file" ? 1 : 0);
+        QCOMPARE(read(source + "/file.txt"), QByteArray("source bytes"));
         QVERIFY(!QFileInfo::exists(peer + "/file.txt"));
     }
     void sourceReloadPublishesNamespace() {
