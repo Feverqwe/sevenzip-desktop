@@ -255,13 +255,16 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     void partialCutCanBeRetried_data() {
         QTest::addColumn<bool>("replaceClipboard");
         QTest::addColumn<bool>("gnomeOnly");
-        QTest::newRow("retry-skipped-file") << false << false;
-        QTest::newRow("keep-new-clipboard") << true << false;
-        QTest::newRow("retry-gnome-cut") << false << true;
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("retry-skipped-file") << false << false << false;
+        QTest::newRow("keep-new-clipboard") << true << false << false;
+        QTest::newRow("retry-gnome-cut") << false << true << false;
+        QTest::newRow("retry-after-escape") << false << false << true;
     }
     void partialCutCanBeRetried() {
         QFETCH(bool, replaceClipboard);
         QFETCH(bool, gnomeOnly);
+        QFETCH(bool, cancel);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
@@ -312,7 +315,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 answered = true;
                 if (replaceClipboard)
                     QApplication::clipboard()->setText("new clipboard data");
-                question->findChild<QPushButton *>("overwriteNo")->click();
+                if (cancel)
+                    QTest::keyClick(question, Qt::Key_Escape);
+                else
+                    question->findChild<QPushButton *>("overwriteNo")->click();
             } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
                 TestProgressDialog::CloseResult(*report);
         });
@@ -321,12 +327,13 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(paste->isEnabled());
         paste->trigger();
         QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
-        QCOMPARE(read(destination + '/' + moved), QByteArray("moved bytes"));
-        QVERIFY(!QFileInfo::exists(source + '/' + moved));
+        QCOMPARE(read(destination + '/' + moved),
+                 cancel ? QByteArray() : QByteArray("moved bytes"));
+        QCOMPARE(read(source + '/' + moved), cancel ? QByteArray("moved bytes") : QByteArray());
         QCOMPARE(read(destination + '/' + skipped), QByteArray("existing bytes"));
         QCOMPARE(read(source + '/' + skipped), QByteArray("skipped bytes"));
-        QTRY_VERIFY(filesystemRow(sourceWindow, moved) < 0);
-        QTRY_VERIFY(filesystemRow(destinationWindow, moved) >= 0);
+        QTRY_COMPARE(filesystemRow(sourceWindow, moved) >= 0, cancel);
+        QTRY_COMPARE(filesystemRow(destinationWindow, moved) >= 0, !cancel);
         QTRY_VERIFY(filesystemRow(sourceWindow, skipped) >= 0);
         const auto stillCut = [&] {
             return view->model()
@@ -339,13 +346,19 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             QCOMPARE(QApplication::clipboard()->text(), QString("new clipboard data"));
             return;
         }
-        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
-                 QList{QUrl::fromLocalFile(source + '/' + skipped)});
+        const auto urls = QApplication::clipboard()->mimeData()->urls();
+        const auto skippedUrl = QUrl::fromLocalFile(source + '/' + skipped);
+        const auto movedUrl = QUrl::fromLocalFile(source + '/' + moved);
+        QCOMPARE(urls.size(), cancel ? 2 : 1);
+        QVERIFY(urls.contains(skippedUrl));
+        QCOMPARE(urls.contains(movedUrl), cancel);
         QVERIFY(QFile::remove(destination + '/' + skipped));
         QVERIFY(paste->isEnabled());
         paste->trigger();
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
+        QCOMPARE(read(destination + '/' + moved), QByteArray("moved bytes"));
+        QVERIFY(!QFileInfo::exists(source + '/' + moved));
         QVERIFY(!QFileInfo::exists(source + '/' + skipped));
         QTRY_VERIFY(filesystemRow(sourceWindow, skipped) < 0);
         QVERIFY(!paste->isEnabled());
