@@ -1,6 +1,5 @@
 #include "filemanager/providers/RootFolder.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "ui/controls/qtmenutext.h"
@@ -72,11 +71,7 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
             if (window_.app_.QtOperations().closed())
                 return;
             if (result == S_OK) {
-                // The scan completion can still be inside a temporary panel projection.
-                QTimer::singleShot(0, this, [this, panel, interaction] {
-                    if (window_.projectedPanel_ == panel && interactionRevision_ == interaction)
-                        window_.appPresentation_->RequestListFocus(panel);
-                });
+                FocusListAfterLocationOpen(panel, interaction);
                 return;
             }
             const QString error = result == E_ABORT ? tr("Opening canceled.")

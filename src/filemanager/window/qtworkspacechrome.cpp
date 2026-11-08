@@ -189,6 +189,7 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
     if (!Ready())
         return;
     const unsigned panel = window_.projectedPanel_;
+    const auto interaction = interactionRevision_;
     const auto previous =
         !window_.projectedUi().locationUnavailable && window_.app_.Panels[panel].GetFolder()
             ? std::optional(CaptureVisit(panel))
@@ -198,9 +199,13 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
             return OpenRecordedLocation(panel, favorite.path, favorite.nativeIdentity,
                                         favorite.archive);
         },
-        [this, panel, favorite, previous](HRESULT result) {
-            if (result == S_OK || result == E_ABORT || window_.app_.QtOperations().closed())
+        [this, panel, favorite, previous, interaction](HRESULT result) {
+            if (result == E_ABORT || window_.app_.QtOperations().closed())
                 return;
+            if (result == S_OK) {
+                FocusListAfterLocationOpen(panel, interaction);
+                return;
+            }
             auto &location = panels_[panel].location;
             if (previous) {
                 if (location.cursor < 0) {

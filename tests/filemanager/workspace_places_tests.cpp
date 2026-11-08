@@ -9,6 +9,7 @@
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
 #include "settings/qtfmoptionsdialog.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QDialogButtonBox>
@@ -317,6 +318,12 @@ class WorkspacePlacesTests final : public QObject {
         QVERIFY(owner);
         window.openPath(a);
         QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), a);
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(files && address);
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
         auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
         QVERIFY(menu);
         menu->popup(window.mapToGlobal(QPoint(20, 20)));
@@ -339,6 +346,8 @@ class WorkspacePlacesTests final : public QObject {
                           menu->actionGeometry(selected).center());
         QTRY_VERIFY(!menu->isVisible());
         QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), remove ? a : b);
+        if (!remove)
+            QTRY_COMPARE(window.focusWidget(), files);
         QVERIFY(QFileInfo(b).isDir());
     }
 };

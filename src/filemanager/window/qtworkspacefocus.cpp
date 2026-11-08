@@ -1,7 +1,17 @@
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include <QTimer>
+
+void QtWindowWorkspace::FocusListAfterLocationOpen(unsigned panel, quint64 interaction) {
+    // The scan completion can still be inside a temporary panel projection.
+    QTimer::singleShot(0, this, [this, panel, interaction] {
+        if (window_.projectedPanel_ == panel && interactionRevision_ == interaction)
+            window_.appPresentation_->RequestListFocus(panel);
+    });
+}
 
 bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
     if (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress ||
