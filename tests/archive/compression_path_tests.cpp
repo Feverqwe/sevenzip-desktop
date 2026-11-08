@@ -579,6 +579,7 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("absolute-path") << QString("absolute");
         QTest::newRow("relative-path") << QString("relative");
         QTest::newRow("missing-folder") << QString("missing");
+        QTest::newRow("invalid-folder") << QString("invalid");
     }
     void destinationPickerRetainsNameAndCancelDraft() {
         QFETCH(QString, form);
@@ -596,12 +597,13 @@ class CompressionPathTests final : public QObject {
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         const QString draft = QStringLiteral("имя with spaces 空.7z");
         QVERIFY(QDir(original.path()).mkdir("nested"));
-        folder->setText(form == "missing" ? original.filePath("nested/not created/deeper")
-                                          : original.path());
+        folder->setText(form == "missing"   ? original.filePath("nested/not created/deeper")
+                        : form == "invalid" ? original.path() + QChar::Null
+                                            : original.path());
         const QString entered = form == "absolute"
                                     ? QDir::toNativeSeparators(original.filePath(draft))
-                                : form == "relative" ? "nested/" + draft
-                                                     : draft;
+                                : form == "relative" || form == "invalid" ? "nested/" + draft
+                                                                          : draft;
         name->setText(entered);
         dialog.show();
         for (bool accept : {false, true}) {
@@ -620,7 +622,8 @@ class CompressionPathTests final : public QObject {
                             picker->reject();
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
-                    const QString initial = form == "relative" || form == "missing"
+                    const QString initial = form == "invalid" ? dir_.path()
+                                            : form == "relative" || form == "missing"
                                                 ? original.filePath("nested")
                                                 : original.path();
                     QCOMPARE(picker->directory().canonicalPath(),
