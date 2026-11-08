@@ -7,6 +7,7 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtfileclipboard.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
@@ -186,6 +187,10 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
     for (auto *action : {state.window.toolbarAdd_, state.window.extract_, state.window.test_})
         AppendCommand(*archives, *action, enabled(*action));
     // OnContextMenu dispatches the chosen ID after the popup guards restore.
+    const QPointer<QWidget> focused = state.window.focusWidget();
+    const unsigned focusPanel = state.window.statusPanel_;
+    const auto &focusUi = state.window.panelUi_[focusPanel];
+    const bool listFocused = focused && (focused == focusUi.table || focused == focusUi.iconList);
     QAction *chosen;
     {
         // Closing a Qt popup restores the previously focused peer widget.
@@ -197,9 +202,11 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
     state.window.app_.SetFocusedPanel(owner);
     if (chosen)
         if (auto *source = chosen->property("fileClipboard").value<QAction *>()) {
-            if (source == clipboard.paste)
+            if (source == clipboard.paste) {
                 clipboard.Paste();
-            else
+                if (listFocused && state.window.app_.QtOperations().blocking())
+                    state.window.workspace_->RequestListFocus(focusPanel);
+            } else
                 clipboard.Copy(source == clipboard.cut);
             return 0;
         }

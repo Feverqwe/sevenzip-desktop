@@ -260,7 +260,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     !QApplication::clipboard()->mimeData()->hasUrls());
         QCOMPARE(window.statusBar()->currentMessage(), peerStatus);
         QVERIFY(WindowActivation::waitForActive(window));
-        QTest::mouseClick(owner->viewport(), Qt::LeftButton, Qt::NoModifier, retryPoint);
+        QTRY_VERIFY2(peer->hasFocus(),
+                     qPrintable(window.focusWidget() ? window.focusWidget()->objectName()
+                                                     : QStringLiteral("No focused widget")));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(owner->hasFocus());
         QTRY_COMPARE(window.statusBar()->currentMessage(),
                      QCoreApplication::translate("qtfiletransfertransaction",
                                                  move ? "Items moved." : "Items copied."));
