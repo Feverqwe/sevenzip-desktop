@@ -257,11 +257,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     }
     void failure_data() {
         QTest::addColumn<QString>("language");
+        QTest::addColumn<bool>("deferred");
         for (const QString language : {"-", "ru"})
-            QTest::newRow(qPrintable(language)) << language;
+            QTest::newRow(qPrintable(language)) << language << false;
+        QTest::newRow("deferred") << QString("-") << true;
     }
     void failure() {
         QFETCH(QString, language);
+        QFETCH(bool, deferred);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -280,14 +283,22 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::WriteOnly));
         QCOMPARE(keep.write("protected bytes"), qint64(15));
         keep.close();
+        const int initialRows = deferred ? 257 : 1;
+        for (int i = 1; i < initialRows; ++i) {
+            QFile entry(fixture.filePath(QString("entry-%1.bin").arg(i)));
+            QVERIFY(entry.open(QIODevice::WriteOnly));
+        }
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         auto *view = openPanel(window, 0, fixture.path());
-        QTRY_COMPARE(view->rowCount(), 1);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows);
+        QVERIFY(WindowActivation::waitForActive(window));
         view->sourcePanel->Set_AutoRefresh_Mode(false);
-        view->selectRow(0);
-        view->setCurrentCell(0, 0);
+        const int originalRow = row(view, "keep.bin");
+        QVERIFY(originalRow >= 0);
+        view->selectRow(originalRow);
+        view->setCurrentCell(originalRow, 0);
         view->setFocus();
         action(window, "createFolderAction")->trigger();
         auto *name = window.findChild<QLineEdit *>("inlineFolderName");
@@ -301,8 +312,10 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
         QCOMPARE(name->text(), QString("keep.bin"));
+        QTest::keyClick(name, Qt::Key_Escape);
         // Create Folder refreshes after failure and preserves selection.
-        QTRY_COMPARE(view->rowCount(), 2);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows + 1);
+        QTRY_COMPARE(window.focusWidget(), view);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(view->currentRow(), row(view, "keep.bin"));
         QVERIFY(keep.open(QIODevice::ReadOnly));

@@ -135,9 +135,9 @@ void QtFileManagerCommands::CreateFolder() {
         editor->deleteLater();
     };
 
-    editor->OnCancel([view, finish] {
+    editor->OnCancel([this, index, finish] {
         finish();
-        view->currentWidget()->setFocus();
+        window_.appPresentation_->RequestListFocus(index);
     });
     QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, finish] {
         auto &panel = window_.app_.Panels[index];
