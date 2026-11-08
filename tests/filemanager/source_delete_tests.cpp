@@ -610,8 +610,14 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QCOMPARE(view->selectionModel()->selectedRows().front().data(QtPanelList::NameRole),
                      QVariant(secondDeleted));
             trash.failAfter = -1;
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_COMPARE(window.focusWidget(), view);
             responder.start(1);
-            action(window, "deleteAction")->trigger();
+#ifdef Q_OS_MACOS
+            PanelKeys::command(window.focusWidget(), Qt::Key_Backspace, Qt::ControlModifier);
+#else
+            QTest::keyClick(window.focusWidget(), Qt::Key_Delete);
+#endif
             responder.stop();
             QCOMPARE(confirmations, 2);
             QCOMPARE(errors, 1);
