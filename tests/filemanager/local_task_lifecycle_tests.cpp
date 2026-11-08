@@ -363,7 +363,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         });
         drive.start(5);
         auto *paste = action(destinationWindow, "pasteFilesAction");
-        QVERIFY(paste->isEnabled());
+        QTRY_VERIFY(paste->isEnabled());
         paste->trigger();
         QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(destination + '/' + moved),
@@ -512,7 +512,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         cut->trigger();
         const QPointer<const QMimeData> original(QApplication::clipboard()->mimeData());
         auto *paste = action(*destinationWindow, "pasteFilesAction");
-        QVERIFY(paste->isEnabled());
+        QTRY_VERIFY(paste->isEnabled());
         paste->trigger();
         const auto tasks = QtLocalFileTask::Active();
         QCOMPARE(tasks.size(), 1);
@@ -596,7 +596,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         table(peer)->setCurrentCell(row, 0);
         action(peer, "cutFilesAction")->trigger();
         const QPointer<const QMimeData> original(QApplication::clipboard()->mimeData());
-        action(*owner, "pasteFilesAction")->trigger();
+        auto *paste = action(*owner, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
         const auto tasks = QtLocalFileTask::Active();
         QCOMPARE(tasks.size(), 1);
         const QPointer<FileTransferOperation> worker =
