@@ -209,6 +209,8 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         createDirectory(a, count);
         createDirectory(b);
         createDirectory(c);
+        if (count > 256)
+            createDirectory(fixture.path(), count);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.resize(980, 620);
@@ -238,6 +240,8 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(location(window), b);
         action(window, "parentFolderAction")->trigger();
         QTRY_COMPARE(location(window), fixture.path());
+        QTRY_VERIFY(view->isEnabled());
+        QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), QString("B"));
         QVERIFY(!action(window, "forwardAction")->isEnabled());
         action(window, "backAction")->trigger();
         QTRY_COMPARE(location(window), b);
@@ -455,6 +459,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(rowWithPath(window, "folders/first/item-0000.txt") >= 0);
         action(window, "parentFolderAction")->trigger();
         QTRY_VERIFY(rowWithPath(window, "folders/second") >= 0);
+        QCOMPARE(table(window)->currentRow(), rowWithPath(window, "folders/first"));
         openRow(window, rowWithPath(window, "folders/second"));
         QTRY_VERIFY(rowWithPath(window, "folders/second/item-0000.txt") >= 0);
         const QString second = location(window);

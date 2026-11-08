@@ -83,14 +83,17 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
         for (bool timer : {false, true}) {
             view->setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
             view->clearSelection();
+            const bool selected = dots && timer;
+            if (selected)
+                view->selectRow(0);
             panel.OnReload(timer);
             QTRY_COMPARE(view->rowCount(), count + int(dots));
             QTRY_VERIFY(panel.ShouldProcessNotifications());
             QCOMPARE(view->currentRow(), 0);
-            QCOMPARE(view->selectionModel()->isRowSelected(0, QModelIndex()), dots);
+            QCOMPARE(view->selectionModel()->isRowSelected(0, QModelIndex()), selected);
             CSelectedState restored;
             panel.SaveSelectedState(restored);
-            QCOMPARE(restored.SelectFocused, dots);
+            QCOMPARE(restored.SelectFocused, selected);
             if (dots) {
                 QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
                 QCOMPARE(view->model()->index(0, 0).data(Qt::UserRole + 6).toUInt(), UInt32(-1));
@@ -122,6 +125,7 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
             }
         }
         if (dots) {
+            view->selectRow(0);
             view->setFocus();
             QVERIFY(action(window, "openOutsideAction")->isEnabled());
             action(window, "openOutsideAction")->trigger();
