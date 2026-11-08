@@ -160,6 +160,7 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
             this, QtLangText(IDS_COPYING),
             QCoreApplication::translate("mainwindow_fileoperations",
                                         "Writing to this archive folder is unavailable."));
+        appPresentation_->CopyFinished(true);
         return true;
     }
     UStringVector names;
@@ -198,11 +199,11 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
                                                              "Items moved into the archive.")
                                : QCoreApplication::translate("mainwindow_fileoperations",
                                                              "Items copied into the archive."));
-    } else if (result == E_ABORT) {
-        appPresentation_->CopyFinished(true);
     } else {
-        QMessageBox::warning(this, QtLangText(IDS_COPYING),
-                             QString::fromWCharArray(HResultToMessage(result).Ptr()));
+        appPresentation_->CopyFinished(true, move && published);
+        if (result != E_ABORT)
+            QMessageBox::warning(this, QtLangText(IDS_COPYING),
+                                 QString::fromWCharArray(HResultToMessage(result).Ptr()));
     }
     return true;
 }

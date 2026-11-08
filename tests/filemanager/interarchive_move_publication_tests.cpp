@@ -26,6 +26,80 @@ class InterarchiveMovePublicationTests final : public QObject, protected MainWin
                process.exitCode() == 0;
     }
   private slots:
+    void diskMoveCanRetryAfterArchiveWriteFailure() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        NativePropertyFailureRuntime runtime;
+        QVERIFY(runtime.prepare(QString::fromUtf8(SEVENZIP_EXTERNAL_RUNTIME),
+                                QString::fromUtf8(SEVENZIP_EXTERNAL_FORMAT_FIXTURE)));
+        QVERIFY(runtime.enableWriter());
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("input");
+        QVERIFY(QDir().mkpath(input));
+        const QString name = QStringLiteral("moved 空.txt");
+        const QString diskFile = QDir(input).filePath(name);
+        QVERIFY(SourceExtractFixture::writeFile(diskFile, "payload"));
+        const QString archive = fixture.filePath("target.fixture7z");
+        QVERIFY(runtime.createArchive(archive, 1));
+        const QByteArray before = SourceExtractFixture::readFile(archive);
+        QVERIFY(!before.isEmpty());
+        ArchiveBackend backend(nullptr, runtime.engine());
+        QSignalSpy ready(&backend, &ArchiveBackend::codecCatalogReady);
+        QVERIFY(backend.discoverCodecCatalog(runtime.module()));
+        QTRY_COMPARE(ready.size(), 1);
+        QVERIFY(ready[0][0].toBool());
+        MainWindow window(&backend);
+        window.show();
+        action(window, "twoPanelsAction")->trigger();
+        std::array<FileTable *, 2> views;
+        for (unsigned pane : {0u, 1u}) {
+            auto *ui = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+            QVERIFY(ui);
+            views[pane] = ui->findChild<FileTable *>("archiveTable");
+            auto *address = ui->findChild<QLineEdit *>("archivePath");
+            PanelKeys::focusAddress(address);
+            address->setText(pane == 0 ? input : archive);
+            QTest::keyClick(address, Qt::Key_Return);
+            QTRY_VERIFY(views[pane]->isEnabled() && views[pane]->rowCount() == 1);
+        }
+        auto *source = views[0];
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        source->selectRow(0);
+        QVERIFY(runtime.armWriter(E_FAIL, false));
+        QTimer driver;
+        dialogs_.connectResponder(driver, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *copy = dynamic_cast<CopyDialog *>(modal))
+                copy->accept();
+            else if (auto *box = qobject_cast<QMessageBox *>(modal))
+                box->accept();
+            else if (auto *report = TestProgressDialog::ResultWindow(modal))
+                TestProgressDialog::CloseResult(*report);
+        });
+        driver.start(2);
+        QTest::keyClick(source, Qt::Key_F6);
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        QVERIFY(!runtime.writerReceipts().isEmpty());
+        QCOMPARE(SourceExtractFixture::readFile(archive), before);
+        QCOMPARE(SourceExtractFixture::readFile(diskFile), QByteArray("payload"));
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 1);
+        QVERIFY(runtime.clear());
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTRY_VERIFY(source->hasFocus());
+        QTest::keyClick(source, Qt::Key_F6);
+        QTRY_VERIFY(!QFileInfo::exists(diskFile));
+        QTRY_COMPARE(views[1]->rowCount(), 2);
+        const QString output = fixture.filePath("verified");
+        QVERIFY(run(QStandardPaths::findExecutable("7z"), fixture.path(),
+                    {"x", "-y", "-o" + output, "--", archive, name}));
+        QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath(name)),
+                 QByteArray("payload"));
+    }
+
     void moveRetainsTheOnlyPublishedCopy_data() {
         QTest::addColumn<int>("failure");
         QTest::addColumn<bool>("russian");
