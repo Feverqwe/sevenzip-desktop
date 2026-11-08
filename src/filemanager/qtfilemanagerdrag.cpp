@@ -172,15 +172,23 @@ std::optional<HRESULT> QtFileManagerDrag::HandleDroppedPathChoice(CDataObject *d
     effect = DROPEFFECT_NONE;
     if (choice == DroppedPathAction::Cancel)
         return E_ABORT;
-    for (unsigned i = 0; i < kNumPanelsMax; ++i)
-        if (panel == &window_.app_.Panels[i])
-            window_.activatePanelUi(i);
-    // Opening never transfers ownership of the dropped item.
-    const HRESULT result =
-        QFileInfo(path).isDir() ? window_.navigateTo(path) : window_.openArchiveAs(path, {});
-    if (result == S_OK)
-        effect = DROPEFFECT_COPY;
-    return result;
+    const unsigned previousPanel = window_.projectedPanel_;
+    for (unsigned i = 0; i < kNumPanelsMax; ++i) {
+        if (panel != &window_.app_.Panels[i])
+            continue;
+        window_.activatePanelUi(i);
+        const HRESULT result =
+            QFileInfo(path).isDir() ? window_.navigateTo(path) : window_.openArchiveAs(path, {});
+        if (result == S_OK) {
+            // Opening never transfers ownership of the dropped item.
+            effect = DROPEFFECT_COPY;
+            window_.appPresentation_->RequestListFocus(i);
+        } else {
+            window_.activatePanelUi(previousPanel);
+        }
+        return result;
+    }
+    return E_ABORT;
 }
 
 QString QtFileManagerDrag::PathToOpen(CDataObject *data, DWORD keys) const {

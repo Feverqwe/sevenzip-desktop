@@ -9,6 +9,7 @@
 #include "support/operation_kill.h"
 #include "support/operation_temp_cleanup.h"
 #include "support/scoped_environment.h"
+#include "support/window_activation.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 
@@ -24,6 +25,7 @@ class DragDropAddUiTests final : public QObject {
         QTest::newRow("open-archive") << true << false << false;
         QTest::newRow("open-in-other-panel") << true << false << true;
         QTest::newRow("damaged-archive") << false << false << false;
+        QTest::newRow("damaged-in-other-panel") << false << false << true;
         QTest::newRow("multiple-files-add") << true << true << false;
     }
     void externalArchiveDrop() {
@@ -64,6 +66,7 @@ class DragDropAddUiTests final : public QObject {
         auto *table = window.findChild<FileTable *>("archiveTable");
         QTRY_VERIFY(table->isEnabled());
         QLineEdit *otherAddress = nullptr;
+        FileTable *otherTable = nullptr;
         if (peer) {
             auto *two = window.findChild<QAction *>("twoPanelsAction");
             if (!two->isChecked())
@@ -71,6 +74,7 @@ class DragDropAddUiTests final : public QObject {
             auto *right = window.findChild<QWidget *>("filePanel1");
             QVERIFY(right && right->isVisible());
             otherAddress = address;
+            otherTable = table;
             address = right->findChild<QLineEdit *>("archivePath");
             table = right->findChild<FileTable *>("archiveTable");
             address->setFocus();
@@ -78,7 +82,9 @@ class DragDropAddUiTests final : public QObject {
             QTest::keyClick(address, Qt::Key_Return);
             QTRY_VERIFY(table->isEnabled());
             QTRY_VERIFY(table->rowCount() >= 2);
-            QTRY_VERIFY((otherAddress->setFocus(), otherAddress->hasFocus()));
+            QVERIFY(WindowActivation::waitForActive(window));
+            otherTable->setFocus();
+            QTRY_VERIFY(otherTable->hasFocus());
         }
         QMimeData mime;
         QList<QUrl> urls{QUrl::fromLocalFile(archive)};
@@ -108,6 +114,8 @@ class DragDropAddUiTests final : public QObject {
                         Qt::NoModifier);
         QCoreApplication::sendEvent(table->viewport(), &drop);
         respond.stop();
+        if (otherTable)
+            QVERIFY(WindowActivation::waitForActive(window));
         QCOMPARE(choiceShown, !multiple);
         if (multiple) {
             QTRY_COMPARE(backend.Results.size(), 1);
@@ -125,10 +133,14 @@ class DragDropAddUiTests final : public QObject {
                          table->model()->index(row, 0).data().toString() ==
                              QFileInfo(input.fileName()).fileName();
             QVERIFY(found);
-            if (otherAddress)
+            if (otherAddress) {
                 QCOMPARE(QDir::cleanPath(otherAddress->text()), QDir::cleanPath(root.path()));
+                QTRY_VERIFY(table->hasFocus());
+            }
         } else {
             QCOMPARE(QDir::cleanPath(address->text()), QDir::cleanPath(root.path()));
+            if (otherTable)
+                QTRY_VERIFY(otherTable->hasFocus());
         }
     }
     void externalFilesystemDropCreatesArchiveWithNativeName() {
