@@ -543,29 +543,32 @@ class SourceBrowseDialogTests final : public QObject {
             });
             auto *path = dialog->findChild<QLineEdit *>("browsePath");
             QVERIFY(path);
-            bool reported = false;
+            QString error;
             QTimer reply;
             connect(&reply, &QTimer::timeout, dialog, [&] {
                 if (auto *message =
                         qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                    reported = true;
+                    error = message->text();
                     message->accept();
                 }
             });
             reply.start(1);
-            path->setText("occupied.txt/");
-            dialog->accept();
-            QVERIFY(reported);
-            QVERIFY(dialog->isVisible());
-            QCOMPARE(path->text(), QString("occupied.txt/"));
-            QCOMPARE(dialog->focusWidget(), path);
-            path->setText("new folder");
+            for (const QString draft : {"occupied.txt/", "occupied.txt/child/deeper"}) {
+                error.clear();
+                path->setText(draft);
+                dialog->accept();
+                QVERIFY(error.contains("occupied.txt"));
+                QVERIFY(dialog->isVisible());
+                QCOMPARE(path->text(), draft);
+                QCOMPARE(dialog->focusWidget(), path);
+            }
+            path->setText("new folder/child");
             dialog->accept();
         });
         UString output;
         QVERIFY(MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output));
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(output))),
-                 directory + "/new folder");
+                 directory + "/new folder/child");
         QVERIFY(!QFileInfo::exists(directory + "/new folder"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("original"));

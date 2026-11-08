@@ -438,11 +438,21 @@ void CBrowseDialog::FinishOnOK() {
         return;
     }
     if (FolderMode) {
-        const QFileInfo target(QDir::cleanPath(ToQString(fs2us(destPath))));
-        if ((target.exists() || target.isSymLink()) && !target.isDir()) {
-            MessageBox_HResError(this, kInvalidNameError, s);
-            _pathEdit->setFocus();
-            return;
+        QString candidate = QDir::cleanPath(ToQString(fs2us(destPath)));
+        for (;;) {
+            const QFileInfo entry(candidate);
+            if (entry.isDir())
+                break;
+            if (entry.exists() || entry.isSymLink()) {
+                MessageBox_HResError(this, kInvalidNameError,
+                                     ToUString(QDir::toNativeSeparators(candidate)));
+                _pathEdit->setFocus();
+                return;
+            }
+            const QString parent = entry.absolutePath();
+            if (parent == candidate)
+                break;
+            candidate = parent;
         }
     }
     if (ExistingArchiveOnly) {
