@@ -311,9 +311,11 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
     view.setContextMenuPolicy(Qt::CustomContextMenu);
     view.installEventFilter(this);
     view.viewport()->installEventFilter(this);
-    connect(&view, &QAbstractItemView::doubleClicked, this, [this](const QModelIndex &index) {
-        activateRow(index.row(), selectionClickModifiers_);
-    });
+    connect(&view, &QAbstractItemView::doubleClicked, this,
+            [this, owner = projectedPanel_, view = &view](const QModelIndex &index) {
+                if (owner == projectedPanel_ && projectedUi().viewStack->currentWidget() == view)
+                    activateRow(index.row(), selectionClickModifiers_);
+            });
     connect(&view, &QWidget::customContextMenuRequested, this,
             [this, owner = projectedPanel_, view = &view](const QPoint &pos) {
                 showItemContextMenu(owner, view, pos);

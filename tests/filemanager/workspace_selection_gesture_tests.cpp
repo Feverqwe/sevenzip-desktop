@@ -26,6 +26,48 @@ class WorkspaceSelectionGestureTests final : public QObject, protected MainWindo
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void cleanup() { QApplication::clipboard()->clear(); }
+    void doubleClickUsesThePaneAndViewThatReceivedIt() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkpath(fixture.filePath("child/grandchild")));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *first = table(window);
+        QTRY_VERIFY(first->isEnabled() && first->rowCount() == 1);
+        action(window, "viewMode3Action")->trigger();
+        action(window, "twoPanelsAction")->trigger();
+        auto *secondPane = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(secondPane);
+        auto *second = secondPane->findChild<FileTable *>("archiveTable");
+        QVERIFY(second);
+        auto *address = secondPane->findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        address->setFocus();
+        address->setText(fixture.path());
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(second->isEnabled() && second->rowCount() == 1);
+        action(window, "viewMode3Action")->trigger();
+        QVERIFY(WindowActivation::waitForActive(window));
+        first->setFocus();
+        QTRY_VERIFY(first->hasFocus());
+
+        const auto child = second->model()->index(0, 0);
+        auto *hiddenIcons = first->parentWidget()->findChild<QAbstractItemView *>("iconList");
+        QVERIFY(hiddenIcons && !hiddenIcons->isVisible());
+        emit hiddenIcons->doubleClicked(hiddenIcons->model()->index(0, 0));
+        QCOMPARE(first->model()->index(0, 0).data().toString(), QString("child"));
+        emit second->doubleClicked(child);
+        QCOMPARE(first->model()->index(0, 0).data().toString(), QString("child"));
+
+        const QPoint point = second->visualRect(child).center();
+        QCOMPARE(second->indexAt(point), child);
+        QTest::mouseClick(second->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTest::mouseDClick(second->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTRY_COMPARE(second->model()->index(0, 0).data().toString(), QString("grandchild"));
+        QCOMPARE(first->model()->index(0, 0).data().toString(), QString("child"));
+    }
     void doubleClickOpensFoldersOnlyWithTheLeftButton_data() {
         QTest::addColumn<bool>("icons");
         QTest::newRow("table") << false;
