@@ -1,10 +1,85 @@
 #include "filemanager/support/window_state_support.h"
 #include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include <QFocusEvent>
 
 class PanelFocusTests : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
   private slots:
+    void changingViewPreservesTheActivePane_data() {
+        QTest::addColumn<bool>("addressFocused");
+        QTest::newRow("list") << false;
+        QTest::newRow("address") << true;
+    }
+
+    void changingViewPreservesTheActivePane() {
+        QFETCH(bool, addressFocused);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkpath(fixture.filePath("left/selected/inside")));
+        QVERIFY(QDir().mkpath(fixture.filePath("right/peer")));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.filePath("left"));
+        QTRY_VERIFY(filesystemRow(window, "selected") >= 0);
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        auto *left = window.findChild<QWidget *>("filePanel0");
+        auto *right = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(left && right);
+        auto *address = left->findChild<QLineEdit *>("archivePath");
+        auto *peerAddress = right->findChild<QLineEdit *>("archivePath");
+        auto *peerFiles = right->findChild<FileTable *>("archiveTable");
+        QVERIFY(address && peerAddress && peerFiles);
+        PanelKeys::focusAddress(peerAddress);
+        QTRY_VERIFY(peerAddress->hasFocus());
+        peerAddress->setText(fixture.filePath("right"));
+        QTest::keyClick(peerAddress, Qt::Key_Return);
+        QTRY_COMPARE(peerAddress->text(), QFileInfo(fixture.filePath("right")).canonicalFilePath());
+        QTRY_VERIFY(peerFiles->isEnabled());
+        QTRY_COMPARE(peerFiles->model()->index(0, 0).data().toString(), QString("peer"));
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+
+        auto *stack = left->findChild<QStackedWidget *>("fileViewStack");
+        auto *files = left->findChild<FileTable *>("archiveTable");
+        auto *icons = left->findChild<QListView *>("iconList");
+        QVERIFY(stack && files && icons);
+        const auto rowInLeftPane = [files](const QString &name) {
+            for (int row = 0; row < files->rowCount(); ++row)
+                if (files->model()->index(row, 0).data().toString() == name)
+                    return row;
+            return -1;
+        };
+        QTRY_VERIFY(files->isEnabled() && rowInLeftPane("selected") >= 0);
+        action(window, "viewMode3Action")->trigger();
+        files->selectRow(rowInLeftPane("selected"));
+        if (addressFocused)
+            PanelKeys::focusAddress(address);
+        else
+            files->setFocus();
+        QTRY_VERIFY(addressFocused ? address->hasFocus() : files->hasFocus());
+        QWidget *const initialFocus = window.focusWidget();
+        QVERIFY(initialFocus);
+
+        for (const int mode : {0, 3}) {
+            action(window, mode == 0 ? "viewMode0Action" : "viewMode3Action")->trigger();
+            auto *visible = qobject_cast<QAbstractItemView *>(stack->currentWidget());
+            QCOMPARE(visible, mode == 0 ? static_cast<QAbstractItemView *>(icons) : files);
+            QTRY_COMPARE(window.focusWidget(), addressFocused ? initialFocus : visible);
+            QCOMPARE(visible->selectionModel()->selectedRows().size(), 1);
+            QCOMPARE(visible->selectionModel()->selectedRows().front().data().toString(),
+                     QString("selected"));
+        }
+        files->setFocus();
+        QTest::keySequence(files, action(window, "openItemAction")->shortcut());
+        QTRY_VERIFY(rowInLeftPane("inside") >= 0);
+        QCOMPARE(peerAddress->text(), QFileInfo(fixture.filePath("right")).canonicalFilePath());
+    }
+
     void independentPanelOwners() {
         CApp first;
         CApp second;

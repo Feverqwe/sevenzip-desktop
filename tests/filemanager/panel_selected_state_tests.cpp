@@ -22,6 +22,17 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         view->selectionModel()->select(view->model()->index(row, 0),
                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
     }
+    static void openFolderFromVisibleList(MainWindow &window, const QString &folder) {
+        const int row = rowWithPath(window, folder);
+        QVERIFY(row >= 0);
+        auto *stack = window.findChild<QStackedWidget *>("fileViewStack");
+        QVERIFY(stack);
+        auto *view = qobject_cast<QAbstractItemView *>(stack->currentWidget());
+        QVERIFY(view);
+        table(window)->selectRow(row);
+        view->setFocus();
+        QTest::keySequence(view, action(window, "openItemAction")->shortcut());
+    }
 
   private slots:
 #ifndef Q_OS_WIN
@@ -85,8 +96,8 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QList<ArchiveEntry> entries = {{unknown, -1, -1}, {zero, 0, 0}};
         openListedArchive(window, backend, "typed-sizes.zip", entries);
         entries.clear(); // The runtime retains its own immutable metadata owner.
-        openRow(window, rowWithPath(window, folder));
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
+        openFolderFromVisibleList(window, folder);
         auto *view = table(window);
         const int unknownRow = rowWithPath(window, unknown);
         const int zeroRow = rowWithPath(window, zero);
@@ -125,8 +136,8 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QList<ArchiveEntry> entries = {
             {selected, 1, 1}, {focused, 2, 2}, {QStringLiteral("другая/имя.txt"), 3, 3}};
         openListedArchive(window, backend, "selection-refresh.zip", entries);
-        openRow(window, rowWithPath(window, folder));
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
+        openFolderFromVisibleList(window, folder);
         auto *view = table(window);
         view->clearSelection();
         selectRow(view, rowWithPath(window, selected));

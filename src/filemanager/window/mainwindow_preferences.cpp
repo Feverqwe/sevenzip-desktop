@@ -47,6 +47,8 @@ void MainWindow::applyFileListSettings() {
 void MainWindow::setViewMode(int mode) {
     if ((mode != 0 && mode != 3) || !projectedUi().viewStack)
         return;
+    const QScopedValueRollback<unsigned> projection(panelProjectionDepth_,
+                                                    panelProjectionDepth_ + 1);
     auto &panel = app_.GetFocusedPanel();
     auto *stack = projectedUi().viewStack;
     auto *address = projectedUi().pathCombo;
