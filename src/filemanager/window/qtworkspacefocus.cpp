@@ -21,6 +21,8 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         // Answering a modal prompt continues the pending panel action.
         if (widget && (widget->window() == &window_ || window_.isAncestorOf(widget)) &&
             (!modal || (widget != modal && !modal->isAncestorOf(widget)))) {
+            if (window_.appPresentation_)
+                window_.appPresentation_->CancelInitialFocus();
             ++focusRequest_;
             ++interactionRevision_;
         }

@@ -196,11 +196,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     }
     void revealsCreatedFolder_data() {
         QTest::addColumn<int>("count");
-        QTest::newRow("immediate") << 100;
-        QTest::newRow("deferred") << 257;
+        QTest::addColumn<bool>("peerDraft");
+        QTest::newRow("immediate") << 100 << false;
+        QTest::newRow("deferred") << 257 << false;
+        QTest::newRow("deferred-with-peer-draft") << 257 << true;
     }
     void revealsCreatedFolder() {
         QFETCH(int, count);
+        QFETCH(bool, peerDraft);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
@@ -217,6 +220,18 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
+        QTemporaryDir peerFolder;
+        QLineEdit *peerName = nullptr;
+        if (peerDraft) {
+            QVERIFY(peerFolder.isValid());
+            action(window, "twoPanelsAction")->trigger();
+            auto *peer = openPanel(window, 1, peerFolder.path());
+            QTRY_VERIFY(peer->isEnabled());
+            action(window, "createFolderAction")->trigger();
+            peerName = window.findChild<QLineEdit *>("inlineFolderName");
+            QVERIFY(peerName && peerName->isVisible());
+            peerName->setText("peer draft");
+        }
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == count);
         QVERIFY(WindowActivation::waitForActive(window));
@@ -227,14 +242,21 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         panel.Set_AutoRefresh_Mode(false);
         const QString name = QStringLiteral("new 文件 with spaces");
         action(window, "createFolderAction")->trigger();
-        auto *input = window.findChild<QLineEdit *>("inlineFolderName");
+        auto *input =
+            window.findChild<QWidget *>("filePanel0")->findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(input && input->isVisible());
         input->setText(name);
         QTest::keyClick(input, Qt::Key_Return);
         if (count == 257)
             QVERIFY(!panel.ShouldProcessNotifications());
+        if (peerName) {
+            QTest::mouseClick(peerName, Qt::LeftButton);
+            QCOMPARE(window.focusWidget(), peerName);
+        }
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == count + 1);
-        QCOMPARE(window.focusWidget(), view);
+        QCOMPARE(window.focusWidget(), peerName ? static_cast<QWidget *>(peerName) : view);
+        if (peerName)
+            QCOMPARE(peerName->text(), QString("peer draft"));
         QVERIFY(panel.ShouldProcessNotifications());
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(), name);
