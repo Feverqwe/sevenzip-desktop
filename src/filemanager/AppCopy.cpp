@@ -298,7 +298,7 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     _presentation->ExecuteCopy(move, copyToSame, srcPanelIndex, output, indices, route);
 }
 
-void CApp::CompleteCopy(bool preserveSourceSelection) {
+void CApp::CompleteCopy(bool preserveSourceSelection, bool restoreSourceFocus) {
     auto request = std::move(_copyRequest);
     if (!request || _qtOperations.closed())
         return;
@@ -317,7 +317,8 @@ void CApp::CompleteCopy(bool preserveSourceSelection) {
     }
     disableNotify1.Restore();
     disableNotify2.Restore();
-    srcPanel.SetFocusToList();
+    if (restoreSourceFocus)
+        srcPanel.SetFocusToList();
 }
 
 bool CApp::RefreshCopyPanel(unsigned index) {

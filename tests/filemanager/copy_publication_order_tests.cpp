@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
@@ -94,6 +95,54 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void destinationRefreshKeepsNewAddressInput() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("source");
+        const QString output = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(input) && QDir().mkpath(output));
+        write(input + "/payload.txt", "copied bytes");
+        for (int index = 0; index < 301; ++index)
+            write(QDir(output).filePath(QString("existing-%1.txt").arg(index)), "existing");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *peer = openPanel(window, 1, output);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
+        auto *source = openPanel(window, 0, input);
+        QTRY_COMPARE(source->rowCount(), 1);
+        source->selectRow(0);
+        source->setFocus();
+        auto *address =
+            window.findChild<QWidget *>("filePanel1")->findChild<QLineEdit *>("archivePath");
+        bool scheduled = false;
+        bool edited = false;
+        connect(peer->model(), &QAbstractItemModel::rowsInserted, &window, [&] {
+            if (scheduled || peer->isEnabled())
+                return;
+            scheduled = true;
+            QTimer::singleShot(0, &window, [&] {
+                PanelKeys::focusAddress(address);
+                address->selectAll();
+                QTest::keyClicks(address, "new draft");
+                edited = true;
+            });
+        });
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            QVERIFY(dialog && dialog->isVisible());
+            dialog->accept();
+        });
+        action(window, "copyAction")->trigger();
+        QTRY_VERIFY(edited && peer->isEnabled() && peer->rowCount() == 302);
+        QCOMPARE(read(output + "/payload.txt"), QByteArray("copied bytes"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(address->text(), QString("new draft"));
+        QVERIFY(source->selectionModel()->selectedRows().isEmpty());
+    }
     void nativeCopyPhases_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("move");

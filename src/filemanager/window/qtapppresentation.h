@@ -41,9 +41,11 @@ class QtAppPresentation final : public IQtAppPresentation {
     QMenu *editMenu_ = nullptr;
     std::optional<unsigned> initialFocus_;
     struct CopyContinuation {
-        CopyContinuation(unsigned index, bool move, bool copyToSame)
-            : source(index), refreshSource(move || copyToSame), refreshDestination(!copyToSame) {}
+        CopyContinuation(unsigned index, bool move, bool copyToSame, quint64 interaction)
+            : source(index), interaction(interaction), refreshSource(move || copyToSame),
+              refreshDestination(!copyToSame) {}
         const unsigned source;
+        const quint64 interaction;
         bool executing = false;
         bool finished = false;
         bool preserveSourceSelection = false;

@@ -1,6 +1,7 @@
 // Qt execution and publication continuation for native CApp::OnCopy.
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include <QScopedValueRollback>
 
 void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceIndex,
@@ -14,7 +15,7 @@ void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceI
     window_.activatePanelUi(sourceIndex);
     if (!window_.app_.QtOperations().Begin(QtAppOperationState::Kind::Operation))
         return;
-    copy_.emplace(sourceIndex, move, copyToSame);
+    copy_.emplace(sourceIndex, move, copyToSame, window_.workspace_->InteractionRevision());
     {
         QScopedValueRollback<bool> executing(copy_->executing, true);
         window_.executeCopyDestination(move, copyToSame, sourceIndex, destination, indices, route);
@@ -59,12 +60,13 @@ void QtAppPresentation::CompleteCopyIfReady() {
         return;
     const unsigned source = copy_->source;
     const bool preserveSourceSelection = copy_->preserveSourceSelection;
+    const bool restoreSourceFocus = copy_->interaction == window_.workspace_->InteractionRevision();
     // Panel activation and source completion can re-enter action refresh.
     // Release this request first so it cannot be completed a second time.
     copy_.reset();
-    if (!window_.app_.QtOperations().closed())
+    if (restoreSourceFocus && !window_.app_.QtOperations().closed())
         window_.activatePanelUi(source);
-    window_.app_.CompleteCopy(preserveSourceSelection);
+    window_.app_.CompleteCopy(preserveSourceSelection, restoreSourceFocus);
     window_.refreshActions();
 }
 
