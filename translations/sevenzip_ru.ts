@@ -6569,6 +6569,10 @@ Use `Revert` to recover timestamp.</source>
             <translation>Источник или назначение недоступны либо имя уже занято.</translation>
         </message>
         <message>
+            <source>Multiple items would use the same destination: %1</source>
+            <translation>У нескольких элементов один путь назначения: %1</translation>
+        </message>
+        <message>
             <location line="-159" />
             <source>Source unavailable: %1</source>
             <translation>Источник недоступен: %1</translation>

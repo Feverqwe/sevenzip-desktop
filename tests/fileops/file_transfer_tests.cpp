@@ -66,6 +66,7 @@ class FileTransferTests : public QObject {
             QCOMPARE(file.readAll(), expected.second);
         }
         if (duplicateName) {
+            QVERIFY(result.first().at(1).toString().contains(target));
             QFile file(last);
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("last bytes"));

@@ -167,14 +167,19 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
         }
         const QString target = directPath ? worker_.destination_
                                           : QDir(destinationDirectory_).filePath(info.fileName());
+        if (std::any_of(targets.cbegin(), targets.cend(),
+                        [&target](const TransferPath &path) { return path.target == target; })) {
+            error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Multiple items would use the same destination: %1")
+                        .arg(target);
+            return {};
+        }
         const QFileInfo targetInfo(target);
         const bool samePath = QDir::cleanPath(info.absoluteFilePath()) ==
                                   QDir::cleanPath(targetInfo.absoluteFilePath()) ||
                               (!sourceLink && targetInfo.exists() &&
                                info.canonicalFilePath() == targetInfo.canonicalFilePath());
         if (QtIsFileSystemLink(target) || samePath ||
-            std::any_of(targets.cbegin(), targets.cend(),
-                        [&target](const TransferPath &path) { return path.target == target; }) ||
             (!sourceLink && info.isDir() &&
              NFsFolder::IsDestChild(info.canonicalFilePath(), canonicalDestination))) {
             error = QCoreApplication::translate(
