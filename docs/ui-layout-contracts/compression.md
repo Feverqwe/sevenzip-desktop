@@ -22,7 +22,8 @@ If a file, dangling link or known lack of write access blocks the destination
 folder, the form stays open and focuses the field that needs correction while
 retaining the archive options. The archive name must end with a file name,
 even when the destination folder has yet to be created.
-A dangling link at a single-file archive destination also keeps the form open.
+A dangling link or read-only file at a single-file archive destination also
+keeps the form open.
 Format is immediately available. Password protection has
 an explicit enable control; its dependent fields appear together, without a
 large framed heading. A source-supplied password enables the section. Turning

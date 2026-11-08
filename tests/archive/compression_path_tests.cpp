@@ -479,19 +479,38 @@ class CompressionPathTests final : public QObject {
             QVERIFY(!QFileInfo::exists(missing));
         }
     }
-    void danglingArchiveNameCanBeCorrected() {
-#ifndef Q_OS_UNIX
-        QSKIP("The symbolic link fixture requires POSIX");
-#else
+    void occupiedArchiveNameCanBeCorrected_data() {
+        QTest::addColumn<bool>("dangling");
+#ifdef Q_OS_UNIX
+        QTest::newRow("dangling-link") << true;
+#endif
+        QTest::newRow("read-only-archive") << false;
+    }
+    void occupiedArchiveNameCanBeCorrected() {
+        QFETCH(bool, dangling);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString missing = fixture.filePath("missing.7z");
-        const QString linked = fixture.filePath("old.7z");
-        QVERIFY(QFile::link(missing, linked));
+        const QString occupied = fixture.filePath("old.7z");
         ArchiveBackend backend;
-        QVERIFY(SourceCreationFixture::Create(backend, linked, {source_}) != S_OK);
-        QVERIFY(QFileInfo(linked).isSymLink());
-        QVERIFY(!QFileInfo::exists(missing));
+        QFileDevice::Permissions originalPermissions;
+        QByteArray original;
+        const auto restore = qScopeGuard([&] {
+            if (originalPermissions)
+                QFile::setPermissions(occupied, originalPermissions);
+        });
+        if (dangling)
+            QVERIFY(QFile::link(missing, occupied));
+        else {
+            QCOMPARE(SourceCreationFixture::Create(backend, occupied, {source_}), S_OK);
+            originalPermissions = QFile::permissions(occupied);
+            QFile archive(occupied);
+            QVERIFY(archive.open(QIODevice::ReadOnly));
+            original = archive.readAll();
+            archive.close();
+            QVERIFY(QFile::setPermissions(occupied, QFile::ReadOwner | QFile::ReadUser));
+        }
+        QVERIFY(SourceCreationFixture::Create(backend, occupied, {source_}) != S_OK);
 
         CreateArchiveDialog dialog(fixture.path(), {source_});
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
@@ -512,9 +531,14 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources()), S_OK);
         QVERIFY(QFileInfo(fixture.filePath("new.7z")).isFile());
-        QVERIFY(QFileInfo(linked).isSymLink());
-        QVERIFY(!QFileInfo::exists(missing));
-#endif
+        if (dangling) {
+            QVERIFY(QFileInfo(occupied).isSymLink());
+            QVERIFY(!QFileInfo::exists(missing));
+        } else {
+            QFile archive(occupied);
+            QVERIFY(archive.open(QIODevice::ReadOnly));
+            QCOMPARE(archive.readAll(), original);
+        }
     }
 
     void directorySpellingInNameCanBeCorrected_data() {

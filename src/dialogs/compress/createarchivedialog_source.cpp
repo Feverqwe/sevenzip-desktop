@@ -1,6 +1,7 @@
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/CompressDialogRes.h"
 #include "Windows/ErrorMsg.h"
+#include "Windows/FileFind.h"
 #include "Windows/FileName.h"
 #include "archive/callbacks/qtguimessages.h"
 #include "archive/codecs/archivecodeccatalog.h"
@@ -103,9 +104,15 @@ void CreateArchiveDialog::validateAndAccept() {
     const QFileInfo target(resolved);
     const bool singleVolume = !volume_->isEnabled() || volume_->currentText().trimmed().isEmpty();
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
-    const QString pathError = !hasFileName || resolved.isEmpty() || target.isDir() || danglingTarget
-                                  ? InvalidArchivePath()
-                                  : ArchiveDirectoryError(target.absolutePath());
+    QString pathError = !hasFileName || resolved.isEmpty() || target.isDir() || danglingTarget
+                            ? InvalidArchivePath()
+                            : ArchiveDirectoryError(target.absolutePath());
+    if (pathError.isEmpty() && singleVolume && target.exists()) {
+        NWindows::NFile::NFind::CFileInfo existing;
+        const UString nativePath(QDir::toNativeSeparators(resolved).toStdWString().c_str());
+        if (existing.Find_FollowLink(us2fs(nativePath)) && existing.IsReadOnly())
+            pathError = QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only");
+    }
     if (!pathError.isEmpty()) {
         // Keep the draft available for correction before handing it to UpdateArchive.
         const std::wstring message = pathError.toStdWString();
