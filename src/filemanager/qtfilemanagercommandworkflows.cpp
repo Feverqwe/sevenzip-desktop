@@ -209,9 +209,8 @@ void QtFileManagerCommands::CreateFolder() {
             finish();
             if (!destinationDirectory.isEmpty()) {
                 if (auto *application = QtWorkspaceApplication::Find())
-                    application->FilesystemPublished({destinationDirectory});
-                else
-                    window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {});
+                    application->FilesystemPublished({destinationDirectory}, &window_);
+                window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
             }
             if (focusOwner)
                 window_.appPresentation_->RequestListFocus(index);

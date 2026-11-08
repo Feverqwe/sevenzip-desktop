@@ -228,8 +228,7 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     if (!destinationDirectory.isEmpty()) {
         const QStringList changed{QFileInfo(request.path).absolutePath(), destinationDirectory};
         if (auto *application = QtWorkspaceApplication::Find())
-            application->FilesystemPublished(changed);
-        else
-            window_.guiOutputRefresh_->Enqueue(changed, {});
+            application->FilesystemPublished(changed, &window_);
+        window_.guiOutputRefresh_->Enqueue(changed, {}, int(request.panel));
     }
 }
