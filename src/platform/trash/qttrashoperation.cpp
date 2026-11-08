@@ -5,7 +5,6 @@
 #include "platform/trash/qttrashservice.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QCoreApplication>
-#include <QFileInfo>
 #ifdef _WIN32
 #include "Windows/COM.h"
 #endif
@@ -25,10 +24,6 @@ class TrashOperation final : public CProgressThreadVirt {
             RINOK(Sync.CheckStop())
             const QString path = QString::fromWCharArray(paths_[i]);
             Sync.Set_FilePath(paths_[i]);
-            if (QFileInfo(path).isSymLink()) {
-                AddErrorPath(us2fs(paths_[i]));
-                return E_NOTIMPL;
-            }
             if (!trash_.MoveToTrash(path)) {
                 const QString message = QCoreApplication::translate(
                     "DeleteRedesign", "Could not move the item to Trash.");

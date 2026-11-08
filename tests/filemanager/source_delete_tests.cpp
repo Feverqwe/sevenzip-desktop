@@ -3,6 +3,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "fileops/links/qtlinkservices.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_link_fixture.h"
 #include "platform/trash/qttrashoperation.h"
@@ -28,7 +29,10 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         std::function<void()> during;
         bool MoveToTrash(const QString &path) override {
             ++calls;
-            const bool removed = (failAfter < 0 || calls <= failAfter) && QFile::remove(path);
+            const QFileInfo item(path);
+            const bool removed = (failAfter < 0 || calls <= failAfter) &&
+                                 (item.isSymLink() && item.isDir() ? QtRemoveFileSystemEntry(path)
+                                                                   : QFile::remove(path));
             if (during)
                 during();
             return removed;
@@ -149,11 +153,14 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
     }
     void folderAndLinkConsequences_data() {
         QTest::addColumn<bool>("link");
-        QTest::newRow("folder") << false;
-        QTest::newRow("directory-link") << true;
+        QTest::addColumn<bool>("dangling");
+        QTest::newRow("folder") << false << false;
+        QTest::newRow("directory-link") << true << false;
+        QTest::newRow("dangling-link") << true << true;
     }
     void folderAndLinkConsequences() {
         QFETCH(bool, link);
+        QFETCH(bool, dangling);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         const QString directory = fixture.filePath("folder 空");
@@ -163,10 +170,13 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(payload.open(QIODevice::WriteOnly));
         QCOMPARE(payload.write("protected bytes"), qint64(15));
         payload.close();
-        if (link)
-            QVERIFY(CreateNativeSymbolicLink(alias, directory));
+        if (link) {
+            const QString target = dangling ? fixture.filePath("missing folder") : directory;
+            QVERIFY(CreateNativeSymbolicLink(alias, target));
+        }
         ControlledBackend backend;
         Trash trash;
+        trash.failAfter = link ? -1 : 0;
         MainWindow window(&backend, {}, &trash);
         window.show();
         auto *view = openPanel(window, 0, fixture.path());
@@ -188,18 +198,24 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                     dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog())) {
                 seen = true;
                 QCOMPARE(confirmation->findChild<QLabel *>("deleteFolders")->isVisible(), !link);
-                ReplyDelete(*confirmation, false);
+                ReplyDelete(*confirmation, link);
+            } else if (auto *dialog = dialogs_.activeDialog();
+                       !TestProgressDialog::DismissVisibleResult(dialog)) {
+                if (auto *box = qobject_cast<QMessageBox *>(dialog))
+                    box->accept();
             }
         });
         responder.start(1);
         action(window, "deleteAction")->trigger();
         responder.stop();
         QVERIFY(seen);
-        QCOMPARE(trash.calls, 0);
+        QCOMPARE(trash.calls, link ? 1 : 0);
         QVERIFY(payload.open(QIODevice::ReadOnly));
         QCOMPARE(payload.readAll(), QByteArray("protected bytes"));
-        if (link)
-            QVERIFY(QFileInfo(alias).isSymLink());
+        if (link) {
+            QVERIFY(!QFileInfo(alias).isSymLink());
+            QTRY_COMPARE(row(), -1);
+        }
     }
     void flatTrashMovesSelectedFoldersAndTheirContentsOnce() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
