@@ -156,14 +156,12 @@ struct CSelectedState {
     int FocusedItem;
     bool SelectFocused;
     bool FocusedName_Defined;
-    bool CalledFromTimer;
+    bool PreserveAddress = false;
     bool KeepViewport = true;
     UString FocusedName;
     UStringVector SelectedNames;
 
-    CSelectedState()
-        : FocusedItem(-1), SelectFocused(true), FocusedName_Defined(false), CalledFromTimer(false) {
-    }
+    CSelectedState() : FocusedItem(-1), SelectFocused(true), FocusedName_Defined(false) {}
 };
 
 struct CTempFileInfo {
@@ -330,10 +328,10 @@ class CPanel : public QObject {
     void Set_AutoRefresh_Mode(bool mode) { AutoRefresh_Mode = mode; }
     void MarkPortableFolderChanged() { _portableFolderChanged = true; }
     void OnTimer();
-    void OnReload(bool onTimer = false);
+    void OnReload(bool preserveAddress = false);
     // Qt retains the source caller's error policy across bounded row batches.
     std::function<void(HRESULT)> GetReloadCompletion() const { return _reloadCompletion; }
-    HRESULT RefreshListCtrl_SaveFocused(bool onTimer = false);
+    HRESULT RefreshListCtrl_SaveFocused(bool preserveAddress = false);
     UInt32 _listViewMode = 3;
     int _xSize = 0;
     PROPID _sortID = 0;

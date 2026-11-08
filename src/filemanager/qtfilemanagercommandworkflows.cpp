@@ -304,7 +304,7 @@ void QtFileManagerCommands::RefreshView() {
     if (window_.app_.GetFocusedPanel().ArchiveContextOutdated())
         window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true);
     else
-        window_.app_.RefreshView();
+        window_.app_.GetFocusedPanel().OnReload(window_.projectedUi().path->isModified());
 }
 void QtFileManagerCommands::OptionsDialog() { window_.showSettings(); }
 void QtFileManagerCommands::OpenBookmark(unsigned index) { window_.openBookmark(index); }

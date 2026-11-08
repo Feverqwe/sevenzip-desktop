@@ -45,7 +45,7 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
     const QString &displayedPath = projectedUi().directory;
     if (!filesystem ||
         (boundPath != displayedPath && QFileInfo(boundPath).canonicalFilePath() != displayedPath)) {
-        const bool updateAddress = !selection.CalledFromTimer && !reloadingFileListSettings_;
+        const bool updateAddress = !selection.PreserveAddress && !reloadingFileListSettings_;
         const HRESULT loaded =
             root ? renderRootFolder(updateAddress) : renderBoundFolder(updateAddress);
         if (loaded == S_OK)
@@ -96,7 +96,7 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
 HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
                                       std::optional<FilesystemViewport> viewport) {
     const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
-                                         !selection.CalledFromTimer && !reloadingFileListSettings_);
+                                         !selection.PreserveAddress && !reloadingFileListSettings_);
     if (loaded != S_OK)
         return loaded;
     panelUi_[projectedPanel_].pendingViewport = std::move(viewport);

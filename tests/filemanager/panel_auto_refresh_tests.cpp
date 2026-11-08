@@ -5,6 +5,7 @@
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "support/panel_keys.h"
+#include "support/window_activation.h"
 
 #include <QScrollBar>
 #include <QStackedWidget>
@@ -476,9 +477,19 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QVERIFY(writeFile(temp.filePath(QStringLiteral("later.txt"))));
         QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 2, 5000);
+        table(window)->sourcePanel->Set_AutoRefresh_Mode(false);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->selectAll();
+        QTest::keyClicks(address, "unfinished path");
+        address->setSelection(2, 5);
         QVERIFY(writeFile(temp.filePath(QStringLiteral("manual.txt"))));
         action(window, "refreshAction")->trigger();
         QTRY_COMPARE(table(window)->rowCount(), 3);
+        QCOMPARE(address->text(), QStringLiteral("unfinished path"));
+        QCOMPARE(address->selectedText(), QStringLiteral("finis"));
     }
 
     void missingFolderClearsStaleRowsAndRecovers() {
