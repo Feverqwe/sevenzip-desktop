@@ -200,6 +200,11 @@ void QtPanelAddressCombo::GetLogicalDriveStrings(FStringVector &paths) {
 }
 UString QtPanelAddressCombo::GetText() const { return ToUString(currentText()); }
 void QtPanelAddressCombo::SetText(const UString &text) { lineEdit()->setText(ToQString(text)); }
+void QtPanelAddressCombo::DiscardDraft(const UString &path) {
+    ++userEditRevision_;
+    lastUserDraft_.reset();
+    SetText(path);
+}
 QtAddressDraft::QtAddressDraft(const QLineEdit &edit)
     : text(edit.text()), cursor_(edit.cursorPosition()), anchor_(cursor_) {
     if (edit.hasSelectedText())

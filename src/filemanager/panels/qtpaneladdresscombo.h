@@ -42,6 +42,7 @@ class IQtPanelAddressCombo {
     virtual void GetLogicalDriveStrings(FStringVector &paths) = 0;
     virtual UString GetText() const = 0;
     virtual void SetText(const UString &text) = 0;
+    virtual void DiscardDraft(const UString &path) = 0;
     virtual HRESULT BindToPathAndRefresh(const UString &path, bool sourcePath) = 0;
     virtual void SetFocusToList() = 0;
 };
@@ -69,11 +70,12 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     void GetLogicalDriveStrings(FStringVector &paths) override;
     UString GetText() const override;
     void SetText(const UString &text) override;
+    void DiscardDraft(const UString &path) override;
     HRESULT BindToPathAndRefresh(const UString &path, bool sourcePath) override;
     void SetFocusToList() override;
     void CancelPendingListFocus() { listFocusPending_ = false; }
     quint64 UserEditRevision() const { return userEditRevision_; }
-    const QtAddressDraft &LastUserDraft() const { return *lastUserDraft_; }
+    const std::optional<QtAddressDraft> &LastUserDraft() const { return lastUserDraft_; }
 
   private:
     void CompleteListFocus();

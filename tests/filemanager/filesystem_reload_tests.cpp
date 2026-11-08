@@ -130,14 +130,18 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<bool>("flat");
         QTest::addColumn<bool>("reload");
         QTest::addColumn<bool>("newInput");
+        QTest::addColumn<bool>("discardDraft");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
                 for (bool flat : {false, true})
                     for (bool reload : {false, true})
                         QTest::newRow(qPrintable(
                             QString("%1-%2-%3-%4").arg(index).arg(language).arg(flat).arg(reload)))
-                            << index << language << flat << reload << false;
-        QTest::newRow("edit-while-opening") << 0u << QString("-") << false << false << true;
+                            << index << language << flat << reload << false << false;
+        QTest::newRow("edit-while-opening")
+            << 0u << QString("-") << false << false << true << false;
+        QTest::newRow("escape-while-opening")
+            << 0u << QString("-") << false << false << true << true;
     }
     void workerFailureRetainsSourceResult() {
         QFETCH(unsigned, sourceIndex);
@@ -145,6 +149,7 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QFETCH(bool, flat);
         QFETCH(bool, reload);
         QFETCH(bool, newInput);
+        QFETCH(bool, discardDraft);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -212,6 +217,8 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
                 address->selectAll();
                 QTest::keyClicks(address, newerDraft);
                 address->setSelection(4, 6);
+                if (discardDraft)
+                    QTest::keyClick(address, Qt::Key_Escape);
             }
         }
         QTRY_COMPARE(failed.size(), 1);
@@ -222,15 +229,21 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(shown, ToQString(HResultToMessage(result)));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         if (!reload) {
-            QCOMPARE(address->text(), newInput ? newerDraft : large);
             // The headless window system may leave the owner inactive after
             // closing the modal error. Return to it before sending another key.
             window.activateWindow();
             QVERIFY(QTest::qWaitForWindowActive(&window));
-            QTRY_VERIFY_WITH_TIMEOUT(address->hasFocus(), 2000);
-            QCOMPARE(address->selectedText(),
-                     newInput ? QStringLiteral("folder") : large.mid(draftCursor - 2, 2));
-            QCOMPARE(address->cursorPosition(), newInput ? 10 : draftCursor);
+            if (discardDraft) {
+                QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), smallPath);
+                QTRY_VERIFY(view->hasFocus());
+                QVERIFY(!address->isVisible());
+            } else {
+                QCOMPARE(address->text(), newInput ? newerDraft : large);
+                QTRY_VERIFY_WITH_TIMEOUT(address->hasFocus(), 2000);
+                QCOMPARE(address->selectedText(),
+                         newInput ? QStringLiteral("folder") : large.mid(draftCursor - 2, 2));
+                QCOMPARE(address->cursorPosition(), newInput ? 10 : draftCursor);
+            }
         }
         QCOMPARE(QFileInfo(ToQString(GetFolderPath(panel.GetFolder()))).canonicalFilePath(),
                  QFileInfo(reload ? large : smallPath).canonicalFilePath());
@@ -245,6 +258,8 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         if (reload)
             panel.OnReload();
         else {
+            if (discardDraft)
+                PanelKeys::focusAddress(address);
             if (newInput)
                 address->setText(large);
             QTest::keyClick(QApplication::focusWidget(), Qt::Key_Return);

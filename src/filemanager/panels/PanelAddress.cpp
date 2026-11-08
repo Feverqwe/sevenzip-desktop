@@ -150,7 +150,7 @@ bool CPanel::OnNotifyComboBoxEnter(const UString &s, IQtPanelAddressCombo &heade
 
 bool CPanel::OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header) {
     if (reason == QtAddressEditReason::Escape) {
-        header.SetText(_currentFolderPrefix);
+        header.DiscardDraft(_currentFolderPrefix);
         header.SetFocusToList();
         return true;
     }
