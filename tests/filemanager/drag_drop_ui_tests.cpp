@@ -13,18 +13,26 @@
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QCursor>
 #include <QDrag>
 #include <QDragLeaveEvent>
 #include <QLibrary>
 #include <QMouseEvent>
 #include <QProcess>
 #include <QScopeGuard>
+#include <QScreen>
 #include <QStackedWidget>
 #include <QStandardItemModel>
 #include <QStyle>
 #include <QStyleFactory>
 #include <QThread>
+#include <atomic>
 #include <memory>
+#ifdef Q_OS_WIN
+#include <chrono>
+#include <thread>
+#include <windows.h>
+#endif
 
 namespace {
 int Row(FileTable &table, const QString &name) {
@@ -48,11 +56,11 @@ bool CopyExport(const QMimeData *mime, const QString &destination) {
            QFile::copy(urls.front().toLocalFile(), destination);
 }
 
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
 class NativeDropReceiver final : public QWidget {
   public:
     QString Destination;
-    bool Entered = false;
+    std::atomic_bool Entered = false;
 
     explicit NativeDropReceiver(const QString &destination) : Destination(destination) {
         setAcceptDrops(true);
@@ -76,8 +84,18 @@ class DragDropUiTests final : public QObject {
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
     void archiveDragReachesNativeDropReceiver() {
+#ifdef Q_OS_WIN
+        if (QGuiApplication::platformName() != QStringLiteral("windows"))
+            QSKIP("Requires an interactive Windows desktop");
+        const auto press = [](bool down) {
+            INPUT input{};
+            input.type = INPUT_MOUSE;
+            input.mi.dwFlags = down ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
+            return SendInput(1, &input, sizeof(input)) == 1;
+        };
+#else
         if (QGuiApplication::platformName() != QStringLiteral("xcb"))
             QSKIP("Requires an isolated X11 display");
         QLibrary x11("X11", 6), xtest("Xtst", 6);
@@ -97,9 +115,11 @@ class DragDropUiTests final : public QObject {
             flush(display);
         };
         const auto press = [&](bool down) {
-            button(display, 1, down, 0);
+            const bool sent = button(display, 1, down, 0);
             flush(display);
+            return sent;
         };
+#endif
         const auto release = qScopeGuard([&] { press(false); });
 
         QTemporaryDir fixture;
@@ -117,14 +137,29 @@ class DragDropUiTests final : public QObject {
         const auto original = SourceExtractFixture::readFile(archive);
         const auto destination = fixture.filePath(name);
         NativeDropReceiver receiver(destination);
-        receiver.setGeometry(1000, 100, 220, 300);
+        const QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
+        receiver.setGeometry(screen.right() - 225, screen.top() + 100, 220, 300);
         receiver.show();
         QVERIFY(QTest::qWaitForWindowExposed(&receiver));
         ArchiveBackend backend;
         MainWindow window(&backend);
-        window.setGeometry(10, 50, 850, 540);
+        QStringList warnings;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *message = qobject_cast<QMessageBox *>(modal)) {
+                warnings.append(message->text());
+                message->reject();
+            } else {
+                TestProgressDialog::DismissVisibleResult(modal);
+            }
+        });
+        dismiss.start(10);
+        window.setGeometry(screen.left() + 10, screen.top() + 50, qMin(850, screen.width() - 260),
+                           540);
         window.show();
         window.openArchive(archive);
+        QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
         QVERIFY(WindowActivation::waitForActive(window));
         window.findChild<QAction *>("viewMode3Action")->trigger();
         auto *table = window.findChild<FileTable *>("archiveTable");
@@ -134,9 +169,31 @@ class DragDropUiTests final : public QObject {
         const QPoint from =
             table->viewport()->mapToGlobal(QPoint(item.left() + 26, item.center().y()));
         const QPoint to = receiver.mapToGlobal(receiver.rect().center());
+        const QPoint threshold = from + QPoint(QApplication::startDragDistance() + 10, 0);
+#ifdef Q_OS_WIN
+        const auto nativePoint = [](const QPoint &point) {
+            QCursor::setPos(point);
+            POINT native{};
+            GetCursorPos(&native);
+            return native;
+        };
+        const POINT destinationPoint = nativePoint(to);
+        const POINT thresholdPoint = nativePoint(threshold);
+        nativePoint(from);
+        QVERIFY(press(true));
+        std::jthread drive([&] {
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(50ms);
+            SetCursorPos(thresholdPoint.x, thresholdPoint.y);
+            std::this_thread::sleep_for(250ms);
+            SetCursorPos(destinationPoint.x, destinationPoint.y);
+            for (int i = 0; i < 100 && !receiver.Entered; ++i)
+                std::this_thread::sleep_for(20ms);
+            press(false);
+        });
+#else
         QTimer drive, watchdog;
         connect(&drive, &QTimer::timeout, &window, [&] {
-            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
             if (receiver.Entered) {
                 drive.stop();
                 press(false);
@@ -151,13 +208,14 @@ class DragDropUiTests final : public QObject {
         });
         watchdog.setSingleShot(true);
         pointAt(from);
-        press(true);
-        QTimer::singleShot(50, &window, [&] {
-            pointAt(from + QPoint(QApplication::startDragDistance() + 10, 0));
-        });
+        QVERIFY(press(true));
+        QTimer::singleShot(50, &window, [&] { pointAt(threshold); });
         drive.start(10);
         watchdog.start(7000);
-        QTRY_COMPARE_WITH_TIMEOUT(SourceExtractFixture::readFile(destination), payload, 8000);
+#endif
+        QTRY_VERIFY_WITH_TIMEOUT(!warnings.isEmpty() || QFileInfo::exists(destination), 8000);
+        QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
+        QCOMPARE(SourceExtractFixture::readFile(destination), payload);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }
 #endif
