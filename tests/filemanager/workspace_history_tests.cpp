@@ -113,6 +113,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         auto *forward = action(window, "forwardAction");
         QTest::keySequence(table(window), back->shortcut());
         QTRY_COMPARE(location(window), a);
+        QTRY_VERIFY(table(window)->hasFocus());
         QVERIFY(forward->isEnabled());
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
@@ -128,9 +129,9 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(UiInspection::writeReport(
                 window, QString("history-%1-%2").arg(language).arg(size.width())));
         }
-        table(window)->setFocus();
-        QTest::keySequence(table(window), forward->shortcut());
+        QTest::keySequence(window.focusWidget(), forward->shortcut());
         QTRY_COMPARE(location(window), b);
+        QTRY_VERIFY(table(window)->hasFocus());
         auto *parent = window.findChild<QPushButton *>("panelParentButton0");
         auto *previous = window.findChild<QToolButton *>("panelBackButton0");
         auto *next = window.findChild<QToolButton *>("panelForwardButton0");
