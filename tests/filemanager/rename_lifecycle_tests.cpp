@@ -2,7 +2,9 @@
 #include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/window_activation.h"
+#include <QClipboard>
 #include <QInputMethodEvent>
+#include <QMimeData>
 #include <QScrollBar>
 #include <QStyledItemDelegate>
 
@@ -253,6 +255,10 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QFile output(renamed);
         QVERIFY(output.open(QIODevice::ReadOnly));
         QCOMPARE(output.readAll(), QByteArray("payload"));
+        output.close();
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls(),
+                     QList<QUrl>{QUrl::fromLocalFile(QFileInfo(renamed).canonicalFilePath())});
         QVERIFY(action(window, "renameAction")->isEnabled());
         QTest::keyClick(window.focusWidget(), Qt::Key_F2);
         QLineEdit *reopened = nullptr;
@@ -262,6 +268,17 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(reopened);
         QCOMPARE(reopened->text(), QString("z.txt"));
         QTest::keyClick(reopened, Qt::Key_Escape);
+        QTRY_VERIFY(active->hasFocus());
+        QTemporaryDir destination;
+        QVERIFY(destination.isValid());
+        window.openPath(destination.path());
+        QTRY_VERIFY(active->isEnabled() && active->hasFocus());
+        QTest::keySequence(active, QKeySequence::Paste);
+        QFile pasted(destination.filePath("z.txt"));
+        QTRY_VERIFY(filesystemRow(window, "z.txt") >= 0);
+        QVERIFY(pasted.open(QIODevice::ReadOnly));
+        QCOMPARE(pasted.readAll(), QByteArray("payload"));
+        QVERIFY(QFileInfo::exists(renamed));
     }
 
     void discardedRenameDoesNotSeedTheNextEditor() {
