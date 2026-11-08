@@ -2,6 +2,7 @@
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/extract/alias.h"
 #include "fileops/patterns/Wildcard.h"
+#include "ui/controls/qtdisclosure.h"
 #include <QAbstractItemView>
 #include <QAccessible>
 #include <QDir>
@@ -412,9 +413,14 @@ class SplitDestinationTests final : public QObject {
                 const auto selectedMode = NExtract::NOverwriteMode::kSkip;
                 auto *overwrite = dialog.findChild<QComboBox *>("extractOverwriteMode");
                 overwrite->setCurrentIndex(overwrite->findData(selectedMode));
+                auto *advanced = dialog.findChild<QtDisclosure *>("extractAdvancedSection");
+                QVERIFY(advanced);
+                advanced->setExpanded(false);
+                QVERIFY(name(dialog)->isVisible());
                 path(dialog)->setEditText("  ");
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(!advanced->isExpanded());
                 QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
                             dialog.focusWidget() == path(dialog)->lineEdit());
                 const QString aboveRoot =
@@ -425,6 +431,7 @@ class SplitDestinationTests final : public QObject {
                 path(dialog)->setEditText(base);
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(!advanced->isExpanded() && name(dialog)->isVisible());
                 QTRY_COMPARE(dialog.focusWidget(), name(dialog));
                 QCOMPARE(overwrite->currentData().toInt(), int(selectedMode));
                 QCOMPARE(name(dialog)->text(), QString("occupied/child"));
