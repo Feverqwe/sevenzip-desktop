@@ -69,8 +69,9 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
             topOffset = projectedUi().table->rowViewportPosition(topRow);
     } else {
         const QRect visible = view->viewport()->rect();
+        const int column = projectedUi().iconList->modelColumn();
         for (int row = 0; row < view->model()->rowCount(); ++row) {
-            const QRect item = view->visualRect(view->model()->index(row, 0));
+            const QRect item = view->visualRect(view->model()->index(row, column));
             if (visible.intersects(item)) {
                 topRow = row;
                 topOffset = item.top();
@@ -248,7 +249,7 @@ void MainWindow::restoreListViewport(const ListViewport &viewport) {
     } else {
         auto *scroll = view->verticalScrollBar();
         scroll->setValue(viewport.scrollPosition.y());
-        const QModelIndex anchor = view->model()->index(row, 0);
+        const QModelIndex anchor = view->model()->index(row, projectedUi().iconList->modelColumn());
         // Keep the original offset even when the icon is partly scrolled out.
         const int displacement = view->visualRect(anchor).top() - viewport.topOffset;
         scroll->setValue(scroll->value() + displacement);
