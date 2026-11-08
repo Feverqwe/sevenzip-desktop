@@ -145,7 +145,19 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         }
         auto *button = window.findChild<QToolButton *>("panelRecentPlacesButton0");
         QVERIFY(button && button->isVisible());
-        QTest::mouseClick(button, Qt::LeftButton);
+        auto *parent = window.findChild<QPushButton *>("panelParentButton0");
+        QVERIFY(parent && parent->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(window));
+        parent->setFocus();
+        auto *focus = window.focusWidget();
+        for (int step = 0; step < 16 && focus && focus != button; ++step) {
+            QTest::keyClick(focus, Qt::Key_Tab);
+            focus = window.focusWidget();
+            if (focus == parent || focus == active(window))
+                break;
+        }
+        QCOMPARE(window.focusWidget(), button);
+        QTest::keyClick(button, Qt::Key_Space);
         QTRY_VERIFY(RecentPlacesMenu::Visible(window));
         auto *popup = RecentPlacesMenu::Visible(window);
         QCOMPARE(popup->actions().size(), 5);

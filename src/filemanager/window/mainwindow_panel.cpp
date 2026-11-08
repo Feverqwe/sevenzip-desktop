@@ -150,6 +150,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     recent->setObjectName(QStringLiteral("panelRecentPlacesButton%1").arg(index));
     recent->setAutoRaise(true);
     QtConfigureChromeToolButton(*recent);
+    recent->setFocusPolicy(Qt::TabFocus);
     recent->setIcon(QtCommandSymbol(QtCommandIcon::History, navigationRow));
     QtBindLocalText(recent, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"),
                     true);
