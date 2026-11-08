@@ -94,12 +94,12 @@ QtFileClipboard::QtFileClipboard(MainWindow &window) : QObject(&window), window_
     connect(paste, &QAction::triggered, this, &QtFileClipboard::Paste);
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {
         ++revision_;
-        cutDirty_ = true;
+        clipboardDirty_ = true;
         window_.refreshActions();
     });
 }
 
-QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned panel) const {
+QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned panel) {
     const auto &ui = window_.panelUi_[panel];
     if (!ui.table)
         return {};
@@ -117,21 +117,27 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
                                 !source.IsThereReadOnlyFolder() && destination.isDir() &&
                                 destination.isWritable();
     available.cut = available.copy && writableFolder;
-    available.paste =
-        writableFolder && !ClipboardFilePaths(QApplication::clipboard()->mimeData()).isEmpty();
+    UpdateClipboardSnapshot();
+    available.paste = writableFolder && hasClipboardFiles_;
     return available;
 }
 
+void QtFileClipboard::UpdateClipboardSnapshot() {
+    const auto *mime = QApplication::clipboard()->mimeData();
+    if (!clipboardDirty_ && clipboardMime_ == mime)
+        return;
+    clipboardDirty_ = false;
+    clipboardMime_ = mime;
+    cutPaths_.clear();
+    const auto paths = ClipboardFilePaths(mime);
+    hasClipboardFiles_ = !paths.isEmpty();
+    if (hasClipboardFiles_ && ClipboardMovesFiles(*mime, paths))
+        for (const auto &path : paths)
+            cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(path)));
+}
+
 void QtFileClipboard::Refresh() {
-    if (cutDirty_) {
-        cutDirty_ = false;
-        cutPaths_.clear();
-        const auto *mime = QApplication::clipboard()->mimeData();
-        const auto paths = ClipboardFilePaths(mime);
-        if (mime && ClipboardMovesFiles(*mime, paths))
-            for (const auto &path : paths)
-                cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(path)));
-    }
+    UpdateClipboardSnapshot();
     // Hidden tabs retain their model; every window observes clipboard changes.
     // New/restored models receive the same snapshot at their next publication.
     for (auto *table : window_.findChildren<FileTable *>())
