@@ -6,6 +6,7 @@
 #include "Windows/FileDir.h"
 #include "Windows/FileName.h"
 #include "dialogs/browse/BrowseDialog.h"
+#include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/temp/qtownedtempidentity.h"
@@ -43,9 +44,11 @@ QString InvalidOutputDirectory() {
 }
 
 bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
-    return !candidate.isEmpty() && !candidate.contains(QChar::Null) &&
-           NWindows::NFile::NDir::MyGetFullPathName(
-               us2fs(ToUString(QDir::toNativeSeparators(candidate))), resolved);
+    if (candidate.isEmpty() || candidate.contains(QChar::Null))
+        return false;
+    const UString path = ToUString(QDir::toNativeSeparators(candidate));
+    return NWindows::NFile::NDir::MyGetFullPathName(us2fs(path), resolved) &&
+           !HasEmptyWindowsPathComponent(path, fs2us(resolved));
 }
 
 void AddDestinationToHistory(CObjectVector<QString> &history, const QString &path) {

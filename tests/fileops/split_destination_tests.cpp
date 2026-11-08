@@ -411,6 +411,19 @@ class SplitDestinationTests final : public QObject {
                 QTRY_COMPARE(dialog.focusWidget(), name(dialog));
                 QCOMPARE(overwrite->currentData().toInt(), int(selectedMode));
                 QCOMPARE(name(dialog)->text(), QString("occupied/child"));
+#ifdef Q_OS_WIN
+                path(dialog)->setEditText(base + "/ ... /child");
+                name(dialog)->clear();
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
+                path(dialog)->setEditText(base);
+                name(dialog)->setText(" ... /../child");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+#endif
                 const QString invalidBase = base + "/truncated base" + QChar::Null + "suffix";
                 path(dialog)->setEditText(invalidBase);
                 name(dialog)->clear();
