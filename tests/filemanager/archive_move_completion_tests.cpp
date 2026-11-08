@@ -42,6 +42,8 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
         QTest::newRow("published-removal-reopen-failure")
             << false << QString("overwriteYes") << QString("7z") << true;
         QTest::newRow("overwrite-escape") << false << QString("escape") << QString("zip") << false;
+        QTest::newRow("copy-overwrite-escape")
+            << false << QString("copy-escape") << QString("zip") << false;
         QTest::newRow("host-and-stream-overwrite-yes")
             << false << QString("overwriteYes") << QString("wim") << false;
         QTest::newRow("directory-streams-overwrite-yes")
@@ -52,6 +54,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
         QFETCH(QString, answer);
         const bool noToAll = answer == "overwriteNoAll";
         const bool accept = answer == "overwriteYes";
+        const bool copy = answer == "copy-escape";
         QFETCH(QString, format);
         QFETCH(bool, lateFailure);
         const bool streams = format == "wim";
@@ -195,7 +198,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
                 ++overwriteQuestions;
                 if (noToAll)
                     ReplyOverwrite(*overwrite, IDB_NO_TO_ALL);
-                else if (answer == "escape")
+                else if (answer.endsWith("escape"))
                     QTest::keyClick(overwrite, Qt::Key_Escape);
                 else
                     overwrite->findChild<QPushButton *>(answer)->click();
@@ -222,7 +225,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
             }
         });
         responder.start(2);
-        action(window, "moveAction")->trigger();
+        action(window, copy ? "copyAction" : "moveAction")->trigger();
         responder.stop();
         QVERIFY(submitted);
         int expectedQuestions = directory && !noToAll ? 2 : 1;
