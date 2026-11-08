@@ -169,6 +169,14 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(action(window, "sort0Action")->isChecked());
         QVERIFY(action(window, "viewMode0Action")->isChecked());
         QCOMPARE(views[0]->sourcePanel->GetFolder(), peer.Interface());
+        auto *details = action(window, "viewMode3Action");
+        QSignalSpy detailsChanges(details, &QAction::toggled);
+        views[1]->sourcePanel->SetListViewMode(3);
+        QVERIFY(views[1]->isVisible());
+        QVERIFY(addresses[0]->hasFocus());
+        QVERIFY(action(window, "viewMode0Action")->isChecked());
+        QVERIFY(!details->isChecked());
+        QVERIFY(detailsChanges.isEmpty());
     }
     void headerDefaults_data() {
         QTest::addColumn<quint32>("property");

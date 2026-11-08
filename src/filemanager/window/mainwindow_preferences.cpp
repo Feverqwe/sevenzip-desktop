@@ -2,6 +2,7 @@
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/providers/qtlocationfolder.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlanguageservices.h"
 #include <QScopedValueRollback>
@@ -54,7 +55,6 @@ void MainWindow::setViewMode(int mode) {
     const QWidget *previousView = stack->currentWidget();
     const bool restoreFocus =
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
-    viewActions_[mode]->setChecked(true);
     if (mode != 3)
         icons->ConfigureLargeIcons();
     // Upstream changes the style of the same list control. Qt replaces the
@@ -80,4 +80,6 @@ void MainWindow::setViewMode(int mode) {
     for (unsigned i = 0; i < kNumPanelsMax; ++i)
         modes.Panels[i] = app_.Panels[i].GetListViewMode();
     modes.Save(toolbarSettingsPath());
+    if (commands_)
+        commands_->RefreshViewActions();
 }
