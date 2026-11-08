@@ -18,8 +18,10 @@
 #include "platform/trash/qttrashoperation.h"
 #include "platform/trash/qttrashservice.h"
 
+#include <QDir>
 #include <QFileIconProvider>
 #include <QFileInfo>
+#include <QHash>
 #include <QSet>
 #include <utility>
 
@@ -60,8 +62,37 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
     SaveSelectedState(state);
     if (!CheckBeforeUpdate(IDS_ERROR_DELETING))
         return E_ABORT;
+    QHash<QString, UInt32> selectedFolders;
+    if (GetFlatMode()) {
+        FOR_VECTOR(i, indices) {
+            const UInt32 index = indices[i];
+            if (IsItem_Folder(index))
+                selectedFolders.insert(QDir::fromNativeSeparators(ToQString(GetItemRelPath(index))),
+                                       index);
+        }
+    }
+    const auto trashRoot = [&](UInt32 index) {
+        UInt32 root = index;
+        if (selectedFolders.isEmpty())
+            return root;
+        QString prefix = QDir::fromNativeSeparators(ToQString(GetItemPrefix(index)));
+        while (!prefix.isEmpty()) {
+            prefix.chop(1);
+            root = selectedFolders.value(prefix, root);
+            prefix.truncate(prefix.lastIndexOf('/') + 1);
+        }
+        return root;
+    };
+    CRecordVector<UInt32> roots;
+    FOR_VECTOR(i, indices) {
+        if (trashRoot(indices[i]) == indices[i])
+            roots.Add(indices[i]);
+    }
+    CRecordVector<UInt32> precedingRows;
+    for (int row = 0; row < state.FocusedItem; ++row)
+        precedingRows.Add(trashRoot(GetRealItemIndex(row)));
     UStringVector paths;
-    GetFilePaths(indices, paths);
+    GetFilePaths(roots, paths);
     if (confirm && !ConfirmDeleteItems(*this, indices, QtDeleteConfirmation::Mode::Trash))
         return E_ABORT;
 
@@ -71,11 +102,12 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
         QtMoveItemsToTrash(paths, trash, GetParent(), false, nullptr, &movedCount);
     if (movedCount && state.FocusedItem > 0) {
         // When the focused name disappears, keep its position among surviving rows.
-        const auto *first = indices.ConstData();
+        const auto *first = roots.ConstData();
         const QSet<UInt32> moved(first, first + movedCount);
-        for (int row = state.FocusedItem - 1; row >= 0; --row)
-            if (moved.contains(GetRealItemIndex(row)))
+        FOR_VECTOR(i, precedingRows) {
+            if (moved.contains(precedingRows[i]))
                 --state.FocusedItem;
+        }
     }
     RefreshListCtrl(state);
     return result;

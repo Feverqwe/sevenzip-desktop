@@ -200,6 +200,66 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         if (link)
             QVERIFY(QFileInfo(alias).isSymLink());
     }
+    void flatTrashMovesSelectedFoldersAndTheirContentsOnce() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QTemporaryDir destination;
+        QVERIFY(fixture.isValid() && destination.isValid());
+        QVERIFY(QDir().mkpath(fixture.filePath("folder/nested")));
+        QVERIFY(QDir().mkpath(fixture.filePath("folder-other")));
+        const QString child = "folder/nested/child.txt";
+        const QString separate = "folder-other/separate.txt";
+        for (const QString &path : {child, separate}) {
+            QFile file(fixture.filePath(path));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("content"), qint64(7));
+        }
+        class TrashToDirectory final : public IQtTrashService {
+          public:
+            QString destination;
+            QStringList moved;
+            bool MoveToTrash(const QString &path) override {
+                const QString name = QFileInfo(path).fileName();
+                if (!QDir().rename(path, QDir(destination).filePath(name)))
+                    return false;
+                moved.append(name);
+                return true;
+            }
+        } trash;
+        trash.destination = destination.path();
+        ControlledBackend backend;
+        MainWindow window(&backend, {}, &trash);
+        window.show();
+        auto *view = openPanel(window, 0, fixture.path());
+        QTRY_COMPARE(view->rowCount(), 2);
+        auto &panel = *view->sourcePanel;
+        panel.ChangeFlatMode();
+        QTRY_COMPARE(view->rowCount(), 5);
+        CRecordVector<UInt32> all, indices;
+        panel.Get_ItemIndices_All(all);
+        FOR_VECTOR(i, all) {
+            const UInt32 index = all[i];
+            const QString path = QDir::fromNativeSeparators(ToQString(panel.GetItemRelPath(index)));
+            if (path == "folder" || path == "folder/nested" || path == child || path == separate)
+                indices.Add(index);
+        }
+        QCOMPARE(indices.Size(), 4u);
+        QTimer responder;
+        dialogs_.connectResponder(responder, &window, [&] {
+            if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(dialogs_.activeDialog()))
+                ReplyDelete(*confirmation);
+            else
+                TestProgressDialog::DismissVisibleResult(dialogs_.activeDialog());
+        });
+        responder.start(1);
+        CSelectedState selection;
+        QCOMPARE(panel.MoveItemsToTrash(trash, selection, &indices), S_OK);
+        responder.stop();
+        QCOMPARE(trash.moved, (QStringList{"folder", "separate.txt"}));
+        QVERIFY(QFileInfo::exists(destination.filePath(child)));
+        QVERIFY(QFileInfo::exists(destination.filePath("separate.txt")));
+        QTRY_COMPARE(view->rowCount(), 1);
+    }
     void trashKeepsPreparedPathsAcrossProviderReload() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
