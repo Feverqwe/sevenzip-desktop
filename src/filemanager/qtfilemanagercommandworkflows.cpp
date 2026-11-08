@@ -212,24 +212,27 @@ void QtFileManagerCommands::CreateFolder() {
         auto draft = folderDrafts_.find(index);
         if (draft == folderDrafts_.end() || draft->editor != editor)
             return;
-        const bool queued = draft->pendingName.has_value();
+        const bool queued = draft->pending.has_value();
         if (!queued && !(window_.scanningPanelMask() & (1u << index))) {
             submit(name->text(), true);
             return;
         }
-        draft->pendingName = name->text();
+        draft->pending =
+            FolderDraft::Submission{name->text(), window_.workspace_->InteractionRevision()};
         if (queued)
             return;
         window_.workspace_->WhenReady([this, index, owner = QPointer(editor), submit] {
             auto draft = folderDrafts_.find(index);
             if (!owner || draft == folderDrafts_.end() || draft->editor != owner)
                 return;
-            const auto pending = std::exchange(draft->pendingName, std::nullopt);
-            if (pending && owner->NameField()->text() == *pending) {
+            const auto pending = std::exchange(draft->pending, std::nullopt);
+            if (pending && owner->NameField()->text() == pending->name) {
                 const QPointer<MainWindow> window(&window_);
                 const QPointer<QWidget> focused = window_.focusWidget();
-                const bool focusOwner = !focused || focused == owner->NameField();
-                window_.withPanelProjection(index, [&] { submit(*pending, focusOwner); });
+                const bool focusOwner =
+                    focused == owner->NameField() ||
+                    pending->interaction == window_.workspace_->InteractionRevision();
+                window_.withPanelProjection(index, [&] { submit(pending->name, focusOwner); });
                 if (window && !focusOwner)
                     window->appPresentation_->RestoreWidgetFocus(focused);
             }

@@ -116,7 +116,11 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         QPointer<QtInlineFolderName> editor;
         CMyComPtr<IFolderFolder> folder;
         UString prefix;
-        std::optional<QString> pendingName = std::nullopt;
+        struct Submission {
+            QString name;
+            quint64 interaction;
+        };
+        std::optional<Submission> pending = std::nullopt;
     };
     QHash<unsigned, FolderDraft> folderDrafts_;
     QHash<unsigned, QList<QAction *>> actions_;

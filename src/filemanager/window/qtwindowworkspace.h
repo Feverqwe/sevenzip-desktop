@@ -48,6 +48,7 @@ class QtWindowWorkspace final : public QObject {
     bool CanRefreshPublishedOutput(unsigned panel) const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RetainListFocus(unsigned panel);
+    quint64 InteractionRevision() const { return interactionRevision_; }
     void RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft);
     void ExitExternalWorkers(bool hardExit);
     void Dispose();

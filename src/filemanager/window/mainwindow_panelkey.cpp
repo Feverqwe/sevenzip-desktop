@@ -3,7 +3,6 @@
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanelkey.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QContextMenuEvent>
@@ -38,10 +37,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         updatePanelModifier(*static_cast<QKeyEvent *>(event));
     if (event->type() == QEvent::WindowDeactivate)
         rightControlPressed_ = false;
-    if (appPresentation_ &&
-        (event->type() == QEvent::KeyPress || event->type() == QEvent::MouseButtonPress ||
-         event->type() == QEvent::MouseButtonDblClick))
-        appPresentation_->CancelInitialFocus();
     if (!panelProjectionDepth_ &&
         (event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonPress ||
          event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::KeyPress)) {

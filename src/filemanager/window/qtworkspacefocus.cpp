@@ -15,7 +15,8 @@ void QtWindowWorkspace::FocusListAfterLocationOpen(unsigned panel, quint64 inter
 
 bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
     if (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress ||
-        event->type() == QEvent::MouseButtonPress || event->type() == QEvent::Wheel) {
+        event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick ||
+        event->type() == QEvent::Wheel) {
         const auto *widget = qobject_cast<QWidget *>(object);
         const auto *modal = QApplication::activeModalWidget();
         // Answering a modal prompt continues the pending panel action.
