@@ -189,8 +189,13 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             QCOMPARE(prompts, 2);
             QCOMPARE(names(window), QStringList{"original.txt"});
             password = replacementPassword;
+            backend.paused = deferRefresh;
             retry->click();
-            QCOMPARE(prompts, 3);
+            if (deferRefresh) {
+                QCOMPARE(prompts, 2);
+                backend.paused = false;
+            }
+            QTRY_COMPARE(prompts, 3);
         }
         QTRY_COMPARE(names(window), QStringList{"updated.txt"});
         QVERIFY(!notice(window));
@@ -202,7 +207,12 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(names(window), QStringList{"updated.txt"});
         QVERIFY(window.statusBar()->currentMessage().startsWith("Path not found:"));
         QVERIFY(QFile::rename(replacement, archive));
+        backend.paused = deferRefresh;
         window.findChild<QPushButton *>("navigationRetry0")->click();
+        if (deferRefresh) {
+            QVERIFY(notice(window));
+            backend.paused = false;
+        }
         QTRY_VERIFY(!notice(window));
         QCOMPARE(names(window), QStringList{"updated.txt"});
         QVERIFY(window.statusBar()->currentMessage().isEmpty());

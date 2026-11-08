@@ -191,15 +191,17 @@ void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path
 }
 
 void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
-    if (!Ready())
+    auto &locationState = panels_[panel].location;
+    const bool archiveRetry =
+        !parent && locationState.archiveRevision != locationState.archiveApplied;
+    if (window_.app_.QtOperations().closed() || (!archiveRetry && !Ready()))
         return;
     window_.activatePanelUi(panel);
-    auto &locationState = panels_[panel].location;
     if (parent && locationState.archiveRevision != locationState.archiveApplied) {
         window_.goParent();
         return;
     }
-    if (!parent && locationState.archiveRevision != locationState.archiveApplied) {
+    if (archiveRetry) {
         RefreshPublishedArchive(panel, true);
         return;
     }
