@@ -56,11 +56,14 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
     }
     void folderCommandPreservesPeerWhenTargetDisappears_data() {
         QTest::addColumn<bool>("selectedFolder");
-        QTest::newRow("same-folder") << false;
-        QTest::newRow("selected-folder") << true;
+        QTest::addColumn<int>("extraEntries");
+        QTest::newRow("same-folder") << false << 0;
+        QTest::newRow("selected-folder") << true << 0;
+        QTest::newRow("large-selected-folder") << true << 257;
     }
     void folderCommandPreservesPeerWhenTargetDisappears() {
         QFETCH(bool, selectedFolder);
+        QFETCH(int, extraEntries);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString parent = fixture.filePath("source parent");
@@ -72,6 +75,10 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         for (const auto &path :
              {QDir(source).filePath("source.txt"), QDir(peer).filePath("peer.txt")}) {
             QFile entry(path);
+            QVERIFY(entry.open(QIODevice::WriteOnly));
+        }
+        for (int index = 0; index < extraEntries; ++index) {
+            QFile entry(QDir(source).filePath(QString("zz-%1.txt").arg(index)));
             QVERIFY(entry.open(QIODevice::WriteOnly));
         }
         MainWindow window;
@@ -119,8 +126,11 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
 
         QVERIFY(QDir().rename(moved, source));
         command();
+        QTRY_COMPARE(peerList->rowCount(), extraEntries + 1);
+        QTRY_VERIFY(peerList->isEnabled());
         QTRY_COMPARE(peerList->model()->index(0, 0).data().toString(),
                      QStringLiteral("source.txt"));
+        QTRY_VERIFY(window.statusBar()->currentMessage().isEmpty());
         QVERIFY(sourceList->hasFocus());
         peerList->setFocus();
         QTRY_VERIFY(peerList->hasFocus());

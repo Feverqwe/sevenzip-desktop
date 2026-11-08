@@ -2,6 +2,7 @@
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include <QScopedValueRollback>
 #include <QScrollBar>
 #include <utility>
@@ -48,13 +49,18 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
     const unsigned peer = 1 - source;
     HRESULT outcome = E_ABORT;
     window_.withPanelProjection(peer, [&] {
-        outcome = Navigate([&] {
-            return OpenRecordedLocation(peer, target.path, target.nativePlaceIdentity,
-                                        target.archiveLocation);
-        });
+        outcome = Navigate(
+            [&] {
+                return OpenRecordedLocation(peer, target.path, target.nativePlaceIdentity,
+                                            target.archiveLocation);
+            },
+            [this, source, path = target.path](HRESULT result) {
+                if (result != E_ABORT && !window_.app_.QtOperations().closed())
+                    window_.statusStrip_->SetMessage(
+                        &window_.app_.Panels[source],
+                        result == S_OK ? QString() : tr("Location unavailable: %1").arg(path));
+            });
     });
-    if (outcome != S_OK && outcome != E_ABORT)
-        window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
     return outcome;
 }
 
