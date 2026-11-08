@@ -391,6 +391,7 @@ class ExtractionOptionsTests : public QObject {
         QVERIFY(QDir().mkpath(source));
         for (const QString &name : {QStringLiteral("one"), QStringLiteral("two")})
             writeFile(source + "/" + name, "new");
+        writeFile(source + "/z-new.txt", "no conflict");
         const QString archive = temp.filePath("fixture.7z");
         ArchiveBackend backend;
         QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
@@ -421,10 +422,16 @@ class ExtractionOptionsTests : public QObject {
                      answer == NOverwriteAnswer::kYesToAll ? QByteArray("new") : QByteArray("old"));
             QCOMPARE(readFile(output + "/source/two"),
                      answer == NOverwriteAnswer::kYesToAll ? QByteArray("new") : QByteArray("old"));
+            const QString fresh = output + "/source/z-new.txt";
+            if (answer == NOverwriteAnswer::kCancel)
+                QVERIFY(!QFileInfo::exists(fresh));
+            else
+                QCOMPARE(readFile(fresh), QByteArray("no conflict"));
             const QDir directory(output + "/source");
             QStringList copies = directory.entryList(QDir::Files | QDir::Hidden);
             copies.removeAll("one");
             copies.removeAll("two");
+            copies.removeAll("z-new.txt");
             QCOMPARE(copies.size(), answer == NOverwriteAnswer::kAutoRename ? 2 : 0);
             for (const QString &copy : copies)
                 QCOMPARE(readFile(directory.filePath(copy)), QByteArray("new"));
