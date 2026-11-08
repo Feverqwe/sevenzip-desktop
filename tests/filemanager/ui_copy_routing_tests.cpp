@@ -212,6 +212,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(QString, outcome);
         const bool cancel = outcome == "dialog-cancel";
         const bool skip = outcome == "overwrite-skip-move";
+        const bool cancelBatchMove = outcome == "overwrite-cancel-move";
         const bool missing = outcome.startsWith("missing-");
         const bool overwrite = skip || outcome.startsWith("overwrite-cancel");
         const bool move = outcome.endsWith("move");
@@ -240,11 +241,13 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         const QString name = QStringLiteral("payload δ.txt");
         const QString other = QStringLiteral("another file.txt");
         write(QDir(input).filePath(name), "control bytes");
-        if (skip || missing || newBatchFolder)
+        if (skip || missing || newBatchFolder || cancelBatchMove)
             write(QDir(input).filePath(other), "move these bytes");
         write(QDir(peer).filePath("seed.txt"), "seed control");
         if (overwrite)
             write(QDir(output).filePath(name), "existing control");
+        if (cancelBatchMove)
+            write(QDir(output).filePath(other), "other existing bytes");
         const int originalRows = large ? 301 : 1;
         for (int i = 1; i < originalRows; ++i)
             write(QDir(peer).filePath(QString("item-%1").arg(i)), "control");
@@ -262,7 +265,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             static_cast<FileTable *>(view)->sourcePanel->Set_AutoRefresh_Mode(false);
         peerView->selectRow(row(*peerView, "seed.txt"));
         sourceView->selectRow(row(*sourceView, name));
-        if (skip || missing || newBatchFolder)
+        if (skip || missing || newBatchFolder || cancelBatchMove)
             sourceView->selectionModel()->select(
                 sourceView->model()->index(row(*sourceView, other), 0),
                 QItemSelectionModel::Select | QItemSelectionModel::Rows);
@@ -273,6 +276,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         bool removed = false;
         bool reviewed = false;
         int refusedDestinations = 0;
+        int overwritePrompts = 0;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
@@ -307,10 +311,16 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             for (QWidget *widget : QApplication::topLevelWidgets()) {
                 if (!widget->isVisible())
                     continue;
-                if (auto *box = dynamic_cast<COverwriteDialog *>(widget))
-                    box->findChild<QPushButton *>(skip ? "overwriteNo" : "overwriteCancel")
-                        ->click();
-                else if (auto *box = qobject_cast<QMessageBox *>(widget))
+                if (auto *box = dynamic_cast<COverwriteDialog *>(widget)) {
+                    ++overwritePrompts;
+                    if (cancelBatchMove && overwritePrompts == 1)
+                        box->findChild<QPushButton *>("overwriteYes")->click();
+                    else if (cancelBatchMove)
+                        QTest::keyClick(box, Qt::Key_Escape);
+                    else
+                        box->findChild<QPushButton *>(skip ? "overwriteNo" : "overwriteCancel")
+                            ->click();
+                } else if (auto *box = qobject_cast<QMessageBox *>(widget))
                     box->accept();
                 else
                     reviewed |= TestProgressDialog::DismissVisibleResult(widget);
@@ -324,8 +334,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         if (cancel || overwrite || missing) {
             QTRY_COMPARE(window.focusWidget(), sourceView);
-            QCOMPARE(sourceView->selectionModel()->selectedRows().size(), 1);
-            QCOMPARE(sourceView->selectionModel()->selectedRows().front().data().toString(), name);
+            QCOMPARE(sourceView->selectionModel()->selectedRows().size(), cancelBatchMove ? 2 : 1);
+            QVERIFY(sourceView->selectionModel()->isRowSelected(row(*sourceView, name), {}));
         }
         QTRY_COMPARE_WITH_TIMEOUT(peerView->rowCount(), originalRows + (cancel ? 0 : 1), 1000);
         QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel && !missing);
@@ -342,6 +352,12 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         if (skip) {
             QVERIFY(!QFileInfo::exists(QDir(input).filePath(other)));
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+        }
+        if (cancelBatchMove) {
+            QCOMPARE(overwritePrompts, 2);
+            QVERIFY(sourceView->selectionModel()->isRowSelected(row(*sourceView, other), {}));
+            QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
+            QCOMPARE(read(QDir(output).filePath(other)), QByteArray("other existing bytes"));
         }
         if (newBatchFolder) {
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
