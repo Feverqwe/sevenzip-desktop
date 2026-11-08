@@ -534,12 +534,28 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         second.openPath(c);
         QTRY_COMPARE(location(first), b);
         QTRY_COMPARE(location(second), c);
-        action(first, "backAction")->trigger();
+        QVERIFY(WindowActivation::waitForActive(second));
+        auto *peer = table(second);
+        const int row = filesystemRow(second, "item-0000.txt");
+        QVERIFY(row >= 0);
+        peer->setCurrentCell(row, 0);
+        peer->selectRow(row);
+        peer->setFocus();
+        QVERIFY(WindowActivation::waitForActive(first));
+        auto *view = table(first);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(first.focusWidget(), action(first, "backAction")->shortcut());
         QTRY_COMPARE(location(first), a);
         QCOMPARE(location(second), c);
-        action(first, "forwardAction")->trigger();
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(first.focusWidget(), action(first, "forwardAction")->shortcut());
         QTRY_COMPARE(location(first), b);
         QCOMPARE(location(second), c);
+        QVERIFY(WindowActivation::waitForActive(second));
+        QTRY_VERIFY(peer->hasFocus());
+        QCOMPARE(peer->currentRow(), row);
+        QVERIFY(peer->selectionModel()->isRowSelected(row, {}));
     }
 
     void archiveBackIsAVisitAndParentIsANewTransition() {
