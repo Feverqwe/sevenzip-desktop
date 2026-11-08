@@ -9,6 +9,7 @@
 #include "settings/RegistryUtils.h"
 #include "support/panel_keys.h"
 #include "support/progress_dialog.h"
+#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QAction>
@@ -92,7 +93,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                 workspace = owner;
         QVERIFY(workspace);
         QVERIFY(QDir().rename(source, moved));
-        QCOMPARE(workspace->OpenSameFolderInPeer(0), HRESULT(S_FALSE));
+        QCOMPARE(workspace->OpenFolderInPeer(0), HRESULT(S_FALSE));
         QVERIFY(window.statusBar()->currentMessage().contains(source));
         QTRY_VERIFY(peerList->isEnabled());
         QCOMPARE(peerAddress->text(), originalPeer);
@@ -106,6 +107,52 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(peerList->model()->index(0, 0).data().toString(),
                      QStringLiteral("source.txt"));
         QVERIFY(sourceList->hasFocus());
+    }
+    void openArchiveSubfolderInPeerKeepsParentChain() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString inner = fixture.filePath("child.7z");
+        const QString outer = fixture.filePath("outer.zip");
+        QVERIFY(NativeArchiveFixture::Write(inner, {{"folder/payload.txt", "payload"}}));
+        QFile nested(inner);
+        QVERIFY(nested.open(QIODevice::ReadOnly));
+        QVERIFY(NativeArchiveFixture::Write(outer, {{"child.7z", nested.readAll()}}, "zip"));
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        auto *source =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        auto *peer =
+            window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>("archiveTable");
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        window.openArchive(outer);
+        QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("child.7z"));
+        source->setCurrentCell(0, 0);
+        source->selectRow(0);
+        QTRY_VERIFY(action(window, "openInsideAction")->isEnabled());
+        action(window, "openInsideAction")->trigger();
+        QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("folder"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        source->setCurrentCell(0, 0);
+        source->selectRow(0);
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        PanelKeys::command(source, Qt::Key_Right, Qt::AltModifier | Qt::ShiftModifier);
+        QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("payload.txt"));
+        QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(source));
+
+        auto *up = window.findChild<QPushButton *>("panelParentButton1");
+        QVERIFY(up);
+        QTRY_VERIFY(up->isEnabled());
+        up->click();
+        QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("folder"));
+        QTRY_VERIFY(up->isEnabled());
+        up->click();
+        QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("child.7z"));
+        QCOMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("folder"));
     }
     void parentButtonBelongsToItsPanel_data() {
         QTest::addColumn<unsigned>("pane");

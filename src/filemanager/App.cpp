@@ -117,7 +117,7 @@ void CApp::OnSetSameFolder(unsigned srcPanelIndex) {
         return;
     if (NumPanels <= 1)
         return;
-    if (_presentation && _presentation->OpenSameFolderInPeer(srcPanelIndex))
+    if (_presentation && _presentation->OpenFolderInPeer(srcPanelIndex))
         return;
     const CPanel &srcPanel = Panels[srcPanelIndex];
     CPanel &destPanel = Panels[1 - srcPanelIndex];
@@ -139,6 +139,9 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
         return;
     const unsigned realIndex = srcPanel.GetRealItemIndex(focusedItem);
     if (!srcPanel.IsItem_Folder(realIndex))
+        return;
+    if (srcPanel.IsArcFolder() && _presentation &&
+        _presentation->OpenFolderInPeer(srcPanelIndex, realIndex))
         return;
 
     CMyComPtr<IFolderFolder> newFolder;

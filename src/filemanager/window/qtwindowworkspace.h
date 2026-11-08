@@ -38,7 +38,7 @@ class QtWindowWorkspace final : public QObject {
     void Restore(const QJsonObject &state, std::function<void()> finished = {},
                  std::function<void()> canceled = {}, const QtArchiveLocation &firstArchive = {});
     void EditLocation();
-    HRESULT OpenSameFolderInPeer(unsigned source);
+    HRESULT OpenFolderInPeer(unsigned source, std::optional<UInt32> item = {});
     QString CurrentLocation();
     void AttachContent(unsigned panel, QVBoxLayout &layout);
     void InvalidateArchive(const QString &path, int skipPanel = -1);

@@ -6,14 +6,39 @@
 #include <QScrollBar>
 #include <utility>
 
-HRESULT QtWindowWorkspace::OpenSameFolderInPeer(unsigned source) {
+HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt32> item) {
     const auto &ui = window_.panelUi_[source];
     const auto &operations = window_.app_.QtOperations();
     if (changing_ || operations.closed() || operations.blocking() ||
         window_.sourceArchiveProgress_ || QApplication::activeModalWidget() || ui.scanningDisk ||
         ui.scanningArchive || ui.locationUnavailable)
         return E_ABORT;
-    const auto target = CaptureVisit(source);
+    auto target = CaptureVisit(source);
+    if (item) {
+        auto &archive = target.archiveLocation;
+        if (archive.physicalPath.isEmpty() || !QFileInfo::exists(archive.physicalPath)) {
+            window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
+            return S_FALSE;
+        }
+        if (*item == UInt32(-1))
+            target.path = archive.MoveToParent();
+        else {
+            const auto &panel = window_.app_.Panels[source];
+            UString path = ToUString(target.path);
+            UString folder = ToUString(archive.folder);
+            const auto relative =
+                QDir::fromNativeSeparators(ToQString(panel.GetItemRelPath(*item)));
+            for (const auto &component : relative.split(u'/', Qt::SkipEmptyParts)) {
+                path += ToUString(component);
+                path.Add_PathSepar();
+                folder += ToUString(component);
+                folder.Add_PathSepar();
+                archive.directories.append({component, ToQString(path)});
+            }
+            target.path = ToQString(path);
+            archive.folder = ToQString(folder);
+        }
+    }
     const unsigned peer = 1 - source;
     HRESULT outcome = E_ABORT;
     window_.withPanelProjection(peer, [&] {

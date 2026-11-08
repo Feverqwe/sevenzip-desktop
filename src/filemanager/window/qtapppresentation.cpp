@@ -151,8 +151,8 @@ void QtAppPresentation::PrepareFolderChange(unsigned index) {
     });
 }
 
-bool QtAppPresentation::OpenSameFolderInPeer(unsigned index) {
-    window_.workspace_->OpenSameFolderInPeer(index);
+bool QtAppPresentation::OpenFolderInPeer(unsigned index, std::optional<UInt32> item) {
+    window_.workspace_->OpenFolderInPeer(index, item);
     return true;
 }
 
