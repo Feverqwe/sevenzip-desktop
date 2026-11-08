@@ -15,6 +15,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
+#include <QScrollBar>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <utility>
@@ -301,10 +302,22 @@ void QtFileManagerCommands::OpenRootFolder() {
 void QtFileManagerCommands::OpenParentFolder() { window_.goParent(); }
 void QtFileManagerCommands::FoldersHistory() { window_.showFoldersHistory(); }
 void QtFileManagerCommands::RefreshView() {
-    if (window_.app_.GetFocusedPanel().ArchiveContextOutdated())
+    auto &panel = window_.app_.GetFocusedPanel();
+    if (panel.ArchiveContextOutdated()) {
         window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true);
-    else
-        window_.app_.GetFocusedPanel().OnReload(window_.projectedUi().path->isModified());
+        return;
+    }
+    auto &ui = window_.projectedUi();
+    const QPointer<QAbstractItemView> view =
+        panel.IsArcFolder() ? qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget())
+                            : nullptr;
+    const QPoint position =
+        view ? QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value())
+             : QPoint();
+    const auto binding = panel.FolderBindingRevision();
+    panel.OnReload(ui.path->isModified());
+    if (view && panel.FolderBindingRevision() == binding)
+        window_.workspace_->RestoreViewPosition(panel, *view, position);
 }
 void QtFileManagerCommands::OptionsDialog() { window_.showSettings(); }
 void QtFileManagerCommands::OpenBookmark(unsigned index) { window_.openBookmark(index); }

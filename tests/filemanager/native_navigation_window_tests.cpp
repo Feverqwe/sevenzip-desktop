@@ -17,6 +17,7 @@
 #include <QLineEdit>
 #include <QProcess>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QSignalSpy>
 #include <QStackedWidget>
 #include <QStandardPaths>
@@ -502,6 +503,50 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(!backend.busy());
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
+    }
+    void manualArchiveRefreshKeepsScroll_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::addColumn<int>("count");
+        QTest::newRow("table") << false << 80;
+        QTest::newRow("icons-deferred") << true << 270;
+    }
+    void manualArchiveRefreshKeepsScroll() {
+        QFETCH(bool, icons);
+        QFETCH(int, count);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("scroll.7z");
+        QList<NativeArchiveFixture::Item> items;
+        for (int index = 0; index < count; ++index)
+            items.append({QString("file-%1.txt").arg(index, 3, 10, QChar('0')), "payload"});
+        QVERIFY(NativeArchiveFixture::Write(archive, items));
+        MainWindow window;
+        window.resize(640, 400);
+        window.show();
+        window.openArchive(archive);
+        auto *list = table(window);
+        QTRY_COMPARE(list->rowCount(), count);
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *view = qobject_cast<QAbstractItemView *>(
+            window.findChild<QStackedWidget *>("fileViewStack")->currentWidget());
+        QVERIFY(view);
+        list->setCurrentCell(0, 0);
+        list->selectRow(0);
+        view->setFocus();
+        auto *scroll = view->verticalScrollBar();
+        QTRY_VERIFY(scroll->maximum() > 2);
+        const int position = scroll->maximum() / 2;
+        scroll->setValue(position);
+        QSignalSpy refreshed(list->model(), &QAbstractItemModel::rowsRemoved);
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        action(window, "refreshAction")->trigger();
+        QTRY_VERIFY(!refreshed.isEmpty());
+        QTRY_COMPARE(list->rowCount(), count);
+        QTRY_VERIFY(view->isEnabled());
+        QTRY_COMPARE(scroll->value(), position);
+        QCOMPARE(list->currentRow(), 0);
+        QVERIFY(view->selectionModel()->isRowSelected(0, {}));
     }
     void archiveOpenCompletion_data() {
         QTest::addColumn<int>("origin");
