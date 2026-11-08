@@ -4,6 +4,7 @@
 #include "settings/RegistryUtils.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QContextMenuEvent>
 #include <QScopeGuard>
 #include <QToolButton>
 
@@ -44,6 +45,62 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void keyboardMenuKeepsSelection_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("details") << false;
+        QTest::newRow("icons") << true;
+    }
+
+    void keyboardMenuKeepsSelection() {
+        QFETCH(bool, icons);
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        QFile::remove(settings);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const auto *name : {"a.txt", "b.txt", "c.txt"}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *files = openPanel(window, 0, fixture.path());
+        QVERIFY(files);
+        QTRY_VERIFY(row(*files, "c.txt") >= 0);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *stack = window.findChild<QStackedWidget *>("fileViewStack");
+        auto *view = qobject_cast<QAbstractItemView *>(stack->currentWidget());
+        QVERIFY(view);
+        view->setFocus();
+        auto *selection = view->selectionModel();
+        const auto index = [&](const char *name) {
+            return view->model()->index(row(*files, name), 0);
+        };
+        const QModelIndex focused = index("a.txt");
+        selection->setCurrentIndex(focused,
+                                   QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        selection->select(index("b.txt"), QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        const auto selected = selection->selectedRows();
+        QCOMPARE(selected.size(), 2);
+        const QPoint point = view->visualRect(index("c.txt")).center();
+        QCOMPARE(view->indexAt(point).row(), index("c.txt").row());
+        bool menuShown = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            if (menu) {
+                menuShown = menu->objectName() == "panelContextMenu";
+                menu->close();
+            }
+        });
+        QContextMenuEvent event(QContextMenuEvent::Keyboard, point,
+                                view->viewport()->mapToGlobal(point));
+        QApplication::sendEvent(view->viewport(), &event);
+        QVERIFY(menuShown);
+        QCOMPARE(selection->currentIndex(), focused);
+        QCOMPARE(selection->selectedRows(), selected);
+    }
+
     void owningPanel_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");

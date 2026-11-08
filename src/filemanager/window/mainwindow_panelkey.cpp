@@ -6,6 +6,7 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include <QContextMenuEvent>
 #include <QMouseEvent>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -88,6 +89,13 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         }
     }
     const bool list = target == PanelInputTarget::List || target == PanelInputTarget::ListViewport;
+    if (list && event->type() == QEvent::ContextMenu &&
+        static_cast<QContextMenuEvent *>(event)->reason() == QContextMenuEvent::Keyboard) {
+        auto *view = static_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
+        showItemContextMenu(projectedPanel_, view, QPoint(-1, -1));
+        event->accept();
+        return true;
+    }
     if (list && !isPanelEditorFocused() && event->type() == QEvent::ShortcutOverride) {
         const auto *key = static_cast<QKeyEvent *>(event);
         if (overridePanelKey(*key)) {
