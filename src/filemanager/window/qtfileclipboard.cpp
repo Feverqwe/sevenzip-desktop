@@ -93,7 +93,7 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
     auto &source = window_.app_.Panels[panel];
     const bool ready = !window_.app_.QtOperations().closed() &&
                        !window_.app_.QtOperations().active() && !window_.sourceArchiveProgress_ &&
-                       !ui.locationUnavailable;
+                       !ui.locationUnavailable && !ui.scanningDisk && !ui.scanningArchive;
     CRecordVector<UInt32> indices;
     if (ready)
         source.Get_ItemIndices_Operated(indices);

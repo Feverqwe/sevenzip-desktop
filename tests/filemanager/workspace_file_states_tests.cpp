@@ -141,6 +141,35 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
             QVERIFY2(mutation->isEnabled(), qPrintable(mutation->objectName()));
     }
 
+    void pasteWaitsForTheDestinationListing() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("incoming.txt");
+        const QString destination = fixture.filePath("large destination");
+        write(source);
+        QVERIFY(QDir().mkpath(destination));
+        for (int i = 0; i < 257; ++i) {
+            QFile entry(QDir(destination).filePath(QString::number(i)));
+            QVERIFY(entry.open(QIODevice::WriteOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        auto *paste = action(window, "pasteFilesAction");
+        auto *mime = new QMimeData;
+        mime->setUrls({QUrl::fromLocalFile(source)});
+        QApplication::clipboard()->setMimeData(mime);
+        QTRY_VERIFY(paste->isEnabled());
+        window.openPath(destination);
+        QVERIFY(!files->isEnabled());
+        QVERIFY(!paste->isEnabled());
+        QTRY_VERIFY(files->isEnabled() && paste->isEnabled());
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList<QUrl>{QUrl::fromLocalFile(source)});
+    }
+
     void externalCutHints_data() {
         QTest::addColumn<QByteArray>("format");
         QTest::addColumn<QByteArray>("hint");
