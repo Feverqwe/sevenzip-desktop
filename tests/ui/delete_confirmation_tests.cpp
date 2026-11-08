@@ -50,9 +50,10 @@ class DeleteConfirmationTests final : public QObject {
         auto *confirm = dialog.findChild<QPushButton *>("deleteConfirm");
         auto *source = dialog.findChild<QWidget *>("deleteSourceSummary");
         auto *folders = dialog.findChild<QLabel *>("deleteFolders");
+        auto *consequence = dialog.findChild<QLabel *>("deleteConsequence");
         auto *names = dialog.findChild<QWidget *>("deleteSelectedNames");
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
-        QVERIFY(cancel && confirm && source && folders && names && scroll);
+        QVERIFY(cancel && confirm && source && folders && consequence && names && scroll);
         QVERIFY(cancel->hasFocus() && cancel->isDefault());
 #ifdef Q_OS_MACOS
         if (QGuiApplication::platformName() == QStringLiteral("cocoa"))
@@ -109,7 +110,9 @@ class DeleteConfirmationTests final : public QObject {
             QTRY_VERIFY(UiInspection::fullyVisible(*folders, dialog));
             QVERIFY(UiInspection::bounds(*folders, dialog).bottom() <
                     UiInspection::bounds(*names, dialog).top());
-            QTRY_VERIFY(UiInspection::fullyVisible(*names, dialog));
+            QVERIFY(UiInspection::fullyVisible(*consequence, dialog));
+            QVERIFY(UiInspection::bounds(*consequence, dialog).bottom() <
+                    UiInspection::bounds(*names, dialog).top());
             QVERIFY(UiInspection::writeReport(
                 dialog, QString("delete-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));
         }

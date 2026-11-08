@@ -70,6 +70,9 @@ void QtDeleteConfirmation::buildPresentation() {
     body->addWidget(source_);
     folders_ = label("deleteFolders");
     folders_->setVisible(request_.includesFolders);
+    consequence_ = label("deleteConsequence");
+    restriction_ = label("deleteRestriction");
+    restriction_->setVisible(request_.readOnly);
     if (request_.names.size() > 1) {
         auto *names = new QWidget(this);
         names->setObjectName("deleteSelectedNames");
@@ -86,9 +89,6 @@ void QtDeleteConfirmation::buildPresentation() {
         }
         body->addWidget(names);
     }
-    consequence_ = label("deleteConsequence");
-    restriction_ = label("deleteRestriction");
-    restriction_->setVisible(request_.readOnly);
 }
 
 void QtDeleteConfirmation::refreshText() {
