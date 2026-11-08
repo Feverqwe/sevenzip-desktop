@@ -301,6 +301,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<bool>("switchPane");
         for (const QString language : {"-", "ru"})
             QTest::newRow(qPrintable(language)) << language << false << false << false;
+        QTest::newRow("immediate-retry") << QString("-") << false << true << false;
         QTest::newRow("deferred") << QString("-") << true << false << false;
         QTest::newRow("deferred-retry") << QString("-") << true << true << false;
         QTest::newRow("deferred-retry-peer-focus") << QString("-") << true << true << true;
@@ -366,10 +367,13 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
         QCOMPARE(name->text(), QString("keep.bin"));
         QCOMPARE(name->selectedText(), QString("keep.bin"));
-        const QString corrected = QStringLiteral("corrected папка");
-        if (deferred) {
+        const QString corrected = QStringLiteral("corrected folder");
+        if (deferred)
             QVERIFY(!view->isEnabled());
-            name->setText(corrected);
+        if (retry || deferred) {
+            QCOMPARE(window.focusWidget(), name);
+            QTest::keyClicks(name, corrected);
+            QCOMPARE(name->text(), corrected);
             QTest::keyClick(name, Qt::Key_Return);
         }
         if (peer) {
