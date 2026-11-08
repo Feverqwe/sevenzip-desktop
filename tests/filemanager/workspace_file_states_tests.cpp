@@ -272,6 +272,44 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QTRY_VERIFY(!paste->isEnabled());
     }
 
+    void pasteRejectsAnOpenedFolderReplacedByALink() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires filesystem symbolic links");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("original");
+        const QString parked = fixture.filePath("parked");
+        const QString target = fixture.filePath("target");
+        QVERIFY(QDir().mkdir(original) && QDir().mkdir(target));
+        const QString source = fixture.filePath("payload.txt");
+        write(source);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(original);
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        auto *paste = action(window, "pasteFilesAction");
+        const auto publish = [&] {
+            auto *mime = new QMimeData;
+            mime->setUrls({QUrl::fromLocalFile(source)});
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        publish();
+        QTRY_VERIFY(paste->isEnabled());
+        QVERIFY(QDir().rename(original, parked));
+        QVERIFY(QFile::link(target, original));
+        QVERIFY(QFileInfo(original).isSymLink());
+        publish();
+        QTRY_VERIFY(!paste->isEnabled());
+        QVERIFY(QFile::remove(original));
+        QVERIFY(QDir().rename(parked, original));
+        publish();
+        QTRY_VERIFY(paste->isEnabled());
+    }
+
     void cutLinkKeepsTargetAndOtherNamesUnmarked() {
 #ifndef Q_OS_UNIX
         QSKIP("QFile::link creates shortcuts rather than symlinks on this platform");

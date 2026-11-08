@@ -27,9 +27,9 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     QtAppOperationState::CallScope call(app_.QtOperations());
     const QString destinationDirectory =
         directPath ? QFileInfo(destination).absolutePath() : destination;
-    if (projectedUi().state != State::Filesystem || !QFileInfo(destinationDirectory).isDir() ||
-        QFileInfo(destinationDirectory).isSymLink() || sources.isEmpty() ||
-        (directPath && sources.size() != 1)) {
+    const QFileInfo directory(destinationDirectory);
+    if (projectedUi().state != State::Filesystem || !directory.isDir() || directory.isSymLink() ||
+        directory.isJunction() || sources.isEmpty() || (directPath && sources.size() != 1)) {
         QMessageBox::warning(this, "Sevenzip",
                              QCoreApplication::translate("mainwindow_fileoperations",
                                                          "The destination folder is unavailable."));

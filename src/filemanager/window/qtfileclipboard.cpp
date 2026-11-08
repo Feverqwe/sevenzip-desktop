@@ -118,7 +118,8 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
                                 destination.isWritable();
     available.cut = available.copy && writableFolder;
     UpdateClipboardSnapshot();
-    available.paste = writableFolder && hasClipboardFiles_;
+    available.paste = writableFolder && !destination.isSymLink() && !destination.isJunction() &&
+                      hasClipboardFiles_;
     return available;
 }
 
