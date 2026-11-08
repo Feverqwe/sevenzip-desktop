@@ -175,7 +175,8 @@ void QtRenameController::Apply(const Request &request) {
         if (request.name == ToQString(panel.GetItemName(request.sourceIndex)))
             return;
         if (!archive && !streams &&
-            QFileInfo(path).absolutePath() != window_.projectedUi().directory)
+            QFileInfo(QFileInfo(path).absolutePath()).canonicalFilePath() !=
+                window_.projectedUi().directory)
             return;
         Finish(request, panel);
     });

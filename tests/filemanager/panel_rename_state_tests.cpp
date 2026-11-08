@@ -29,14 +29,22 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
     void relativeDestinationSelectsVisibleItem_data() {
         QTest::addColumn<QString>("destination");
         QTest::addColumn<QString>("visible");
-        QTest::newRow("same-folder") << QString("./renamed δ.txt") << QString("renamed δ.txt");
+        QTest::addColumn<bool>("throughLink");
+        QTest::newRow("same-folder")
+            << QString("./renamed δ.txt") << QString("renamed δ.txt") << false;
         QTest::newRow("subfolder")
-            << QString("target folder/renamed δ.txt") << QString("target folder");
+            << QString("target folder/renamed δ.txt") << QString("target folder") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("linked-folder")
+            << QString("./renamed δ.txt") << QString("renamed δ.txt") << true;
+#endif
     }
     void relativeDestinationSelectsVisibleItem() {
         QFETCH(QString, destination);
         QFETCH(QString, visible);
+        QFETCH(bool, throughLink);
         QTemporaryDir fixture;
+        QTemporaryDir aliases;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("original.txt");
         QVERIFY(write(source, "original bytes"));
@@ -48,6 +56,17 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openPath(fixture.path());
         auto *view = table(window);
+        if (throughLink) {
+            QVERIFY(aliases.isValid());
+            const QString alias = aliases.filePath("folder link");
+            QVERIFY(QFile::link(fixture.path(), alias));
+            COpenResult opened;
+            QCOMPARE(view->sourcePanel->BindToPath(ToUString(alias + '/'), UString(), opened),
+                     S_OK);
+            QCOMPARE(view->sourcePanel->RefreshListCtrl(), S_OK);
+            QCOMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())),
+                     alias);
+        }
         QTRY_COMPARE(view->rowCount(), 3);
         const int row = filesystemRow(window, "original.txt");
         QVERIFY(row >= 0);
