@@ -1,6 +1,7 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include <QClipboard>
@@ -95,7 +96,8 @@ QtFileClipboard::QtFileClipboard(MainWindow &window) : QObject(&window), window_
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {
         ++revision_;
         clipboardDirty_ = true;
-        window_.refreshActions();
+        Refresh();
+        window_.workspace_->RefreshChrome();
     });
 }
 
