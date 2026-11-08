@@ -436,12 +436,22 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         MainWindow window(&backend);
         window.show();
         bool unexpectedError = false, parentPrompt = false;
+        bool cancelParent = true;
+        bool closing = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
                 unexpectedError |=
                     box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning;
                 parentPrompt |= box->objectName() == "modifiedArchiveQuestion";
+                if (closing && box->objectName() == "modifiedArchiveQuestion") {
+                    box->button(QMessageBox::No)->click();
+                    return;
+                }
+                if (cancelParent && box->objectName() == "modifiedArchiveQuestion") {
+                    QTest::keyClick(box, Qt::Key_Escape);
+                    return;
+                }
                 if (auto *yes = box->button(QMessageBox::Yes))
                     yes->click();
                 else
@@ -449,6 +459,10 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
             }
         });
         responder.start(1);
+        const auto closeWindow = qScopeGuard([&] {
+            closing = true;
+            window.close();
+        });
         window.openArchive(outer);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QTRY_COMPARE(table(window)->model()->index(0, 0).data().toString().normalized(
@@ -479,8 +493,17 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(folderName, Qt::Key_Return);
         QTRY_COMPARE(table(window)->rowCount(), 3);
         QCOMPARE(read(outer), original);
+        QTRY_VERIFY(action(window, "upAction")->isEnabled());
         action(window, "upAction")->trigger();
-        QVERIFY(parentPrompt);
+        QTRY_VERIFY(parentPrompt);
+        QCOMPARE(read(outer), original);
+        QTRY_COMPARE(table(window)->rowCount(), 3);
+        QVERIFY(filesystemRow(window, QStringLiteral("renamed файл.txt")) >= 0);
+        cancelParent = false;
+        parentPrompt = false;
+        QTRY_VERIFY(action(window, "upAction")->isEnabled());
+        action(window, "upAction")->trigger();
+        QTRY_VERIFY(parentPrompt);
         QVERIFY(!unexpectedError);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         const QString updated = fixture.filePath("updated.7z");
@@ -493,7 +516,6 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         const QByteArray metadata = listing.readAllStandardOutput();
         QVERIFY(metadata.contains("Path = new folder"));
         QCOMPARE(contents(updated, QStringLiteral("delete.txt")), QByteArray("remove bytes"));
-        responder.stop();
     }
 };
 int main(int argc, char **argv) {

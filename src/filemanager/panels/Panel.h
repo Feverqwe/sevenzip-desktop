@@ -499,7 +499,6 @@ class CPanel : public QObject {
     HRESULT OpenItemInArchiveInternal(unsigned index, const wchar_t *type = nullptr,
                                       bool materializeStream = false);
     bool IsVirus_Message(const UString &name);
-    HRESULT OpenParentArchiveFolder();
     HRESULT OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
                               const UString &password);
     QtArchiveUpdateResult UpdateExternalFile(UInt32 index, const wchar_t *fullFilePath,
@@ -517,7 +516,7 @@ class CPanel : public QObject {
     bool OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPathFolderPrefix,
                            bool usePassword, const UString &password,
                            std::optional<CSelectedState> *refreshSelection = nullptr);
-    void CloseOneLevel();
+    bool CloseOneLevel(bool allowCancel = false);
     void CloseOpenFolders();
     void LoadFullPath();
     void LoadFullPathAndShow(IQtPanelAddressCombo &header,

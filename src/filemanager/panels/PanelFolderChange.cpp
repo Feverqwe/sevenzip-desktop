@@ -172,7 +172,8 @@ void CPanel::OpenParentFolder() {
                 parentFolderPrefix = link.ParentFolderPath;
                 focusedName = link.RelPath;
             }
-            CloseOneLevel();
+            if (!CloseOneLevel(true))
+                return;
             needSetFolder = (!_folder);
         }
         if (needSetFolder) {

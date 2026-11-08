@@ -128,68 +128,55 @@ HRESULT CPanel::OpenAsArc_Name(const UString &relPath, const UString &arcFormat)
     return OpenAsArc_Msg(NULL, tfi, fullPath, arcFormat);
 }
 
-HRESULT CPanel::OpenParentArchiveFolder() {
+bool CPanel::CloseOneLevel(bool allowCancel) {
     CDisableTimerProcessing disableTimerProcessing(*this);
     CDisableNotify disableNotify(*this);
-    if (_parentFolders.Size() < 2)
-        return S_OK;
-    const CFolderLink &folderLinkPrev = _parentFolders[_parentFolders.Size() - 2];
-    const CFolderLink &folderLink = _parentFolders.Back();
-    if (_archiveContextOutdated) {
-        if (folderLink.KeepOnOutdatedClose)
-            return S_OK;
-        folderLink.DeleteDirAndFile();
-        return S_OK;
+    const bool nested = _parentFolders.Size() > 1;
+    CFolderLink &link = _parentFolders.Back();
+    int answer = QMessageBox::No;
+    NFind::CFileInfo current;
+    if (nested && !_archiveContextOutdated && current.Find(link.FilePath) &&
+        link.WasChanged_from_FolderLink(current)) {
+        const UString message = MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, link.RelPath);
+        auto buttons = QMessageBox::Yes | QMessageBox::No;
+        if (allowCancel)
+            buttons |= QMessageBox::Cancel;
+        QMessageBox box(QMessageBox::Question, QStringLiteral("7-Zip"),
+                        QString::fromWCharArray(message.Ptr()), buttons, GetParent());
+        box.setObjectName("modifiedArchiveQuestion");
+        box.setTextFormat(Qt::PlainText);
+        box.setDefaultButton(QMessageBox::Yes);
+        box.setEscapeButton(allowCancel ? QMessageBox::Cancel : QMessageBox::No);
+        answer = box.exec();
+        if (allowCancel && answer != QMessageBox::Yes && answer != QMessageBox::No)
+            return false;
     }
-    NFind::CFileInfo newFileInfo;
-    if (newFileInfo.Find(folderLink.FilePath)) {
-        if (folderLink.WasChanged_from_FolderLink(newFileInfo)) {
-            const UString message = MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, folderLink.RelPath);
-            QMessageBox box(QMessageBox::Question, QStringLiteral("7-Zip"),
-                            QString::fromWCharArray(message.Ptr()),
-                            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, GetParent());
-            box.setObjectName("modifiedArchiveQuestion");
-            box.setTextFormat(Qt::PlainText);
-            box.setDefaultButton(QMessageBox::Yes);
-            box.setEscapeButton(QMessageBox::Cancel);
-            const int answer = box.exec();
-            if (_archiveContextOutdated) {
-                PreserveOutdatedArchiveCopies();
-                return S_OK;
-            }
-            if (answer == QMessageBox::Yes) {
-                if (OnOpenItemChanged(folderLink.FileIndex, fs2us(folderLink.FilePath),
-                                      folderLinkPrev.UsePassword,
-                                      folderLinkPrev.Password.native()) != S_OK) {
-                    MessageBox_Error(
-                        MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(folderLink.FilePath)));
-                    return S_OK;
-                }
-            }
-        }
-    }
-    folderLink.DeleteDirAndFile();
-    return S_OK;
-}
 
-void CPanel::CloseOneLevel() {
     if (_archiveContextOutdated)
         PreserveOutdatedArchiveCopies();
     ReleaseFolder();
     _library.Free();
-    {
-        CFolderLink &link = _parentFolders.Back();
-        if (link.ParentFolder)
-            SetNewFolder(link.ParentFolder);
-        _library.Attach(link.Library.Detach());
+    if (link.ParentFolder)
+        SetNewFolder(link.ParentFolder);
+    _library.Attach(link.Library.Detach());
+    if (nested && !link.KeepOnOutdatedClose) {
+        bool removeCopy = true;
+        if (!_archiveContextOutdated && answer == QMessageBox::Yes) {
+            const auto &parent = _parentFolders[_parentFolders.Size() - 2];
+            removeCopy = OnOpenItemChanged(link.FileIndex, fs2us(link.FilePath), parent.UsePassword,
+                                           parent.Password.native()) == S_OK;
+            if (!removeCopy)
+                MessageBox_Error(MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(link.FilePath)));
+        }
+        if (removeCopy)
+            link.DeleteDirAndFile();
     }
-    if (_parentFolders.Size() > 1)
-        OpenParentArchiveFolder();
     _parentFolders.DeleteBack();
-    if (_parentFolders.IsEmpty())
+    if (_parentFolders.IsEmpty()) {
         _archiveContextOutdated = false;
-    if (_parentFolders.IsEmpty())
         _flatMode = _flatModeForDisk;
+    }
+    return true;
 }
 
 void CPanel::CloseOpenFolders() {
