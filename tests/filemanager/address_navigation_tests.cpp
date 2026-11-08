@@ -19,6 +19,40 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void emptyAddressOpensLocationsAndBackRestoresTheFile() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(writeFile(fixture.filePath("selected.txt"), "source bytes"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(".");
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->hasFocus() && view->sourcePanel->IsFSFolder());
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->clear();
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->hasFocus() && view->sourcePanel->IsRootFolder());
+        QVERIFY(address->text().isEmpty());
+        QVERIFY(view->rowCount() > 0);
+        QTest::keySequence(view, action(window, "backAction")->shortcut());
+        QTRY_VERIFY(view->hasFocus() && view->sourcePanel->IsFSFolder());
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())),
+                 QFileInfo(fixture.path()).canonicalFilePath());
+        QCOMPARE(view->currentIndex().data().toString(), QString("selected.txt"));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+    }
     void cancelledPasswordKeepsAddressReadyForRetry() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

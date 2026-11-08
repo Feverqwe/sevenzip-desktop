@@ -62,10 +62,11 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
         return S_OK;
     // A typed relative address belongs to the displayed filesystem folder.
     // CPanel::BindToPath still resolves the resulting native path.
-    const QString nativeAddress =
-        !sourceAddress && projectedUi().state == State::Filesystem && QDir::isRelativePath(path)
-            ? QDir(projectedUi().directory).filePath(path)
-            : path;
+    const QString nativeAddress = !sourceAddress && !path.isEmpty() &&
+                                          projectedUi().state == State::Filesystem &&
+                                          QDir::isRelativePath(path)
+                                      ? QDir(projectedUi().directory).filePath(path)
+                                      : path;
     const QFileInfo info(nativeAddress);
     if (!sourceAddress && info.isDir() && !IsSparseBundleName(ToUString(nativeAddress))) {
         workspace_->ProtectNavigation(nativeAddress);
