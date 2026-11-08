@@ -15,6 +15,7 @@
         outsidePeerStillRefreshesDestination:0-1-dialog-cancel
         outsidePeerStillRefreshesDestination:1-0-overwrite-cancel
         outsidePeerStillRefreshesDestination:overwrite-cancel-move
+        outsidePeerStillRefreshesDestination:overwrite-skip-move
         outsidePeerStillRefreshesDestination:relative-copy
         outsidePeerStillRefreshesDestination:relative-move
         outsidePeerStillRefreshesDestination:link-copy

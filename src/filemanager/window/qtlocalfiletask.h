@@ -29,7 +29,7 @@ class QtLocalFileTask final : public QObject {
     bool OwnsWindow(const QWidget &window) const;
     static QList<QtLocalFileTask *> Active();
   signals:
-    void finished(bool success, bool cancelled, const QString &message);
+    void finished(bool success, bool cancelled, const QString &message, bool partial);
     void transferCompleted(bool complete);
     void transferOutput(const QStringList &movedSources);
 

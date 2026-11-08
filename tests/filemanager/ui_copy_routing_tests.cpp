@@ -150,6 +150,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::newRow("relative-copy") << 0u << false << QString("relative-copy");
         QTest::newRow("relative-move") << 1u << false << QString("relative-move");
         QTest::newRow("overwrite-cancel-move") << 0u << false << QString("overwrite-cancel-move");
+        QTest::newRow("overwrite-skip-move") << 0u << false << QString("overwrite-skip-move");
         QTest::newRow("link-copy") << 0u << false << QString("link-copy");
     }
     void outsidePeerStillRefreshesDestination() {
@@ -157,7 +158,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(bool, large);
         QFETCH(QString, outcome);
         const bool cancel = outcome == "dialog-cancel";
-        const bool overwrite = outcome.startsWith("overwrite-cancel");
+        const bool skip = outcome == "overwrite-skip-move";
+        const bool overwrite = skip || outcome.startsWith("overwrite-cancel");
         const bool move = outcome.endsWith("move");
         const bool relative = outcome.startsWith("relative-");
         const bool linked = outcome == "link-copy";
@@ -179,7 +181,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
 #endif
         }
         const QString name = QStringLiteral("payload δ.txt");
+        const QString other = QStringLiteral("another file.txt");
         write(QDir(input).filePath(name), "control bytes");
+        if (skip)
+            write(QDir(input).filePath(other), "move these bytes");
         write(QDir(peer).filePath("seed.txt"), "seed control");
         if (overwrite)
             write(QDir(output).filePath(name), "existing control");
@@ -200,6 +205,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             static_cast<FileTable *>(view)->sourcePanel->Set_AutoRefresh_Mode(false);
         peerView->selectRow(row(*peerView, "seed.txt"));
         sourceView->selectRow(row(*sourceView, name));
+        if (skip)
+            sourceView->selectionModel()->select(
+                sourceView->model()->index(row(*sourceView, other), 0),
+                QItemSelectionModel::Select | QItemSelectionModel::Rows);
         QVERIFY(WindowActivation::waitForActive(window));
         sourceView->setFocus();
         QTRY_VERIFY(sourceView->hasFocus());
@@ -235,7 +244,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 if (!widget->isVisible())
                     continue;
                 if (auto *box = dynamic_cast<COverwriteDialog *>(widget))
-                    box->findChild<QPushButton *>("overwriteCancel")->click();
+                    box->findChild<QPushButton *>(skip ? "overwriteNo" : "overwriteCancel")
+                        ->click();
                 else if (auto *box = qobject_cast<QMessageBox *>(widget))
                     box->accept();
                 else
@@ -251,6 +261,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         if (cancel || overwrite) {
             QTRY_COMPARE(window.focusWidget(), sourceView);
             QCOMPARE(sourceView->selectionModel()->selectedRows().size(), 1);
+            QCOMPARE(sourceView->selectionModel()->selectedRows().front().data().toString(), name);
         }
         QTRY_COMPARE_WITH_TIMEOUT(peerView->rowCount(), originalRows + (cancel ? 0 : 1), 1000);
         QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel);
@@ -260,6 +271,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                                                                 : QByteArray("control bytes"));
         QCOMPARE(read(QDir(input).filePath(name)),
                  move && !overwrite ? QByteArray() : QByteArray("control bytes"));
+        if (skip) {
+            QVERIFY(!QFileInfo::exists(QDir(input).filePath(other)));
+            QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+        }
         QCOMPARE(peerView->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(peerView->model()
                      ->index(peerView->selectionModel()->selectedRows().first().row(), 0)
