@@ -278,6 +278,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         bool reviewed = false;
         int refusedDestinations = 0;
         int overwritePrompts = 0;
+        bool retry = false;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
@@ -318,6 +319,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                         box->findChild<QPushButton *>("overwriteYes")->click();
                     else if (cancelBatchMove)
                         QTest::keyClick(box, Qt::Key_Escape);
+                    else if (retry)
+                        box->findChild<QPushButton *>("overwriteYes")->click();
                     else
                         box->findChild<QPushButton *>(skip ? "overwriteNo" : "overwriteCancel")
                             ->click();
@@ -354,6 +357,17 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         if (skip) {
             QCOMPARE(QFileInfo::exists(QDir(input).filePath(other)), !move);
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            if (move) {
+                retry = true;
+                seen = false;
+                QTest::keyClick(window.focusWidget(), Qt::Key_F6);
+                QVERIFY(seen);
+                QTRY_COMPARE(read(QDir(output).filePath(name)), QByteArray("control bytes"));
+                QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+                QCOMPARE(overwritePrompts, 2);
+                QVERIFY(!QFileInfo::exists(QDir(input).filePath(name)));
+                QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            }
         }
         if (cancelBatchMove) {
             QCOMPARE(overwritePrompts, 2);
