@@ -329,7 +329,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         QTest::addColumn<bool>("program");
         for (const bool program : {false, true})
             for (const QString &outcome :
-                 {QString("success"), QString("wrong-type"), QString("cancel")})
+                 {QString("success"), QString("wrong-type"), QString("cancel"), QString("missing")})
                 QTest::newRow(
                     qPrintable(QString("%1-%2").arg(program ? "program" : "popup", outcome)))
                     << outcome << program;
@@ -614,6 +614,8 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             auto *compress = findVerb(*menu, "SevenZipCompress");
             QVERIFY(compress && compress->isEnabled());
             menu->close();
+            if (outcome == "missing")
+                QVERIFY(archive.remove());
             invoked = true;
             open->trigger();
         };
@@ -632,27 +634,37 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         }
         dismissal.stop();
         QVERIFY(invoked);
-        MainWindow *receiver = nullptr;
-        for (auto *widget : QApplication::topLevelWidgets())
-            if (widget->objectName() == "shellArchiveWindow")
-                receiver = dynamic_cast<MainWindow *>(widget);
-        QVERIFY(receiver && receiver != &window);
-        QTRY_VERIFY(rowNamed(window, archiveName) >= 0);
-        QCOMPARE(view->selectionModel()->selectedRows().size(), outcome == "success" ? 0 : 1);
+        const auto visibleReceiver = []() -> MainWindow * {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (widget->objectName() == "shellArchiveWindow" && widget->isVisible())
+                    return dynamic_cast<MainWindow *>(widget);
+            return nullptr;
+        };
+        if (outcome != "missing") {
+            QTRY_VERIFY(rowNamed(window, archiveName) >= 0);
+            QCOMPARE(view->selectionModel()->selectedRows().size(), outcome == "success" ? 0 : 1);
+        }
         if (outcome == "success") {
+            auto *receiver = visibleReceiver();
+            QVERIFY(receiver && receiver != &window);
             QCOMPARE(table(*receiver)->rowCount(), 1);
             QCOMPARE(table(*receiver)->model()->index(0, 0).data().toString(), fileName);
             QVERIFY(errors.isEmpty());
             QVERIFY(!passwordCanceled);
+            receiver->close();
         } else {
-            QTRY_VERIFY(rowNamed(window, archiveName) >= 0);
+            QVERIFY(window.isVisible());
+            QVERIFY(!visibleReceiver());
             QCOMPARE(passwordCanceled, outcome == "cancel");
-            QCOMPARE(errors.isEmpty(), outcome == "cancel");
+            QCOMPARE(errors.isEmpty(), outcome != "wrong-type");
+            if (outcome == "missing")
+                QVERIFY(window.statusBar()->currentMessage().contains(archiveName));
         }
         QVERIFY(!backend.busy());
-        QVERIFY(archive.open(QIODevice::ReadOnly));
-        QCOMPARE(archive.readAll(), before);
-        receiver->close();
+        if (outcome != "missing") {
+            QVERIFY(archive.open(QIODevice::ReadOnly));
+            QCOMPARE(archive.readAll(), before);
+        }
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     }
 };
