@@ -7,6 +7,7 @@
 #include "filemanager/views/filetable.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include "support/drag_event_position.h"
+#include "support/overwrite_reply.h"
 #include "support/progress_dialog.h"
 #include "support/scoped_environment.h"
 #include "support/window_activation.h"
@@ -943,6 +944,60 @@ class DragDropUiTests final : public QObject {
         QCOMPARE(
             QFileInfo(window.findChild<QLineEdit *>("archivePath")->text()).canonicalFilePath(),
             QFileInfo(root.path()).canonicalFilePath());
+    }
+
+    void externalDropCanRetryAnOverwrite() {
+        QTemporaryDir source, target;
+        QVERIFY(source.isValid() && target.isValid());
+        const QString input = source.filePath("same name.txt");
+        const QString output = target.filePath("same name.txt");
+        QVERIFY(SourceExtractFixture::writeFile(input, "incoming"));
+        QVERIFY(SourceExtractFixture::writeFile(output, "original"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(target.path());
+        auto *view = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(view->isEnabled() && Row(*view, "same name.txt") >= 0);
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(input)});
+        int prompts = 0;
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &window, [&] {
+            if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                menu && menu->isVisible() && menu->objectName() == "dragContextMenu") {
+                for (auto *action : menu->actions())
+                    if (action->data().toUInt() ==
+                        (NDragMenu::k_Copy_Base | NDragMenu::k_MenuFlag_Copy)) {
+                        menu->setActiveAction(action);
+                        QTest::keyClick(menu, Qt::Key_Return);
+                        return;
+                    }
+                menu->close();
+            }
+            if (auto *dialog =
+                    dynamic_cast<COverwriteDialog *>(QApplication::activeModalWidget())) {
+                ++prompts;
+                ReplyOverwrite(*dialog, prompts == 1 ? IDCANCEL : IDYES);
+            } else {
+                TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+            }
+        });
+        answer.start(5);
+        const QPoint point(5, view->viewport()->height() - 5);
+        for (int attempt = 1; attempt <= 2; ++attempt) {
+            QDragEnterEvent enter(DragEventPosition(point), Qt::CopyAction, &mime, Qt::MiddleButton,
+                                  Qt::NoModifier);
+            QCoreApplication::sendEvent(view->viewport(), &enter);
+            QVERIFY(enter.isAccepted());
+            QDropEvent drop(point, Qt::CopyAction, &mime, Qt::NoButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(view->viewport(), &drop);
+            QCOMPARE(prompts, attempt);
+            QTRY_VERIFY(view->isEnabled());
+            QCOMPARE(SourceExtractFixture::readFile(input), QByteArray("incoming"));
+            QCOMPARE(SourceExtractFixture::readFile(output),
+                     attempt == 1 ? QByteArray("original") : QByteArray("incoming"));
+        }
     }
 
     void externalFilesUseArchiveConfirmation_data() {
