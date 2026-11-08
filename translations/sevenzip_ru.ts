@@ -7563,6 +7563,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 </context>
 <context>
     <name>DeleteRedesign</name>
+    <message><source>Could not move the item to Trash.</source><translation>Не удалось переместить объект в Корзину.</translation></message>
     <message><source>Move to Trash?</source><translation>Переместить в Корзину?</translation></message>
     <message><source>Move to Trash</source><translation>В Корзину</translation></message>
     <message><source>You can restore the items from Trash after they have been moved successfully.</source><translation>После успешного перемещения объекты можно восстановить из Корзины.</translation></message>

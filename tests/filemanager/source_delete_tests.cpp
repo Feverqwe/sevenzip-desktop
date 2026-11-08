@@ -478,6 +478,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         int errors = 0;
         bool reports = true;
         QString errorTitle;
+        QString errorDetails;
         QTimer responder;
         dialogs_.connectResponder(responder, &window, [&] {
             if (auto *confirmation =
@@ -492,6 +493,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 if (!progress->Sync.FinalMessage.ErrorMessage.Message.IsEmpty()) {
                     ++errors;
                     errorTitle = progress->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
+                    errorDetails = TestProgressDialog::ReportText(*progress);
                 }
                 for (const QSize size : {QSize(400, 240), QSize(340, 220)}) {
                     progress->resize(size);
@@ -511,6 +513,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 return;
             ++errors;
             errorTitle = box->windowTitle();
+            errorDetails = box->text();
 #ifdef Q_OS_MACOS
             if (auto *progress = dynamic_cast<CProgressDialog *>(box->parentWidget()))
                 errorTitle = ToQString(progress->Sync.FinalMessage.ErrorMessage.Title);
@@ -544,6 +547,10 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
                  partial ? secondDeleted : QString("keep.bin"));
         if (partial) {
+            QVERIFY(errorDetails.contains(secondDeleted));
+            QVERIFY(errorDetails.contains(
+                language == "ru" ? QStringLiteral("Не удалось переместить объект в Корзину.")
+                                 : QStringLiteral("Could not move the item to Trash.")));
             QFile remaining(fixture.filePath(secondDeleted));
             QVERIFY(remaining.open(QIODevice::ReadOnly));
             QCOMPARE(remaining.readAll(), QByteArray("protected bytes"));

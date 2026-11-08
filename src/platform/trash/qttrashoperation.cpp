@@ -4,6 +4,7 @@
 #include "localization/LangUtils.h"
 #include "platform/trash/qttrashservice.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QCoreApplication>
 #include <QFileInfo>
 #ifdef _WIN32
 #include "Windows/COM.h"
@@ -29,6 +30,9 @@ class TrashOperation final : public CProgressThreadVirt {
                 return E_NOTIMPL;
             }
             if (!trash_.MoveToTrash(path)) {
+                const QString message = QCoreApplication::translate(
+                    "DeleteRedesign", "Could not move the item to Trash.");
+                FinalMessage.ErrorMessage.Message = message.toStdWString().c_str();
                 AddErrorPath(us2fs(paths_[i]));
                 return E_FAIL;
             }
