@@ -562,7 +562,7 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     void CorrectPathParts();
     void CreateFolders();
 
-    HRESULT CheckExistFile(FString &fullProcessedPath, bool &needExit);
+    HRESULT CheckExistFile(FString &fullProcessedPath, bool isAnti, bool &needExit);
     HRESULT GetExtractStream(CMyComPtr<ISequentialOutStream> &outStreamLoc, bool &needExit);
     HRESULT GetItem(UInt32 index);
 

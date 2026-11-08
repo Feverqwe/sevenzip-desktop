@@ -425,6 +425,48 @@ class ExtractionOptionsTests : public QObject {
         }
     }
 
+    void damagedEntryDoesNotReplaceExistingFile() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const auto clean = temp.filePath("clean.zip");
+        const auto damaged = temp.filePath("damaged.zip");
+        const auto output = temp.filePath("output");
+        const auto target = QDir(output).filePath(QStringLiteral("данные.bin"));
+        const QByteArray good("another entry");
+        const QByteArray incoming("stored replacement bytes");
+        QVERIFY(NativeArchiveFixture::Write(clean, {{"a.txt", good}, {"данные.bin", incoming}},
+                                            "zip", {}, true, true));
+        auto bytes = readFile(clean);
+        const auto offset = bytes.indexOf(incoming);
+        QVERIFY(offset > 0);
+        bytes[offset] = char(bytes.at(offset) ^ 0x55);
+        writeFile(damaged, bytes);
+        QVERIFY(QDir().mkpath(output));
+        writeFile(target, "original bytes");
+
+        ArchiveBackend backend;
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
+        backend.list(damaged);
+        await(backend, true);
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        backend.extract(damaged, output, {}, {}, options);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
+        QVERIFY(!finished.takeFirst().first().toBool());
+        QCOMPARE(readFile(target), QByteArray("original bytes"));
+        QCOMPARE(readFile(QDir(output).filePath("a.txt")), good);
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden).size(), 2);
+
+        backend.list(clean);
+        await(backend, true);
+        finished.clear();
+        backend.extract(clean, output, {}, {}, options);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
+        QVERIFY(finished.takeFirst().first().toBool());
+        QCOMPARE(readFile(target), incoming);
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden).size(), 2);
+    }
+
     void encryptedOverwrite_data() {
         QTest::addColumn<QString>("format");
         QTest::newRow("7z") << QStringLiteral("7z");

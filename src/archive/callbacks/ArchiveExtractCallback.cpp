@@ -1179,7 +1179,8 @@ void CArchiveExtractCallback::CreateFolders() {
   (needExit = true) means that we must exit GetStream() even for S_OK result.
 */
 
-HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool &needExit) {
+HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool isAnti,
+                                                bool &needExit) {
     needExit = true; // it was set already before
     bool renameOnce = false;
 
@@ -1271,13 +1272,13 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             }
         } else // not Rename*
         {
-            if (_encrypted && _ntOptions.QtPathPolicy && !_item.IsAltStream && !fileInfo.IsDir() &&
+            if (!isAnti && _ntOptions.QtPathPolicy && !_item.IsAltStream && !fileInfo.IsDir() &&
                 !fileInfo.IsOsSymLink() && !_fi.IsLinuxSymLink() && !_fi.IsReparse()
 #ifdef SUPPORT_LINKS
                 && _link.LinkPath.IsEmpty() && _hardLinks.IDs.IsEmpty()
 #endif
             ) {
-                // The decoder can reject the password after opening its output.
+                // The decoder can report a failure after writing output bytes.
                 _replacementPath = fullProcessedPath;
                 needExit = false;
                 return S_OK;
@@ -1415,7 +1416,7 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
             return S_OK;
         }
     } else if (!_isSplit) {
-        RINOK(CheckExistFile(fullProcessedPath, needExit))
+        RINOK(CheckExistFile(fullProcessedPath, isAnti, needExit))
         if (needExit)
             return S_OK;
         needExit = true;
