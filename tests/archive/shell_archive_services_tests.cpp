@@ -225,11 +225,14 @@ class ShellArchiveServicesTests final : public QObject {
         QFETCH(bool, keyboard);
         QTemporaryDir input, output;
         const QString name = QStringLiteral("existing 空 file.bin");
+        const QString other = QStringLiteral("second conflict.bin");
         QVERIFY(writeFile(input.filePath(name), "archive bytes"));
+        QVERIFY(writeFile(input.filePath(other), "second archive bytes"));
         const QString archive = input.filePath("input.zip");
-        QVERIFY(engine(input.path(), {"a", "-tzip", "--", archive, name}));
+        QVERIFY(engine(input.path(), {"a", "-tzip", "--", archive, name, other}));
         const QByteArray original = readFile(archive);
         QVERIFY(writeFile(output.filePath(name), "preserved bytes"));
+        QVERIFY(writeFile(output.filePath(other), "second preserved bytes"));
         ArchiveBackend backend;
         ArchiveCodecCatalog probe(_module, 0);
         QCOMPARE(probe.result(), S_OK);
@@ -243,7 +246,10 @@ class ShellArchiveServicesTests final : public QObject {
             for (auto *widget : QApplication::topLevelWidgets())
                 if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                     dialog && dialog->isVisible()) {
-                    answered = true;
+                    auto *apply = dialog->findChild<QCheckBox *>("overwriteApplyToRemaining");
+                    answered = apply && apply->isVisible() && apply->isEnabled();
+                    if (answered)
+                        apply->setChecked(true);
                     if (keyboard)
                         QTest::keyClick(dialog, Qt::Key_Escape);
                     else
@@ -259,6 +265,7 @@ class ShellArchiveServicesTests final : public QObject {
         QVERIFY(answered);
         QCOMPARE(error, S_OK);
         QCOMPARE(readFile(output.filePath(name)), QByteArray("preserved bytes"));
+        QCOMPARE(readFile(output.filePath(other)), QByteArray("second preserved bytes"));
         QCOMPARE(readFile(archive), original);
         QVERIFY(!backend.busy());
     }
