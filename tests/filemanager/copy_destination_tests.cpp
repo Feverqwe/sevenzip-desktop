@@ -418,6 +418,8 @@ class CopyDestinationTests final : public QObject {
         if (invalidDraft)
             path->setText(path->text() + QChar::Null);
         const QString destination = path->text();
+        path->setFocus();
+        path->setSelection(5, -4);
         for (bool accept : {false, true}) {
             bool found = false;
             QTimer::singleShot(0, &dialog, [&] {
@@ -435,13 +437,16 @@ class CopyDestinationTests final : public QObject {
                     QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
                 }
             });
-            dialog.findChild<QPushButton *>("copyBrowseButton")->click();
+            QTest::mouseClick(dialog.findChild<QPushButton *>("copyBrowseButton"), Qt::LeftButton);
             QVERIFY(found);
             QCOMPARE(name->text(), QString("draft.txt"));
             if (accept)
                 QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(path->text())), selected);
-            else
+            else {
                 QCOMPARE(path->text(), destination);
+                QCOMPARE(path->selectedText(), destination.mid(1, 4));
+                QCOMPARE(path->cursorPosition(), 1);
+            }
         }
         dialog.reject();
         QCOMPARE(ToQString(dialog.Value), fixture.path() + '/');
