@@ -397,7 +397,9 @@ class CThreadUpdate final : public CProgressThreadVirt {
 HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStringVector &filePaths,
                          bool showErrorMessages, UStringVector *messages,
                          const NUpdateArchive::CActionSet *actionSet,
-                         std::optional<NWildcard::ECensorPathMode> pathMode) {
+                         std::optional<NWildcard::ECensorPathMode> pathMode, bool *published) {
+    if (published)
+        *published = false;
     if (IsHashFolder() && moveMode)
         return E_NOTIMPL;
 
@@ -435,6 +437,8 @@ HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStri
                 dynamic_cast<IQtProgressServices *>((IFolderOperations *)_folderOperations))
             transport = services->CreateProgressTransport(updater);
         RINOK(updater.Create(title, GetParent()))
+        if (published)
+            *published = updater.UpdateCallback->Published == true;
         if (messages)
             *messages = updater.Sync.Messages;
         if (messages && updater.DeferResultReview &&

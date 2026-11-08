@@ -466,7 +466,8 @@ class CPanel : public QObject {
     HRESULT CopyFrom(bool moveMode, const UString &folderPrefix, const UStringVector &filePaths,
                      bool showErrorMessages, UStringVector *messages,
                      const NUpdateArchive::CActionSet *actionSet = nullptr,
-                     std::optional<NWildcard::ECensorPathMode> pathMode = std::nullopt);
+                     std::optional<NWildcard::ECensorPathMode> pathMode = std::nullopt,
+                     bool *published = nullptr);
     void SetNewFolder(IFolderFolder *folder);
     void SetArchiveOpenPassword(std::optional<ArchivePassword> password) {
         _archiveOpenPassword = std::move(password);

@@ -167,18 +167,30 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
         return true;
     CSelectedState destinationSelection;
     target.SaveSelectedState(destinationSelection);
+    const QString archive = ToQString(target.GetParentFolders().Front().VirtualPath);
     UStringVector messages;
     HRESULT result;
+    bool published = false;
     {
         QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-        result = target.CopyFrom(move, source.GetFsPath(), names, true, &messages);
+        result = target.CopyFrom(move, source.GetFsPath(), names, true, &messages, nullptr,
+                                 std::nullopt, &published);
     }
     // The native call has completed. Release its retained source guards before
     // changing the panel projection; source RefreshListCtrl can then own a scan.
     if (app_.QtOperations().kind() == QtAppOperationState::Kind::Operation)
         app_.QtOperations().End();
-    if (result == S_OK) {
+    if (result == S_OK || published)
         refreshArchiveTransferDestination(destinationIndex, destinationSelection);
+    if (published) {
+        if (auto *application = QtWorkspaceApplication::Find()) {
+            application->ArchivePublished(archive, &target);
+            if (move)
+                application->FilesystemPublished({ToQString(source.GetFsPath())}, this);
+        } else
+            ArchivePublished(archive, &target);
+    }
+    if (result == S_OK) {
         if (move)
             appPresentation_->RefreshCopyPanel(sourceIndex);
         showStatusMessage(move ? QCoreApplication::translate("mainwindow_fileoperations",

@@ -3,6 +3,7 @@
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "support/delete_reply.h"
 #include "support/panel_keys.h"
@@ -543,8 +544,17 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         else
             write(QDir(output).filePath("seed.txt"), "seed control");
         const QByteArray sourceBefore = sourceArchive ? read(source) : QByteArray();
-        ArchiveBackend backend;
+        QtWorkspaceApplication application(*qApp);
+        ArchiveBackend backend, observerBackend;
         MainWindow window(&backend);
+        std::unique_ptr<MainWindow> observer;
+        if (targetArchive && !sourceArchive && !typedArchivePath) {
+            observer = std::make_unique<MainWindow>(&observerBackend);
+            observer->show();
+            observer->openArchive(target);
+            QTRY_VERIFY(row(*table(*observer), "seed.txt") >= 0);
+            table(*observer)->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         action(window, "twoPanelsAction")->trigger();
@@ -596,6 +606,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QCOMPARE(read(QDir(output).filePath(first)), firstBytes);
         QVERIFY(!QFileInfo::exists(QDir(output).filePath(second)));
         QTRY_VERIFY(row(*targetView, first) >= 0);
+        if (observer)
+            QTRY_VERIFY(row(*table(*observer), first) >= 0);
         QTRY_COMPARE(targetView->rowCount(), (largeLists ? 301 : 1) + 1);
         QVERIFY(row(*targetView, second) < 0);
         QCOMPARE(read(QDir(input).filePath(second)), secondBytes);
