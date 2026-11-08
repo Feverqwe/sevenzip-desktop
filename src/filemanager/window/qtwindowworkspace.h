@@ -158,7 +158,6 @@ class QtWindowWorkspace final : public QObject {
     void OpenFavorite(const QtFavorite &favorite);
     void OpenRecentPlace(unsigned panel, const QtRecentPlace &place);
     void FocusListAfterLocationOpen(unsigned panel, quint64 interaction);
-    void RestoreListFocus(unsigned panel, quint64 request, QPointer<QWidget> widget);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
                       std::function<void()> canceled, const QtArchiveLocation &archive = {});
     void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);

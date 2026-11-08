@@ -6,6 +6,49 @@
 class PanelFocusTests : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
   private slots:
+    void keyboardInputDuringRefresh_data() {
+        QTest::addColumn<bool>("editAddress");
+        QTest::newRow("list-navigation") << false;
+        QTest::newRow("switch-to-address") << true;
+    }
+
+    void keyboardInputDuringRefresh() {
+        QFETCH(bool, editAddress);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = window.findChild<FileTable *>("archiveTable");
+        QVERIFY(view);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 301; ++i) {
+            QFile file(fixture.filePath(QString("item-%1.txt").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(view, action(window, "refreshAction")->shortcut());
+        QVERIFY(!view->isEnabled());
+        QVERIFY(window.focusWidget());
+        if (editAddress)
+            QTest::keyClick(window.focusWidget(), Qt::Key_L, Qt::ControlModifier);
+        else
+            QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 301);
+        if (editAddress)
+            QVERIFY(window.findChild<QLineEdit *>("archivePath")->hasFocus());
+        else {
+            QVERIFY(view->hasFocus());
+            QTest::keyClick(view, Qt::Key_Home);
+            QTest::keyClick(view, Qt::Key_Down);
+            QCOMPARE(view->currentIndex().row(), 1);
+        }
+    }
+
     void changingViewPreservesTheActivePane_data() {
         QTest::addColumn<bool>("addressFocused");
         QTest::newRow("list") << false;

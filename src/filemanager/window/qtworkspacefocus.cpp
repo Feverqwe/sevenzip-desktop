@@ -63,6 +63,21 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         event->type() == QEvent::Wheel) {
         const auto *widget = qobject_cast<QWidget *>(object);
         const auto *modal = QApplication::activeModalWidget();
+        // Plain list navigation on the temporary focus holder does not
+        // select a new input target while its view is disabled.
+        if (pendingListFocus_ && widget &&
+            widget == window_.panelUi_[*pendingListFocus_].container &&
+            (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress)) {
+            const auto *key = static_cast<QKeyEvent *>(event);
+            if (key->modifiers() == Qt::NoModifier &&
+                (key->key() == Qt::Key_Up || key->key() == Qt::Key_Down ||
+                 key->key() == Qt::Key_Left || key->key() == Qt::Key_Right ||
+                 key->key() == Qt::Key_PageUp || key->key() == Qt::Key_PageDown ||
+                 key->key() == Qt::Key_Home || key->key() == Qt::Key_End)) {
+                event->accept();
+                return true;
+            }
+        }
         // Answering a modal prompt continues the pending panel action.
         if (widget && (widget->window() == &window_ || window_.isAncestorOf(widget)) &&
             (!modal || (widget != modal && !modal->isAncestorOf(widget)))) {
@@ -74,13 +89,13 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
 }
 
 void QtWindowWorkspace::RetainListFocus(unsigned panel) {
-    const QPointer<QWidget> focused = QApplication::focusWidget();
-    const auto request = focusRequest_;
+    auto *focused = QApplication::focusWidget();
     auto *container = window_.panelUi_[panel].container;
     if (!focused || !container || !container->isAncestorOf(focused))
         return;
     container->setFocus(Qt::OtherFocusReason);
-    WhenReady([this, panel, request, focused] { RestoreListFocus(panel, request, focused); });
+    if (!pendingListFocus_)
+        RequestListFocus(panel);
 }
 
 void QtWindowWorkspace::RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft) {
@@ -95,17 +110,4 @@ void QtWindowWorkspace::RestoreAddressFocus(unsigned panel, const QtAddressDraft
         ui.path->setFocus(Qt::OtherFocusReason);
         draft.Restore(*ui.path);
     });
-}
-
-void QtWindowWorkspace::RestoreListFocus(unsigned panel, quint64 request,
-                                         QPointer<QWidget> widget) {
-    if (focusRequest_ != request || !widget || !widget->isVisible() ||
-        window_.app_.GetFocusedPanelIndex() != panel)
-        return;
-    if (!Ready() || !widget->isEnabled()) {
-        WhenReady([this, panel, request, widget] { RestoreListFocus(panel, request, widget); });
-        return;
-    }
-    // QWidget also remembers this focus for an inactive window.
-    widget->setFocus(Qt::OtherFocusReason);
 }
