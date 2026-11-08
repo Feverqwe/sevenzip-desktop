@@ -22,6 +22,20 @@
 using namespace NWindows;
 using namespace NFile;
 
+namespace {
+bool RetainNestedArchiveCopy(const CFolderLink &link, const NFind::CFileInfo &info) {
+    if (!link.OwnedTempLease)
+        return false;
+    const QtExternalFileRecord record{QFileInfo(ToQString(fs2us(link.FilePath))).fileName(),
+                                      ToQString(link.RelPath),
+                                      ToQString(link.VirtualPath),
+                                      {info.Size, info.MTime},
+                                      {},
+                                      false};
+    return link.OwnedTempLease->SetContext(record.Save());
+}
+} // namespace
+
 HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                           const UString &virtualFilePath, const UString &arcFormat,
                           COpenResult &openRes, bool materializeStream) {
@@ -169,8 +183,11 @@ bool CPanel::CloseOneLevel(bool allowCancel) {
             if (_parentFolders.Size() == 2 && updated.Published == true)
                 publishedArchive = ToQString(parent.VirtualPath);
             removeCopy = updated.Result == S_OK;
-            if (!removeCopy)
+            if (!removeCopy) {
+                if (current.Find(link.FilePath))
+                    RetainNestedArchiveCopy(link, current);
                 MessageBox_Error(MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(link.FilePath)));
+            }
         }
         if (removeCopy)
             link.DeleteDirAndFile();
@@ -253,17 +270,7 @@ bool CPanel::PreserveOutdatedArchiveCopies() {
         if (!link.WasChanged_from_FolderLink(current))
             continue;
         link.KeepOnOutdatedClose = true;
-        if (!link.OwnedTempLease) {
-            complete = false;
-            continue;
-        }
-        const QtExternalFileRecord record{QFileInfo(ToQString(fs2us(link.FilePath))).fileName(),
-                                          ToQString(link.RelPath),
-                                          ToQString(link.VirtualPath),
-                                          QtNativeFileStamp{current.Size, current.MTime},
-                                          {},
-                                          false};
-        if (!link.OwnedTempLease->SetContext(record.Save()))
+        if (!RetainNestedArchiveCopy(link, current))
             complete = false;
     }
     return complete;

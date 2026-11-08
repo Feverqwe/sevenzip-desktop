@@ -13,6 +13,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QTreeWidget>
+#include <algorithm>
 
 using namespace ExternalEditorFixture;
 
@@ -420,19 +421,35 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(read(outer), original);
         responder.stop();
     }
+    void nestedSourceMutationsPublishThroughParent_data() {
+        QTest::addColumn<bool>("failSave");
+        QTest::newRow("saved") << false;
+        QTest::newRow("write-failure") << true;
+    }
     void nestedSourceMutationsPublishThroughParent() {
+        QFETCH(bool, failSave);
         QTemporaryDir fixture;
+        const auto oldRegistry = qgetenv("SEVENZIP_OWNED_TEMP_REGISTRY");
+        qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", fixture.filePath("registry").toUtf8());
+        const auto restoreRegistry = qScopeGuard([&] {
+            QtOwnedTempRegistry registry;
+            for (const auto &entry : registry.Entries())
+                if (auto lease = registry.ClaimForDeletion(entry))
+                    lease->RemoveIfUnused(entry.path,
+                                          [&] { QDir(entry.path).removeRecursively(); });
+            qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", oldRegistry);
+        });
         const QString source = fixture.filePath("source");
         QVERIFY(QDir().mkpath(source));
         const QString innerName = QStringLiteral("inner.7z");
         const QString inner = fixture.filePath(innerName);
-        const QString outer = fixture.filePath("outer.zip");
+        const QString outer = fixture.filePath(failSave ? "outer.fixture7z" : "outer.zip");
         QVERIFY(write(QDir(source).filePath("rename.txt"), "keep bytes"));
         QVERIFY(write(QDir(source).filePath("delete.txt"), "remove bytes"));
         QVERIFY(createArchive(source, inner, ".", "7z"));
-        QVERIFY(createArchive(fixture.path(), outer, innerName));
+        QVERIFY(createArchive(fixture.path(), outer, innerName, failSave ? "7z" : "zip"));
         const QByteArray original = read(outer);
-        ArchiveBackend backend;
+        ArchiveBackend backend(nullptr, failSave ? runtime_.engine() : QString());
         MainWindow window(&backend);
         window.show();
         bool unexpectedError = false, parentPrompt = false;
@@ -440,7 +457,8 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         bool closing = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
+            auto *dialog = widgetDialogs_.activeDialog();
+            if (auto *box = qobject_cast<QMessageBox *>(dialog)) {
                 unexpectedError |=
                     box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning;
                 parentPrompt |= box->objectName() == "modifiedArchiveQuestion";
@@ -456,6 +474,13 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
                     yes->click();
                 else
                     box->accept();
+            } else if (auto *progress = dynamic_cast<CProgressDialog *>(dialog)) {
+                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
+                if (close && close->text() == ToQString(LangString(IDS_CLOSE)))
+                    QTimer::singleShot(0, progress, [this, progress, close] {
+                        if (widgetDialogs_.activeDialog() == progress)
+                            close->click();
+                    });
             }
         });
         responder.start(1);
@@ -510,11 +535,32 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
         cancelParent = false;
         parentPrompt = false;
+        const auto &nested = view->sourcePanel->GetParentFolders().Back();
+        const QString retained = ToQString(fs2us(nested.FilePath));
+        if (failSave)
+            QVERIFY(runtime_.armWriter(E_FAIL, false));
         QTRY_VERIFY(action(window, "upAction")->isEnabled());
         action(window, "upAction")->trigger();
         QTRY_VERIFY(parentPrompt);
-        QVERIFY(!unexpectedError);
+        QCOMPARE(unexpectedError, failSave);
         QTRY_COMPARE(table(window)->rowCount(), 1);
+        if (failSave) {
+            QCOMPARE(read(outer), original);
+            QVERIFY(window.close());
+            QtOwnedTempRegistry registry;
+            registry.CleanUnusedSystemTemporaryObjects();
+            const auto entries = registry.Entries();
+            const auto entry = std::ranges::find(entries, QFileInfo(retained).absolutePath(),
+                                                 &QtOwnedTempEntry::path);
+            QVERIFY(entry != entries.end());
+            const auto record = QtExternalFileRecord::Restore(entry->context);
+            QVERIFY(record);
+            QCOMPARE(record->entry, innerName);
+            QCOMPARE(record->fileName, QFileInfo(retained).fileName());
+            QCOMPARE(contents(retained, QStringLiteral("renamed файл.txt")),
+                     QByteArray("keep bytes"));
+            return;
+        }
         const QString updated = fixture.filePath("updated.7z");
         QVERIFY(write(updated, contents(outer, innerName)));
         QCOMPARE(contents(updated, QStringLiteral("renamed файл.txt")), QByteArray("keep bytes"));
