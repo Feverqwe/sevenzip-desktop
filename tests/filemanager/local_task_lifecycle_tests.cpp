@@ -497,8 +497,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         const auto destination = fixture.filePath("destination with spaces");
         const QString name = QStringLiteral("данные.txt");
         QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
-        QVERIFY(write(source + '/' + name, "new bytes"));
-        QVERIFY(write(destination + '/' + name, "old bytes"));
+        const QByteArray incoming("new bytes");
+        const QByteArray existing("original bytes");
+        QVERIFY(write(source + '/' + name, incoming));
+        QVERIFY(write(destination + '/' + name, existing));
         QtWorkspaceApplication application(*qApp);
         ControlledBackend sourceBackend, destinationBackend;
         auto sourceWindow = std::make_unique<MainWindow>(&sourceBackend);
@@ -509,6 +511,17 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         destinationWindow->openPath(destination);
         QTRY_VERIFY(filesystemRow(*sourceWindow, name) >= 0);
         QTRY_VERIFY(filesystemRow(*destinationWindow, name) >= 0);
+        auto *destinationView = table(*destinationWindow);
+        destinationView->sourcePanel->Set_AutoRefresh_Mode(false);
+        const int sizeColumn = destinationView->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        const auto listedSize = [&] {
+            return destinationView->model()
+                ->index(filesystemRow(*destinationWindow, name), sizeColumn)
+                .data(Qt::UserRole + 2)
+                .toLongLong();
+        };
+        QCOMPARE(listedSize(), qint64(existing.size()));
         const int row = filesystemRow(*sourceWindow, name);
         QVERIFY(row >= 0);
         table(*sourceWindow)->selectRow(row);
@@ -562,8 +575,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(finished[0][0].toBool(), choice != "overwriteCancel");
         QCOMPARE(finished[0][1].toBool(), choice == "overwriteCancel");
         QCOMPARE(published.size(), choice == "overwriteYes" ? 1 : 0);
-        QCOMPARE(read(destination + '/' + name),
-                 choice == "overwriteYes" ? QByteArray("new bytes") : QByteArray("old bytes"));
+        const auto &expected = choice == "overwriteYes" ? incoming : existing;
+        QCOMPARE(read(destination + '/' + name), expected);
+        QTRY_COMPARE(listedSize(), qint64(expected.size()));
         QCOMPARE(QFileInfo::exists(source + '/' + name), choice != "overwriteYes");
         if (choice == "overwriteYes")
             QVERIFY(!QApplication::clipboard()->mimeData() ||
