@@ -104,7 +104,7 @@ class CApp {
     // Existing Qt command consumers remain behind this routing boundary until
     // their full application command bodies are ported in P0-03/P0-08.
     void OnCopy(bool move, bool copyToSame, unsigned index);
-    void CompleteCopy();
+    void CompleteCopy(bool preserveSourceSelection);
     bool RefreshCopyPanel(unsigned index);
     QtArchiveTransferResult CopyArchiveToArchive(unsigned srcPanelIndex,
                                                  const CRecordVector<UInt32> &indices,

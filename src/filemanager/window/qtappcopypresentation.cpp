@@ -28,10 +28,11 @@ void QtAppPresentation::ExecuteCopy(bool move, bool copyToSame, unsigned sourceI
         CopyFinished();
 }
 
-void QtAppPresentation::CopyFinished() {
+void QtAppPresentation::CopyFinished(bool preserveSourceSelection) {
     if (!copy_)
         return;
     copy_->finished = true;
+    copy_->preserveSourceSelection |= preserveSourceSelection;
     CompleteCopyIfReady();
 }
 
@@ -56,12 +57,13 @@ void QtAppPresentation::CompleteCopyIfReady() {
     if (window_.app_.QtOperations().active())
         return;
     const unsigned source = copy_->source;
+    const bool preserveSourceSelection = copy_->preserveSourceSelection;
     // Panel activation and source completion can re-enter action refresh.
     // Release this request first so it cannot be completed a second time.
     copy_.reset();
     if (!window_.app_.QtOperations().closed())
         window_.activatePanelUi(source);
-    window_.app_.CompleteCopy();
+    window_.app_.CompleteCopy(preserveSourceSelection);
     window_.refreshActions();
 }
 

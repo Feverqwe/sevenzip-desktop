@@ -297,7 +297,7 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     _presentation->ExecuteCopy(move, copyToSame, srcPanelIndex, output, indices, route);
 }
 
-void CApp::CompleteCopy() {
+void CApp::CompleteCopy(bool preserveSourceSelection) {
     auto request = std::move(_copyRequest);
     if (!request || _qtOperations.closed())
         return;
@@ -311,7 +311,8 @@ void CApp::CompleteCopy() {
         srcPanel.RestoreLoadedSelection(request->SourceSelection);
     if (!request->CopyToSame) {
         destPanel.RestoreLoadedSelection(request->DestinationSelection);
-        srcPanel.KillSelection();
+        if (!preserveSourceSelection)
+            srcPanel.KillSelection();
     }
     disableNotify1.Restore();
     disableNotify2.Restore();

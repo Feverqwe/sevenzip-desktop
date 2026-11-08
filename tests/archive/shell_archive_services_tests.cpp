@@ -216,7 +216,13 @@ class ShellArchiveServicesTests final : public QObject {
         QCOMPARE(readFile(sentinel), QByteArray("abc"));
         QVERIFY(!backend.busy());
     }
+    void overwriteCancellationPreservesArchiveAndExistingFile_data() {
+        QTest::addColumn<bool>("keyboard");
+        QTest::newRow("cancel-button") << false;
+        QTest::newRow("escape") << true;
+    }
     void overwriteCancellationPreservesArchiveAndExistingFile() {
+        QFETCH(bool, keyboard);
         QTemporaryDir input, output;
         const QString name = QStringLiteral("existing 空 file.bin");
         QVERIFY(writeFile(input.filePath(name), "archive bytes"));
@@ -238,7 +244,10 @@ class ShellArchiveServicesTests final : public QObject {
                 if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                     dialog && dialog->isVisible()) {
                     answered = true;
-                    dialog->findChild<QPushButton *>("overwriteCancel")->click();
+                    if (keyboard)
+                        QTest::keyClick(dialog, Qt::Key_Escape);
+                    else
+                        dialog->findChild<QPushButton *>("overwriteCancel")->click();
                 }
         });
         answer.start(1);

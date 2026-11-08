@@ -41,8 +41,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
             << false << QString("overwriteYes") << QString("7z") << false;
         QTest::newRow("published-removal-reopen-failure")
             << false << QString("overwriteYes") << QString("7z") << true;
-        QTest::newRow("overwrite-cancel")
-            << false << QString("overwriteCancel") << QString("zip") << false;
+        QTest::newRow("overwrite-escape") << false << QString("escape") << QString("zip") << false;
         QTest::newRow("host-and-stream-overwrite-yes")
             << false << QString("overwriteYes") << QString("wim") << false;
         QTest::newRow("directory-streams-overwrite-yes")
@@ -196,6 +195,8 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
                 ++overwriteQuestions;
                 if (noToAll)
                     ReplyOverwrite(*overwrite, IDB_NO_TO_ALL);
+                else if (answer == "escape")
+                    QTest::keyClick(overwrite, Qt::Key_Escape);
                 else
                     overwrite->findChild<QPushButton *>(answer)->click();
             } else if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(modal)) {
@@ -241,6 +242,11 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
         } else
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QCOMPARE(overwriteQuestions, expectedQuestions);
+        if (!accept) {
+            QTRY_COMPARE(window.focusWidget(), views[0]);
+            QCOMPARE(views[0]->currentIndex().siblingAtColumn(0).data().toString(), selection);
+            QVERIFY(views[0]->selectionModel()->isRowSelected(views[0]->currentRow(), {}));
+        }
         QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath(collision)),
                  QByteArray(accept ? "archive bytes" : "existing bytes"));
         if (streams)
