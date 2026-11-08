@@ -71,18 +71,26 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
             QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
         return E_INVALIDARG;
     }
+    const auto pendingSelection = projectedUi().pendingSelection;
+    const auto pendingViewport = projectedUi().pendingViewport;
     cancelListPublication();
     if (projectedUi().state == State::Filesystem)
         projectedUi().returnDirectory = projectedUi().directory;
     auto &panel = app_.GetFocusedPanel();
     CSelectedState previousSelection;
-    panel.SaveSelectedState(previousSelection);
+    if (pendingSelection)
+        previousSelection = *pendingSelection;
+    else
+        panel.SaveSelectedState(previousSelection);
     const QPointer<QAbstractItemView> previousView =
         qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
-    const QPoint previousScroll = previousView
-                                      ? QPoint(previousView->horizontalScrollBar()->value(),
-                                               previousView->verticalScrollBar()->value())
-                                      : QPoint();
+    QPoint previousScroll;
+    if (pendingViewport && pendingViewport->view == previousView &&
+        pendingViewport->directory == projectedUi().directory)
+        previousScroll = pendingViewport->scrollPosition;
+    else if (previousView)
+        previousScroll = {previousView->horizontalScrollBar()->value(),
+                          previousView->verticalScrollBar()->value()};
     QString message;
     HRESULT result;
     const PROPID previousSort = panel.GetSortID();
