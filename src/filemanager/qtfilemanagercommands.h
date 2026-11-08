@@ -119,6 +119,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         struct Submission {
             QString name;
             quint64 interaction;
+            bool edited = false;
         };
         std::optional<Submission> pending = std::nullopt;
     };

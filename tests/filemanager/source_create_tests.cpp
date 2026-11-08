@@ -321,18 +321,21 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<bool>("deferred");
         QTest::addColumn<bool>("retry");
         QTest::addColumn<bool>("switchPane");
+        QTest::addColumn<bool>("editAfterSubmit");
         for (const QString language : {"-", "ru"})
-            QTest::newRow(qPrintable(language)) << language << false << false << false;
-        QTest::newRow("immediate-retry") << QString("-") << false << true << false;
-        QTest::newRow("deferred") << QString("-") << true << false << false;
-        QTest::newRow("deferred-retry") << QString("-") << true << true << false;
-        QTest::newRow("deferred-retry-peer-focus") << QString("-") << true << true << true;
+            QTest::newRow(qPrintable(language)) << language << false << false << false << false;
+        QTest::newRow("immediate-retry") << QString("-") << false << true << false << false;
+        QTest::newRow("deferred") << QString("-") << true << false << false << false;
+        QTest::newRow("deferred-retry") << QString("-") << true << true << false << false;
+        QTest::newRow("deferred-retry-peer-focus") << QString("-") << true << true << true << false;
+        QTest::newRow("deferred-retry-edited") << QString("-") << true << true << false << true;
     }
     void failure() {
         QFETCH(QString, language);
         QFETCH(bool, deferred);
         QFETCH(bool, retry);
         QFETCH(bool, switchPane);
+        QFETCH(bool, editAfterSubmit);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -401,6 +404,16 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         if (peer) {
             QTest::mouseClick(peer->viewport(), Qt::LeftButton);
             QCOMPARE(window.focusWidget(), peer);
+        }
+        if (editAfterSubmit) {
+            QTest::keyClick(name, Qt::Key_Backspace);
+            QTest::keyClicks(name, corrected.right(1));
+            QCOMPARE(name->text(), corrected);
+            QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows + 1);
+            QTest::qWait(100);
+            QVERIFY(!QFileInfo::exists(fixture.filePath(corrected)));
+            QCOMPARE(window.focusWidget(), name);
+            QTest::keyClick(name, Qt::Key_Return);
         }
         if (!retry)
             QTest::keyClick(name, Qt::Key_Escape);

@@ -219,6 +219,11 @@ void QtFileManagerCommands::CreateFolder() {
         editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail,
                           focusOwner);
     };
+    QObject::connect(name, &QLineEdit::textEdited, editor, [this, index, editor] {
+        auto draft = folderDrafts_.find(index);
+        if (draft != folderDrafts_.end() && draft->editor == editor && draft->pending)
+            draft->pending->edited = true;
+    });
     QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, submit] {
         auto draft = folderDrafts_.find(index);
         if (draft == folderDrafts_.end() || draft->editor != editor)
@@ -237,7 +242,7 @@ void QtFileManagerCommands::CreateFolder() {
             if (!owner || draft == folderDrafts_.end() || draft->editor != owner)
                 return;
             const auto pending = std::exchange(draft->pending, std::nullopt);
-            if (pending && owner->NameField()->text() == pending->name) {
+            if (pending && !pending->edited && owner->NameField()->text() == pending->name) {
                 const QPointer<MainWindow> window(&window_);
                 const QPointer<QWidget> focused = window_.focusWidget();
                 const bool focusOwner =
