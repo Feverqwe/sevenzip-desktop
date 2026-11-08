@@ -199,9 +199,6 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
 
     void movingFolderClosesTheArchiveAtItsOldLocationInThePeer() {
-#ifdef Q_OS_WIN
-        QSKIP("Windows can retain the source directory while a child archive is open.");
-#endif
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source");
@@ -250,13 +247,30 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             if (dialog->isVisible())
                 dialog->reject();
         });
+        bool failed = false;
+        QTimer dismissResult;
+        connect(&dismissResult, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                failed = true;
+                TestProgressDialog::CloseResult(*result);
+            }
+        });
+        dismissResult.start(5);
         submit.start(1);
         QTest::keyClick(files, Qt::Key_F6);
         const QString moved = QDir(destination).filePath("source/opened.zip");
-        QTRY_VERIFY(peer->sourcePanel->IsFSFolder());
-        QVERIFY(!QFileInfo::exists(source));
-        QCOMPARE(read(moved), bytes);
-        QCOMPARE(QDir::cleanPath(ToQString(peer->sourcePanel->GetFsPath())), fixture.path());
+        QTRY_VERIFY(failed || peer->sourcePanel->IsFSFolder());
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        if (failed) {
+            QVERIFY(peer->sourcePanel->IsArcFolder());
+            QCOMPARE(read(archive), bytes);
+            QVERIFY(!QFileInfo::exists(QDir(destination).filePath("source")));
+        } else {
+            QVERIFY(!QFileInfo::exists(source));
+            QCOMPARE(read(moved), bytes);
+            QCOMPARE(QDir::cleanPath(ToQString(peer->sourcePanel->GetFsPath())), fixture.path());
+        }
         QVERIFY(WindowActivation::waitForActive(window));
         QTRY_VERIFY(files->hasFocus());
     }

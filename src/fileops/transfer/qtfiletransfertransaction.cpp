@@ -296,16 +296,18 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
 }
 
 bool QtFileTransferTransaction::removeStagedSource(TransferEntry &entry, QString &error) {
-    entry.sourceState = SourceState::Changed;
     const QFileInfo source(entry.source);
     QTemporaryDir holding(source.dir().filePath(".sevenzip-remove-XXXXXX"));
     const QString staged = holding.filePath(source.fileName());
     if (!holding.isValid() || !QtRenameFileSystemEntryWithoutReplacing(entry.source, staged)) {
+        if (!entry.sourceMatches(entry.source, false))
+            entry.sourceState = SourceState::Changed;
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Could not delete source after copying: %1")
                     .arg(entry.source);
         return false;
     }
+    entry.sourceState = SourceState::Changed;
     holding.setAutoRemove(false);
     const auto restore = qScopeGuard([&] {
         if ((QFileInfo::exists(staged) || QtIsFileSystemLink(staged)) &&
