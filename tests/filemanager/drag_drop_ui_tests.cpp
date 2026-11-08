@@ -1,4 +1,5 @@
 #include "archive/support/native_archive_fixture.h"
+#include "archive/support/source_extract_fixture.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/panels/qtpaneldragtransport.h"
 #include "filemanager/support/panel_model_support.h"
@@ -6,11 +7,17 @@
 #include "filemanager/views/filetable.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include "support/drag_event_position.h"
+#include "support/progress_dialog.h"
+#include "support/scoped_environment.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QContextMenuEvent>
 #include <QDrag>
 #include <QDragLeaveEvent>
 #include <QMouseEvent>
+#include <QProcess>
+#include <QScopeGuard>
 #include <QStackedWidget>
 #include <QStandardItemModel>
 #include <QStyle>
@@ -32,12 +39,110 @@ void Navigate(QWidget &panel, const QString &path) {
     address->setText(path);
     QTest::keyClick(address, Qt::Key_Return);
 }
+bool CopyExport(const QMimeData *mime, const QString &destination) {
+    if (!mime)
+        return false;
+    const auto urls = mime->urls();
+    return urls.size() == 1 && urls.front().isLocalFile() &&
+           QFile::copy(urls.front().toLocalFile(), destination);
+}
 } // namespace
 
 class DragDropUiTests final : public QObject {
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void fileExportCanBeCopiedByRecipient_data() {
+        QTest::addColumn<bool>("archiveSource");
+        QTest::addColumn<bool>("drag");
+        QTest::newRow("archive-drag") << true << true;
+        QTest::newRow("archive-clipboard") << true << false;
+        QTest::newRow("filesystem-clipboard") << false << false;
+    }
+    void fileExportCanBeCopiedByRecipient() {
+        QFETCH(bool, archiveSource);
+        QFETCH(bool, drag);
+        QTemporaryDir input, output;
+        QVERIFY(input.isValid() && output.isValid());
+        const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
+                                             input.filePath("owned-temp"));
+        const auto cleanup = qScopeGuard([] {
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                QDir(entry.path).removeRecursively();
+        });
+        const QString name = QStringLiteral("файл с пробелами 空.bin");
+        const QByteArray bytes("export\0bytes", 12);
+        const QString source = input.filePath(name);
+        QVERIFY(SourceExtractFixture::writeFile(source, bytes));
+        const QString archive = input.filePath("source.zip");
+        if (archiveSource)
+            QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}, "zip"));
+        const QByteArray original = SourceExtractFixture::readFile(archive);
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(archiveSource ? archive : input.path());
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.findChild<QAction *>("viewMode3Action")->trigger();
+        auto *table = window.findChild<FileTable *>("archiveTable");
+        QVERIFY(table);
+        QTRY_VERIFY(table->isEnabled() && Row(*table, name) >= 0);
+        const auto item = table->model()->index(Row(*table, name), 0);
+        table->scrollTo(item);
+        const QRect rect = table->visualRect(item);
+        QTest::mouseClick(table->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          QPoint(rect.left() + 26, rect.center().y()));
+        QTRY_VERIFY(table->hasFocus());
+        QTRY_VERIFY(PanelIndexSelected(item));
+
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
+        const QString destination = output.filePath(name);
+        QTimer closeResult;
+        connect(&closeResult, &QTimer::timeout, &window, [] {
+            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+        });
+        closeResult.start(5);
+        if (drag) {
+            QtPanelDragTransport transport(table, [&](QDrag &operation, Qt::DropActions actions) {
+                if (!(actions & Qt::CopyAction) || !CopyExport(operation.mimeData(), destination))
+                    return Qt::IgnoreAction;
+                static_cast<const QtPanelDragMime *>(operation.mimeData())
+                    ->Data()
+                    .FinishExternalReceiver();
+                return Qt::CopyAction;
+            });
+            QVERIFY(table->dragStarter && table->sourcePanel);
+            table->sourcePanel->AttachDragServices(&transport);
+            const auto detach =
+                qScopeGuard([&] { table->sourcePanel->AttachDragServices(nullptr); });
+            table->dragStarter();
+        } else {
+            clipboard->setText("clipboard sentinel");
+            auto *copy = window.findChild<QAction *>("copyFilesAction");
+            QVERIFY(copy);
+            QTRY_VERIFY(copy->isEnabled());
+            QTest::keyClick(table, Qt::Key_C, Qt::ControlModifier);
+            QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
+            if (QGuiApplication::platformName() == QStringLiteral("offscreen")) {
+                QVERIFY2(CopyExport(clipboard->mimeData(), destination),
+                         qPrintable(clipboard->text()));
+            } else {
+                QProcess recipient;
+                recipient.start(QCoreApplication::applicationFilePath(),
+                                {"--copy-from-system-clipboard", destination});
+                QVERIFY2(recipient.waitForStarted(), qPrintable(recipient.errorString()));
+                QTRY_COMPARE_WITH_TIMEOUT(recipient.state(), QProcess::NotRunning, 10000);
+                QCOMPARE(recipient.exitStatus(), QProcess::NormalExit);
+                QCOMPARE(recipient.exitCode(), 0);
+            }
+        }
+        QCOMPARE(SourceExtractFixture::readFile(output.filePath(name)), bytes);
+        QCOMPARE(SourceExtractFixture::readFile(source), bytes);
+        if (archiveSource)
+            QCOMPARE(SourceExtractFixture::readFile(archive), original);
+    }
 
     void viewModesPreserveDragInteraction_data() {
         QTest::addColumn<bool>("enabled");
@@ -668,5 +773,12 @@ class DragDropUiTests final : public QObject {
         }
     }
 };
-QTEST_MAIN(DragDropUiTests)
+int main(int argc, char **argv) {
+    QApplication app(argc, argv);
+    const auto arguments = QCoreApplication::arguments();
+    if (arguments.size() == 3 && arguments[1] == "--copy-from-system-clipboard")
+        return CopyExport(QApplication::clipboard()->mimeData(), arguments[2]) ? 0 : 1;
+    DragDropUiTests tests;
+    return QTest::qExec(&tests, argc, argv);
+}
 #include "drag_drop_ui_tests.moc"

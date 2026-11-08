@@ -22,6 +22,26 @@ if(BUILD_TESTING)
     add_test(NAME drag_drop_ui COMMAND drag_drop_ui_tests -silent)
     set_tests_properties(drag_drop_ui PROPERTIES TIMEOUT 60 RESOURCE_LOCK sevenzip_ui_artifacts ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag_drop_ui.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    if(WIN32)
+        add_test(NAME native_file_clipboard COMMAND drag_drop_ui_tests -silent
+            fileExportCanBeCopiedByRecipient:filesystem-clipboard
+            fileExportCanBeCopiedByRecipient:archive-clipboard)
+        set(sevenzip_clipboard_qpa windows)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_program(SEVENZIP_XVFB_RUN xvfb-run)
+        if(SEVENZIP_XVFB_RUN)
+            add_test(NAME native_file_clipboard COMMAND "${SEVENZIP_XVFB_RUN}" -a
+                "$<TARGET_FILE:drag_drop_ui_tests>" -silent
+                fileExportCanBeCopiedByRecipient:filesystem-clipboard
+                fileExportCanBeCopiedByRecipient:archive-clipboard)
+            set(sevenzip_clipboard_qpa xcb)
+        endif()
+    endif()
+    if(TEST native_file_clipboard)
+        set_tests_properties(native_file_clipboard PROPERTIES TIMEOUT 60
+            RESOURCE_LOCK sevenzip_native_ui ENVIRONMENT
+            "QT_QPA_PLATFORM=${sevenzip_clipboard_qpa};SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-file-clipboard.ini")
+    endif()
     qt_add_executable(drag_drop_add_ui_tests tests/filemanager/drag_drop_add_ui_tests.cpp)
     target_link_libraries(drag_drop_add_ui_tests PRIVATE sevenzip_window)
     target_include_directories(drag_drop_add_ui_tests PRIVATE src tests)
