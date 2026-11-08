@@ -88,7 +88,7 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(QFileInfo::exists(source + "/Alpha.txt"));
     }
 
-    void cutAndPasteRequireWritableFolder() {
+    void fileMutationsRequireWritableFolder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString writable = fixture.filePath("writable");
@@ -116,20 +116,29 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         auto *paste = action(window, "pasteFilesAction");
         auto *cut = action(window, "cutFilesAction");
         auto *copy = action(window, "copyFilesAction");
+        const QList<QAction *> mutations{
+            action(window, "moveAction"), action(window, "deleteAction"),
+            action(window, "renameAction"), action(window, "createFolderAction")};
         QTRY_VERIFY(paste->isEnabled());
 
         window.openPath(blocked);
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, "existing.txt") >= 0);
+        files->setCurrentCell(rowFor(*files, "existing.txt"), 0);
         files->selectRow(rowFor(*files, "existing.txt"));
         QVERIFY(copy->isEnabled());
         QVERIFY(!cut->isEnabled());
         QVERIFY(!paste->isEnabled());
+        for (auto *mutation : mutations)
+            QVERIFY2(!mutation->isEnabled(), qPrintable(mutation->objectName()));
         window.openPath(writable);
         QTRY_VERIFY(paste->isEnabled());
+        files->setCurrentCell(rowFor(*files, "existing.txt"), 0);
         files->selectRow(rowFor(*files, "existing.txt"));
         QVERIFY(copy->isEnabled());
         QVERIFY(cut->isEnabled());
+        for (auto *mutation : mutations)
+            QVERIFY2(mutation->isEnabled(), qPrintable(mutation->objectName()));
     }
 
     void externalCutHints_data() {

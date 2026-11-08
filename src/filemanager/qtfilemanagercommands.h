@@ -87,7 +87,7 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
     void OpenDevice();
     struct TransportCapabilities {
         bool filesystem = false, archive = false, writable = false, mutationWritable = false;
-        bool trash = false;
+        bool filesystemWritable = false;
         bool filesystemStreams = false;
         bool batchArchives = false;
         bool copy = false;

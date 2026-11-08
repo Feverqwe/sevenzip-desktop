@@ -72,7 +72,9 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
         c.folderSize = true;
     c.oneFile = c.one && !panel.IsItem_Folder(operated[0]);
     c.filesystem = panel.GetFolder() && panel.IsFSFolder();
-    c.trash = c.filesystem && !panel.IsThereReadOnlyFolder();
+    const QFileInfo directory(w.projectedUi().directory);
+    c.filesystemWritable = c.filesystem && !panel.IsThereReadOnlyFolder() && directory.isDir() &&
+                           directory.isWritable();
     c.filesystemStreams = panel.GetFolder() && panel.IsAltStreamsFolder();
     c.copy = panel.DoesItSupportOperations() &&
              (!panel.IsFSDrivesFolder() || panel.IsDeviceDrivesPrefix());
@@ -200,13 +202,14 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_PROPERTIES:
         return c.archive || (c.operated && !c.root);
     case IDM_MOVE_TO:
-        return c.filesystem || c.filesystemStreams || c.writable;
+        return c.filesystemWritable || c.filesystemStreams || c.writable;
     case IDM_DELETE:
-        return c.operated && c.trash;
+        return c.operated && c.filesystemWritable;
     case IDM_RENAME:
-        return c.focusedNonParent && (c.filesystem || c.filesystemStreams || c.mutationWritable);
+        return c.focusedNonParent &&
+               (c.filesystemWritable || c.filesystemStreams || c.mutationWritable);
     case IDM_CREATE_FOLDER:
-        return c.filesystem || c.mutationWritable;
+        return c.filesystemWritable || c.mutationWritable;
     case IDM_CRC32:
     case IDM_CRC64:
     case IDM_XXH64:
