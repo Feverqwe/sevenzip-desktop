@@ -2,6 +2,8 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/copy/alias.h"
+#include "dialogs/overwrite/OverwriteDialog.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
@@ -37,6 +39,78 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void failedExtractionKeepsSelectionForPasswordRetry_data() {
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("cancel") << true;
+        QTest::newRow("wrong-password") << false;
+    }
+    void failedExtractionKeepsSelectionForPasswordRetry() {
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("encrypted.zip");
+        const QString outputPath = fixture.filePath("selected.txt");
+        const QString password = QStringLiteral("correct password");
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{"selected.txt", "selected"}, {"other.txt", "other"}}, "zip", password));
+        QFile existing(outputPath);
+        QVERIFY(existing.open(QIODevice::WriteOnly));
+        QCOMPARE(existing.write("previous"), qint64(8));
+        existing.close();
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(archive);
+        QTRY_VERIFY(rowWithPath(window, "selected.txt") >= 0);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        const int selected = rowWithPath(window, "selected.txt");
+        view->setFocus();
+        view->setCurrentCell(selected, 0);
+        view->selectRow(selected);
+        bool retry = false;
+        int prompts = 0;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *copy = dynamic_cast<CopyDialog *>(modal))
+                copy->accept();
+            else if (auto *overwrite = dynamic_cast<COverwriteDialog *>(modal))
+                overwrite->findChild<QPushButton *>("overwriteYes")->click();
+            else if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
+                ++prompts;
+                if (cancel && !retry)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")
+                        ->setText(retry ? password : QStringLiteral("wrong password"));
+                    dialog->accept();
+                }
+            } else if (auto *report = TestProgressDialog::ResultWindow(modal))
+                TestProgressDialog::CloseResult(*report);
+            else if (auto *box = qobject_cast<QMessageBox *>(modal))
+                box->accept();
+        });
+        responder.start(5);
+        auto *copy = action(window, "copyAction");
+        QVERIFY(copy->isEnabled());
+        copy->trigger();
+        QTRY_VERIFY(copy->isEnabled());
+        QCOMPARE(prompts, 1);
+        QVERIFY(existing.open(QIODevice::ReadOnly));
+        QCOMPARE(existing.readAll(), QByteArray("previous"));
+        existing.close();
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+        QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
+        retry = true;
+        copy->trigger();
+        QTRY_VERIFY(copy->isEnabled());
+        QFile output(outputPath);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("selected"));
+        QVERIFY(!QFileInfo::exists(fixture.filePath("other.txt")));
+    }
     void nestedArchiveUsesTheOuterArchivesFolder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

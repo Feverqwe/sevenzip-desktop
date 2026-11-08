@@ -154,7 +154,7 @@ void MainWindow::backendFinished(bool ok, const QString &message, HRESULT result
         showDirectory(projectedUi().returnDirectory, false);
     else if (projectedUi().state == State::Operating)
         setState(previousState_ == State::Viewing ? State::Viewing : State::Filesystem);
-    appPresentation_->CopyFinished(canceled || (move && reviewAfterPublication));
+    appPresentation_->CopyFinished(!ok || canceled || (move && reviewAfterPublication));
     showStatusMessage(resultMessage);
     if (reviewAfterPublication) {
         terminalDiagnostics.prepend(resultMessage);
