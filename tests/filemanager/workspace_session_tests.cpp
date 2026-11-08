@@ -8,6 +8,7 @@
 #include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonDocument>
@@ -524,15 +525,19 @@ class WorkspaceSessionTests final : public QObject {
         QVERIFY(retry && retry->isVisible());
         QVERIFY(WindowActivation::waitForActive(restored));
         QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
+        auto *owner = restored.findChild<QWidget *>("filePanel0");
+        auto *files = owner->findChild<FileTable *>();
+        auto *address = owner->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QTest::keyClick(address, Qt::Key_Tab);
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
         auto *peer = restored.findChild<QWidget *>("filePanel1")->findChild<FileTable *>();
         QVERIFY(peer && peer->isVisible() && peer->isEnabled());
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
         QTest::keyClick(restored.focusWidget(), Qt::Key_Tab);
         QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
-        auto *owner = restored.findChild<QWidget *>("filePanel0");
-        auto *files = owner->findChild<FileTable *>();
-        auto *address = owner->findChild<QLineEdit *>("archivePath");
         QCOMPARE(QDir::cleanPath(address->text()), folder);
         QVERIFY(replacement.remove());
         QTest::keyClick(restored.focusWidget(), Qt::Key_Space);

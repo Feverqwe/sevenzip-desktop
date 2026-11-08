@@ -43,6 +43,45 @@ class WorkspaceNavigationTests final : public QObject {
   private slots:
     void initTestCase() { UiInspection::configureReviewAppearance(); }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void addressTabReturnsToTheListAfterRefresh_data() {
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<int>("key");
+        QTest::newRow("details-tab") << 3 << int(Qt::Key_Tab);
+        QTest::newRow("icons-backtab") << 0 << int(Qt::Key_Backtab);
+    }
+
+    void addressTabReturnsToTheListAfterRefresh() {
+        QFETCH(int, mode);
+        QFETCH(int, key);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *table = visibleTable(window);
+        QVERIFY(table);
+        QTRY_VERIFY(table->isEnabled());
+        window.findChild<QAction *>(QString("viewMode%1Action").arg(mode))->trigger();
+        auto *view = mode == 3 ? static_cast<QAbstractItemView *>(table)
+                               : window.findChild<QListView *>("iconList");
+        QVERIFY(view && view->isVisible());
+        table->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 301; ++i) {
+            QFile file(fixture.filePath(QString("item-%1.txt").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        window.findChild<QAction *>("refreshAction")->trigger();
+        QVERIFY(!view->isEnabled());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QVERIFY(address->hasFocus());
+        QTest::keyClick(address, static_cast<Qt::Key>(key));
+        QTRY_VERIFY(view->isEnabled() && view->hasFocus());
+        QCOMPARE(table->rowCount(), 301);
+    }
     void locationPublicationWaitsForSourceGuard() {
         QTemporaryDir fixture;
         ControlledBackend backend;

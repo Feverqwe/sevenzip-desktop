@@ -21,7 +21,7 @@ void QtWindowWorkspace::RequestListFocus(unsigned index) {
 
 void QtWindowWorkspace::CompleteListFocusIfReady() {
     if (!pendingListFocus_ || !window_.isVisible() || window_.panelProjectionDepth_ ||
-        window_.app_.QtOperations().closed() || window_.app_.QtOperations().active())
+        window_.app_.QtOperations().closed() || window_.app_.QtOperations().blocking())
         return;
     const unsigned index = *pendingListFocus_;
     if (window_.scanningPanelMask() & (1u << index))

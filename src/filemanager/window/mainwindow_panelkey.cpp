@@ -186,6 +186,13 @@ bool MainWindow::handlePanelKey(PanelInputTarget target, QKeyEvent *key) {
         const auto modifiers = key->modifiers();
         if (modifiers.testFlag(Qt::MetaModifier))
             return false;
+        // The source address command focuses its own list. Qt may need to
+        // wait for publication or use the unavailable-location control.
+        if ((key->key() == Qt::Key_Tab || key->key() == Qt::Key_Backtab) &&
+            !modifiers.testFlag(Qt::AltModifier)) {
+            workspace_->RequestListFocus(projectedPanel_);
+            return true;
+        }
         return app_.GetFocusedPanel().OnAddressEditKeyDown(
             {key->key() == Qt::Key_Backtab ? Qt::Key_Tab : key->key(),
              modifiers.testFlag(Qt::AltModifier), modifiers.testFlag(Qt::ControlModifier), false,
