@@ -195,12 +195,15 @@ void QtFileClipboard::Paste() {
     const QString destination = window_.projectedUi().directory;
     window_.transferFiles(
         paths, destination, move, false,
-        [owner, original, paths, revision, destination](const QStringList &movedSources) {
+        [owner, original, paths, revision, destination, move](const QStringList &movedSources) {
             if (!owner)
                 return;
             QStringList changed{destination};
-            for (const auto &source : movedSources)
-                changed.append(QFileInfo(source).absolutePath());
+            // A folder merge can move children while leaving the cut folder
+            // itself on the clipboard for a retry.
+            if (move)
+                for (const auto &source : paths)
+                    changed.append(QFileInfo(source).absolutePath());
             if (auto *application = QtWorkspaceApplication::Find())
                 application->FilesystemPublished(changed);
             else

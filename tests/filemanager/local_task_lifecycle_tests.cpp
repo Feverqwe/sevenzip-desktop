@@ -77,6 +77,57 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_COMPARE(window.focusWidget(), view);
     }
 
+    void partialFolderCutRefreshesSourceContents() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString source = fixture.filePath("source/folder");
+        const QString destination = fixture.filePath("destination");
+        const QString target = destination + "/folder";
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(target));
+        QVERIFY(write(source + "/moved.txt", "moved bytes"));
+        QVERIFY(write(source + "/skipped.txt", "skipped bytes"));
+        QVERIFY(write(target + "/skipped.txt", "existing bytes"));
+
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend sourceBackend, destinationBackend;
+        MainWindow sourceWindow(&sourceBackend), destinationWindow(&destinationBackend);
+        sourceWindow.show();
+        destinationWindow.show();
+        sourceWindow.openPath(source);
+        destinationWindow.openPath(destination);
+        QTRY_VERIFY(filesystemRow(sourceWindow, "moved.txt") >= 0);
+        table(sourceWindow)->sourcePanel->Set_AutoRefresh_Mode(false);
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        mime->setData("application/x-kde-cutselection", "1");
+        QApplication::clipboard()->setMimeData(mime);
+
+        QTimer drive;
+        bool skipped = false;
+        dialogs_.connectResponder(drive, &destinationWindow, [&] {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
+                skipped = true;
+                question->findChild<QPushButton *>("overwriteNo")->click();
+            } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
+                TestProgressDialog::CloseResult(*report);
+        });
+        drive.start(5);
+        auto *paste = action(destinationWindow, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(skipped && QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(target + "/moved.txt"), QByteArray("moved bytes"));
+        QCOMPARE(read(target + "/skipped.txt"), QByteArray("existing bytes"));
+        QCOMPARE(read(source + "/skipped.txt"), QByteArray("skipped bytes"));
+        QVERIFY(!QFileInfo::exists(source + "/moved.txt"));
+        QTRY_VERIFY(filesystemRow(sourceWindow, "moved.txt") < 0);
+        QVERIFY(filesystemRow(sourceWindow, "skipped.txt") >= 0);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+    }
+
     void partialCutCanBeRetried_data() {
         QTest::addColumn<bool>("replaceClipboard");
         QTest::addColumn<bool>("gnomeOnly");
