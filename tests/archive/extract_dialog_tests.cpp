@@ -639,7 +639,8 @@ class ExtractDialogTests final : public QObject {
                 QVERIFY(dialog.isVisible());
                 QCOMPARE(dialog.focusWidget(), subfolder);
                 QCOMPARE(destination->currentText(), base);
-                subfolder->setText("writable/output");
+                QCOMPARE(subfolder->selectedText(), QString("writable/occupied"));
+                QTest::keyClicks(subfolder, "writable/output");
                 dialog.accept();
                 QCOMPARE(dialog.result(), int(QDialog::Accepted));
             });

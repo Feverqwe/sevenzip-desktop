@@ -273,9 +273,10 @@ void CExtractDialog::OnOK() {
     if (!error.isEmpty()) {
         _destinationError->setText(error);
         _destinationError->show();
-        if (_nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error)
+        if (_nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error) {
             _pathName->setFocus();
-        else
+            _pathName->selectAll();
+        } else
             _path->setFocus();
         QTimer::singleShot(0, this, [this] {
             if (_destinationError->isVisible())
