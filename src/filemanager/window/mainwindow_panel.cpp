@@ -92,25 +92,26 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             activatePanelUi(index);
             if (projectedPanel_ != index)
                 return E_ABORT;
-            return workspace_->Navigate([&] { return navigateToImpl(path, sourcePath); },
-                                        [this, index, draft, editRevision](HRESULT result) {
-                                            if (result == S_OK || app_.QtOperations().closed())
-                                                return;
-                                            auto &owner = panelUi_[index];
-                                            auto *combo =
-                                                static_cast<QtPanelAddressCombo *>(owner.pathCombo);
-                                            const auto restored =
-                                                combo->UserEditRevision() == editRevision
-                                                    ? std::optional(draft)
-                                                    : combo->LastUserDraft();
-                                            if (!restored)
-                                                return;
-                                            restored->Restore(*owner.path);
-                                            if (projectedPanel_ == index) {
-                                                combo->CancelPendingListFocus();
-                                                workspace_->RestoreAddressFocus(index, *restored);
-                                            }
-                                        });
+            const auto interaction = workspace_->InteractionRevision();
+            return workspace_->Navigate(
+                [&] { return navigateToImpl(path, sourcePath); },
+                [this, index, draft, editRevision, interaction](HRESULT result) {
+                    if (result == S_OK || app_.QtOperations().closed())
+                        return;
+                    auto &owner = panelUi_[index];
+                    auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
+                    const auto restored = combo->UserEditRevision() == editRevision
+                                              ? std::optional(draft)
+                                              : combo->LastUserDraft();
+                    if (!restored)
+                        return;
+                    restored->Restore(*owner.path);
+                    if (projectedPanel_ == index &&
+                        workspace_->InteractionRevision() == interaction) {
+                        combo->CancelPendingListFocus();
+                        workspace_->RestoreAddressFocus(index, *restored);
+                    }
+                });
         },
         central, [this, index] { workspace_->RequestListFocus(index); });
     projectedUi().pathCombo->setObjectName("pathCombo");
