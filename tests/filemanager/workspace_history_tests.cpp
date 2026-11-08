@@ -196,6 +196,60 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(view->hasFocus());
     }
 
+    void keyboardHistoryWorksWhileThePeerRefreshes() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString previous = fixture.filePath("previous");
+        const QString current = fixture.filePath("current");
+        const QString peerPath = fixture.filePath("peer");
+        createDirectory(previous);
+        createDirectory(current);
+        createDirectory(peerPath, 0);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        window.openPath(previous);
+        window.openPath(current);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 1);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        action(window, "twoPanelsAction")->trigger();
+        auto *peerPanel = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peerPanel && peerPanel->isVisible());
+        auto *peer = peerPanel->findChild<FileTable *>("archiveTable");
+        auto *address = peerPanel->findChild<QLineEdit *>("archivePath");
+        QVERIFY(peer && address);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        window.openPath(peerPath);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 0);
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
+        const auto panelPath = [](const FileTable &files) {
+            return QDir::cleanPath(ToQString(files.sourcePanel->GetCurrentFolderPrefix()));
+        };
+        for (const bool forward : {false, true}) {
+            const int count = forward ? 302 : 301;
+            createDirectory(peerPath, count);
+            peer->setFocus();
+            QVERIFY(peer->hasFocus());
+            QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+            QVERIFY(!peer->isEnabled());
+            view->setFocus();
+            QVERIFY(view->hasFocus());
+            auto *travel = action(window, forward ? "forwardAction" : "backAction");
+            QVERIFY(travel->isEnabled());
+            QTest::keySequence(view, travel->shortcut());
+            QTRY_COMPARE(panelPath(*view), forward ? current : previous);
+            QTRY_VERIFY(view->hasFocus());
+            QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == count);
+            QCOMPARE(panelPath(*peer), peerPath);
+        }
+        QCOMPARE(view->currentIndex().data().toString(), QString("item-0000.txt"));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+    }
+
     void forwardParentBranchAndDirectoryViewport_data() {
         QTest::addColumn<int>("count");
         QTest::newRow("immediate") << 100;
