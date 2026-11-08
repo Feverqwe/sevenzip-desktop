@@ -4,6 +4,7 @@
 #include "filemanager/panels/qtpaneldragtransport.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "support/drag_drop_backend.h"
 #include "support/drag_event_position.h"
 #include "support/operation_kill.h"
@@ -241,6 +242,17 @@ class DragDropAddUiTests final : public QObject {
         ArchiveCodecCatalog catalog(QStringLiteral(SEVENZIP_CODEC_MODULE), 0);
         QCOMPARE(backend.loadCodecCatalog(QStringLiteral(SEVENZIP_CODEC_MODULE), catalog.version()),
                  S_OK);
+        std::unique_ptr<QtWorkspaceApplication> application;
+        std::unique_ptr<MainWindow> observer;
+        if (!wait && !cancel && !failure && !crash) {
+            application = std::make_unique<QtWorkspaceApplication>(*qApp);
+            observer = std::make_unique<MainWindow>();
+            observer->show();
+            observer->openPath(output.path());
+            auto *observed = observer->findChild<FileTable *>("archiveTable");
+            QTRY_VERIFY(observed && observed->isEnabled());
+            observed->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
         MainWindow window(&backend);
         window.show();
         auto *address = window.findChild<QLineEdit *>("archivePath");
@@ -303,6 +315,18 @@ class DragDropAddUiTests final : public QObject {
         if (!cancel && !failure && !crash) {
             QVERIFY(!backend.Results.first().ChangedArchives.isEmpty());
             const QString archive = backend.Results.first().ChangedArchives.first();
+            if (observer) {
+                QVERIFY(!window.isVisible());
+                auto *observed = observer->findChild<FileTable *>("archiveTable");
+                const auto containsArchive = [&] {
+                    for (int row = 0; row < observed->rowCount(); ++row)
+                        if (observed->model()->index(row, 0).data().toString() ==
+                            QFileInfo(archive).fileName())
+                            return true;
+                    return false;
+                };
+                QTRY_VERIFY(containsArchive());
+            }
             // The drag source may release its temporary bytes immediately
             // after completion. The independent output must retain them.
             QVERIFY(QFile::remove(source));

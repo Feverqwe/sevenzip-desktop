@@ -90,13 +90,23 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
         return E_FAIL;
     }
     const QUuid review = QtOperationRegistry::Application().Registration(*operation);
+    auto *application = QtWorkspaceApplication::Find();
+    if (application)
+        connect(operation, &QtOperationLauncher::finished, application,
+                [application](const QtOperationResult &result) {
+                    for (const auto &archive : result.ChangedArchives)
+                        application->ArchivePublished(archive);
+                    application->FilesystemPublished(result.ChangedDirectories);
+                });
     connect(operation, &QtOperationLauncher::finished, this,
-            [this, source, review](const QtOperationResult &result) {
+            [this, source, review, publishLocally = !application](const QtOperationResult &result) {
                 if (app_.QtOperations().closed())
                     return;
-                for (const auto &archive : result.ChangedArchives)
-                    ArchivePublished(archive);
-                guiOutputRefresh_->Enqueue(result.ChangedDirectories, {});
+                if (publishLocally) {
+                    for (const auto &archive : result.ChangedArchives)
+                        ArchivePublished(archive);
+                    guiOutputRefresh_->Enqueue(result.ChangedDirectories, {});
+                }
                 using Outcome = QtOperationResult::Outcome;
                 if (!QtWorkspaceApplication::Find())
                     for (const auto &pending : QtOperationRegistry::Application().Reviews())
