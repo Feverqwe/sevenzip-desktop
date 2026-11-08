@@ -299,6 +299,49 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             QTRY_VERIFY(source->hasFocus());
         }
     }
+    void mixedArchiveTestReportsFailureAndRetainsSelection() {
+        QTemporaryDir fixture(FixtureTemplate());
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("archives");
+        QVERIFY(QDir().mkpath(input));
+        const QString damaged = QDir(input).filePath(QStringLiteral("01 повреждённый.zip"));
+        const QString healthy = QDir(input).filePath(QStringLiteral("02 исправный.zip"));
+        const QByteArray invalid("invalid ZIP bytes");
+        QVERIFY(writeFile(damaged, invalid));
+        QVERIFY(writeFile(fixture.filePath("entry.txt"), "payload"));
+        QVERIFY(makeArchive(fixture.path(), healthy, "zip", "entry.txt"));
+        const auto before = readFile(healthy);
+        GuiTestBackend backend;
+        QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto *source = openPanel(window, 0, input);
+        QTRY_COMPARE(source->rowCount(), 2);
+        source->selectAll();
+        source->setFocus();
+        QStringList errors, successes;
+        QTimer driver;
+        dialogs_.connectResponder(driver, &window,
+                                  [&] { dismissResults(dialogs_, errors, successes); });
+        driver.start(1);
+        QVERIFY(action(window, "testArchiveAction")->isEnabled());
+        action(window, "testArchiveAction")->trigger();
+        QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
+        QCOMPARE(backend.Results.first().Status, QtOperationResult::Outcome::Failure);
+        QCOMPARE(backend.Selections.size(), 1);
+        QStringList tested;
+        for (const auto &path : backend.Selections.first())
+            tested.append(QFileInfo(path).canonicalFilePath());
+        tested.sort();
+        QCOMPARE(tested, QStringList({QFileInfo(damaged).canonicalFilePath(),
+                                      QFileInfo(healthy).canonicalFilePath()}));
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 2);
+        QTRY_VERIFY(source->hasFocus());
+        QCOMPARE(readFile(damaged), invalid);
+        QCOMPARE(readFile(healthy), before);
+    }
+
     void archiveToolbarUsesSourceCopyTo_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::newRow("left") << 0u;
