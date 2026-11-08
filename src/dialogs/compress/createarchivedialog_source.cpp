@@ -147,23 +147,28 @@ void CreateArchiveDialog::validateAndAccept() {
     const QFileInfo target(resolved);
     const bool singleVolume = volumeInfo.VolumeSizes.IsEmpty();
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
+    bool occupiedName = danglingTarget;
     QString pathError =
         !hasFileName || invalidName || invalidFolder || resolved.isEmpty() || danglingTarget
             ? InvalidArchivePath()
             : ArchiveDirectoryError(target.absolutePath());
-    if (pathError.isEmpty() && target.isDir())
+    if (pathError.isEmpty() && target.isDir()) {
+        occupiedName = true;
         pathError =
             QCoreApplication::translate("CreateArchiveDialog", "Archive path is a folder: %1")
                 .arg(QDir::toNativeSeparators(resolved));
+    }
     if (danglingTarget)
         pathError += '\n' + QDir::toNativeSeparators(resolved);
     if (pathError.isEmpty() && singleVolume && target.exists()) {
         NWindows::NFile::NFind::CFileInfo existing;
         const UString nativePath(QDir::toNativeSeparators(resolved).toStdWString().c_str());
-        if (existing.Find_FollowLink(us2fs(nativePath)) && existing.IsReadOnly())
+        if (existing.Find_FollowLink(us2fs(nativePath)) && existing.IsReadOnly()) {
+            occupiedName = true;
             pathError =
                 QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only") + '\n' +
                 QDir::toNativeSeparators(resolved);
+        }
     }
     if (pathError.isEmpty() && !singleVolume) {
         CArchivePath volumes;
@@ -182,10 +187,12 @@ void CreateArchiveDialog::validateAndAccept() {
         }
         if (occupied.isEmpty())
             occupied = ExistingVolume(volumes.GetFinalVolPath());
-        if (!occupied.isEmpty())
+        if (!occupied.isEmpty()) {
+            occupiedName = true;
             pathError =
                 QCoreApplication::translate("SevenZipDiagnostics", "The file already exists") +
                 '\n' + occupied;
+        }
     }
     if (!pathError.isEmpty()) {
         // Keep the draft available for correction before handing it to UpdateArchive.
@@ -204,6 +211,11 @@ void CreateArchiveDialog::validateAndAccept() {
                 field = archiveFolder_;
         }
         field->setFocus();
+        if (field == name_ && occupiedName) {
+            const auto text = QDir::fromNativeSeparators(name_->text());
+            const int leafStart = int(text.lastIndexOf(u'/') + 1);
+            name_->setSelection(leafStart, int(text.size()) - leafStart);
+        }
         return;
     }
     if (!checkVolumeSizes(volumeResult, volumeInfo))

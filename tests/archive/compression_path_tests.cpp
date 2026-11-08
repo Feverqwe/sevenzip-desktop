@@ -561,7 +561,8 @@ class CompressionPathTests final : public QObject {
 
         CreateArchiveDialog dialog(fixture.path(), {source_});
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
-        name->setText("old.7z");
+        const auto draft = QDir::toNativeSeparators("./old.7z");
+        name->setText(draft);
         dialog.show();
         QString diagnostic;
         QTimer::singleShot(0, &dialog, [&] {
@@ -575,8 +576,12 @@ class CompressionPathTests final : public QObject {
         QVERIFY2(diagnostic.contains(QDir::toNativeSeparators(occupied)), qPrintable(diagnostic));
         if (folder)
             QVERIFY2(diagnostic.contains("Archive path is a folder"), qPrintable(diagnostic));
-        QCOMPARE(name->text(), QString("old.7z"));
-        name->setText("new.7z");
+        QCOMPARE(name->text(), draft);
+        QCOMPARE(name->selectedText(), QString("old.7z"));
+        auto *editor = dialog.focusWidget();
+        QVERIFY(editor);
+        QTest::keyClicks(editor, "new.7z");
+        QCOMPARE(name->text(), QDir::toNativeSeparators("./new.7z"));
         submit(dialog);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources()), S_OK);
