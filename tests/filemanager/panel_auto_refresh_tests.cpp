@@ -357,13 +357,18 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
 
     void idleTicksKeepActiveTitleAndAddressDraft_data() {
         QTest::addColumn<unsigned>("owner");
-        QTest::newRow("left") << 0u;
-        QTest::newRow("right") << 1u;
+        QTest::addColumn<bool>("published");
+        QTest::newRow("left") << 0u << false;
+        QTest::newRow("right") << 1u << false;
+        QTest::newRow("published-left") << 0u << true;
+        QTest::newRow("published-right") << 1u << true;
     }
     void idleTicksKeepActiveTitleAndAddressDraft() {
         QFETCH(unsigned, owner);
+        QFETCH(bool, published);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+        QtWorkspaceApplication application(*qApp);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -388,17 +393,26 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(addresses[owner]->hasFocus());
         const QString draft = QStringLiteral("черновик адреса δ");
         addresses[owner]->setText(draft);
+        addresses[owner]->setSelection(8, -8);
         const QString title = window.windowTitle();
         QVERIFY(QDir::fromNativeSeparators(title).startsWith(folders[owner]));
         QSignalSpy titles(&window, &QWidget::windowTitleChanged);
-        QTest::qWait(1250); // Cross the actual application timer interval while idle.
+        if (published) {
+            views[owner]->sourcePanel->Set_AutoRefresh_Mode(false);
+            QVERIFY(writeFile(QDir(folders[owner]).filePath("published.txt")));
+            application.FilesystemPublished({folders[owner]});
+            QTRY_COMPARE(views[owner]->rowCount(), 2);
+        } else
+            QTest::qWait(1250); // Cross the actual application timer interval while idle.
         for (const auto &event : titles)
             QCOMPARE(event.first().toString(), title);
         QCOMPARE(window.windowTitle(), title);
         QCOMPARE(addresses[owner]->text(), draft);
+        QCOMPARE(addresses[owner]->selectedText(), draft.left(8));
+        QCOMPARE(addresses[owner]->cursorPosition(), 0);
         QVERIFY(addresses[owner]->hasFocus());
         for (unsigned pane = 0; pane < 2; ++pane) {
-            QCOMPARE(views[pane]->rowCount(), 1);
+            QCOMPARE(views[pane]->rowCount(), published && pane == owner ? 2 : 1);
             QCOMPARE(views[pane]->selectionModel()->selectedRows().size(), 1);
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
                          ToQString(views[pane]->sourcePanel->GetCurrentFolderPrefix()))),

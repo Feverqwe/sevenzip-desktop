@@ -168,7 +168,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
     for (const auto &directory : output.directories) {
         const QString changed = NormalPath(directory);
         if (ContainsDirectory(current, changed) || ContainsDirectory(changed, current)) {
-            panel.OnReload();
+            panel.OnReload(true);
             return;
         }
     }
