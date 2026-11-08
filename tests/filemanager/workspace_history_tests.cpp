@@ -380,6 +380,42 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(view->rowCount(), 2);
     }
 
+    void backRevealsFolderCreatedBeforeLeavingDuringRefresh() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString large = fixture.filePath("large");
+        const QString other = fixture.filePath("other");
+        createDirectory(large, 301);
+        createDirectory(other);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(large);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 301);
+        view->setFocus();
+        view->selectRow(280);
+        view->scrollTo(view->model()->index(280, 0), QAbstractItemView::PositionAtCenter);
+        QVERIFY(view->verticalScrollBar()->value() > 0);
+
+        QTest::keyClick(view, Qt::Key_F7);
+        auto *editor = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(editor && editor->isVisible());
+        const QString created = QStringLiteral("новая папка 空");
+        editor->setText(created);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QVERIFY(QFileInfo(QDir(large).filePath(created)).isDir());
+        QVERIFY(!view->isEnabled());
+        window.openPath(other);
+        QTRY_VERIFY(view->isEnabled() && location(window) == other);
+        action(window, "backAction")->trigger();
+        QTRY_VERIFY(view->isEnabled() && location(window) == large && view->rowCount() == 302);
+        QCOMPARE(view->currentIndex().data().toString(), created);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QVERIFY(view->viewport()->rect().intersects(view->visualRect(view->currentIndex())));
+    }
+
     void paneBackButtonIgnoresTheClosingViewMenu() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
