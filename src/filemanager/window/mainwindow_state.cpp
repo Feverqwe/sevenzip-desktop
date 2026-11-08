@@ -1,4 +1,5 @@
 #include "archive/resources/qtarchivefileresource.h"
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
@@ -17,11 +18,22 @@ void MainWindow::setState(State state) {
                       : state == State::Operating ? QtAppOperationState::Kind::Operation
                       : scanningPanels            ? QtAppOperationState::Kind::Scan
                                                   : QtAppOperationState::Kind::Idle;
+    const bool startingOperation =
+        kind == QtAppOperationState::Kind::Operation && !app_.QtOperations().blocking();
     if (!(panelProjectionDepth_ && app_.QtOperations().blocking()) &&
         !app_.QtOperations().Begin(kind, scanningPanels))
         return;
     projectedUi().state = state;
+    const unsigned inputPanel = statusPanel_;
+    const auto &input = panelUi_[inputPanel];
+    const auto *focused = focusWidget();
+    const auto draft = startingOperation && focused && input.path &&
+                               (focused == input.path || focused == input.pathCombo)
+                           ? std::optional(QtAddressDraft(*input.path))
+                           : std::nullopt;
     refreshActions();
+    if (draft)
+        workspace_->RestoreAddressFocus(inputPanel, *draft);
 }
 
 void MainWindow::refreshActions() {

@@ -133,11 +133,14 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
 
     void failedPasteLeavesTheDestinationPanelUsable_data() {
         QTest::addColumn<bool>("move");
-        QTest::newRow("copy") << false;
-        QTest::newRow("cut") << true;
+        QTest::addColumn<bool>("editingAddress");
+        QTest::newRow("copy") << false << false;
+        QTest::newRow("cut") << true << false;
+        QTest::newRow("copy-with-address-draft") << false << true;
     }
     void failedPasteLeavesTheDestinationPanelUsable() {
         QFETCH(bool, move);
+        QFETCH(bool, editingAddress);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
         QTemporaryDir destination, peerDirectory;
@@ -242,6 +245,16 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         writeSource(missingName, "restored bytes");
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
+        auto *peerAddress =
+            window.findChild<QWidget *>("filePanel1")->findChild<QLineEdit *>("archivePath");
+        if (editingAddress) {
+            QVERIFY(peerAddress);
+            PanelKeys::focusAddress(peerAddress);
+            QTRY_VERIFY(peerAddress->hasFocus());
+            peerAddress->selectAll();
+            QTest::keyClicks(peerAddress, "unfinished");
+            peerAddress->setSelection(10, -3);
+        }
         const QString peerStatus = QStringLiteral("Peer status");
         window.statusBar()->showMessage(peerStatus, 10000);
         pasteChosen = false;
@@ -266,6 +279,15 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     !QApplication::clipboard()->mimeData()->hasUrls());
         QCOMPARE(window.statusBar()->currentMessage(), peerStatus);
         QVERIFY(WindowActivation::waitForActive(window));
+        if (editingAddress) {
+            QTRY_VERIFY(peerAddress->hasFocus());
+            QCOMPARE(peerAddress->text(), QString("unfinished"));
+            QCOMPARE(peerAddress->cursorPosition(), 7);
+            QCOMPARE(peerAddress->selectedText(), QString("hed"));
+            QTest::keyClicks(peerAddress, "X");
+            QCOMPARE(peerAddress->text(), QString("unfinisX"));
+            QTest::keyClick(peerAddress, Qt::Key_Tab);
+        }
         QTRY_VERIFY2(peer->hasFocus(),
                      qPrintable(window.focusWidget() ? window.focusWidget()->objectName()
                                                      : QStringLiteral("No focused widget")));
