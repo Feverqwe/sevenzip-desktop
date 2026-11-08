@@ -400,18 +400,19 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
     void idleTicksKeepActiveTitleAndAddressDraft_data() {
         QTest::addColumn<unsigned>("owner");
         QTest::addColumn<bool>("published");
-        QTest::addColumn<bool>("peerPublication");
+        QTest::addColumn<bool>("peerUpdate");
         QTest::newRow("left") << 0u << false << false;
         QTest::newRow("right") << 1u << false << false;
         QTest::newRow("published-left") << 0u << true << false;
         QTest::newRow("published-right") << 1u << true << false;
         QTest::newRow("published-peer") << 1u << true << true;
+        QTest::newRow("automatic-peer") << 1u << false << true;
     }
     void idleTicksKeepActiveTitleAndAddressDraft() {
         QFETCH(unsigned, owner);
         QFETCH(bool, published);
-        QFETCH(bool, peerPublication);
-        const unsigned updated = peerPublication ? 1 - owner : owner;
+        QFETCH(bool, peerUpdate);
+        const unsigned updated = peerUpdate ? 1 - owner : owner;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         QtWorkspaceApplication application(*qApp);
@@ -452,10 +453,11 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QSignalSpy renameAvailability(rename, &QAction::enabledChanged);
         QSignalSpy removeAvailability(remove, &QAction::enabledChanged);
         QSignalSpy copyAvailability(copy, &QAction::enabledChanged);
-        if (published) {
-            views[updated]->sourcePanel->Set_AutoRefresh_Mode(false);
+        if (published || peerUpdate) {
+            views[updated]->sourcePanel->Set_AutoRefresh_Mode(!published);
             QVERIFY(writeFile(QDir(folders[updated]).filePath("published.txt")));
-            application.FilesystemPublished({folders[updated]});
+            if (published)
+                application.FilesystemPublished({folders[updated]});
             QTRY_COMPARE(views[updated]->rowCount(), 2);
         } else
             QTest::qWait(1250); // Cross the actual application timer interval while idle.
@@ -467,13 +469,13 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(addresses[owner]->cursorPosition(), 0);
         QVERIFY(addresses[owner]->hasFocus());
         for (unsigned pane = 0; pane < 2; ++pane) {
-            QCOMPARE(views[pane]->rowCount(), published && pane == updated ? 2 : 1);
+            QCOMPARE(views[pane]->rowCount(), (published || peerUpdate) && pane == updated ? 2 : 1);
             QCOMPARE(views[pane]->selectionModel()->selectedRows().size(), 1);
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
                          ToQString(views[pane]->sourcePanel->GetCurrentFolderPrefix()))),
                      folders[pane]);
         }
-        if (peerPublication) {
+        if (peerUpdate) {
             QVERIFY(renameAvailability.isEmpty());
             QVERIFY(removeAvailability.isEmpty());
             QVERIFY(copyAvailability.isEmpty());
