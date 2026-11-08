@@ -98,6 +98,20 @@ class OverwriteLayoutTests final : public QObject {
             QCOMPARE(dialog.result(), NOverwriteDialog::kAutoRenameOnceResult);
         }
     }
+    void directoryConflictNamesTheIncomingFolder() {
+        OverwriteQuestion question;
+        question.Existing.Path = "/destination/folder";
+        question.Existing.Directory = true;
+        question.Incoming.Path = QStringLiteral("/source/папка 空/");
+        question.Incoming.Directory = true;
+        COverwriteDialog dialog;
+        dialog.SetQuestion(question);
+        QVERIFY(dialog.OnInit());
+        QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), QStringLiteral("папка 空"));
+        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
+                    ->text()
+                    .contains(question.Incoming.Path));
+    }
     void sourceFooterAndFileRows_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<int>("width");

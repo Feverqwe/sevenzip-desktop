@@ -122,8 +122,13 @@ bool COverwriteDialog::OnInit() {
     SetFileInfoControl(NewFileInfo, IDT_OVERWRITE_NEW_FILE_SIZE_TIME, IDI_OVERWRITE_NEW_FILE,
                        IDI_OVERWRITE_NEW_FILE_2);
     UpdateButtonSizes();
-    const UString &path = NewFileInfo.Path;
+    UString path = NewFileInfo.Path;
+    if (NewFileInfo.Is_Directory)
+        while (path.Len() > 1 && IS_PATH_SEPAR(path.Back()))
+            path.DeleteBack();
     UString name = path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1));
+    if (name.IsEmpty())
+        name = path;
     FormatPathPart(name);
     SetItemText(IDT_OVERWRITE_HEADER, name);
     auto *button = static_cast<QPushButton *>(
