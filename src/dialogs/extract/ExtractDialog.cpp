@@ -52,14 +52,16 @@ bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
 }
 
 void AddDestinationToHistory(CObjectVector<QString> &history, const QString &path) {
-    const UString name = ToUString(path);
+    const QString normalized = QDir::cleanPath(QDir::fromNativeSeparators(path));
+    const UString name = ToUString(normalized);
     for (unsigned i = 0; i < history.Size(); ++i) {
         const QString &saved = history[i];
-        if (path == saved)
+        const QString previousPath = QDir::cleanPath(QDir::fromNativeSeparators(saved));
+        if (normalized == previousPath)
             return;
-        if (!name.IsEqualTo_NoCase(ToUString(saved)))
+        if (!name.IsEqualTo_NoCase(ToUString(previousPath)))
             continue;
-        const QFileInfo current(path), previous(saved);
+        const QFileInfo current(normalized), previous(previousPath);
         if ((current.isDir() && !previous.exists()) || (previous.isDir() && !current.exists()))
             continue;
         if (!current.isDir() || !previous.isDir())
@@ -318,8 +320,7 @@ void CExtractDialog::OnOK() {
     }
     DirPath = QString::fromWCharArray(s.Ptr());
     _info.Paths.Clear();
-    UString historyPath =
-        NWindows::NFile::NName::IsAbsolutePath(s) ? s : fs2us(resolvedDestination);
+    UString historyPath = fs2us(resolvedDestination);
     NWindows::NFile::NName::NormalizeDirPathPrefix(historyPath);
     AddDestinationToHistory(_info.Paths, ToQString(historyPath));
     for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {

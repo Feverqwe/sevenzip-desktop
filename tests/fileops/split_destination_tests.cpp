@@ -121,6 +121,22 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
     }
 
+    void historyDeduplicatesEquivalentAbsolutePaths() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkpath(fixture.filePath("nested")));
+        const QString destination = fixture.filePath("output");
+        const QString alias = fixture.filePath("nested/../output");
+        CExtractDialog dialog(alias, {destination + '/', alias + '/'});
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+
+        CExtractDialog reopened(fixture.path(), {});
+        auto *history = path(reopened);
+        QCOMPARE(history->count(), 1);
+        QCOMPARE(QDir::fromNativeSeparators(history->itemText(0)), destination + '/');
+    }
+
     void historyKeepsCaseDistinctDestinations() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
