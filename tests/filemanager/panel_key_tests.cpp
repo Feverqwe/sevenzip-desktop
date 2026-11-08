@@ -31,10 +31,12 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         openListedArchive(window, backend, fixture.filePath("names.zip"),
                           {ArchiveEntry{"alpha.txt", 1, 1},
                            ArchiveEntry{QStringLiteral("Журнал.txt"), 2, 2},
-                           ArchiveEntry{QStringLiteral("Журнал2.txt"), 3, 3}});
+                           ArchiveEntry{QStringLiteral("Журнал2.txt"), 3, 3},
+                           ArchiveEntry{QStringLiteral("Ясень.txt"), 4, 4},
+                           ArchiveEntry{QStringLiteral("Яя.txt"), 5, 5}});
         window.show();
         auto *view = window.findChild<FileTable *>("archiveTable");
-        QTRY_COMPARE(view->rowCount(), 3);
+        QTRY_COMPARE(view->rowCount(), 5);
         view->setFocus();
         const int sizeColumn = view->columnForProperty(kpidSize);
         QVERIFY(sizeColumn > 0);
@@ -56,6 +58,22 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             }
             QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
                      QStringLiteral("Журнал2.txt"));
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
+            const auto typeYa = [&] {
+                QKeyEvent letter(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("я"));
+                QApplication::sendEvent(view, &letter);
+            };
+            QTest::qWait(QApplication::keyboardInputInterval() + 1);
+            typeYa();
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Ясень.txt"));
+            typeYa();
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Яя.txt"));
+            QTest::qWait(QApplication::keyboardInputInterval() + 1);
+            typeYa();
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Ясень.txt"));
             QCOMPARE(view->currentIndex().column(), sizeColumn);
         } else {
             QCOMPARE(view->currentIndex(), current);
