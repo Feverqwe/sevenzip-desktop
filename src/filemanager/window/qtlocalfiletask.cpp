@@ -217,7 +217,7 @@ void QtLocalFileTask::Finish(bool success, bool cancelled, const QString &messag
         return;
     worker_.wait();
     const QPointer<QtLocalFileTask> self(this);
-    if (success || retainedOutput || !movedSources.isEmpty())
+    if (retainedOutput || !movedSources.isEmpty())
         emit transferOutput(movedSources);
     if (!self || stopped_)
         return;

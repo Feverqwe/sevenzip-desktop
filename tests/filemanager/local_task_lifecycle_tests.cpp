@@ -517,6 +517,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         const auto tasks = QtLocalFileTask::Active();
         QCOMPARE(tasks.size(), 1);
         QSignalSpy finished(tasks.first(), &QtLocalFileTask::finished);
+        QSignalSpy published(tasks.first(), &QtLocalFileTask::transferOutput);
         bool answered = false, closed = false, retained = false, contextModal = false;
         bool reviewed = false;
         QTimer drive;
@@ -554,6 +555,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(finished.size(), 1);
         QCOMPARE(finished[0][0].toBool(), choice != "overwriteCancel");
         QCOMPARE(finished[0][1].toBool(), choice == "overwriteCancel");
+        QCOMPARE(published.size(), choice == "overwriteYes" ? 1 : 0);
         QCOMPARE(read(destination + '/' + name),
                  choice == "overwriteYes" ? QByteArray("new bytes") : QByteArray("old bytes"));
         QCOMPARE(QFileInfo::exists(source + '/' + name), choice != "overwriteYes");

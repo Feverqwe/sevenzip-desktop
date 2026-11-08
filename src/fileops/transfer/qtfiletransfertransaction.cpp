@@ -421,7 +421,7 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
     return {partial || !rollbackErrors_.isEmpty()
                 ? FileTransferOperation::ResultKind::PartialSuccess
                 : FileTransferOperation::ResultKind::Success,
-            message, movedSources(completed)};
+            message, movedSources(completed), !completed.isEmpty() || !rollbackErrors_.isEmpty()};
 }
 
 bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
