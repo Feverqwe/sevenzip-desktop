@@ -1,4 +1,5 @@
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
@@ -6,6 +7,7 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_link_fixture.h"
 #include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include <QClipboard>
 #include <QScrollBar>
 
@@ -17,6 +19,53 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void cancelledPasswordKeepsAddressReadyForRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath(QStringLiteral("архив с паролем.7z"));
+        const QString password = QStringLiteral("fixture secret");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"payload.txt", "payload"}}, "7z", password,
+                                            true));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(filesystemRow(window, QFileInfo(archive).fileName()) >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        address->setText(archive);
+        address->setSelection(archive.size() - 3, 3);
+        int prompts = 0;
+        bool accept = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            ++prompts;
+            if (accept) {
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                dialog->accept();
+            } else
+                dialog->reject();
+        });
+        responder.start(5);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(prompts, 1);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(address->text(), archive);
+        QCOMPARE(address->selectedText(), QString(".7z"));
+        QVERIFY(table(window)->sourcePanel->IsFSFolder());
+        accept = true;
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(rowWithPath(window, "payload.txt") >= 0);
+        QCOMPARE(prompts, 2);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(table(window)->hasFocus());
+    }
     void archiveLinkUsesNativeOpening_data() {
         QTest::addColumn<QString>("route");
         QTest::addColumn<QString>("kind");
