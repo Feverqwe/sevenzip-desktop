@@ -37,6 +37,11 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         updatePanelModifier(*static_cast<QKeyEvent *>(event));
     if (event->type() == QEvent::WindowDeactivate)
         rightControlPressed_ = false;
+    if (event->type() == QEvent::FocusOut) {
+        const unsigned panel = panelIndexFor(watched);
+        if (panel < kNumPanelsMax && panelInputTarget(watched, panel) == PanelInputTarget::List)
+            static_cast<QAbstractItemView *>(watched)->keyboardSearch({});
+    }
     if (!panelProjectionDepth_ &&
         (event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonPress ||
          event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::KeyPress)) {

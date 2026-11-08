@@ -76,6 +76,14 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QTRY_VERIFY(active->hasFocus());
         QTest::keyClick(window.focusWidget(), Qt::Key_Z);
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
+        if (switchView) {
+            viewMode->trigger();
+            action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
+            QTRY_VERIFY(active->hasFocus());
+            QTest::keyClick(window.focusWidget(), Qt::Key_A);
+            QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QString("alpha"));
+        }
     }
     void typingFindsTheNameFromAnotherColumn_data() {
         QTest::addColumn<bool>("matches");
