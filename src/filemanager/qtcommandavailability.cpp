@@ -120,6 +120,11 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     const bool safeFolderQueries =
         navigating && !w.projectedUi().locationUnavailable && panel.ShouldProcessNotifications();
     const bool windowCommands = navigating && !QApplication::activeModalWidget();
+    if (w.projectedUi().scanningDisk || w.projectedUi().scanningArchive) {
+        // Switching the view does not query the folder being loaded.
+        availability[IDM_VIEW_LARGE_ICONS] = windowCommands;
+        availability[IDM_VIEW_DETAILS] = windowCommands;
+    }
     availability[IDM_ABOUT] = windowCommands;
     availability[OpenArchivePicker] = windowCommands && !w.backend_->busy();
     availability[ManageMounts] = windowCommands;

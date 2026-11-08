@@ -4,6 +4,7 @@
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlanguageservices.h"
 #include <QScopedValueRollback>
 #include <QSignalBlocker>
@@ -56,6 +57,8 @@ void MainWindow::setViewMode(int mode) {
     const QWidget *previousView = stack->currentWidget();
     const bool restoreFocus =
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
+    const bool restoreAfterScan =
+        focused == projectedUi().container && (scanningPanelMask() & (1u << projectedPanel_));
     if (mode != 3)
         icons->ConfigureLargeIcons();
     // Upstream changes the style of the same list control. Qt replaces the
@@ -77,6 +80,8 @@ void MainWindow::setViewMode(int mode) {
     }
     if (restoreFocus)
         view->setFocus();
+    else if (restoreAfterScan)
+        workspace_->RequestListFocus(projectedPanel_);
     CListMode modes;
     for (unsigned i = 0; i < kNumPanelsMax; ++i)
         modes.Panels[i] = app_.Panels[i].GetListViewMode();

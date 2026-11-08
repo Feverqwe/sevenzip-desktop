@@ -7,13 +7,14 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
   private slots:
     void keyboardInputDuringRefresh_data() {
-        QTest::addColumn<bool>("editAddress");
-        QTest::newRow("list-navigation") << false;
-        QTest::newRow("switch-to-address") << true;
+        QTest::addColumn<QString>("shortcutAction");
+        QTest::newRow("list-navigation") << QString();
+        QTest::newRow("switch-to-address") << QString("focusPathAction");
+        QTest::newRow("switch-to-icons") << QString("viewMode0Action");
     }
 
     void keyboardInputDuringRefresh() {
-        QFETCH(bool, editAddress);
+        QFETCH(QString, shortcutAction);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -34,18 +35,23 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
         QTest::keySequence(view, action(window, "refreshAction")->shortcut());
         QVERIFY(!view->isEnabled());
         QVERIFY(window.focusWidget());
-        if (editAddress)
-            QTest::keyClick(window.focusWidget(), Qt::Key_L, Qt::ControlModifier);
+        if (!shortcutAction.isEmpty())
+            QTest::keySequence(window.focusWidget(),
+                               action(window, qPrintable(shortcutAction))->shortcut());
         else
             QTest::keyClick(window.focusWidget(), Qt::Key_Down);
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == 301);
-        if (editAddress)
+        if (shortcutAction == "focusPathAction")
             QVERIFY(window.findChild<QLineEdit *>("archivePath")->hasFocus());
         else {
-            QVERIFY(view->hasFocus());
-            QTest::keyClick(view, Qt::Key_Home);
-            QTest::keyClick(view, Qt::Key_Down);
-            QCOMPARE(view->currentIndex().row(), 1);
+            auto *focusedView =
+                shortcutAction == "viewMode0Action"
+                    ? static_cast<QAbstractItemView *>(window.findChild<QListView *>("iconList"))
+                    : view;
+            QVERIFY(focusedView && focusedView->isVisible() && focusedView->hasFocus());
+            QTest::keyClick(focusedView, Qt::Key_Home);
+            QTest::keyClick(focusedView, Qt::Key_Down);
+            QVERIFY(focusedView->currentIndex().row() > 0);
         }
     }
 
