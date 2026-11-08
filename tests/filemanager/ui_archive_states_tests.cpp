@@ -85,6 +85,19 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
             }
         });
         responder.start(5);
+        if (corrupt) {
+            view->selectRow(rowWithPath(window, "damaged.txt"));
+            window.testArchive();
+            QCOMPARE(reports.size(), 1);
+            QVERIFY(reports.last().contains("Scope: selected items"));
+            QVERIFY(reports.last().contains("damaged.txt"));
+            QVERIFY(reports.last().contains("CRC", Qt::CaseInsensitive));
+            QVERIFY(!reports.last().contains("outside.txt"));
+            QTRY_COMPARE(window.focusWidget(), view);
+            QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+            QVERIFY(view->selectionModel()->isRowSelected(rowWithPath(window, "damaged.txt"), {}));
+            reports.clear();
+        }
         view->selectRow(rowWithPath(window, "outside.txt"));
         window.testArchive();
         QCOMPARE(reports.size(), 1);

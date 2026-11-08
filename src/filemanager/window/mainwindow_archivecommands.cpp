@@ -8,6 +8,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "gui/UpdateGUI.h"
 #include "gui/resource2.h"
 #include "localization/qtlangcontrols.h"
@@ -171,12 +172,14 @@ void MainWindow::testArchive() {
     if (resource && ArchiveHasExtractService(folder->GetArchiveProperties()) &&
         (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
          backend_->hasListedSourceArchive(projectedUi().archive))) {
+        const QPointer<QWidget> focus = focusWidget();
         setState(State::Operating);
         {
             QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
             app_.TestArchives();
         }
         setState(State::Viewing);
+        appPresentation_->RestoreWidgetFocus(focus);
         return;
     }
     previousState_ = projectedUi().state;
