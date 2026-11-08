@@ -67,8 +67,23 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             QVERIFY(QFile::link(destination, opened));
             QVERIFY(QFileInfo(opened).isSymLink());
         }
-        ControlledBackend backend;
-        MainWindow window(&backend);
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend, observerBackend;
+        MainWindow window(&backend), observer(&observerBackend);
+        observer.show();
+        observer.openPath(destination);
+        auto *observed = table(observer);
+        QTRY_VERIFY(observed->isEnabled());
+        if (linkedDestination) {
+            COpenResult openedLink;
+            QCOMPARE(
+                observed->sourcePanel->BindToPath(ToUString(opened + '/'), UString(), openedLink),
+                S_OK);
+            QCOMPARE(observed->sourcePanel->RefreshListCtrl(), S_OK);
+            QCOMPARE(QDir::cleanPath(ToQString(observed->sourcePanel->GetCurrentFolderPrefix())),
+                     opened);
+        }
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
         window.openPath(opened);
         auto *view = table(window);
@@ -85,6 +100,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         paste->trigger();
         const QString name = QFileInfo(source).fileName();
         QTRY_VERIFY(filesystemRow(window, name) >= 0);
+        QTRY_VERIFY(filesystemRow(observer, name) >= 0);
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
         QCOMPARE(read(source), QByteArray("source bytes"));
         if (linkedDestination)
