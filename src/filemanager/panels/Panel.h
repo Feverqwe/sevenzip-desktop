@@ -620,11 +620,13 @@ class CPanel : public QObject {
     bool DoesItSupportOperations() const { return _folderOperations != NULL; }
     bool CheckBeforeUpdate(UINT resourceID);
     bool CorrectFsPath(const UString &path, UString &result);
-    HRESULT CreateFolder(UString name, QString &error, QString *destinationDirectory = nullptr);
+    HRESULT CreateFolder(UString name, QString &error, QString *destinationDirectory = nullptr,
+                         QString *publishedArchive = nullptr);
     void RenameFile();
     bool OnBeginLabelEdit(int row);
     HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
-                           QString *destinationDirectory = nullptr);
+                           QString *destinationDirectory = nullptr,
+                           QString *publishedArchive = nullptr);
     HRESULT MoveItemsToTrash(class IQtTrashService &trash, CSelectedState &selection,
                              const CRecordVector<UInt32> *explicitIndices = nullptr,
                              bool confirm = true, unsigned *moved = nullptr);

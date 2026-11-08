@@ -8,10 +8,14 @@ QtGuiOutputRefresh::QtGuiOutputRefresh(Ready ready, Refresh refresh)
     connect(&timer_, &QTimer::timeout, this, &QtGuiOutputRefresh::Flush);
 }
 
-void QtGuiOutputRefresh::Enqueue(const QStringList &directories, const QStringList &archives) {
+void QtGuiOutputRefresh::Enqueue(const QStringList &directories, const QStringList &archives,
+                                 int skipPanel) {
     if (stopped_ || (directories.isEmpty() && archives.isEmpty()))
         return;
-    for (auto &output : pending_) {
+    for (unsigned panel = 0; panel < pending_.size(); ++panel) {
+        if (int(panel) == skipPanel)
+            continue;
+        auto &output = pending_[panel];
         output.directories.append(directories);
         output.directories.removeDuplicates();
         output.archives.append(archives);

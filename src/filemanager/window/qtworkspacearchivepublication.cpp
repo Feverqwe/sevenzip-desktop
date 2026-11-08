@@ -54,9 +54,9 @@ bool QtWindowWorkspace::CanRefreshPublishedArchives() const {
     return true;
 }
 
-void QtWindowWorkspace::InvalidateArchive(const QString &path) {
+void QtWindowWorkspace::InvalidateArchive(const QString &path, int skipPanel) {
     for (unsigned slot = 0; slot < panels_.size(); ++slot) {
-        if (!window_.panelUi_[slot].table)
+        if (int(slot) == skipPanel || !window_.panelUi_[slot].table)
             continue;
         auto &location = panels_[slot].location;
         auto &source = window_.app_.Panels[slot];

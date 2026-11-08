@@ -10,6 +10,7 @@
 #include <vector>
 
 class MainWindow;
+class CPanel;
 class QApplication;
 class QtTaskResultDialog;
 class QWidget;
@@ -27,7 +28,7 @@ class QtWorkspaceApplication final : public QObject {
     void Restore(MainWindow &first);
     void NewWindowFrom(MainWindow &source);
     void Save();
-    void ArchivePublished(const QString &archive);
+    void ArchivePublished(const QString &archive, const CPanel *updated = nullptr);
     void FilesystemPublished(const QStringList &directories, const MainWindow *exclude = nullptr);
     void Quit();
 

@@ -6,10 +6,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
-void QtWorkspaceApplication::ArchivePublished(const QString &archive) {
+void QtWorkspaceApplication::ArchivePublished(const QString &archive, const CPanel *updated) {
     for (const auto &window : windows_)
         if (window && !window->app_.QtOperations().closed())
-            window->ArchivePublished(archive);
+            window->ArchivePublished(archive, updated);
 }
 
 void QtWorkspaceApplication::FilesystemPublished(const QStringList &directories,

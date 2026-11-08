@@ -90,7 +90,15 @@ static bool PrepareFilesystemName(CPanel &panel, UString &name) {
     return true;
 }
 
-HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationDirectory) {
+static void SetPublishedArchive(const CPanel &panel, const CThreadFolderOperations &operation,
+                                QString *publishedArchive) {
+    const auto &parents = panel.GetParentFolders();
+    if (publishedArchive && parents.Size() == 1 && operation.UpdateCallback->Published == true)
+        *publishedArchive = ToQString(parents.Front().VirtualPath);
+}
+
+HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationDirectory,
+                             QString *publishedArchive) {
     if (IsHashFolder() || !_folderOperations || IsThereReadOnlyFolder())
         return E_NOTIMPL;
     if (name.IsEmpty() || !IsCorrectFsName(name))
@@ -112,6 +120,7 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     const HRESULT res =
         op.DoOperation(*this, LangString(IDS_CREATE_FOLDER), LangString(IDS_CREATE_FOLDER_ERROR));
     error = ToQString(op.Sync.FinalMessage.ErrorMessage.Message);
+    SetPublishedArchive(*this, op, publishedArchive);
     if (res == S_OK) {
         PrepareCreatedSelection(*this, name, state);
         if (destinationDirectory && IsFSFolder())
@@ -140,7 +149,7 @@ void CPanel::RenameFile() {
 }
 
 HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
-                               QString *destinationDirectory) {
+                               QString *destinationDirectory, QString *publishedArchive) {
     CDisableTimerProcessing disableTimerProcessing2(*this);
     if (!CheckBeforeUpdate(IDS_ERROR_RENAMING))
         return E_ABORT;
@@ -164,6 +173,7 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
     op.Name = newName;
     const HRESULT result =
         op.DoOperation(*this, LangString(IDS_RENAMING), LangString(IDS_ERROR_RENAMING));
+    SetPublishedArchive(*this, op, publishedArchive);
     if (result == S_OK) {
         state.FocusedName = RenamedItemInView(*this, prefix + newName);
         if (destinationDirectory && IsFSFolder())

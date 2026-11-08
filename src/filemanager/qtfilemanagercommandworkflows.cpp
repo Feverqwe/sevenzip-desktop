@@ -168,6 +168,7 @@ void QtFileManagerCommands::CreateFolder() {
             window_.activatePanelUi(index);
         QString detail;
         QString destinationDirectory;
+        QString publishedArchive;
         HRESULT result = E_INVALIDARG;
         if (!value.isEmpty() && !value.contains(QChar::Null)) {
             const QPointer<QWidget> alive(editor);
@@ -176,13 +177,20 @@ void QtFileManagerCommands::CreateFolder() {
                 QtAppOperationState::CallScope call(operations);
                 {
                     QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
-                    result = panel.CreateFolder(ToUString(value), detail, &destinationDirectory);
+                    result = panel.CreateFolder(ToUString(value), detail, &destinationDirectory,
+                                                &publishedArchive);
                 }
                 operations.ContinueScanAfterSourceCall(index);
             }
             if (!alive || operations.closed())
                 return;
             editor->setEnabled(true);
+        }
+        if (!publishedArchive.isEmpty()) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->ArchivePublished(publishedArchive, &panel);
+            else
+                window_.ArchivePublished(publishedArchive, &panel);
         }
         if (result == S_OK) {
             finish();

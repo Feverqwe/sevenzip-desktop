@@ -40,7 +40,7 @@ class QtWindowWorkspace final : public QObject {
     void EditLocation();
     QString CurrentLocation();
     void AttachContent(unsigned panel, QVBoxLayout &layout);
-    void InvalidateArchive(const QString &path);
+    void InvalidateArchive(const QString &path, int skipPanel = -1);
     bool RefreshPublishedArchive(unsigned panel, bool interactive = false);
     bool CanRefreshPublishedArchives() const;
     bool CanRefreshPublishedOutput(unsigned panel) const;

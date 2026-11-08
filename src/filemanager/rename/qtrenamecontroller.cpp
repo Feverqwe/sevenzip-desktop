@@ -185,6 +185,7 @@ void QtRenameController::Apply(const Request &request) {
 
 void QtRenameController::Finish(const Request &request, CPanel &panel) {
     QString destinationDirectory;
+    QString publishedArchive;
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
         if (request.name.contains(QChar::Null) ||
@@ -193,7 +194,7 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
             panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         } else
             panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name),
-                                 &destinationDirectory);
+                                 &destinationDirectory, &publishedArchive);
     }
     const auto selection = panel.TakeRefreshSelection();
     if (!selection) {
@@ -206,6 +207,12 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     // publication result and must not add a second rename diagnostic.
     if (window_.renderBoundFolder() == S_OK)
         window_.restoreListSelection(*selection);
+    if (!publishedArchive.isEmpty()) {
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->ArchivePublished(publishedArchive, &panel);
+        else
+            window_.ArchivePublished(publishedArchive, &panel);
+    }
     if (!destinationDirectory.isEmpty()) {
         const QStringList changed{QFileInfo(request.path).absolutePath(), destinationDirectory};
         if (auto *application = QtWorkspaceApplication::Find())

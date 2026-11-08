@@ -3,6 +3,7 @@
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
@@ -34,6 +35,44 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void inlineChangesRefreshAnotherWindow() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("shared.7z");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"original.txt", "payload"}}));
+        QtWorkspaceApplication application(*qApp);
+        MainWindow writer, observer;
+        observer.show();
+        observer.openArchive(archive);
+        QTRY_VERIFY(names(observer).contains("original.txt"));
+        table(observer)->sourcePanel->Set_AutoRefresh_Mode(false);
+        writer.show();
+        writer.openArchive(archive);
+        QVERIFY(WindowActivation::waitForActive(writer));
+        QTRY_VERIFY(action(writer, "createFolderAction")->isEnabled());
+        action(writer, "createFolderAction")->trigger();
+        auto *folder = writer.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(folder && folder->isVisible());
+        folder->setText("new folder");
+        QTest::keyClick(folder, Qt::Key_Return);
+        QTRY_VERIFY(names(observer).contains("new folder"));
+        auto *view = table(writer);
+        const int row = names(writer).indexOf("original.txt");
+        QVERIFY(row >= 0);
+        view->setFocus();
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        action(writer, "renameAction")->trigger();
+        auto *editor = qobject_cast<QLineEdit *>(writer.focusWidget());
+        QVERIFY(editor && view->isAncestorOf(editor));
+        editor->setText("renamed.txt");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(names(observer).contains("renamed.txt"));
+        QVERIFY(!names(observer).contains("original.txt"));
+        QVERIFY(names(observer).contains("new folder"));
+        QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
+    }
+
     void reopenPublishedChain_data() {
         QTest::addColumn<int>("scenario");
         QTest::newRow("active-nested") << 0;

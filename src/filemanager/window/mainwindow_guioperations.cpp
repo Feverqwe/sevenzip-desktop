@@ -10,10 +10,14 @@
 #include <QFileInfo>
 #include <algorithm>
 
-void MainWindow::ArchivePublished(const QString &archive) {
+void MainWindow::ArchivePublished(const QString &archive, const CPanel *updated) {
     if (!app_.QtOperations().closed() && guiOutputRefresh_) {
-        workspace_->InvalidateArchive(archive);
-        guiOutputRefresh_->Enqueue({}, {archive});
+        int skipPanel = -1;
+        for (unsigned panel = 0; updated && panel < kNumPanelsMax; ++panel)
+            if (updated == &app_.Panels[panel])
+                skipPanel = int(panel);
+        workspace_->InvalidateArchive(archive, skipPanel);
+        guiOutputRefresh_->Enqueue({}, {archive}, skipPanel);
     }
 }
 

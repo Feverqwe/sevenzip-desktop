@@ -90,7 +90,7 @@ struct QtFileManagerStartup;
 
 class MainWindow : public QMainWindow {
   public:
-    void ArchivePublished(const QString &archive);
+    void ArchivePublished(const QString &archive, const CPanel *updated = nullptr);
     explicit MainWindow(ArchiveBackend *backend = nullptr,
                         std::function<bool(const QUrl &)> fileOpener = {},
                         IQtTrashService *trashService = nullptr,
