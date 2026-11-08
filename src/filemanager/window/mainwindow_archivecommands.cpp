@@ -102,10 +102,7 @@ void MainWindow::createDialog() {
     if (app_.QtOperations().closed())
         return;
     const QPointer<QWidget> focus = focusWidget();
-    const auto restoreFocus = qScopeGuard([&] {
-        if (!app_.QtOperations().closed() && focus && focus->isVisible() && focus->isEnabled())
-            focus->setFocus(Qt::OtherFocusReason);
-    });
+    const auto restoreFocus = qScopeGuard([&] { appPresentation_->RestoreWidgetFocus(focus); });
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing)
         return;

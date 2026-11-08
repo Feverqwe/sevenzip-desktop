@@ -37,12 +37,13 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
 
   private slots:
     void batchArchiveCommandKeepsTheNewActiveWindow_data() {
-        QTest::addColumn<bool>("extract");
-        QTest::newRow("test") << false;
-        QTest::newRow("extract") << true;
+        QTest::addColumn<QByteArray>("actionName");
+        QTest::newRow("test") << QByteArray("testArchiveAction");
+        QTest::newRow("extract") << QByteArray("extractArchiveAction");
+        QTest::newRow("add") << QByteArray("toolbarAddAction");
     }
     void batchArchiveCommandKeepsTheNewActiveWindow() {
-        QFETCH(bool, extract);
+        QFETCH(QByteArray, actionName);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("batch.zip");
@@ -71,6 +72,14 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
                 return ControlledBackend::startGuiExtract(paths, folder, showDialog, elimDup, zone,
                                                           error);
             }
+            QtOperationLauncher *startGuiCompress(const QString &output, const QString &type,
+                                                  bool addExtension, const QStringList &paths,
+                                                  bool email, bool showDialog,
+                                                  QString &error) override {
+                switchWindow();
+                return ControlledBackend::startGuiCompress(output, type, addExtension, paths, email,
+                                                           showDialog, error);
+            }
         } backend;
         backend.peer = &peer;
         backend.view = peerView;
@@ -85,7 +94,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         const int row = filesystemRow(window, "batch.zip");
         view->setCurrentCell(row, 0);
         view->selectRow(row);
-        auto *command = action(window, extract ? "extractArchiveAction" : "testArchiveAction");
+        auto *command = action(window, actionName.constData());
         QVERIFY(command->isEnabled());
         command->trigger();
         QCOMPARE(backend.GuiRequests.size(), 1);
