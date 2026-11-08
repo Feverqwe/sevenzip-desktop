@@ -144,7 +144,8 @@ class FileRowDelegate final : public QStyledItemDelegate {
     }
 #endif
     void setEditorData(QWidget *editor, const QModelIndex &index) const override {
-        if (const auto *line = qobject_cast<QLineEdit *>(editor); line && line->isModified())
+        if (const auto *line = qobject_cast<QLineEdit *>(editor);
+            line && (line->isModified() || line->text() == index.data(Qt::EditRole).toString()))
             return;
         QStyledItemDelegate::setEditorData(editor, index);
     }

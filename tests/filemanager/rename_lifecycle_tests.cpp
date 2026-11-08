@@ -43,7 +43,7 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString original = QStringLiteral("original 空.txt");
-        const QString renamed = QStringLiteral("renamed δ.txt");
+        const QString renamed = QStringLiteral("renamed 空.txt");
         QFile input(fixture.filePath(original));
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("source bytes"), qint64(12));
@@ -71,11 +71,15 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         action(window, "renameAction")->trigger();
         QPointer<QLineEdit> editor = active->findChild<QLineEdit *>();
         QVERIFY(editor);
+        editor->setSelection(8, -8);
+        view->invalidateLanguageText();
+        QVERIFY(editor);
+        QCOMPARE(editor->selectedText(), QString("original"));
+        QCOMPARE(editor->cursorPosition(), 0);
         // The real language-change path refreshes display roles. It must
         // neither confirm nor retire an editor that the user still owns.
-        editor->selectAll();
         QInputMethodEvent inputMethod;
-        inputMethod.setCommitString(renamed);
+        inputMethod.setCommitString(QStringLiteral("renamed"));
         QApplication::sendEvent(editor, &inputMethod);
         QCOMPARE(editor->text(), renamed);
         view->invalidateLanguageText();
