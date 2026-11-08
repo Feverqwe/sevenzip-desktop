@@ -256,16 +256,19 @@ HRESULT MainWindow::goParentImpl() {
     const unsigned panelIndex = app_.LastFocusedPanel;
     if (!panel.IsArcFolder() || !GetFolderPath(panel.GetFolder()).IsEmpty())
         workspace_->RetainNavigationFolder();
+    const State previousState = projectedUi().state;
     setState(State::Operating);
+    HRESULT result;
     {
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-        panel.OpenParentFolder();
+        result = panel.OpenParentFolder();
     }
-    const auto published = workspace_->NavigationPublication();
-    const HRESULT result = published ? *published
-                           : projectedUi().scanningDisk || projectedUi().scanningArchive
-                               ? S_OK
-                               : renderBoundFolder();
+    if (result == E_ABORT)
+        setState(previousState);
+    else if (const auto published = workspace_->NavigationPublication())
+        result = *published;
+    else if (!projectedUi().scanningDisk && !projectedUi().scanningArchive)
+        result = renderBoundFolder();
     // Win32 keeps list focus while Parent refreshes its rows. Qt can clear it
     // when disabling that view; use the existing publication/input guard.
     if (restoreListFocus)

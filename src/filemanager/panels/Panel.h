@@ -537,7 +537,7 @@ class CPanel : public QObject {
     // Share the original Windows quote handling with Qt address transport.
     static UString PrepareBindPath(const UString &path);
     UString GetParentDirPrefix() const;
-    void OpenParentFolder();
+    HRESULT OpenParentFolder();
     void OpenRootFolder();
     void OpenDrivesFolder();
     const CObjectVector<CFolderLink> &GetParentFolders() const { return _parentFolders; }

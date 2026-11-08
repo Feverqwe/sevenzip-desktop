@@ -131,7 +131,7 @@ UString CPanel::GetParentDirPrefix() const {
     return s;
 }
 
-void CPanel::OpenParentFolder() {
+HRESULT CPanel::OpenParentFolder() {
     LoadFullPath(); // Maybe we don't need it ??
     UString parentFolderPrefix;
     UString focusedName;
@@ -173,7 +173,7 @@ void CPanel::OpenParentFolder() {
                 focusedName = link.RelPath;
             }
             if (!CloseOneLevel(true))
-                return;
+                return E_ABORT;
             needSetFolder = (!_folder);
         }
         if (needSetFolder) {
@@ -194,6 +194,7 @@ void CPanel::OpenParentFolder() {
     // ::SetCurrentDirectory(::_currentFolderPrefix);
     RefreshListCtrl(state);
     // _listView.EnsureVisible(_listView.GetFocusedItem(), false);
+    return S_OK;
 }
 
 void CPanel::OpenRootFolder() {
