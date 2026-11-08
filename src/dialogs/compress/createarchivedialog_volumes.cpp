@@ -5,6 +5,7 @@
 #include "filemanager/SplitUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
+#include <QLineEdit>
 
 void CreateArchiveDialog::createVolumeOptions(QFormLayout *form) {
     volume_ = new QComboBox(this);
@@ -26,6 +27,7 @@ bool CreateArchiveDialog::checkVolumeSizes(CCompressDialog::EVolumeResult result
         additionalOptions_->setExpanded(true);
         ShowErrorMessageHwndResQt(this, IDS_INCORRECT_VOLUME_SIZE);
         volume_->setFocus();
+        volume_->lineEdit()->selectAll();
         return false;
     }
     if (result == CCompressDialog::kConfirmSmallVolume &&
@@ -35,6 +37,7 @@ bool CreateArchiveDialog::checkVolumeSizes(CCompressDialog::EVolumeResult result
             QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel) != QMessageBox::Yes) {
         additionalOptions_->setExpanded(true);
         volume_->setFocus();
+        volume_->lineEdit()->selectAll();
         return false;
     }
     return true;
