@@ -98,6 +98,12 @@ void QtWorkspaceApplication::ApplyWhenReady(MainWindow &window, const QJsonObjec
 }
 
 void QtWorkspaceApplication::NewWindowFrom(MainWindow &source) {
+    const auto &ui = source.projectedUi();
+    if (ui.scanningDisk) {
+        const QJsonObject panel{{"path", ui.directory}};
+        OpenWindow({{"panels", QJsonArray{panel}}, {"count", 1}}, {});
+        return;
+    }
     auto &workspace = *source.workspace_;
     const QString path = workspace.CurrentLocation();
     const auto &location = workspace.panels_[source.projectedPanel_].location;

@@ -195,6 +195,39 @@ class WorkspaceSessionTests final : public QObject {
         QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
     }
+    void newWindowOpensTheFolderBeingScanned() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (int i = 0; i < 301; ++i) {
+            QFile file(fixture.filePath(QString("file-%1.txt").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend;
+        MainWindow source(&backend);
+        source.show();
+        source.findChild<QAction *>("openRootAction")->trigger();
+        auto *table = active(source);
+        QVERIFY(table);
+        QCOMPARE(QtNativePlaces::RootIdentity(*table->sourcePanel), QString("computer"));
+        source.openPath(fixture.path());
+        QVERIFY(!table->isEnabled());
+        source.findChild<QAction *>("newWindowAction")->trigger();
+        QPointer<MainWindow> copy;
+        const auto close = qScopeGuard([&] {
+            if (copy)
+                copy->close();
+        });
+        QTRY_COMPARE(windows().size(), 2);
+        for (auto *window : windows())
+            if (window != &source)
+                copy = window;
+        QVERIFY(copy);
+        QTRY_VERIFY(active(*copy) && active(*copy)->isEnabled() &&
+                    active(*copy)->rowCount() == 301);
+        QCOMPARE(location(*copy), QFileInfo(fixture.path()).canonicalFilePath());
+    }
+
     void newWindowKeepsNativeRootAcrossDeferredLanguageChange() {
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(L"-", settings);
