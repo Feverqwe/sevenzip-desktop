@@ -213,6 +213,72 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(location(window), a);
     }
 
+    void savedFolderRejectsReplacementArchive_data() {
+        QTest::addColumn<bool>("favorite");
+        QTest::newRow("recent") << false;
+        QTest::newRow("favorite") << true;
+    }
+    void savedFolderRejectsReplacementArchive() {
+        QFETCH(bool, favorite);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath("folder.7z");
+        const QString parked = fixture.filePath("renamed");
+        const QString origin = fixture.filePath("origin");
+        directory(target);
+        directory(origin);
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(target);
+        QTRY_COMPARE(location(window), target);
+        if (favorite)
+            addFavorite(window, "Saved folder");
+        window.openPath(origin);
+        QTRY_COMPARE(location(window), origin);
+        QVERIFY(QDir().rename(target, parked));
+        QVERIFY(ExternalEditorFixture::createArchive(fixture.path(), target, "renamed", "7z",
+                                                     "saved folder password"));
+        int prompts = 0;
+        QTimer answer;
+        dialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = qobject_cast<QDialog *>(dialogs_.activeDialog())) {
+                ++prompts;
+                dialog->reject();
+            }
+        });
+        answer.start(1);
+        const auto openRecent = [&] {
+            action(window, "foldersHistoryAction")->trigger();
+            QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+            auto *menu = RecentPlacesMenu::Visible(window);
+            auto *entry = RecentPlacesMenu::Find(*menu, target);
+            QVERIFY(entry);
+            RecentPlacesMenu::Choose(*menu, *entry);
+        };
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        QVERIFY(retry);
+        if (favorite) {
+            openFavorite(window, "Saved folder");
+            QTRY_VERIFY(retry->isVisible());
+            retry->click();
+            QVERIFY(retry->isVisible());
+        } else {
+            openRecent();
+            QTRY_VERIFY(!window.statusBar()->currentMessage().isEmpty());
+            QCOMPARE(location(window), origin);
+        }
+        QCOMPARE(prompts, 0);
+        QVERIFY(QFile::remove(target));
+        QVERIFY(QDir().rename(parked, target));
+        if (favorite)
+            retry->click();
+        else
+            openRecent();
+        QTRY_COMPARE(location(window), target);
+        QVERIFY(!retry->isVisible());
+    }
+
     void backgroundFailureReportsToTheInitiatingPane() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

@@ -8,6 +8,7 @@ struct QtRecentPlace {
     QString path;
     QString nativeIdentity;
     QtArchiveLocation archive;
+    bool diskFolder = false;
 };
 
 // CFolderHistory owns visit ordering and comparison. Windows share this store.

@@ -25,7 +25,7 @@ QString PlaceLabel(const QtRecentPlace &place) {
 
 void QtWindowWorkspace::RecordVisit(const QString &path) {
     const auto visit = CaptureVisit(window_.projectedPanel_);
-    recentPlaces_->Visit({path, visit.nativePlaceIdentity, visit.archiveLocation});
+    recentPlaces_->Visit({path, visit.nativePlaceIdentity, visit.archiveLocation, visit.diskFolder});
 }
 
 void QtWindowWorkspace::ShowRecentPlaces(unsigned panel, QWidget &anchor) {
@@ -64,6 +64,8 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
     const auto interaction = interactionRevision_;
     Navigate(
         [&]() -> HRESULT {
+            if (place.diskFolder && !QFileInfo(QDir::cleanPath(place.path)).isDir())
+                return S_FALSE;
             ProtectNavigation();
             return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive);
         },

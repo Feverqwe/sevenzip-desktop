@@ -25,7 +25,7 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
                 locationState.selection,
                 locationState.scroll,
                 UInt32(locationState.viewMode),
-                window_.app_.Panels[panel].IsFSFolder()};
+                locationState.diskFolder};
     const auto &ui = window_.panelUi_[panel];
     // A same-folder refresh has already saved the selection and viewport.
     // Its live model may be empty or only partially published.
@@ -56,8 +56,13 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
             request->origin = CaptureVisit(panel);
         if (history == NavigationHistory::Record && window_.panelUi_[panel].locationUnavailable) {
             const auto &location = panels_[panel].location;
-            request->unavailableOrigin = Visit{
-                location.path, location.nativePlaceIdentity, location.archiveLocation, {}, {}};
+            request->unavailableOrigin = Visit{location.path,
+                                               location.nativePlaceIdentity,
+                                               location.archiveLocation,
+                                               {},
+                                               {},
+                                               UInt32(location.viewMode),
+                                               location.diskFolder};
         }
         request->finished = std::move(finished);
         navigation_[panel] = std::move(request);
@@ -220,6 +225,7 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             auto &location = panels_[panel].location;
             location.nativePlaceIdentity = origin->nativePlaceIdentity;
             location.archiveLocation = origin->archiveLocation;
+            location.diskFolder = origin->diskFolder;
             CompleteLocationOpen(panel, origin->path, result);
         } else if (request->destination >= 0 && result != E_ABORT) {
             const auto &target = panels_[panel].location.visits[request->destination];

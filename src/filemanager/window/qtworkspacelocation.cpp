@@ -119,6 +119,8 @@ HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &p
 
 HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
     auto &locationState = panels_[panel].location;
+    if (locationState.diskFolder && !QFileInfo(QDir::cleanPath(locationState.path)).isDir())
+        return S_FALSE;
     const QString identity = locationState.nativePlaceIdentity;
     const bool recorded =
         !identity.isEmpty() || !locationState.archiveLocation.physicalPath.isEmpty();

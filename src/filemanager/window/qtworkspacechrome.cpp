@@ -175,6 +175,7 @@ void QtWindowWorkspace::AddFavorite() {
     const auto &location = panels_[window_.projectedPanel_].location;
     const auto nativeIdentity = location.nativePlaceIdentity;
     const auto archive = location.archiveLocation;
+    const bool diskFolder = window_.app_.GetFocusedPanel().IsFSFolder();
     const QString defaultName = path.isEmpty() && nativeIdentity == "locations"
                                     ? tr("Locations")
                                     : QFileInfo(QDir::cleanPath(path)).fileName();
@@ -182,7 +183,7 @@ void QtWindowWorkspace::AddFavorite() {
     const QString label = QInputDialog::getText(&window_, tr("Add favorite"), tr("Name"),
                                                 QLineEdit::Normal, defaultName, &accepted);
     if (accepted && !label.trimmed().isEmpty())
-        favorites_->Add(path, label.trimmed(), nativeIdentity, archive);
+        favorites_->Add(path, label.trimmed(), nativeIdentity, archive, diskFolder);
 }
 
 void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
@@ -195,7 +196,9 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
             ? std::optional(CaptureVisit(panel))
             : std::nullopt;
     Navigate(
-        [&] {
+        [&]() -> HRESULT {
+            if (favorite.diskFolder && !QFileInfo(QDir::cleanPath(favorite.path)).isDir())
+                return S_FALSE;
             return OpenRecordedLocation(panel, favorite.path, favorite.nativeIdentity,
                                         favorite.archive);
         },
@@ -216,6 +219,7 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
             }
             location.nativePlaceIdentity = favorite.nativeIdentity;
             location.archiveLocation = favorite.archive;
+            location.diskFolder = favorite.diskFolder;
             CompleteLocationOpen(panel, favorite.path, result);
             window_.refreshActions();
         });

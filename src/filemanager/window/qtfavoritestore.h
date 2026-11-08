@@ -8,6 +8,7 @@ struct QtFavorite {
     QString defaultLabel;
     QString nativeIdentity;
     QtArchiveLocation archive;
+    bool diskFolder = false;
 };
 
 class QtFavoriteStore final : public QAbstractListModel {
@@ -26,7 +27,7 @@ class QtFavoriteStore final : public QAbstractListModel {
                       const QModelIndex &parent) override;
     Qt::DropActions supportedDropActions() const override;
     void Add(const QString &path, const QString &label = {}, const QString &nativeIdentity = {},
-             const QtArchiveLocation &archive = {});
+             const QtArchiveLocation &archive = {}, bool diskFolder = false);
     QtFavorite Favorite(int row) const;
     QModelIndex IndexForId(const QString &id) const;
     void RefreshLabels();

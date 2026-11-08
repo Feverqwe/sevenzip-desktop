@@ -60,7 +60,8 @@ void QtRecentPlacesStore::Reload() {
             continue;
         const auto item = value.toObject();
         targets_.insert(path, {path, item.value("nativePlace").toString(),
-                               QtArchiveLocation::Restore(item.value("archive").toObject())});
+                               QtArchiveLocation::Restore(item.value("archive").toObject()),
+                               item.value("diskFolder").toBool()});
         retained.insert(path, item);
     }
     if (retained != saved)
@@ -93,9 +94,11 @@ void QtRecentPlacesStore::Publish() {
         auto target = Target(paths_[index]);
         target.path = path;
         retained.insert(path, target);
-        if (!target.nativeIdentity.isEmpty() || !target.archive.physicalPath.isEmpty())
+        if (target.diskFolder || !target.nativeIdentity.isEmpty() ||
+            !target.archive.physicalPath.isEmpty())
             saved.insert(path, QJsonObject{{"nativePlace", target.nativeIdentity},
-                                           {"archive", target.archive.Save()}});
+                                           {"archive", target.archive.Save()},
+                                           {"diskFolder", target.diskFolder}});
     }
     history_.Save(settings_);
     QSettings(settings_, QSettings::IniFormat)

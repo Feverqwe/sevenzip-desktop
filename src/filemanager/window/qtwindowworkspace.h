@@ -116,6 +116,7 @@ class QtWindowWorkspace final : public QObject {
         PROPID sort = 0;
         bool ascending = true;
         bool unavailable = false;
+        bool diskFolder = false;
         quint64 archiveRevision = 0;
         quint64 archiveApplied = 0;
         quint64 archiveAttempted = 0;

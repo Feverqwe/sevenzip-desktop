@@ -39,7 +39,8 @@ QtFavoriteStore::QtFavoriteStore(const QString &settingsPath, QObject *parent)
             if (!id.isEmpty() && (!path.isEmpty() || nativeIdentity == "locations"))
                 favorites_.append({id, entry.value("label").toString(), path,
                                    entry.value("defaultLabel").toString(), nativeIdentity,
-                                   QtArchiveLocation::Restore(entry.value("archive").toObject())});
+                                   QtArchiveLocation::Restore(entry.value("archive").toObject()),
+                                   entry.value("diskFolder").toBool()});
         }
     } else {
         CFastFolders legacy;
@@ -129,7 +130,7 @@ bool QtFavoriteStore::setData(const QModelIndex &index, const QVariant &value, i
 }
 
 void QtFavoriteStore::Add(const QString &path, const QString &label, const QString &nativeIdentity,
-                          const QtArchiveLocation &archive) {
+                          const QtArchiveLocation &archive, bool diskFolder) {
     if (path.isEmpty() && nativeIdentity != "locations")
         return;
     for (const auto &entry : favorites_)
@@ -145,7 +146,8 @@ void QtFavoriteStore::Add(const QString &path, const QString &label, const QStri
                        path,
                        {},
                        nativeIdentity,
-                       archive});
+                       archive,
+                       diskFolder});
     endInsertRows();
     Save();
 }
@@ -210,7 +212,7 @@ bool QtFavoriteStore::dropMimeData(const QMimeData *mime, Qt::DropAction action,
     bool added = false;
     for (const auto &url : mime->urls()) {
         if (url.isLocalFile() && QFileInfo(url.toLocalFile()).isDir()) {
-            Add(url.toLocalFile());
+            Add(url.toLocalFile(), {}, {}, {}, true);
             added = true;
         }
     }
@@ -225,7 +227,8 @@ void QtFavoriteStore::Save() {
                                    {"path", entry.path},
                                    {"defaultLabel", entry.defaultLabel},
                                    {"nativePlace", entry.nativeIdentity},
-                                   {"archive", entry.archive.Save()}});
+                                   {"archive", entry.archive.Save()},
+                                   {"diskFolder", entry.diskFolder}});
     QSettings settings(settingsPath_, QSettings::IniFormat);
     settings.setValue("workspace/favorites", QJsonDocument(entries).toJson(QJsonDocument::Compact));
 }

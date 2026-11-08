@@ -106,6 +106,7 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
         locationState.archiveApplied = locationState.archiveRevision;
     if (!window_.panelUi_[panel].locationUnavailable && source.ShouldProcessNotifications()) {
         locationState.unavailable = false;
+        locationState.diskFolder = source.IsFSFolder();
         source.LoadFullPath();
         locationState.path = ToQString(source.GetCurrentFolderPrefix());
         locationState.nativePlaceIdentity = QtNativePlaces::RootIdentity(source);
