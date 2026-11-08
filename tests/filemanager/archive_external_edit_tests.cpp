@@ -13,6 +13,7 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
+#include <QCheckBox>
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QSaveFile>
@@ -37,7 +38,13 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void associationWithoutProcessShowsActionsOnlyAfterSave_data() {
+        QTest::addColumn<bool>("updateArchive");
+        QTest::newRow("keep-copy") << false;
+        QTest::newRow("update-archive") << true;
+    }
     void associationWithoutProcessShowsActionsOnlyAfterSave() {
+        QFETCH(bool, updateArchive);
         QTemporaryDir fixture;
         const QString name = QStringLiteral("изменяемый файл.txt");
         const QString archive = fixture.filePath("original.zip");
@@ -73,11 +80,28 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
         QVERIFY(saved.commit());
         QTRY_VERIFY(details());
         QVERIFY(details()->findChild<QPushButton *>("externalFileSaveCopy")->isEnabled());
-        const auto *update = details()->findChild<QPushButton *>("externalFileCheck");
+        auto *update = details()->findChild<QPushButton *>("externalFileCheck");
         QVERIFY(update && update->isVisible());
         QCOMPARE(update->text(),
                  QCoreApplication::translate("QtExternalFileTask", "Update archive…"));
         QCOMPARE(contents(archive, name), QByteArray("original"));
+        if (updateArchive) {
+            auto *confirmed = details()->findChild<QCheckBox *>("externalFileConfirmedClosed");
+            QVERIFY(confirmed && confirmed->isVisible());
+            QVERIFY(!update->isEnabled());
+            confirmed->click();
+            QVERIFY(update->isEnabled());
+            QTimer responder;
+            widgetDialogs_.connectResponder(responder, &window, [&] {
+                auto *question = updateDialog();
+                if (question && question->objectName() == "externalUpdatePrompt")
+                    question->findChild<QPushButton *>("externalUpdateCommit")->click();
+            });
+            responder.start(1);
+            update->click();
+            QTRY_COMPARE(contents(archive, name), modified);
+            return;
+        }
         details()->close();
         QVERIFY(window.close());
         QCOMPARE(read(copy), modified);
