@@ -386,6 +386,7 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     FString _diskFilePath;
     FString _replacementPath;
     std::unique_ptr<NWindows::NFile::NDir::CTempFile> _replacementFile;
+    QString _emptyEncryptedOutputIdentity;
 
     CProcessedFileInfo _fi;
     QtArchiveOutputIdentity QtOutputs;
@@ -567,6 +568,7 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     HRESULT GetItem(UInt32 index);
 
     HRESULT CloseFile();
+    void RemoveEmptyEncryptedOutput();
     HRESULT CloseReparseAndFile();
     HRESULT SetDirsTimes();
     HRESULT SetSecurityInfo(UInt32 indexInArc, const FString &path) const;

@@ -26,6 +26,7 @@
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
 #include "fileops/native/FileDir.h"
+#include "platform/temp/qtownedtempidentity.h"
 
 #if defined(_WIN32) && !defined(UNDER_CE) && !defined(Z7_SFX)
 #define Z7_USE_SECURITY_CODE
@@ -1540,8 +1541,15 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
 #endif
 
     // printf("\n GetExtractStream Create_ALWAYS_or_Open_ALWAYS : %s\n", fullProcessedPath.Ptr());
-    const bool createNew =
-        !_isSplit && (_isRenamed || _overwriteMode == NExtract::NOverwriteMode::kRename);
+    const bool trackEmptyEncryptedOutput =
+        _encrypted && _ntOptions.QtPathPolicy && _replacementPath.IsEmpty() && !_isSplit &&
+        !_item.IsAltStream && !_fi.IsLinuxSymLink() && !_fi.IsReparse()
+#ifdef SUPPORT_LINKS
+        && _hardLinks.IDs.IsEmpty()
+#endif
+        ;
+    const bool createNew = !_isSplit && (trackEmptyEncryptedOutput || _isRenamed ||
+                                         _overwriteMode == NExtract::NOverwriteMode::kRename);
     bool created;
     if (!_replacementPath.IsEmpty()) {
         _replacementFile = std::make_unique<CTempFile>();
@@ -1562,6 +1570,10 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
             return S_OK;
         }
     }
+
+    if (trackEmptyEncryptedOutput)
+        _emptyEncryptedOutputIdentity =
+            QtOwnedTempIdentity(QString::fromWCharArray(fs2us(_diskFilePath)));
 
     SET_NEED_SET_OWNER
     _needSetAttrib = needSetAttrib;
@@ -1688,6 +1700,7 @@ Z7_COM7F_IMF(CArchiveExtractCallback::GetStream(const UInt32 index,
     _bufPtrSeqOutStream.Release();
     _replacementFile.reset();
     _replacementPath.Empty();
+    _emptyEncryptedOutputIdentity.clear();
 
     _encrypted = false;
     _isSplit = false;
@@ -2732,6 +2745,15 @@ HRESULT CArchiveExtractCallback::SetSecurityInfo(UInt32 indexInArc, const FStrin
 }
 #endif // Z7_USE_SECURITY_CODE
 
+void CArchiveExtractCallback::RemoveEmptyEncryptedOutput() {
+    if (_emptyEncryptedOutputIdentity.isEmpty() || !_curSize_Defined || _curSize != 0)
+        return;
+
+    const QString path = QString::fromWCharArray(fs2us(_diskFilePath));
+    if (QtOwnedTempMatchesIdentity(path, _emptyEncryptedOutputIdentity))
+        DeleteFileAlways(_diskFilePath);
+}
+
 Z7_COM7F_IMF(CArchiveExtractCallback::SetOperationResult(Int32 opRes)) {
     COM_TRY_BEGIN
 
@@ -2807,6 +2829,8 @@ Z7_COM7F_IMF(CArchiveExtractCallback::SetOperationResult(Int32 opRes)) {
         }
         _replacementFile.reset();
     }
+    if (opRes != NArchive::NExtract::NOperationResult::kOK)
+        RemoveEmptyEncryptedOutput();
 
     return _extractCallback2->SetOperationResult(opRes, BoolToInt(_encrypted));
 
@@ -3094,7 +3118,10 @@ HRESULT CArchiveExtractCallback::SetDirsTimes() {
 
 HRESULT CArchiveExtractCallback::CloseArc() {
     // we call CloseReparseAndFile() here because we can have non-closed file in some cases?
+    const bool interruptedFile = bool(_outFileStream);
     HRESULT res = CloseReparseAndFile();
+    if (res == S_OK && interruptedFile)
+        RemoveEmptyEncryptedOutput();
     _replacementFile.reset();
     _replacementPath.Empty();
 #ifdef SUPPORT_LINKS

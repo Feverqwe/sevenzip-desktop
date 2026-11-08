@@ -41,11 +41,15 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
   private slots:
     void failedExtractionKeepsSelectionForPasswordRetry_data() {
         QTest::addColumn<bool>("cancel");
-        QTest::newRow("cancel") << true;
-        QTest::newRow("wrong-password") << false;
+        QTest::addColumn<bool>("hasExistingOutput");
+        QTest::newRow("cancel-existing") << true << true;
+        QTest::newRow("wrong-password-existing") << false << true;
+        QTest::newRow("cancel-new") << true << false;
+        QTest::newRow("wrong-password-new") << false << false;
     }
     void failedExtractionKeepsSelectionForPasswordRetry() {
         QFETCH(bool, cancel);
+        QFETCH(bool, hasExistingOutput);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("encrypted.zip");
@@ -54,9 +58,11 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(NativeArchiveFixture::Write(
             archive, {{"selected.txt", "selected"}, {"other.txt", "other"}}, "zip", password));
         QFile existing(outputPath);
-        QVERIFY(existing.open(QIODevice::WriteOnly));
-        QCOMPARE(existing.write("previous"), qint64(8));
-        existing.close();
+        if (hasExistingOutput) {
+            QVERIFY(existing.open(QIODevice::WriteOnly));
+            QCOMPARE(existing.write("previous"), qint64(8));
+            existing.close();
+        }
         ArchiveBackend backend;
         QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
         MainWindow window(&backend);
@@ -98,9 +104,13 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         copy->trigger();
         QTRY_VERIFY(copy->isEnabled());
         QCOMPARE(prompts, 1);
-        QVERIFY(existing.open(QIODevice::ReadOnly));
-        QCOMPARE(existing.readAll(), QByteArray("previous"));
-        existing.close();
+        if (hasExistingOutput) {
+            QVERIFY(existing.open(QIODevice::ReadOnly));
+            QCOMPARE(existing.readAll(), QByteArray("previous"));
+            existing.close();
+        } else {
+            QVERIFY(!existing.exists());
+        }
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
         QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
         retry = true;
