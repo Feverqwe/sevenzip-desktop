@@ -104,9 +104,33 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(other >= 0);
             view->selectRow(other);
             view->setCurrentCell(other, 0);
+            const QDir peerFolder(fixture.filePath("peer"));
+            QVERIFY(QDir().mkpath(peerFolder.path()));
+            action(window, "twoPanelsAction")->trigger();
+            auto *peerPane = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(peerPane && peerPane->isVisible());
+            auto *peer = peerPane->findChild<FileTable *>("archiveTable");
+            auto *peerAddress = peerPane->findChild<QLineEdit *>("archivePath");
+            QVERIFY(peer && peerAddress);
+            PanelKeys::focusAddress(peerAddress);
+            QTRY_VERIFY(peerAddress->hasFocus());
+            window.openPath(peerFolder.path());
+            QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 0);
+            peer->sourcePanel->Set_AutoRefresh_Mode(false);
+            for (int i = 0; i < 301; ++i)
+                QVERIFY(write(peerFolder.filePath(QString("item-%1.txt").arg(i)), "peer bytes"));
+            peer->setFocus();
+            QVERIFY(peer->hasFocus());
+            QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+            QVERIFY(!peer->isEnabled());
+            view->setFocus();
+            QVERIFY(view->hasFocus());
+            QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), plainArchive);
+            QVERIFY(view->selectionModel()->isRowSelected(other, {}));
             PanelKeys::openSelection(window.focusWidget());
-            QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder() &&
-                        rowWithPath(window, plainEntry) >= 0);
+            QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
+            QVERIFY(filesystemRow(window, plainEntry) >= 0);
+            QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
             QCOMPARE(canceledPrompts, 1);
             QVERIFY(WindowActivation::waitForActive(window));
             QTRY_VERIFY(view->hasFocus());
@@ -115,7 +139,11 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
             QCOMPARE(view->currentIndex().data().toString(), plainArchive);
             cancel = false;
         }
-        openRow(window, filesystemRow(window, filename));
+        const int archiveRow = filesystemRow(window, filename);
+        QVERIFY(archiveRow >= 0);
+        view->selectRow(archiveRow);
+        view->setCurrentCell(archiveRow, 0);
+        PanelKeys::openSelection(window.focusWidget());
         QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
         for (bool forward : {false, true}) {
             QVERIFY(WindowActivation::waitForActive(window));
