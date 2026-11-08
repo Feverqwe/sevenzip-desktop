@@ -38,9 +38,8 @@ void MainWindow::showSettings() {
 }
 
 void MainWindow::applyFileListSettings() {
-    const QScopedValueRollback<bool> settingsReload(reloadingFileListSettings_, true);
     app_.SetListSettings();
-    app_.RefreshAllPanels();
+    app_.RefreshAllPanels(true);
     refreshActions();
 }
 

@@ -92,12 +92,12 @@ class CApp {
                            bool needOpenArc, COpenResult &openRes);
     void SetListSettings();
     void RefreshView() { GetFocusedPanel().OnReload(); }
-    void RefreshAllPanels() {
+    void RefreshAllPanels(bool preserveAddress = false) {
         for (unsigned i = 0; i < NumPanels; i++) {
             unsigned index = i;
             if (NumPanels == 1)
                 index = LastFocusedPanel;
-            Panels[index].OnReload();
+            Panels[index].OnReload(preserveAddress);
         }
     }
     void MoveSubWindows();
