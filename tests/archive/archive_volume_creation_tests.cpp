@@ -166,7 +166,9 @@ class ArchiveVolumeCreationTests final : public QObject {
         volume->setEditText("64K");
         auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
         const QByteArray original = readFile(settings_);
+        dialog.show();
         for (const auto answer : {QMessageBox::No, QMessageBox::Cancel, QMessageBox::Yes}) {
+            ok->setFocus();
             QTimer::singleShot(0, &dialog, [answer] {
                 auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
                 QVERIFY(message);
@@ -180,6 +182,10 @@ class ArchiveVolumeCreationTests final : public QObject {
             ok->click();
             if (answer != QMessageBox::Yes) {
                 QCOMPARE(dialog.result(), int(QDialog::Rejected));
+                QVERIFY(volume->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == volume ||
+                            dialog.focusWidget() == volume->lineEdit());
+                QCOMPARE(volume->currentText(), QString("64K"));
                 QCOMPARE(readFile(settings_), original);
             }
         }

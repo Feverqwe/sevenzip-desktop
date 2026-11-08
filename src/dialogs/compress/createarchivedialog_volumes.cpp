@@ -31,10 +31,14 @@ bool CreateArchiveDialog::checkVolumeSizes() {
         volume_->setFocus();
         return false;
     }
-    if (result == CCompressDialog::kConfirmSmallVolume)
-        return QMessageBox::question(
-                   this, "7-Zip",
-                   QString::fromWCharArray(MyFormatNew(IDS_SPLIT_CONFIRM, info.VolumeSizes.Back())),
-                   QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel) == QMessageBox::Yes;
+    if (result == CCompressDialog::kConfirmSmallVolume &&
+        QMessageBox::question(
+            this, "7-Zip",
+            QString::fromWCharArray(MyFormatNew(IDS_SPLIT_CONFIRM, info.VolumeSizes.Back())),
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel) != QMessageBox::Yes) {
+        additionalOptions_->setExpanded(true);
+        volume_->setFocus();
+        return false;
+    }
     return true;
 }
