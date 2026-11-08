@@ -28,12 +28,13 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(fixture.isValid());
         ControlledBackend backend;
         MainWindow window(&backend);
-        openListedArchive(
-            window, backend, fixture.filePath("names.zip"),
-            {ArchiveEntry{"alpha.txt", 1, 1}, ArchiveEntry{QStringLiteral("Журнал.txt"), 2, 2}});
+        openListedArchive(window, backend, fixture.filePath("names.zip"),
+                          {ArchiveEntry{"alpha.txt", 1, 1},
+                           ArchiveEntry{QStringLiteral("Журнал.txt"), 2, 2},
+                           ArchiveEntry{QStringLiteral("Журнал2.txt"), 3, 3}});
         window.show();
         auto *view = window.findChild<FileTable *>("archiveTable");
-        QTRY_COMPARE(view->rowCount(), 2);
+        QTRY_COMPARE(view->rowCount(), 3);
         view->setFocus();
         const int sizeColumn = view->columnForProperty(kpidSize);
         QVERIFY(sizeColumn > 0);
@@ -48,6 +49,14 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         if (matches) {
             QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
                      QStringLiteral("Журнал.txt"));
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
+            for (const QChar letter : QStringLiteral("урнал2")) {
+                QKeyEvent next(QEvent::KeyPress, 0, Qt::NoModifier, QString(letter));
+                QApplication::sendEvent(view, &next);
+            }
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Журнал2.txt"));
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
         } else {
             QCOMPARE(view->currentIndex(), current);
             QCOMPARE(view->selectionModel()->selectedRows(), selected);

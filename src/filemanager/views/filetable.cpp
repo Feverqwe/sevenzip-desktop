@@ -62,8 +62,8 @@ void FileTable::keyboardSearch(const QString &search) {
     const QModelIndex name = current.siblingAtColumn(nameColumn);
     selectionModel()->setCurrentIndex(name, QItemSelectionModel::NoUpdate);
     QTableView::keyboardSearch(search);
-    if (currentIndex() == name)
-        selectionModel()->setCurrentIndex(current, QItemSelectionModel::NoUpdate);
+    selectionModel()->setCurrentIndex(currentIndex().siblingAtColumn(current.column()),
+                                      QItemSelectionModel::NoUpdate);
 }
 
 FileTable::FileTable(int columns, QWidget *parent)
