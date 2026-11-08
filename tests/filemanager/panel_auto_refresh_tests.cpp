@@ -174,9 +174,15 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(horizontalOffset > 0);
 
         QVERIFY(writeFile(fixture.filePath("000-new.txt")));
-        if (manual)
-            action(window, "refreshAction")->trigger();
+        if (manual) {
+            QVERIFY(QTest::qWaitForWindowActive(&window));
+            files->setFocus();
+            QTRY_VERIFY(files->hasFocus());
+            PanelKeys::command(window.focusWidget(), Qt::Key_R, Qt::ControlModifier);
+        }
         QTRY_VERIFY_WITH_TIMEOUT(files->isEnabled() && files->rowCount() == 81, 5000);
+        if (manual)
+            QTRY_VERIFY(files->hasFocus());
         const int restoredRow = filesystemRow(window, anchorName);
         QCOMPARE(files->rowAt(0), restoredRow);
         QCOMPARE(files->rowViewportPosition(restoredRow), topOffset);
