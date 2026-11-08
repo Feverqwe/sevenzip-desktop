@@ -181,6 +181,7 @@ class DragDropUiTests final : public QObject {
         const POINT thresholdPoint = nativePoint(threshold);
         nativePoint(from);
         QVERIFY(press(true));
+        bool extractedBeforeRelease = false;
         std::jthread drive([&] {
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(50ms);
@@ -189,6 +190,9 @@ class DragDropUiTests final : public QObject {
             SetCursorPos(destinationPoint.x, destinationPoint.y);
             for (int i = 0; i < 100 && !receiver.Entered; ++i)
                 std::this_thread::sleep_for(20ms);
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                if (QFileInfo::exists(QDir(entry.path).filePath(name)))
+                    extractedBeforeRelease = true;
             press(false);
         });
 #else
@@ -215,6 +219,11 @@ class DragDropUiTests final : public QObject {
 #endif
         QTRY_VERIFY_WITH_TIMEOUT(!warnings.isEmpty() || QFileInfo::exists(destination), 8000);
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
+#ifdef Q_OS_WIN
+        drive.join();
+        QVERIFY(receiver.Entered);
+        QVERIFY(!extractedBeforeRelease);
+#endif
         QCOMPARE(SourceExtractFixture::readFile(destination), payload);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }
