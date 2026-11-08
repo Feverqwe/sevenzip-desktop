@@ -327,6 +327,14 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(read(source + '/' + skipped), QByteArray("skipped bytes"));
         QTRY_VERIFY(filesystemRow(sourceWindow, moved) < 0);
         QTRY_VERIFY(filesystemRow(destinationWindow, moved) >= 0);
+        QTRY_VERIFY(filesystemRow(sourceWindow, skipped) >= 0);
+        const auto stillCut = [&] {
+            return view->model()
+                ->index(filesystemRow(sourceWindow, skipped), 0)
+                .data(QtPanelList::CutRole)
+                .toBool();
+        };
+        QTRY_COMPARE(stillCut(), !replaceClipboard);
         if (replaceClipboard) {
             QCOMPARE(QApplication::clipboard()->text(), QString("new clipboard data"));
             return;
