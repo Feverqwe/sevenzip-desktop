@@ -103,7 +103,13 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
     }
 
-    void missingOuterArchiveNotifiesNestedViewAndCanReopen() {
+    void missingOuterArchiveNotifiesNestedView_data() {
+        QTest::addColumn<bool>("leave");
+        QTest::newRow("reopen") << false;
+        QTest::newRow("leave") << true;
+    }
+    void missingOuterArchiveNotifiesNestedView() {
+        QFETCH(bool, leave);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString outer = fixture.filePath("outer.7z");
@@ -131,6 +137,15 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QTRY_VERIFY(notice(window));
         QCOMPARE(names(window), QStringList{"original.txt"});
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
+        if (leave) {
+            window.findChild<QPushButton *>("navigationParent0")->click();
+            QTRY_COMPARE(names(window), QStringList{"inner.zip"});
+            QVERIFY(notice(window));
+            window.findChild<QPushButton *>("navigationParent0")->click();
+            QTRY_VERIFY(names(window).contains("renamed.7z"));
+            QVERIFY(!notice(window));
+            return;
+        }
         QVERIFY(QFile::remove(inner));
         QVERIFY(writeVersion("replacement.txt"));
         window.findChild<QPushButton *>("navigationRetry0")->click();
