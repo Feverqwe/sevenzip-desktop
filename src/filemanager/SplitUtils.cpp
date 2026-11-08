@@ -71,7 +71,7 @@ bool ParseVolumeSizesText(const QString &text, CRecordVector<UInt64> &values) {
         return false;
     UString native = ToUString(text);
     native.Trim();
-    return ParseVolumeSizes(native, values);
+    return native.IsEmpty() || (ParseVolumeSizes(native, values) && !values.IsEmpty());
 }
 
 static const char *const k_Sizes[] = {

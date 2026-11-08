@@ -265,7 +265,8 @@ class ArchiveVolumeCreationTests final : public QObject {
         QVERIFY(UiInspection::writeReport(dialog, "archive-volumes-" + QString::number(width)));
         const QByteArray original = readFile(settings_);
         auto *section = dialog.findChild<QtDisclosure *>("archiveAdditionalSection");
-        for (const auto &invalid : {QString("0"), QString("128K") + QChar::Null + " 256K"}) {
+        for (const auto &invalid :
+             {QString("0"), QString("-128K"), QString("128K") + QChar::Null + " 256K"}) {
             volume->setEditText(invalid);
             section->setExpanded(false);
             bool reported = false;
@@ -284,7 +285,7 @@ class ArchiveVolumeCreationTests final : public QObject {
         }
         QCoreApplication::processEvents();
         QVERIFY(UiInspection::fullyVisible(*volume, dialog));
-        volume->setEditText("64K 128K");
+        volume->setEditText("64K 128K - custom");
         footer->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         const auto sizes = dialog.compressionOptions().VolumeSizes;
