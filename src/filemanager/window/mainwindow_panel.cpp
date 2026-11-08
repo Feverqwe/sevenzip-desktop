@@ -1,7 +1,9 @@
 #include "7zip/PropID.h"
+#include "7zip/UI/FileManager/resource.h"
 #include "filemanager/PropertyName.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/views/qtworkspacefiletable.h"
@@ -37,7 +39,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     connect(back, &QToolButton::clicked, this, [this, index] {
         activatePanelUi(index);
         if (projectedPanel_ == index)
-            back_->trigger();
+            app_.ExecuteCommand(QtFileManagerCommands::Back);
     });
     navigation->addWidget(back);
     auto *forward = new QToolButton(central);
@@ -53,7 +55,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     connect(forward, &QToolButton::clicked, this, [this, index] {
         activatePanelUi(index);
         if (projectedPanel_ == index)
-            forward_->trigger();
+            app_.ExecuteCommand(QtFileManagerCommands::Forward);
     });
     navigation->addWidget(forward);
     {
@@ -72,7 +74,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             appPresentation_->CancelInitialFocus();
             activatePanelUi(index);
             if (projectedPanel_ == index)
-                up_->trigger();
+                app_.ExecuteCommand(IDM_OPEN_PARENT_FOLDER);
         });
         QtConfigurePanelParentButton(*button);
         button->setObjectName(QString("panelParentButton%1").arg(index));

@@ -380,6 +380,49 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(view->rowCount(), 2);
     }
 
+    void paneBackButtonIgnoresTheClosingViewMenu() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString left = fixture.filePath("left");
+        const QString first = fixture.filePath("right first");
+        const QString second = fixture.filePath("right second");
+        for (const auto &path : {left, first, second})
+            createDirectory(path);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        const auto navigate = [&](unsigned pane, const QString &path) {
+            auto *panel = window.findChild<QWidget *>(QString("filePanel%1").arg(pane));
+            auto *address = panel->findChild<QLineEdit *>("archivePath");
+            PanelKeys::focusAddress(address);
+            address->setText(path);
+            QTest::keyClick(address, Qt::Key_Return);
+            QTRY_COMPARE(QDir::cleanPath(address->text()), path);
+        };
+        navigate(1, first);
+        navigate(1, second);
+        navigate(0, left);
+        auto *menu = window.findChild<QMenu *>("viewMenu");
+        auto *back = window.findChild<QToolButton *>("panelBackButton1");
+        auto *forward = window.findChild<QToolButton *>("panelForwardButton1");
+        QVERIFY(menu && back && forward && back->isEnabled());
+        menu->popup(window.mapToGlobal(QPoint(20, 20)));
+        QVERIFY(menu->isVisible());
+        menu->hide();
+        back->click();
+        auto *right = window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>();
+        QTRY_COMPARE(QDir::cleanPath(ToQString(right->sourcePanel->GetCurrentFolderPrefix())),
+                     first);
+        QVERIFY(forward->isEnabled());
+        forward->click();
+        QTRY_COMPARE(QDir::cleanPath(ToQString(right->sourcePanel->GetCurrentFolderPrefix())),
+                     second);
+        auto *leftView = window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>();
+        QCOMPARE(QDir::cleanPath(ToQString(leftView->sourcePanel->GetCurrentFolderPrefix())), left);
+    }
+
     void canceledEncryptedBackKeepsItsCursorAndDoesNotPromptTwice() {
         QTemporaryDir fixture;
         const QString folder = fixture.filePath("source");
