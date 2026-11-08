@@ -92,7 +92,22 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
     }
     if (locationState.archiveRevision == locationState.archiveApplied)
         return false;
-    if (interactive ? !Ready(true) : !CanRefreshPublishedArchives()) {
+    if (interactive) {
+        const auto request = ++panels_[panel].archiveRetryRequest;
+        if (!Ready(true)) {
+            const auto binding = source.FolderBindingRevision();
+            const auto interaction = interactionRevision_;
+            WhenReady(
+                [this, panel, request, binding, interaction, owner = QPointer<CPanel>(&source)] {
+                    if (owner && owner == &window_.app_.Panels[panel] &&
+                        owner->FolderBindingRevision() == binding &&
+                        panels_[panel].archiveRetryRequest == request &&
+                        interactionRevision_ == interaction)
+                        RefreshPublishedArchive(panel, true);
+                });
+            return true;
+        }
+    } else if (!CanRefreshPublishedArchives()) {
         window_.guiOutputRefresh_->Enqueue({}, {locationState.archiveLocation.physicalPath});
         return true;
     }

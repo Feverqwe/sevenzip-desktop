@@ -120,6 +120,7 @@ class QtWindowWorkspace final : public QObject {
     };
     struct Panel {
         Location location;
+        quint64 archiveRetryRequest = 0;
         QPointer<QtArchiveMountManager> mounts;
         QToolBar *actions = nullptr;
         QWidget *actionRow = nullptr;

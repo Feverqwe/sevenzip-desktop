@@ -104,12 +104,15 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
 
     void manualRefreshDetectsExternalArchiveReplacement_data() {
         QTest::addColumn<QString>("encryptedLayer");
-        QTest::newRow("plain") << QString();
-        QTest::newRow("outer-password-changed") << QStringLiteral("outer");
-        QTest::newRow("nested-password-changed") << QStringLiteral("inner");
+        QTest::addColumn<bool>("deferRefresh");
+        QTest::newRow("plain") << QString() << false;
+        QTest::newRow("outer-password-changed") << QStringLiteral("outer") << false;
+        QTest::newRow("nested-password-changed") << QStringLiteral("inner") << false;
+        QTest::newRow("deferred-password-change") << QStringLiteral("outer") << true;
     }
     void manualRefreshDetectsExternalArchiveReplacement() {
         QFETCH(QString, encryptedLayer);
+        QFETCH(bool, deferRefresh);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("shared.7z");
@@ -128,7 +131,10 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             encryptedLayer.isEmpty() ? QString() : QStringLiteral("new-password");
         QVERIFY(writeVersion(archive, "original.txt", password));
         QVERIFY(writeVersion(replacement, "updated.txt", replacementPassword));
-        ArchiveBackend backend;
+        struct DeferredRefreshBackend : ArchiveBackend {
+            bool paused = false;
+            bool busy() const override { return paused || ArchiveBackend::busy(); }
+        } backend;
         MainWindow window(&backend);
         bool cancelPassword = false;
         int prompts = 0;
@@ -162,10 +168,15 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         cancelPassword = !encryptedLayer.isEmpty();
         prompts = 0;
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        backend.paused = deferRefresh;
         action(window, "refreshAction")->trigger();
+        if (deferRefresh) {
+            QCOMPARE(prompts, 0);
+            backend.paused = false;
+        }
         if (cancelPassword) {
+            QTRY_COMPARE(prompts, 1);
             QTRY_VERIFY(notice(window));
-            QCOMPARE(prompts, 1);
             QCOMPARE(names(window), QStringList{"original.txt"});
             cancelPassword = false;
             password = replacementPassword;
