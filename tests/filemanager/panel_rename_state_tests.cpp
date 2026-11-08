@@ -177,7 +177,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         UStringVector savedMarks;
         view->sourcePanel->GetSelectedNames(savedMarks);
         QVERIFY(action(window, "renameAction")->isEnabled());
-        action(window, "renameAction")->trigger();
+        QTest::keyClick(active, Qt::Key_F2);
         QPointer<QLineEdit> editor = active->findChild<QLineEdit *>();
         QVERIFY(editor);
         QCOMPARE(editor->text(), original);
@@ -414,7 +414,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         if (collision || (invalid && invalidName.isEmpty()) || invalidName.contains(QChar::Null)) {
             QVERIFY(!QFileInfo::exists(fixture.filePath(QStringLiteral("renamed 空.txt"))));
             QTRY_COMPARE(window.focusWidget(), view);
-            action(window, "renameAction")->trigger();
+            QTest::keyClick(view, Qt::Key_F2);
             QLineEdit *retry = nullptr;
             for (auto *candidate : view->findChildren<QLineEdit *>())
                 if (candidate->isVisible())
