@@ -143,6 +143,52 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         action(window, "backAction")->trigger();
         QTRY_COMPARE(peerAddress->text(), originalPeer);
     }
+    void failedPeerArchiveOpenKeepsAddressDraft() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("source.7z");
+        const QString previous = fixture.filePath("previous");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"source.txt", "payload"}}));
+        QVERIFY(QDir().mkpath(previous));
+        QFile entry(QDir(previous).filePath("previous.txt"));
+        QVERIFY(entry.open(QIODevice::WriteOnly));
+        entry.close();
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        openFilesystemPanel(window, 1, previous);
+        QVERIFY(!QTest::currentTestFailed());
+        auto *peerPanel = window.findChild<QWidget *>("filePanel1");
+        auto *peer = peerPanel->findChild<FileTable *>("archiveTable");
+        auto *edit = peerPanel->findChild<QLineEdit *>("archivePath");
+        auto *source =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        window.openArchive(archive);
+        QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("source.txt"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        PanelKeys::focusAddress(edit);
+        QTRY_VERIFY(edit->hasFocus());
+        edit->selectAll();
+        QTest::keyClicks(edit, "unfinished path");
+        edit->setSelection(2, 5);
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        const QString selection = edit->selectedText();
+        const int cursor = edit->cursorPosition();
+        QVERIFY(edit->isModified());
+        QVERIFY(QFile::rename(archive, fixture.filePath("moved.7z")));
+        PanelKeys::command(source, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
+        QTRY_VERIFY(window.statusBar()->currentMessage().contains("source.7z"));
+        QCOMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("previous.txt"));
+        QCOMPARE(edit->text(), QStringLiteral("unfinished path"));
+        QCOMPARE(edit->selectedText(), selection);
+        QCOMPARE(edit->cursorPosition(), cursor);
+        QCOMPARE(window.focusWidget(), static_cast<QWidget *>(source));
+    }
     void openingParentRowInPeerRecordsPreviousFolder() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

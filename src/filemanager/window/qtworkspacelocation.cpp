@@ -1,3 +1,4 @@
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtnavigationbar.h"
@@ -49,13 +50,31 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
     const unsigned peer = 1 - source;
     HRESULT outcome = E_ABORT;
     window_.withPanelProjection(peer, [&] {
+        auto &destination = window_.panelUi_[peer];
+        auto *address = static_cast<QtPanelAddressCombo *>(destination.pathCombo);
+        const auto revision = address->UserEditRevision();
+        const auto draft = destination.path->isModified()
+                               ? std::optional(QtAddressDraft(*destination.path))
+                               : std::nullopt;
         outcome = Navigate(
             [&] {
                 return OpenRecordedLocation(peer, target.path, target.nativePlaceIdentity,
                                             target.archiveLocation);
             },
-            [this, source, path = target.path](HRESULT result) {
-                if (result != E_ABORT && !window_.app_.QtOperations().closed())
+            [this, source, peer, path = target.path, revision, draft](HRESULT result) {
+                if (window_.app_.QtOperations().closed())
+                    return;
+                if (result != S_OK) {
+                    auto &owner = window_.panelUi_[peer];
+                    auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
+                    const auto restored =
+                        combo->UserEditRevision() == revision ? draft : combo->LastUserDraft();
+                    if (restored) {
+                        restored->Restore(*owner.path);
+                        owner.path->setModified(true);
+                    }
+                }
+                if (result != E_ABORT)
                     window_.statusStrip_->SetMessage(
                         &window_.app_.Panels[source],
                         result == S_OK ? QString() : tr("Location unavailable: %1").arg(path));
