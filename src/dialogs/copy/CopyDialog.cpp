@@ -33,7 +33,9 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTextDocument>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -256,8 +258,19 @@ void CCopyDialog::OnOK() {
     const bool wasAcceptable = _canAccept;
     UpdateDestination(true);
     if (!_canAccept) {
-        if (wasAcceptable)
+        if (wasAcceptable) {
             _pathEdit->setFocus();
+            QTimer::singleShot(0, this, [this] {
+                auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
+                if (!scroll || !_destinationMessage->isVisible())
+                    return;
+                const int top = _pathEdit->mapTo(scroll->widget(), QPoint()).y();
+                const int bottom = _destinationMessage->mapTo(scroll->widget(), QPoint()).y() +
+                                   _destinationMessage->height();
+                const int margin = qMin((bottom - top + 1) / 2, scroll->viewport()->height() / 2);
+                scroll->ensureVisible(0, top + margin, 0, margin);
+            });
+        }
         return;
     }
     UString path;

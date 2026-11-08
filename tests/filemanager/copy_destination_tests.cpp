@@ -12,6 +12,8 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScopeGuard>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -332,27 +334,46 @@ class CopyDestinationTests final : public QObject {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString first = fixture.filePath("first.txt");
-        const QString second = fixture.filePath("second.txt");
+        const QString secondName = QString(110, u'w') + ".txt";
+        const QString second = fixture.filePath(secondName);
         for (const auto &path : {first, second}) {
             QFile file(path);
             QVERIFY(file.open(QIODevice::WriteOnly));
         }
         const QString blocked = fixture.filePath("destination");
-        QVERIFY(QDir().mkpath(QDir(blocked).filePath("second.txt")));
+        QVERIFY(QDir().mkpath(QDir(blocked).filePath(secondName)));
         CCopyDialog dialog(true, blocked + '/', {first, second});
         QtCopyDestinationContext context;
         context.SourceDirectory = fixture.path();
         context.LocalFileTransfer = true;
         dialog.ConfigureDestination(context);
         dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QApplication::processEvents();
+        dialog.resize(360, 240);
+        auto *disclosure = dialog.findChild<QWidget *>("copySelectionDisclosure");
+        QVERIFY(disclosure);
+        auto *details = disclosure->findChild<QToolButton *>();
+        QVERIFY(details);
+        details->setChecked(true);
+        auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+        QVERIFY(scroll);
+        QApplication::processEvents();
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
         auto *ok =
             dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
         QVERIFY(ok->isEnabled());
         ok->setFocus();
+        scroll->verticalScrollBar()->setValue(0);
         QTest::keyClick(ok, Qt::Key_Return);
         QVERIFY(dialog.isVisible());
-        QVERIFY(dialog.findChild<QLabel *>("copyDestinationMessage")->isVisible());
+        auto *message = dialog.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message);
+        QTRY_VERIFY(UiInspection::fullyVisible(*message, dialog));
+        QVERIFY(UiInspection::labelFits(*message));
+        QVERIFY(UiInspection::fullyVisible(*path, dialog));
+        QVERIFY(UiInspection::fullyVisible(*ok, dialog));
+        QVERIFY(UiInspection::writeReport(dialog, "copy-compact-destination-conflict"));
         QCOMPARE(dialog.focusWidget(), path);
         QVERIFY(!QFileInfo::exists(QDir(blocked).filePath("first.txt")));
 
