@@ -298,6 +298,33 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(loaded.ArcType, QString("7z"));
         QVERIFY(loaded.ArcPaths.IsEmpty());
     }
+    void historyKeepsCaseDistinctArchives() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString upper = fixture.filePath("Output.zip");
+        const QString lower = fixture.filePath("output.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(upper, {source_}, "zip"));
+        if (QFileInfo::exists(lower))
+            QSKIP("The test filesystem folds these archive names");
+        QVERIFY(NativeArchiveFixture::WriteFiles(lower, {source_}, "zip"));
+        NCompression::CInfo registry;
+        registry.ArcType = "zip";
+        registry.ArcPaths.Add(upper);
+        registry.ArcPaths.Add(fixture.filePath("./output.zip"));
+        registry.Save(settings_);
+
+        CreateArchiveDialog dialog(fixture.path(), {source_});
+        dialog.findChild<QLineEdit *>("archiveName")->setText("output.zip");
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+
+        CreateArchiveDialog reopened(fixture.path(), {source_});
+        auto *history = reopened.findChild<QComboBox *>("archivePath");
+        QCOMPARE(history->count(), 2);
+        QCOMPARE(QDir::fromNativeSeparators(history->itemText(0)), lower);
+        QCOMPARE(QDir::fromNativeSeparators(history->itemText(1)), upper);
+    }
+
     void historySelectionAndCancel() {
         NCompression::CInfo registry;
         QTemporaryDir fixture;

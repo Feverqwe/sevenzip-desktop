@@ -9,7 +9,6 @@
 #include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
-#include "platform/temp/qtownedtempidentity.h"
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -49,30 +48,6 @@ bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
     const UString path = ToUString(QDir::toNativeSeparators(candidate));
     return NWindows::NFile::NDir::MyGetFullPathName(us2fs(path), resolved) &&
            !HasEmptyWindowsPathComponent(path, fs2us(resolved));
-}
-
-void AddDestinationToHistory(CObjectVector<QString> &history, const QString &path) {
-    const QString normalized = QDir::cleanPath(QDir::fromNativeSeparators(path));
-    const UString name = ToUString(normalized);
-    for (unsigned i = 0; i < history.Size(); ++i) {
-        const QString &saved = history[i];
-        const QString previousPath = QDir::cleanPath(QDir::fromNativeSeparators(saved));
-        if (normalized == previousPath)
-            return;
-        if (!name.IsEqualTo_NoCase(ToUString(previousPath)))
-            continue;
-        const QFileInfo current(normalized), previous(previousPath);
-        if ((current.isDir() && !previous.exists()) || (previous.isDir() && !current.exists()))
-            continue;
-        if (!current.isDir() || !previous.isDir())
-            return;
-        const QString currentIdentity = QtOwnedTempLegacyIdentity(current.canonicalFilePath());
-        const QString previousIdentity = QtOwnedTempLegacyIdentity(previous.canonicalFilePath());
-        if (currentIdentity.isEmpty() || previousIdentity.isEmpty() ||
-            currentIdentity == previousIdentity)
-            return;
-    }
-    history.Add(path);
 }
 
 static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> modes, int curVal) {
@@ -322,11 +297,11 @@ void CExtractDialog::OnOK() {
     _info.Paths.Clear();
     UString historyPath = fs2us(resolvedDestination);
     NWindows::NFile::NName::NormalizeDirPathPrefix(historyPath);
-    AddDestinationToHistory(_info.Paths, ToQString(historyPath));
+    AddUniqueArchivePath(_info.Paths, ToQString(historyPath));
     for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {
         UString saved = ToUString(_path->itemText(i));
         saved.Trim();
-        AddDestinationToHistory(_info.Paths, ToQString(saved));
+        AddUniqueArchivePath(_info.Paths, ToQString(saved));
     }
     _info.Save(settingsPath());
     QDialog::accept();

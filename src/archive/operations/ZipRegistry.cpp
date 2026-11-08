@@ -3,17 +3,35 @@
 #include "archive/operations/ZipRegistry.h"
 #include "Common/StringConvert.h"
 #include "Common/StringToInt.h"
+#include "platform/temp/qtownedtempidentity.h"
+#include <QDir>
+#include <QFileInfo>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QSettings>
 
 // Adapted from 7-Zip UI/GUI/ExtractDialog.cpp; both dialog histories use it.
-void AddUniqueString(CObjectVector<QString> &list, const QString &s) {
-    const UString source(s.toStdWString().c_str());
-    FOR_VECTOR(i, list)
-    if (source.IsEqualTo_NoCase(UString(list[i].toStdWString().c_str())))
-        return;
-    list.Add(s);
+void AddUniqueArchivePath(CObjectVector<QString> &list, const QString &path) {
+    const QString normalized = QDir::cleanPath(QDir::fromNativeSeparators(path));
+    const UString source(normalized.toStdWString().c_str());
+    FOR_VECTOR(i, list) {
+        const QString previousPath = QDir::cleanPath(QDir::fromNativeSeparators(list[i]));
+        if (normalized == previousPath)
+            return;
+        if (!source.IsEqualTo_NoCase(UString(previousPath.toStdWString().c_str())))
+            continue;
+        const QFileInfo current(normalized), previous(previousPath);
+        if (current.exists() != previous.exists())
+            continue;
+        if (!current.exists())
+            return;
+        const QString currentIdentity = QtOwnedTempLegacyIdentity(current.canonicalFilePath());
+        const QString previousIdentity = QtOwnedTempLegacyIdentity(previous.canonicalFilePath());
+        if (currentIdentity.isEmpty() || previousIdentity.isEmpty() ||
+            currentIdentity == previousIdentity)
+            return;
+    }
+    list.Add(path);
 }
 
 // Source g_CS serializes whole settings operations, including group replacement.

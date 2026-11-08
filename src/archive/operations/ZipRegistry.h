@@ -8,7 +8,7 @@
 #include <QString>
 
 // Shared native history deduplication for archive creation and extraction.
-void AddUniqueString(CObjectVector<QString> &list, const QString &s);
+void AddUniqueArchivePath(CObjectVector<QString> &list, const QString &path);
 
 struct CContextMenuInfo {
     CBoolPair Cascaded;

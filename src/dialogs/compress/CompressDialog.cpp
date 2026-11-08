@@ -526,14 +526,14 @@ void CCompressDialog::OnOK(NCompression::CInfo &registry) const {
     QString s;
     if (!GetFinalPath_Smart(s))
         return;
-    AddUniqueString(arcPaths, s);
+    AddUniqueArchivePath(arcPaths, s);
     registry.EncryptHeaders = EncryptHeaders;
     registry.ArcType = Format;
     registry.ShowPassword = ShowPassword;
     FOR_VECTOR(i, registry.ArcPaths) {
         if (arcPaths.Size() >= kHistorySize)
             break;
-        AddUniqueString(arcPaths, registry.ArcPaths[i]);
+        AddUniqueArchivePath(arcPaths, registry.ArcPaths[i]);
     }
     registry.ArcPaths = arcPaths;
 }
