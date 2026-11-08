@@ -94,9 +94,11 @@ void CreateArchiveDialog::validateAndAccept() {
     SaveOptionsInMem();
     UString draftName(name_->text().toStdWString().c_str());
     draftName.Trim();
+    const UString leaf(draftName.Ptr(unsigned(draftName.ReverseFind_PathSepar() + 1)));
+    const bool hasFileName = !leaf.IsEmpty() && !leaf.IsEqualTo(".") && !leaf.IsEqualTo("..");
     const QString resolved = archivePath();
     const QFileInfo target(resolved);
-    const QString pathError = draftName.IsEmpty() || resolved.isEmpty() || target.isDir()
+    const QString pathError = !hasFileName || resolved.isEmpty() || target.isDir()
                                   ? InvalidArchivePath()
                                   : ArchiveDirectoryError(target.absolutePath());
     if (!pathError.isEmpty()) {
@@ -106,7 +108,7 @@ void CreateArchiveDialog::validateAndAccept() {
         auto *field = name_;
         if (archiveFolder_->text().contains(QChar::Null))
             field = archiveFolder_;
-        else if (!draftName.IsEmpty() && !name_->text().contains(QChar::Null) &&
+        else if (hasFileName && !name_->text().contains(QChar::Null) &&
                  NWindows::NFile::NName::GetRootPrefixSize(draftName) == 0) {
             CCompressDialog base = archiveNameState_;
             base.m_ArchivePath.clear();

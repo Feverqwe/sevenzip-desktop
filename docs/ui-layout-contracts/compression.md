@@ -20,7 +20,8 @@ Switching formats keeps the destination folder, including a folder typed
 in the name field, when the format derives the archive name from the source.
 If a file, dangling link or known lack of write access blocks the destination
 folder, the form stays open and focuses the field that needs correction while
-retaining the archive options.
+retaining the archive options. The archive name must end with a file name,
+even when the destination folder has yet to be created.
 Format is immediately available. Password protection has
 an explicit enable control; its dependent fields appear together, without a
 large framed heading. A source-supplied password enables the section. Turning

@@ -479,6 +479,38 @@ class CompressionPathTests final : public QObject {
             QVERIFY(!QFileInfo::exists(missing));
         }
     }
+    void directorySpellingInNameCanBeCorrected_data() {
+        QTest::addColumn<QString>("entered");
+        QTest::newRow("trailing-separator") << QString("new folder/");
+        QTest::newRow("dot") << QString("new folder/.");
+        QTest::newRow("dot-dot") << QString("new folder/nested/..");
+    }
+    void directorySpellingInNameCanBeCorrected() {
+        QFETCH(QString, entered);
+        QTemporaryDir output;
+        QVERIFY(output.isValid());
+        CreateArchiveDialog dialog(output.path(), {source_});
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        name->setText(QDir::toNativeSeparators(entered));
+        dialog.show();
+        bool errorShown = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                errorShown = true;
+                error->accept();
+            }
+        });
+        submit(dialog);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(errorShown);
+        QCOMPARE(name->text(), QDir::toNativeSeparators(entered));
+        QVERIFY(!QFileInfo::exists(output.filePath("new folder")));
+        name->setText("new folder/archive.7z");
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()),
+                 output.filePath("new folder/archive.7z"));
+    }
     void destinationPickerRetainsNameAndCancelDraft_data() {
         QTest::addColumn<QString>("form");
         QTest::newRow("filename") << QString("filename");
