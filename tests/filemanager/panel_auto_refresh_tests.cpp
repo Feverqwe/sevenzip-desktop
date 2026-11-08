@@ -545,6 +545,11 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         window.show();
         QCOMPARE(table(window)->rowCount(), 1);
         table(window)->sourcePanel->Set_AutoRefresh_Mode(automatic);
+        const QList<QAction *> fileCommands{action(window, "toolbarAddAction"),
+                                            action(window, "copyAction"),
+                                            action(window, "createFolderAction")};
+        for (const auto *command : fileCommands)
+            QVERIFY(command->isEnabled());
         QVERIFY(QDir::setCurrent(temp.path()));
         const QString renamed = temp.filePath("renamed");
         if (publishedRename) {
@@ -559,6 +564,11 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         }
         QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 0, 3500);
         QVERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
+        for (const auto *command : fileCommands)
+            QVERIFY(!command->isEnabled());
+        QVERIFY(!action(window, "testArchiveAction")->isEnabled());
+        QVERIFY(action(window, "refreshAction")->isEnabled());
+        QVERIFY(action(window, "parentFolderAction")->isEnabled());
         if (publishedRename) {
             QFile retained(renamed + "/old.txt");
             QVERIFY(retained.open(QIODevice::ReadOnly));
@@ -571,6 +581,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             action(window, "refreshAction")->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 1, 3500);
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("new.txt"));
+        for (const auto *command : fileCommands)
+            QVERIFY(command->isEnabled());
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
         const QByteArray changed("changed after the folder came back");
         QVERIFY(writeFile(folder + "/new.txt", changed));

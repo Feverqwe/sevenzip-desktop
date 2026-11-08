@@ -71,17 +71,18 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     if (panel.IsItem_Folder(operated[i]))
         c.folderSize = true;
     c.oneFile = c.one && !panel.IsItem_Folder(operated[0]);
-    c.filesystem = panel.GetFolder() && panel.IsFSFolder();
     const QFileInfo directory(w.projectedUi().directory);
-    c.filesystemWritable = c.filesystem && !panel.IsThereReadOnlyFolder() && directory.isDir() &&
-                           directory.isWritable();
+    const bool filesystem = panel.GetFolder() && panel.IsFSFolder();
+    c.filesystem = filesystem && directory.isDir();
+    const bool sourceAvailable = !filesystem || c.filesystem;
+    c.filesystemWritable = c.filesystem && !panel.IsThereReadOnlyFolder() && directory.isWritable();
     c.filesystemStreams = panel.GetFolder() && panel.IsAltStreamsFolder();
-    c.copy = panel.DoesItSupportOperations() &&
+    c.copy = sourceAvailable && panel.DoesItSupportOperations() &&
              (!panel.IsFSDrivesFolder() || panel.IsDeviceDrivesPrefix());
     c.root = panel.GetFolder() && panel.IsRootFolder();
     {
         const auto catalog = w.backend_->codecCatalog();
-        c.batchArchives = catalog && catalog->result() == S_OK;
+        c.batchArchives = sourceAvailable && catalog && catalog->result() == S_OK;
     }
     if (panel.DoesItSupportOperations()) {
         QHash<unsigned, QString> requested;
