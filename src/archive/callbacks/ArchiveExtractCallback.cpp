@@ -2798,11 +2798,12 @@ Z7_COM7F_IMF(CArchiveExtractCallback::SetOperationResult(Int32 opRes)) {
         if (opRes == NArchive::NExtract::NOperationResult::kOK &&
             _diskFilePath == _replacementFile->GetPath()) {
             if (!MyPublishExtractedReplacement(_diskFilePath, _replacementPath)) {
+                QtExtractStatus.Complete = false;
                 RINOK(SendMessageError_with_LastError(kCantReplaceOutFile, _replacementPath))
-                return E_FAIL;
+            } else {
+                _replacementFile->DisableDeleting();
+                RecordQtOutputIdentity(_replacementPath);
             }
-            _replacementFile->DisableDeleting();
-            RecordQtOutputIdentity(_replacementPath);
         }
         _replacementFile.reset();
     }

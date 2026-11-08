@@ -431,9 +431,11 @@ class ExtractionOptionsTests : public QObject {
         QVERIFY(temp.isValid());
         const auto archive = temp.filePath("replacement.zip");
         const auto output = temp.filePath("output");
-        const auto target = QDir(output).filePath(QStringLiteral("файл с пробелом.txt"));
-        QVERIFY(NativeArchiveFixture::Write(archive, {{QFileInfo(target).fileName(), "new bytes"}},
-                                            "zip"));
+        const auto target = QDir(output).filePath(QStringLiteral("a-файл с пробелом.txt"));
+        const auto other = QDir(output).filePath("z-other.txt");
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{QFileInfo(target).fileName(), "new bytes"}, {"z-other.txt", "other bytes"}},
+            "zip"));
         QVERIFY(QDir().mkpath(output));
         writeFile(target, "old bytes");
         ArchiveBackend backend;
@@ -458,8 +460,9 @@ class ExtractionOptionsTests : public QObject {
                      qPrintable(details));
         }
         QCOMPARE(readFile(target), QByteArray("old bytes"));
+        QCOMPARE(readFile(other), QByteArray("other bytes"));
         QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden),
-                 QStringList{QFileInfo(target).fileName()});
+                 (QStringList{QFileInfo(target).fileName(), QFileInfo(other).fileName()}));
         backend.extract(archive, output, {}, {}, options);
         QTRY_COMPARE(finished.size(), 1);
         QVERIFY(finished.takeFirst().first().toBool());
