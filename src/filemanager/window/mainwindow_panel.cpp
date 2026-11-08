@@ -30,6 +30,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     back->setObjectName(QStringLiteral("panelBackButton%1").arg(index));
     back->setAutoRaise(true);
     QtConfigureChromeToolButton(*back);
+    back->setFocusPolicy(Qt::TabFocus);
     back->setIcon(QtCommandSymbol(QtCommandIcon::Back, navigationRow));
     QtBindLocalText(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"), true);
     QtBindLocalToolTip(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"));
@@ -43,6 +44,7 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     forward->setObjectName(QStringLiteral("panelForwardButton%1").arg(index));
     forward->setAutoRaise(true);
     QtConfigureChromeToolButton(*forward);
+    forward->setFocusPolicy(Qt::TabFocus);
     forward->setIcon(QtCommandSymbol(QtCommandIcon::Forward, navigationRow));
     QtBindLocalText(forward, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Forward"),
                     true);

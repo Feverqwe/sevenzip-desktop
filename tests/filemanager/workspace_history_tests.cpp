@@ -74,9 +74,20 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         table(window)->setFocus();
         QTest::keySequence(table(window), forward->shortcut());
         QTRY_COMPARE(location(window), b);
-        QTest::mouseClick(window.findChild<QToolButton *>("panelBackButton0"), Qt::LeftButton);
+        auto *parent = window.findChild<QPushButton *>("panelParentButton0");
+        auto *previous = window.findChild<QToolButton *>("panelBackButton0");
+        auto *next = window.findChild<QToolButton *>("panelForwardButton0");
+        QVERIFY(parent && previous && next);
+        QVERIFY(!next->isEnabled());
+        parent->setFocus();
+        QTest::keyClick(parent, Qt::Key_Backtab);
+        QCOMPARE(window.focusWidget(), previous);
+        QTest::keyClick(previous, Qt::Key_Space);
         QTRY_COMPARE(location(window), a);
-        QTest::mouseClick(window.findChild<QToolButton *>("panelForwardButton0"), Qt::LeftButton);
+        parent->setFocus();
+        QTest::keyClick(parent, Qt::Key_Backtab);
+        QCOMPARE(window.focusWidget(), next);
+        QTest::keyClick(next, Qt::Key_Space);
         QTRY_COMPARE(location(window), b);
     }
 
