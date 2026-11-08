@@ -4,6 +4,7 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QScopedValueRollback>
 #include <QScrollBar>
+#include <utility>
 
 HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &path,
                                                 const QString &nativeIdentity,
@@ -56,14 +57,21 @@ void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &v
                                             const QPoint &position) {
     const UInt64 revision = source.FolderBindingRevision();
     const auto interaction = interactionRevision_;
-    WhenReady([this, owner = QPointer<CPanel>(&source), target = QPointer<QAbstractItemView>(&view),
-               position, revision, interaction] {
+    auto restore = [this, owner = QPointer<CPanel>(&source),
+                    target = QPointer<QAbstractItemView>(&view), position, revision, interaction] {
         if (interactionRevision_ != interaction || !owner ||
             owner->FolderBindingRevision() != revision || !target || !target->isVisible())
             return;
+        target->doItemsLayout();
         target->horizontalScrollBar()->setValue(position.x());
         target->verticalScrollBar()->setValue(position.y());
-    });
+    };
+    // Once the list is published, apply its viewport before another navigation
+    // can capture this visit. A rollback can still have a reload in flight.
+    if (view.isVisible() && view.isEnabled())
+        restore();
+    else
+        WhenReady(std::move(restore));
 }
 
 bool QtWindowWorkspace::LocationMatches(unsigned panel, const QString &path) {

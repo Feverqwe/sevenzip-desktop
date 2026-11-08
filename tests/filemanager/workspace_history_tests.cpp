@@ -126,12 +126,18 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(view->hasFocus());
     }
 
-    void forwardParentBranchAndLargeDirectoryViewport() {
+    void forwardParentBranchAndDirectoryViewport_data() {
+        QTest::addColumn<int>("count");
+        QTest::newRow("immediate") << 100;
+        QTest::newRow("deferred") << 301;
+    }
+    void forwardParentBranchAndDirectoryViewport() {
+        QFETCH(int, count);
         QTemporaryDir fixture;
         const QString a = fixture.filePath("A 空");
         const QString b = fixture.filePath("B");
         const QString c = fixture.filePath("C");
-        createDirectory(a, 301);
+        createDirectory(a, count);
         createDirectory(b);
         createDirectory(c);
         ControlledBackend backend;
@@ -140,8 +146,8 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         window.show();
         window.openPath(a);
         auto *view = table(window);
-        QTRY_VERIFY(view->isEnabled() && view->rowCount() >= 301);
-        const int row = 230;
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() >= count);
+        const int row = count * 3 / 4;
         view->selectRow(row);
         view->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
         view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtCenter);
@@ -163,7 +169,13 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         action(window, "backAction")->trigger();
         QTRY_COMPARE(location(window), b);
         action(window, "backAction")->trigger();
-        QTRY_VERIFY(view->isEnabled() && location(window) == a && view->rowCount() >= 301);
+        if (count == 100) {
+            QCOMPARE(location(window), a);
+            action(window, "forwardAction")->trigger();
+            QCOMPARE(location(window), b);
+            action(window, "backAction")->trigger();
+        }
+        QTRY_VERIFY(view->isEnabled() && location(window) == a && view->rowCount() >= count);
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data().toString(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QTRY_COMPARE(view->verticalScrollBar()->value(), scroll);
