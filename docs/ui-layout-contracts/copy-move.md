@@ -424,6 +424,7 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   existing base directory.
 - A link or a file/folder conflict at the final name keeps the filesystem
   transfer dialog open. For multiple items, the dialog checks on confirmation.
+  After resolving a batch conflict, the user can confirm the same destination again.
 - The redesigned form uses the shared dialog margins/footer and sizes the
   initial summary by its content area rather than the old RC frame.
   Source NormalizeSize(true) applies once at first native

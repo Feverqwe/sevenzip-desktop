@@ -71,10 +71,10 @@ class CCopyDialog : public QDialog {
     QLabel *_nameLabel = nullptr;
     QLabel *_destinationMessage = nullptr;
     QPushButton *_peer = nullptr;
-    bool _canAccept = true;
+    bool _canSubmit = true;
     bool _useName = false;
     void BuildDestinationOptions(QVBoxLayout &layout);
-    void UpdateDestination(bool checkBatch = false);
+    bool UpdateDestination(bool checkBatch = false);
     QString DraftDestination() const;
     QString PreviewDestination(const QString &value) const;
     void RefreshSourceSummary();

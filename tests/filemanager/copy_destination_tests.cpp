@@ -377,11 +377,14 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(dialog.focusWidget(), path);
         QVERIFY(!QFileInfo::exists(QDir(blocked).filePath("first.txt")));
 
-        const QString corrected = fixture.filePath("different folder") + '/';
-        path->setText(corrected);
-        dialog.accept();
+        QCOMPARE(path->text(), blocked + '/');
+        QTest::keyClick(path, Qt::Key_Return);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(message->isVisible());
+        QVERIFY(QDir(blocked).rmdir(secondName));
+        QTest::keyClick(path, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(ToQString(dialog.Value), corrected);
+        QCOMPARE(ToQString(dialog.Value), blocked + '/');
     }
 
     void destinationBelowReadOnlyFolderCanBeCorrected() {

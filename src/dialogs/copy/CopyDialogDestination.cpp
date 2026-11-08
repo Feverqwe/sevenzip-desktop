@@ -161,9 +161,9 @@ QString CCopyDialog::PreviewDestination(const QString &value) const {
     return NormalizeCopyDestination(_destinationContext->RelativeBase + value);
 }
 
-void CCopyDialog::UpdateDestination(bool checkBatch) {
+bool CCopyDialog::UpdateDestination(bool checkBatch) {
     if (!_copyMove || !_pathEdit || !_destinationMessage)
-        return;
+        return true;
     const QString path = _pathEdit->text();
     const QString preview = PreviewDestination(path);
     const QFileInfo destination(preview);
@@ -201,6 +201,7 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
         linkedTransferDirectory = transferDirectory.isSymLink() || transferDirectory.isJunction();
     }
     QString error;
+    bool batchConflict = false;
     if (_sources.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
     else if (path.isEmpty())
@@ -253,13 +254,18 @@ void CCopyDialog::UpdateDestination(bool checkBatch) {
                             "qtfiletransfertransaction",
                             "Cannot replace a file with a folder or a folder with a file: %1")
                             .arg(target.filePath());
-            if (!error.isEmpty())
+            if (!error.isEmpty()) {
+                batchConflict = _sources.size() > 1;
                 break;
+            }
         }
     }
-    _canAccept = error.isEmpty();
+    // A batch conflict can be removed outside the dialog. Keep OK available
+    // so the same destination can be checked again without editing the path.
+    _canSubmit = error.isEmpty() || batchConflict;
     _destinationMessage->setText(error);
     _destinationMessage->setVisible(!error.isEmpty());
     if (auto *buttons = findChild<QDialogButtonBox *>("copyButtons"))
-        buttons->button(QDialogButtonBox::Ok)->setEnabled(_canAccept);
+        buttons->button(QDialogButtonBox::Ok)->setEnabled(_canSubmit);
+    return error.isEmpty();
 }

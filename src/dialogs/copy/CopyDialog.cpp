@@ -255,10 +255,9 @@ bool CCopyDialog::ReadPath(UString &path) {
 }
 
 void CCopyDialog::OnOK() {
-    const bool wasAcceptable = _canAccept;
-    UpdateDestination(true);
-    if (!_canAccept) {
-        if (wasAcceptable) {
+    const bool couldSubmit = _canSubmit;
+    if (!UpdateDestination(true)) {
+        if (couldSubmit) {
             _pathEdit->setFocus();
             QTimer::singleShot(0, this, [this] {
                 auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
