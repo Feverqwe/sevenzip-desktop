@@ -601,7 +601,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         answered = false;
         retrying = true;
         QVERIFY(paste->isEnabled());
-        paste->trigger();
+        QVERIFY(WindowActivation::waitForActive(destinationWindow));
+        auto *destinationView = table(destinationWindow);
+        QTRY_VERIFY(destinationView->hasFocus());
+        PanelKeys::command(destinationWindow.focusWidget(), Qt::Key_V, Qt::ControlModifier);
         QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
         QCOMPARE(read(destination + '/' + moved), QByteArray("moved bytes"));
