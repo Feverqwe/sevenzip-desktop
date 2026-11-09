@@ -208,6 +208,18 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         }
         selected->setFocus();
         QTRY_VERIFY(selected->hasFocus());
+        if (cancel) {
+            const QString parked = output.filePath("parked-batch.txt");
+            QVERIFY(QFile::rename(extra, parked));
+            QCOMPARE(selected->selectionModel()->selectedRows().size(), 2);
+            action(window, "toolbarAddAction")->trigger();
+            QVERIFY(backend.Requests.isEmpty());
+            QVERIFY(!QFileInfo::exists(backend.Target));
+            QVERIFY(window.statusBar()->currentMessage().contains("second.txt"));
+            QTRY_COMPARE(window.focusWidget(), selected);
+            QCOMPARE(selected->selectionModel()->selectedRows().size(), 2);
+            QVERIFY(QFile::rename(parked, extra));
+        }
         auto *scroll = selected->verticalScrollBar();
         QTRY_VERIFY(scroll->maximum() > 0);
         scroll->setValue(scroll->maximum() / 2);

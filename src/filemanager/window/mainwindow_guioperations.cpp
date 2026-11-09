@@ -84,11 +84,11 @@ HRESULT MainWindow::launchGuiArchiveCompress(const UString &folder, const UStrin
                                              bool showDialog) {
     QString error;
     const QStringList sources = ArchivePaths(paths);
-    if (sources.size() == 1 && !QFileInfo::exists(sources.front()) &&
-        !QtIsFileSystemLink(sources.front())) {
-        showStatusMessage(MissingInputMessage(sources.front()));
-        return E_FAIL;
-    }
+    for (const auto &source : sources)
+        if (!QFileInfo::exists(source) && !QtIsFileSystemLink(source)) {
+            showStatusMessage(MissingInputMessage(source));
+            return E_FAIL;
+        }
     auto *operation = backend_->startGuiCompress(
         QFileInfo(QString::fromWCharArray(folder + name)).absoluteFilePath(),
         QString::fromWCharArray(type), addExtension, sources, email, showDialog, error);
