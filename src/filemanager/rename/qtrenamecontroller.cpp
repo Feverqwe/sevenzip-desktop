@@ -63,6 +63,10 @@ void QtRenameController::Attach(QAbstractItemView &view, unsigned panel) {
                     !request_->editor || request_->editor != editor ||
                     request_->phase != Request::Phase::Editing)
                     return;
+                if (request_->editor->text() == request_->name) {
+                    Cancel(panel);
+                    return;
+                }
                 request_->name = request_->editor->text();
                 request_->phase = Request::Phase::Committed;
                 completion_.start();
@@ -100,6 +104,7 @@ void QtRenameController::Begin(int row) {
                                                     : panel.GetItemFullPath(sourceIndex)),
                                   view);
     request_ = request;
+    request->name = ToQString(panel.GetItemName(sourceIndex));
     request->viewport = window_.captureListViewport();
     const QPointer<QtRenameController> guard(this);
     auto retireUnopened = qScopeGuard([this, guard, request] {
@@ -126,7 +131,7 @@ void QtRenameController::Begin(int row) {
     }
     retireUnopened.dismiss();
     if (archive || streams) {
-        request->editor->setText(ToQString(panel.GetItemName(sourceIndex)));
+        request->editor->setText(request->name);
         request->editor->selectAll();
     }
 }

@@ -238,17 +238,18 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(remainingMarks.Size(), savedMarks.Size());
         FOR_VECTOR(i, savedMarks)
         QCOMPARE(remainingMarks[i], savedMarks[i]);
-        if (!icons) {
-            view->horizontalScrollBar()->setValue(view->horizontalScrollBar()->maximum());
-            const int beforeEdit = view->horizontalScrollBar()->value();
-            QVERIFY(beforeEdit > 0);
-            QTest::keyClick(active, Qt::Key_F2);
-            editor = active->findChild<QLineEdit *>();
-            QVERIFY(editor);
-            QVERIFY(view->horizontalScrollBar()->value() < beforeEdit);
-            QTest::keyClick(editor, Qt::Key_Escape);
-            QTRY_COMPARE(view->horizontalScrollBar()->value(), beforeEdit);
-        }
+        if (!icons)
+            for (const auto key : {Qt::Key_Escape, Qt::Key_Return}) {
+                view->horizontalScrollBar()->setValue(view->horizontalScrollBar()->maximum());
+                const int beforeEdit = view->horizontalScrollBar()->value();
+                QVERIFY(beforeEdit > 0);
+                QTest::keyClick(active, Qt::Key_F2);
+                editor = active->findChild<QLineEdit *>();
+                QVERIFY(editor);
+                QVERIFY(view->horizontalScrollBar()->value() < beforeEdit);
+                QTest::keyClick(editor, key);
+                QTRY_COMPARE(view->horizontalScrollBar()->value(), beforeEdit);
+            }
         action(window, "renameAction")->trigger();
         editor = active->findChild<QLineEdit *>();
         QVERIFY(editor);
