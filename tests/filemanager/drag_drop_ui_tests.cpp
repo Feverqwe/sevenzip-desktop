@@ -510,9 +510,16 @@ class DragDropUiTests final : public QObject {
     }
 #endif
 
+    void archiveClipboardPastesBothSelectedEntriesIntoPeer_data() {
+        QTest::addColumn<bool>("directory");
+        QTest::newRow("two-files") << false;
+        QTest::newRow("file-and-directory") << true;
+    }
+
     void archiveClipboardPastesBothSelectedEntriesIntoPeer() {
         if (!qEnvironmentVariableIsSet("SEVENZIP_TEST_ARCHIVE_CLIPBOARD_PASTE"))
             QSKIP("Requires an isolated test process");
+        QFETCH(bool, directory);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const ScopedTestEnvironment settings("SEVENZIP_SETTINGS_PATH",
@@ -521,9 +528,12 @@ class DragDropUiTests final : public QObject {
         const QString output = fixture.filePath("destination");
         QVERIFY(QDir().mkpath(output));
         const QString first = QStringLiteral("первый #.txt");
-        const QString second = QStringLiteral("second file.txt");
-        QVERIFY(
-            NativeArchiveFixture::Write(archive, {{first, "first"}, {second, "second"}}, "zip"));
+        const QString second =
+            directory ? QStringLiteral("папка #") : QStringLiteral("second file.txt");
+        const QString secondFile =
+            directory ? second + QStringLiteral("/nested/данные.txt") : second;
+        QVERIFY(NativeArchiveFixture::Write(archive, {{first, "first"}, {secondFile, "second"}},
+                                            "zip"));
         const auto original = SourceExtractFixture::readFile(archive);
         const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
                                              fixture.filePath("owned-temp"));
@@ -565,17 +575,18 @@ class DragDropUiTests final : public QObject {
         QTRY_VERIFY(source->isEnabled());
         enterPath(*left, archive);
         QTRY_VERIFY(source->isEnabled() && Row(*source, first) >= 0 && Row(*source, second) >= 0);
+        source->setFocus();
         QTRY_COMPARE(window.focusWidget(), source);
         QTest::keySequence(source, QKeySequence::SelectAll);
         QTRY_COMPARE(source->selectionModel()->selectedRows().size(), 2);
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
         QTRY_VERIFY(QApplication::clipboard()->mimeData());
         QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
-        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTest::mouseClick(destination->viewport(), Qt::LeftButton);
         QTRY_COMPARE(window.focusWidget(), destination);
         QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
         QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(first)), "first");
-        QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(second)), "second");
+        QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(secondFile)), "second");
         QTRY_VERIFY(Row(*destination, first) >= 0 && Row(*destination, second) >= 0);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }
