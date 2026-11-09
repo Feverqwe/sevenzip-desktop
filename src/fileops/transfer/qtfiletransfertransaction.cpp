@@ -7,6 +7,7 @@
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/transfer/filetransferoperation.h"
+#include "fileops/transfer/qttransfertargetname.h"
 #include "localization/qtlanguageservices.h"
 #include "platform/temp/qtownedtempidentity.h"
 
@@ -27,7 +28,7 @@ using NWindows::NFile::NFind::CFileInfo;
 QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
                         const QSet<QString> &targets, const QString &canonicalDestination,
                         bool sourceLink) {
-    if (targets.contains(target.filePath()))
+    if (targets.contains(QtTransferTargetKey(target.filePath())))
         return QCoreApplication::translate("qtfiletransfertransaction",
                                            "Multiple items would use the same destination: %1")
             .arg(target.filePath());
@@ -180,7 +181,7 @@ QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
                                                   canonicalDestination, QtIsFileSystemLink(path));
             !error.isEmpty())
             return error;
-        targets.insert(target);
+        targets.insert(QtTransferTargetKey(target));
     }
     return {};
 }
@@ -219,7 +220,7 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
             TargetPathError(info, targetInfo, plannedTargets_, canonicalDestination, sourceLink);
         if (!error.isEmpty())
             return {};
-        plannedTargets_.insert(target);
+        plannedTargets_.insert(QtTransferTargetKey(target));
         targets.append({source, target, std::move(*member)});
     }
     return targets;
@@ -541,14 +542,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                 break;
             case OverwriteDecision::Rename: {
                 const QString candidate = availableName(target, [this](const QString &name) {
-#ifdef Q_OS_WIN
-                    return std::any_of(plannedTargets_.cbegin(), plannedTargets_.cend(),
-                                       [&name](const QString &planned) {
-                                           return planned.compare(name, Qt::CaseInsensitive) == 0;
-                                       });
-#else
-                    return plannedTargets_.contains(name);
-#endif
+                    return plannedTargets_.contains(QtTransferTargetKey(name));
                 });
                 if (candidate.isEmpty()) {
                     error = QCoreApplication::translate("qtfiletransfertransaction",

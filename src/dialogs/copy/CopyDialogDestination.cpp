@@ -3,6 +3,7 @@
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
+#include "fileops/transfer/qttransfertargetname.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
@@ -264,7 +265,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
             const QFileInfo source(sourcePath);
             const QFileInfo target(
                 needsDirectory && !_useName ? targetDirectory.filePath(source.fileName()) : draft);
-            if (targets.contains(target.filePath()))
+            if (targets.contains(QtTransferTargetKey(target.filePath())))
                 error =
                     QCoreApplication::translate("qtfiletransfertransaction",
                                                 "Multiple items would use the same destination: %1")
@@ -283,7 +284,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
                 nameError = _useName;
                 break;
             }
-            targets.insert(target.filePath());
+            targets.insert(QtTransferTargetKey(target.filePath()));
         }
     }
     // A batch conflict can be removed outside the dialog. Keep OK available

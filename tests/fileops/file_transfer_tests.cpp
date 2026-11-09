@@ -21,19 +21,25 @@ class FileTransferTests : public QObject {
     void invalidBatchDoesNotAskToOverwrite_data() {
         QTest::addColumn<bool>("move");
         QTest::addColumn<bool>("duplicateName");
-        QTest::newRow("copy-missing-source") << false << false;
-        QTest::newRow("move-missing-source") << true << false;
-        QTest::newRow("copy-duplicate-target") << false << true;
-        QTest::newRow("move-duplicate-target") << true << true;
+        QTest::addColumn<bool>("differentCase");
+        QTest::newRow("copy-missing-source") << false << false << false;
+        QTest::newRow("move-missing-source") << true << false << false;
+        QTest::newRow("copy-duplicate-target") << false << true << false;
+        QTest::newRow("move-duplicate-target") << true << true << false;
+#ifdef Q_OS_WIN
+        QTest::newRow("move-duplicate-target-case") << true << true << true;
+#endif
     }
     void invalidBatchDoesNotAskToOverwrite() {
         QFETCH(bool, move);
         QFETCH(bool, duplicateName);
+        QFETCH(bool, differentCase);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("имя 空 с пробелом.txt");
         const QString first = fixture.filePath("first/" + name);
-        const QString last = fixture.filePath("last/" + name);
+        const QString lastName = differentCase ? name.toUpper() : name;
+        const QString last = fixture.filePath("last/" + lastName);
         const QString destination = fixture.filePath("destination");
         const QString target = QDir(destination).filePath(name);
         const auto write = [](const QString &path, const QByteArray &bytes) {
@@ -66,7 +72,7 @@ class FileTransferTests : public QObject {
             QCOMPARE(file.readAll(), expected.second);
         }
         if (duplicateName) {
-            QVERIFY(result.first().at(1).toString().contains(target));
+            QVERIFY(result.first().at(1).toString().contains(QDir(destination).filePath(lastName)));
             QFile file(last);
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("last bytes"));
