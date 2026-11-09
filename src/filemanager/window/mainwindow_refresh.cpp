@@ -127,8 +127,11 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
         snapshot.insert(directory, signature);
         projectedUi().table->clearSelection();
         projectedUi().table->clearRows();
-        showStatusMessage(QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
-                          directory);
+        showStatusMessage(
+            signature.exists
+                ? QCoreApplication::translate("CopyRedesign", "Not a folder: %1").arg(directory)
+                : QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
+                      directory);
         refreshActions();
         // The missing-folder state has been published, including the diagnostic.
         return S_OK;

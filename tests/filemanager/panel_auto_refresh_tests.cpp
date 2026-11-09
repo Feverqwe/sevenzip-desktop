@@ -624,15 +624,19 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<bool>("automatic");
         QTest::addColumn<bool>("publishedRename");
         QTest::addColumn<bool>("goUp");
-        QTest::newRow("automatic") << true << false << false;
-        QTest::newRow("manual") << false << false << false;
-        QTest::newRow("published-rename") << false << true << false;
-        QTest::newRow("parent-after-rename") << false << true << true;
+        QTest::addColumn<bool>("replacedByFile");
+        QTest::newRow("automatic") << true << false << false << false;
+        QTest::newRow("manual") << false << false << false << false;
+        QTest::newRow("automatic-file-replacement") << true << false << false << true;
+        QTest::newRow("manual-file-replacement") << false << false << false << true;
+        QTest::newRow("published-rename") << false << true << false << false;
+        QTest::newRow("parent-after-rename") << false << true << true << false;
     }
     void missingFolderClearsStaleRowsAndRecovers() {
         QFETCH(bool, automatic);
         QFETCH(bool, publishedRename);
         QFETCH(bool, goUp);
+        QFETCH(bool, replacedByFile);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QString folder = temp.filePath(QStringLiteral("browse"));
@@ -689,11 +693,19 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(QFile::remove(folder + QStringLiteral("/old.txt")));
             bool removed = false;
             QTRY_VERIFY_WITH_TIMEOUT(removed || (removed = QDir().rmdir(folder)), 2000);
+            if (replacedByFile)
+                QVERIFY(writeFile(folder, "replacement file"));
             if (!automatic)
                 action(window, "refreshAction")->trigger();
         }
         QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 0, 3500);
-        QVERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
+        if (replacedByFile)
+            QTRY_COMPARE(window.statusBar()->currentMessage(),
+                         QCoreApplication::translate("CopyRedesign", "Not a folder: %1")
+                             .arg(QFileInfo(folder).canonicalFilePath()));
+        else
+            QVERIFY(
+                window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
         for (const auto *command : fileCommands)
             QVERIFY(!command->isEnabled());
         QVERIFY(!action(window, "testArchiveAction")->isEnabled());
@@ -718,6 +730,13 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             return;
         }
 
+        if (replacedByFile) {
+            QFile replacement(folder);
+            QVERIFY(replacement.open(QIODevice::ReadOnly));
+            QCOMPARE(replacement.readAll(), QByteArray("replacement file"));
+            replacement.close();
+            QVERIFY(replacement.remove());
+        }
         QVERIFY(QDir().mkpath(folder));
         QVERIFY(writeFile(folder + QStringLiteral("/new.txt")));
         if (!automatic)
