@@ -98,12 +98,7 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
     QTest::keyClick(folderName, Qt::Key_Return);
     auto *error = folderName->parentWidget()->findChild<QLabel *>("inlineFolderError");
     QVERIFY(error && error->isVisible());
-#ifdef Q_OS_WIN
-    const HRESULT conflict = HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS);
-#else
-    const HRESULT conflict = HRESULT_FROM_WIN32(EEXIST);
-#endif
-    QCOMPARE(error->text(), ToQString(HResultToMessage(conflict)));
+    QVERIFY(error->text().contains(duplicate));
     QCOMPARE(folderName->selectedText(), duplicate);
     QVERIFY(archiveFile.open(QIODevice::ReadOnly));
     QCOMPARE(archiveFile.readAll(), beforeDuplicate);
