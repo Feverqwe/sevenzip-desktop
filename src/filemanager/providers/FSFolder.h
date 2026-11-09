@@ -107,6 +107,7 @@ class CFSFolder final : public IFolderFolder,
     std::function<bool(const QString &)> CheckBreak;
     void AddPath(const QString &path);
     FString GetRelPath(const CDirItem &item) const;
+    bool CanCalculateItemFullSize(UInt32 index) const;
 
   private:
     HRESULT LoadSubItems(int dirItem, const FString &relPrefix);

@@ -2,6 +2,7 @@
 #include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "platform/support/native_link_fixture.h"
 #include "support/progress_dialog.h"
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
@@ -176,6 +177,40 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
         QCOMPARE(size.vt, VARTYPE(VT_UI8));
         QCOMPARE(size.uhVal.QuadPart, UInt64(7));
+    }
+
+    void directoryLinkAloneDoesNotOfferCalculation() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("folder");
+        QVERIFY(QDir().mkdir(folder));
+        QVERIFY(writeFile(QDir(folder).filePath("payload"), "123"));
+        QVERIFY(CreateNativeSymbolicLink(fixture.filePath("folder link"), folder));
+        MainWindow window;
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "folder link") >= 0);
+        window.activateWindow();
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        const int linkRow = filesystemRow(window, "folder link");
+        view->setCurrentCell(linkRow, 0);
+        view->selectRow(linkRow);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+        auto *calculate = action(window, "calculateDirectorySizeAction");
+        QTRY_VERIFY(!calculate->isEnabled());
+        const int folderRow = filesystemRow(window, "folder");
+        QVERIFY(folderRow >= 0);
+        view->selectionModel()->select(view->model()->index(folderRow, 0),
+                                       QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        QVERIFY(calculate->isEnabled());
+        calculate->trigger();
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        QCOMPARE(
+            view->model()->index(filesystemRow(window, "folder"), sizeColumn).data().toString(),
+            QtRegionalFormat::bytes(3));
     }
 
     void calculatesOperatedFoldersWithoutReloading_data() {

@@ -658,6 +658,7 @@ class CPanel : public QObject {
     void GetFilePaths(const CRecordVector<UInt32> &operatedIndices, UStringVector &paths) const;
     UString GetItemFullPath(unsigned index) const;
     bool IsItem_Folder(UInt32 index) const;
+    bool CanCalculateFilesystemItemSize(UInt32 index) const;
     bool IsItem_Deleted(unsigned itemIndex) const;
     QColor OnCustomDraw(unsigned realIndex) const;
     int CompareItemIndices(UInt32 first, UInt32 second, PROPID sortID,

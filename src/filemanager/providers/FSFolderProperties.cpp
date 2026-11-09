@@ -192,12 +192,14 @@ void CFSFolder::ReadChangeTime(CDirItem &di) {
 #endif
 }
 
+bool CFSFolder::CanCalculateItemFullSize(UInt32 index) const {
+    return index < Files.Size() && Files[index].IsDir() && !Files[index].IsOsSymLink();
+}
+
 Z7_COM7F_IMF(CFSFolder::CalcItemFullSize(UInt32 index, IProgress *progress)) {
-    if (index >= Files.Size())
+    if (!CanCalculateItemFullSize(index))
         return S_OK;
     CDirItem &fi = Files[index];
-    if (!fi.IsDir() || fi.IsOsSymLink())
-        return S_OK;
     CFsFolderStat stat(_path + GetRelPath(fi), progress);
     const HRESULT result = stat.Enumerate();
     if (result != S_OK) {

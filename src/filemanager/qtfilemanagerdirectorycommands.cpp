@@ -20,18 +20,13 @@ void QtFileManagerCommands::AttachDirectoryActions() {
 bool QtFileManagerCommands::CanCalculateDirectorySize() const {
     auto &panel = window_.app_.GetFocusedPanel();
     auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
-    CMyComPtr<IFolderCalcItemFullSize> filesystem;
-    if (panel.IsFSFolder() && panel.GetFolder())
-        panel.GetFolder()->QueryInterface(IID_IFolderCalcItemFullSize,
-                                          reinterpret_cast<void **>(&filesystem));
-    if (!folder && !filesystem)
-        return false;
     CUIntVector indices;
     panel.Get_ItemIndices_Operated(indices);
-    FOR_VECTOR(i, indices)
-    if (panel.IsItem_Folder(indices[i])) {
-        if (filesystem)
+    FOR_VECTOR(i, indices) {
+        if (panel.CanCalculateFilesystemItemSize(indices[i]))
             return true;
+        if (!folder || !panel.IsItem_Folder(indices[i]))
+            continue;
         const int nativeIndex = folder->GetRealIndex(indices[i]);
         if (nativeIndex >= 0 && !folder->DirectoryItemSubtreeComplete(UInt32(nativeIndex)))
             return true;

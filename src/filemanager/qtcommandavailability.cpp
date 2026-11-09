@@ -63,13 +63,8 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     c.selectedParent = focus.Present && focus.Parent && focus.Selected;
     c.openOutside = (c.operated || c.selectedParent) && panel.CanOpenItemsOutside(operated);
     c.focusedFile = panel.IsFocusedFile();
-    CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;
-    if (panel.GetFolder())
-        panel.GetFolder()->QueryInterface(IID_IFolderCalcItemFullSize,
-                                          reinterpret_cast<void **>(&calcItemFullSize));
-    if (calcItemFullSize)
-        FOR_VECTOR(i, operated)
-    if (panel.IsItem_Folder(operated[i]))
+    FOR_VECTOR(i, operated)
+    if (panel.CanCalculateFilesystemItemSize(operated[i]))
         c.folderSize = true;
     c.oneFile = c.one && !panel.IsItem_Folder(operated[0]);
     const QFileInfo directory(w.projectedUi().directory);

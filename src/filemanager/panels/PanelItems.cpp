@@ -12,6 +12,7 @@
 #include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/ExtractingFilePath.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/providers/FSFolder.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QCoreApplication>
 
@@ -87,7 +88,7 @@ void CPanel::EditItem(bool useEditor) {
             Get_ItemIndices_Operated(indices);
             CRecordVector<UInt32> folders;
             FOR_VECTOR(i, indices) {
-                if (IsItem_Folder(indices[i]))
+                if (CanCalculateFilesystemItemSize(indices[i]))
                     folders.Add(indices[i]);
             }
             if (!folders.IsEmpty()) {
@@ -234,6 +235,11 @@ void CPanel::OpenSelectedItems(bool tryInternal) {
         } else
             OpenItem(index, (tryInternal && indices.Size() == 1), true);
     }
+}
+
+bool CPanel::CanCalculateFilesystemItemSize(UInt32 index) const {
+    const auto *folder = dynamic_cast<const NFsFolder::CFSFolder *>(_folder.Interface());
+    return folder && folder->CanCalculateItemFullSize(index);
 }
 
 bool CPanel::IsItem_Folder(UInt32 itemIndex) const {
