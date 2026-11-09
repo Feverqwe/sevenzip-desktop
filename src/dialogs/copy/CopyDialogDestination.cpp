@@ -56,6 +56,15 @@ bool IsName(const QString &name, const QString &directory) {
     return IsValidWindowsPath(name, directory);
 }
 
+bool CanSearchDirectory(const QFileInfo &directory) {
+#ifdef Q_OS_UNIX
+    return directory.isExecutable();
+#else
+    (void)directory;
+    return true;
+#endif
+}
+
 QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory) {
     QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
     for (;;) {
@@ -63,6 +72,9 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
         if (directory.exists() || directory.isSymLink()) {
             if (!directory.isDir())
                 return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Not a folder: %1")).arg(path);
+            if (!CanSearchDirectory(directory))
+                return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Cannot access folder: %1"))
+                    .arg(path);
             return directory.isWritable()
                        ? QString()
                        : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The folder is read-only: %1"))
@@ -80,7 +92,7 @@ bool QtCopyDestinationContext::IsPeerWritable() const {
     if (!PeerSupportsWriting || !PeerIsFilesystem)
         return PeerSupportsWriting;
     const QFileInfo directory(QDir::cleanPath(PeerDestination));
-    return directory.isDir() && directory.isWritable() &&
+    return directory.isDir() && directory.isWritable() && CanSearchDirectory(directory) &&
            (!LocalFileTransfer || (!directory.isSymLink() && !directory.isJunction()));
 }
 

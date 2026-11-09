@@ -495,16 +495,35 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), destination);
     }
 
-    void destinationBelowReadOnlyFolderCanBeCorrected() {
+    void blockedDestinationCanBeCorrected_data() {
+        QTest::addColumn<bool>("searchDenied");
+        QTest::newRow("read-only") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("no-directory-search") << true;
+#endif
+    }
+
+    void blockedDestinationCanBeCorrected() {
+        QFETCH(bool, searchDenied);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString blocked = fixture.filePath("read only");
-        const QString writable = blocked + "/writable";
+        const QString blocked = fixture.filePath("blocked");
+        const QString writable =
+            searchDenied ? fixture.filePath("writable") : blocked + "/writable";
+        QVERIFY(QDir().mkpath(blocked));
         QVERIFY(QDir().mkpath(writable));
         const auto permissions = QFile::permissions(blocked);
         const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
-        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
-            QFileInfo(blocked).isWritable())
+        const auto blockedPermissions =
+            QFile::ReadOwner | (searchDenied ? QFile::WriteOwner : QFile::ExeOwner);
+        const auto applyPermissions = [&] {
+            if (!QFile::setPermissions(blocked, blockedPermissions))
+                return false;
+            const QFileInfo directory(blocked);
+            return searchDenied ? directory.isWritable() && !directory.isExecutable()
+                                : !directory.isWritable();
+        };
+        if (!applyPermissions())
             QSKIP("The test filesystem does not enforce this directory permission");
 
         const QString source = fixture.filePath("source.txt");
@@ -531,8 +550,10 @@ class CopyDestinationTests final : public QObject {
             dialog.accept();
             QVERIFY(dialog.isVisible());
             QCOMPARE(path->text(), unwritable);
-            QCOMPARE(dialog.findChild<QLabel *>("copyDestinationMessage")->text(),
-                     QString("The folder is read-only: %1").arg(blocked));
+            QCOMPARE(
+                dialog.findChild<QLabel *>("copyDestinationMessage")->text(),
+                QString(searchDenied ? "Cannot access folder: %1" : "The folder is read-only: %1")
+                    .arg(blocked));
         }
         path->setText(target);
         QVERIFY(ok->isEnabled());
@@ -551,7 +572,7 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(path->text(), context.PeerDestination);
         QVERIFY(ok->isEnabled());
         QVERIFY(WindowActivation::waitForActive(other));
-        QVERIFY(QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner));
+        QVERIFY(applyPermissions());
         QVERIFY(WindowActivation::waitForActive(dialog));
         QTRY_VERIFY(!ok->isEnabled());
         QVERIFY(!peer->isEnabled());
