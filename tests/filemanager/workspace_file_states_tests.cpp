@@ -279,6 +279,7 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         window.openPath(blocked);
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, "existing.txt") >= 0);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
         QVERIFY(WindowActivation::waitForActive(window));
         files->setFocus();
         QTRY_VERIFY(files->hasFocus());
@@ -288,6 +289,22 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(!paste->isEnabled());
         for (auto *mutation : mutations)
             QVERIFY2(!mutation->isEnabled(), qPrintable(mutation->objectName()));
+        const QString target = QDir(blocked).filePath("incoming.txt");
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(!QFileInfo::exists(target));
+        const QList<QUrl> original{QUrl::fromLocalFile(source)};
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
+        QVERIFY(
+            QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+        QVERIFY(!paste->isEnabled());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(rowFor(*files, "incoming.txt") >= 0);
+        QFile received(target);
+        QVERIFY(received.open(QIODevice::ReadOnly));
+        QCOMPARE(received.readAll(), QByteArray("file state fixture"));
+        received.close();
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
+        QVERIFY(WindowActivation::waitForActive(window));
         window.openPath(writable);
         QTRY_VERIFY(paste->isEnabled());
         QTRY_VERIFY(files->hasFocus());

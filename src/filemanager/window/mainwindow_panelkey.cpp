@@ -3,6 +3,7 @@
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanelkey.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QContextMenuEvent>
@@ -240,6 +241,9 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (!panel.ShouldProcessNotifications())
         return true;
     if (QAction *action = panelShortcut(*key)) {
+        // Destination permissions can change between file list updates.
+        if (clipboard_ && action == clipboard_->paste && !action->isEnabled())
+            clipboard_->Refresh();
         if (action->isEnabled() && action->isVisible())
             action->trigger();
         return true;
