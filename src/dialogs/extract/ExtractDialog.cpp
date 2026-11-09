@@ -238,9 +238,8 @@ void CExtractDialog::OnButtonSetPath() {
 }
 
 void CExtractDialog::OnOK() {
-    UString s = DraftDestination();
     const QString base = DestinationDraft(_path->currentText());
-    const QString requested = ToQString(s);
+    const QString requested = ToQString(DraftDestination());
     const auto directoryError = [this](const QString &candidate, FString *resolvedPath = nullptr,
                                        bool checkOutputPolicy = true) -> QString {
         FString resolved;
@@ -309,17 +308,16 @@ void CExtractDialog::OnOK() {
     if (!OverwriteMode_Force && _info.OverwriteMode != OverwriteMode)
         _info.OverwriteMode_Force = true;
     _info.OverwriteMode = OverwriteMode;
-    NWindows::NFile::NName::NormalizeDirPathPrefix(s);
     const bool splitDest = _nameEnable->isChecked();
     if (splitDest != _info.SplitDest.Val) {
         _info.SplitDest.Def = true;
         _info.SplitDest.Val = splitDest;
     }
-    DirPath = QString::fromWCharArray(s.Ptr());
     _info.Paths.Clear();
-    UString historyPath = fs2us(resolvedDestination);
-    NWindows::NFile::NName::NormalizeDirPathPrefix(historyPath);
-    AddUniqueArchivePath(_info.Paths, ToQString(historyPath));
+    UString acceptedPath = fs2us(resolvedDestination);
+    NWindows::NFile::NName::NormalizeDirPathPrefix(acceptedPath);
+    DirPath = ToQString(acceptedPath);
+    AddUniqueArchivePath(_info.Paths, DirPath);
     for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {
         AddUniqueArchivePath(_info.Paths, DestinationDraft(_path->itemText(i)));
     }

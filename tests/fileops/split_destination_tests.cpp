@@ -130,8 +130,10 @@ class SplitDestinationTests final : public QObject {
         const QString destination = fixture.filePath("output");
         const QString alias = fixture.filePath("nested/../output");
         CExtractDialog dialog(alias, {destination + '/', alias + '/'});
+        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), alias);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), destination + '/');
 
         CExtractDialog reopened(fixture.path(), {});
         auto *history = path(reopened);
@@ -373,14 +375,14 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(!enabled(afterCancel)->isChecked());
     }
     void rootAndLeafDoNotDuplicate() {
-        for (QString initial : {QString("/"), QString("name"), QString("name/")}) {
+        for (const QString &initial : {QDir::rootPath(), QString("name"), QString("name/")}) {
             QFile::remove(settings_);
             CExtractDialog dialog(initial, {});
             QCOMPARE(path(dialog)->currentText(), initial);
             QVERIFY(name(dialog)->text().isEmpty());
             dialog.accept();
-            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                     initial.endsWith('/') ? initial : initial + "/");
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())),
+                     QDir::cleanPath(QDir::current().absoluteFilePath(initial)));
         }
     }
     void extractionSuccessFailureAndCancel() {
