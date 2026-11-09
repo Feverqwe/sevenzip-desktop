@@ -17,6 +17,8 @@
 #include "filemanager/providers/RootFolder.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/LangUtils.h"
+#include <QCoreApplication>
+#include <QFileInfo>
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -174,6 +176,23 @@ HRESULT CPanel::OpenParentFolder() {
                 const CFolderLink &link = _parentFolders.Back();
                 parentFolderPrefix = link.ParentFolderPath;
                 focusedName = link.RelPath;
+            }
+            if (_parentFolders.Size() == 1 && !parentFolderPrefix.IsEmpty()) {
+                const QFileInfo parent(ToQString(parentFolderPrefix));
+                if (!parent.isDir()) {
+                    MessageBox_Error(ToUString(
+                        QCoreApplication::translate("mainwindow_filelist", "Folder not found: ") +
+                        parent.filePath()));
+                    return E_FAIL;
+                }
+#ifdef Q_OS_UNIX
+                if (!parent.isReadable() || !parent.isExecutable()) {
+                    MessageBox_Error(ToUString(
+                        QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                            .arg(parent.filePath())));
+                    return E_FAIL;
+                }
+#endif
             }
             if (!CloseOneLevel(true))
                 return E_ABORT;

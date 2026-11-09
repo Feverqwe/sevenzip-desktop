@@ -278,7 +278,7 @@ HRESULT MainWindow::goParentImpl() {
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
         result = panel.OpenParentFolder();
     }
-    if (result == E_ABORT)
+    if (result != S_OK)
         setState(previousState);
     else if (const auto published = workspace_->NavigationPublication())
         result = *published;

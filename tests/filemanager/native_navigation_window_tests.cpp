@@ -446,6 +446,68 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("child.7z"));
         QCOMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("folder"));
     }
+    void archiveParentCanBeRetriedAfterDirectoryReturns_data() {
+        QTest::addColumn<bool>("parentRow");
+        QTest::newRow("button") << false;
+        QTest::newRow("parent-row") << true;
+    }
+    void archiveParentCanBeRetriedAfterDirectoryReturns() {
+        QFETCH(bool, parentRow);
+#ifndef Q_OS_UNIX
+        QSKIP("Requires renaming a folder while its archive is open");
+#endif
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath(QStringLiteral("папка архива"));
+        const QString parked = fixture.filePath("renamed");
+        QVERIFY(QDir().mkdir(folder));
+        const QString path = QDir(folder).filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::Write(path, {{"entry.txt", "payload"}}, "zip"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openArchive(path);
+        auto *list = table(window);
+        QTRY_COMPARE(list->rowCount(), 2);
+        QCOMPARE(list->model()->index(0, 0).data().toString(), QString(".."));
+        QVERIFY(WindowActivation::waitForActive(window));
+        list->setCurrentCell(parentRow ? 0 : 1, 0);
+        list->selectRow(list->currentRow());
+        list->setFocus();
+        QTRY_VERIFY(list->hasFocus());
+        auto *button = window.findChild<QPushButton *>("panelParentButton0");
+        QVERIFY(button);
+        const auto openParent = [&] {
+            if (parentRow)
+                PanelKeys::openSelection(list);
+            else
+                QTest::mouseClick(button, Qt::LeftButton);
+        };
+        QVERIFY(QDir().rename(folder, parked));
+        QString message;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                message = error->text();
+                error->accept();
+            }
+        });
+        dismiss.start(5);
+        openParent();
+        QVERIFY(message.contains(folder));
+        QVERIFY(list->sourcePanel->IsArcFolder());
+        QCOMPARE(list->model()->index(1, 0).data().toString(), QString("entry.txt"));
+        QCOMPARE(list->currentRow(), parentRow ? 0 : 1);
+
+        QVERIFY(QDir().rename(parked, folder));
+        QVERIFY(WindowActivation::waitForActive(window));
+        openParent();
+        QTRY_VERIFY(list->sourcePanel->IsFSFolder());
+        QTRY_COMPARE(list->currentIndex().data().toString(), QString("source.zip"));
+    }
     void parentButtonBelongsToItsPanel_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("peerRoot");
