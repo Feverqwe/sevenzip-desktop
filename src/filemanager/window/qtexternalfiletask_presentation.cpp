@@ -65,6 +65,7 @@ void QtExternalFileTask::Refresh() {
 }
 
 void QtExternalFileTask::Show() {
+    state_->observationPresentation.stop();
     if (!state_->dialog) {
         auto *dialog = new QDialog;
         state_->dialog = dialog;

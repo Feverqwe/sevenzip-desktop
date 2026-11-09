@@ -57,8 +57,15 @@ bool MainWindow::canLaunchGuiFilesystemOperation() {
 }
 
 HRESULT MainWindow::launchGuiArchiveTest(const UStringVector &paths, bool hashMode) {
+    const QStringList archives = ArchivePaths(paths);
+    if (archives.size() == 1 && !QFileInfo::exists(archives.front())) {
+        showStatusMessage(MissingInputMessage(archives.front()));
+        return E_FAIL;
+    }
     QString error;
-    auto *operation = backend_->startGuiTest(ArchivePaths(paths), error, hashMode);
+    auto *operation = backend_->startGuiTest(archives, error, hashMode);
+    if (operation)
+        clearStatusMessage();
     return observeGuiArchiveOperation(operation, error);
 }
 

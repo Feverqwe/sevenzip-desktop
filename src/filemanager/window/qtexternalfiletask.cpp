@@ -106,6 +106,11 @@ QtExternalFileTask::QtExternalFileTask(CPanel &source, const CTempFileInfo &file
 }
 
 void QtExternalFileTask::Initialize() {
+    state_->observationPresentation.setInterval(100);
+    connect(&state_->observationPresentation, &QTimer::timeout, this, [this] {
+        if (CanPresent())
+            Show();
+    });
     connect(qApp, &QCoreApplication::aboutToQuit, this, &QtExternalFileTask::Stop);
     connect(this, &QtExternalFileTask::published, qApp, [](const QString &archive) {
         if (auto *application = QtWorkspaceApplication::Find()) {
@@ -134,6 +139,7 @@ QtExternalFileTask::~QtExternalFileTask() {
 
 void QtExternalFileTask::Stop() {
     state_->stopped = true;
+    state_->observationPresentation.stop();
     state_->watcher.reset();
     state_->launcher.RequestExit();
     if (state_->question) {
@@ -198,7 +204,10 @@ void QtExternalFileTask::PresentObservation(QtExternalObservation outcome) {
     state_->observation = outcome;
     if (outcome == QtExternalObservation::Unknown)
         state_->changeReported = true;
-    Show();
+    if (CanPresent())
+        Show();
+    else
+        state_->observationPresentation.start();
 }
 
 void QtExternalFileTask::WatchAssociationCopy() {

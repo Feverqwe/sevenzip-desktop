@@ -306,12 +306,13 @@ void QtLocalFileTask::TryPresent() {
     if (stopped_ || !pending_)
         return;
     if (!QtTaskPresentation::CanPresent(progress_)) {
-        if (auto *modal = QApplication::activeModalWidget(); modal && blockedModal_ != modal) {
+        if (auto *blocker = QtTaskPresentation::BlockingWindow(progress_);
+            blocker && blockedModal_ != blocker) {
             if (blockedModal_)
                 blockedModal_->removeEventFilter(this);
-            blockedModal_ = modal;
-            modal->installEventFilter(this);
-            connect(modal, &QObject::destroyed, this,
+            blockedModal_ = blocker;
+            blocker->installEventFilter(this);
+            connect(blocker, &QObject::destroyed, this,
                     [this] { QTimer::singleShot(0, this, &QtLocalFileTask::TryPresent); });
         }
         return;

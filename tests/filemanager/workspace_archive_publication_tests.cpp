@@ -9,6 +9,7 @@
 #include "support/window_activation.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/support/layout_inspection.h"
+#include <QMenu>
 #include <QScopeGuard>
 #include <QScrollBar>
 #include <QStatusBar>
@@ -88,6 +89,14 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QVERIFY(folder && folder->isVisible());
         folder->setText("new folder");
         QTest::keyClick(folder, Qt::Key_Return);
+        auto *menu = writer.findChild<QMenu *>("fileMenu");
+        QVERIFY(menu);
+        menu->popup(writer.mapToGlobal(QPoint(20, 20)));
+        QTRY_COMPARE(QApplication::activePopupWidget(), menu);
+        QTest::qWait(150);
+        QVERIFY(!names(observer).contains("new folder"));
+        QCOMPARE(QApplication::activePopupWidget(), menu);
+        QTest::keyClick(menu, Qt::Key_Escape);
         QTRY_VERIFY(names(observer).contains("new folder"));
         QVERIFY(names(observer).indexOf("new folder") < names(observer).indexOf(anchor));
         QCOMPARE(observed->model()->index(observed->rowAt(0), 0).data().toString(), anchor);

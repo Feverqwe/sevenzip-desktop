@@ -14,6 +14,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
+#include <QMenu>
 #include <QScopeGuard>
 #include <QSemaphore>
 #include <QSignalSpy>
@@ -1018,11 +1019,14 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
 
     void lateFailurePreservesAnotherWindowsDraft_data() {
         QTest::addColumn<bool>("closeTask");
-        QTest::newRow("explicit-show") << false;
-        QTest::newRow("close-completed-task") << true;
+        QTest::addColumn<bool>("popup");
+        QTest::newRow("explicit-show") << false << false;
+        QTest::newRow("close-completed-task") << true << false;
+        QTest::newRow("after-popup") << false << true;
     }
     void lateFailurePreservesAnotherWindowsDraft() {
         QFETCH(bool, closeTask);
+        QFETCH(bool, popup);
         QTemporaryDir fixture;
         const QString source = fixture.filePath("source.txt");
         const QString destination = fixture.filePath("output");
@@ -1045,6 +1049,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         });
         auto *task = new QtLocalFileTask(*worker, "Move", destination);
         QSignalSpy finished(task, &QtLocalFileTask::finished);
+        QSignalSpy completed(task, &QtLocalFileTask::transferCompleted);
         task->Start();
         QVERIFY(entered.tryAcquire(1, 2000));
         QPointer<CProgressDialog> progress;
@@ -1057,25 +1062,42 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         int commits = 0;
         QWidget peer;
         QLineEdit field(&peer);
+        QMenu menu(&peer);
         peer.show();
         QVERIFY(WindowActivation::waitForActive(peer));
-        field.setFocus();
-        QTRY_VERIFY(field.hasFocus());
-        QTest::keyClicks(&field, "untouched draft");
-        field.setSelection(2, 5);
+        if (popup) {
+            peer.setFocusPolicy(Qt::StrongFocus);
+            peer.setFocus();
+            QTRY_VERIFY(peer.hasFocus());
+            menu.addAction("File command");
+            menu.popup(peer.mapToGlobal(QPoint(20, 20)));
+            QTRY_COMPARE(QApplication::activePopupWidget(), &menu);
+        } else {
+            field.setFocus();
+            QTRY_VERIFY(field.hasFocus());
+            QTest::keyClicks(&field, "untouched draft");
+            field.setSelection(2, 5);
+        }
         const auto selection = field.selectedText();
         const auto cursor = field.cursorPosition();
         connect(&field, &QLineEdit::editingFinished, &peer, [&] { ++commits; });
         release.release();
         QVERIFY(worker->wait(10000));
-        QTest::qWait(100);
+        QTRY_COMPARE(completed.size(), 1);
         QVERIFY(finished.isEmpty());
         QVERIFY(!QApplication::activeModalWidget());
-        QCOMPARE(field.text(), QString("untouched draft"));
-        QCOMPARE(field.selectedText(), selection);
-        QCOMPARE(field.cursorPosition(), cursor);
-        QVERIFY(field.hasFocus());
-        QCOMPARE(commits, 0);
+        if (popup) {
+            QCOMPARE(QApplication::activePopupWidget(), &menu);
+            QVERIFY(!TestProgressDialog::ResultWindow(progress));
+            QTest::keyClick(&menu, Qt::Key_Escape);
+            QTRY_VERIFY(TestProgressDialog::ResultWindow(progress));
+        } else {
+            QCOMPARE(field.text(), QString("untouched draft"));
+            QCOMPARE(field.selectedText(), selection);
+            QCOMPARE(field.cursorPosition(), cursor);
+            QVERIFY(field.hasFocus());
+            QCOMPARE(commits, 0);
+        }
         QTimer answer;
         bool reviewed = false, restored = false, askedToCancel = false;
         connect(&answer, &QTimer::timeout, &peer, [&] {

@@ -11,8 +11,10 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -143,10 +145,24 @@ class ArchiveExternalEditTests final : public QObject, protected MainWindowTestS
             return nullptr;
         };
         QVERIFY(!details());
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->selectAll();
+        QTest::keyClicks(address, "unfinished path");
         QSaveFile saved(copy);
         QVERIFY(saved.open(QIODevice::WriteOnly));
         QCOMPARE(saved.write(modified), qint64(modified.size()));
         QVERIFY(saved.commit());
+        QTest::qWait(200);
+        QVERIFY(!details());
+        QCOMPARE(QApplication::activeWindow(), &window);
+        QVERIFY(address->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_X);
+        QCOMPARE(address->text(), QString("unfinished pathx"));
+        QTest::keyClick(address, Qt::Key_Escape);
         QTRY_VERIFY(details());
         QVERIFY(details()->findChild<QPushButton *>("externalFileSaveCopy")->isEnabled());
         auto *update = details()->findChild<QPushButton *>("externalFileCheck");
