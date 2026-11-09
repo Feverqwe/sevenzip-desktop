@@ -92,7 +92,11 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
                                         MainWindow::PanelInputTarget::List;
         if (waitingForPeer && key) {
             const auto *command = window_.panelShortcut(*key);
-            if (command && command->shortcutContext() == Qt::WidgetShortcut) {
+            const bool listShortcut = command ? command->shortcutContext() == Qt::WidgetShortcut
+                                              : key->key() != Qt::Key_Tab &&
+                                                    key->key() != Qt::Key_Backtab &&
+                                                    window_.overridePanelKey(*key);
+            if (listShortcut) {
                 event->accept();
                 return true;
             }

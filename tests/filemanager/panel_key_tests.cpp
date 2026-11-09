@@ -452,6 +452,10 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(leftTable->currentIndex(), leftCurrent);
         QTest::keyClick(leftTable, Qt::Key_F2);
         QVERIFY(!leftTable->findChild<QLineEdit *>());
+        const auto leftSort = leftTable->sourcePanel->GetSortID();
+        QVERIFY(leftSort != kpidSize);
+        QTest::keyClick(leftTable, Qt::Key_F6, Qt::ControlModifier);
+        QCOMPARE(leftTable->sourcePanel->GetSortID(), leftSort);
         QTRY_VERIFY(rightTable->isEnabled() && rightTable->hasFocus());
         QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 1);
         leftTable->setFocus();
