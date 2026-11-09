@@ -258,15 +258,16 @@ bool CCopyDialog::ReadPath(UString &path) {
 
 void CCopyDialog::OnOK() {
     const bool couldSubmit = _canSubmit;
-    if (!UpdateDestination(true)) {
+    QLineEdit *correctionField = _pathEdit;
+    if (!UpdateDestination(true, &correctionField)) {
         if (couldSubmit) {
-            _pathEdit->setFocus();
-            _pathEdit->selectAll();
-            QTimer::singleShot(0, this, [this] {
+            correctionField->setFocus();
+            correctionField->selectAll();
+            QTimer::singleShot(0, this, [this, correctionField] {
                 auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
                 if (!scroll || !_destinationMessage->isVisible())
                     return;
-                const int top = _pathEdit->mapTo(scroll->widget(), QPoint()).y();
+                const int top = correctionField->mapTo(scroll->widget(), QPoint()).y();
                 const int bottom = _destinationMessage->mapTo(scroll->widget(), QPoint()).y() +
                                    _destinationMessage->height();
                 const int missingHeight = bottom - top - scroll->viewport()->height();

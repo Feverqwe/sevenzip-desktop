@@ -281,9 +281,21 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(dialog.isVisible());
         name->setText("other name");
         QVERIFY(ok->isEnabled());
-        dialog.accept();
+        const QString lateConflict = QDir(folder).filePath("other name");
+        if (move) {
+            QFile conflict(lateConflict);
+            QVERIFY(conflict.open(QIODevice::WriteOnly));
+        } else {
+            QVERIFY(QDir().mkdir(lateConflict));
+        }
+        ok->click();
+        QVERIFY(dialog.isVisible());
+        QCOMPARE(dialog.focusWidget(), name);
+        QCOMPARE(name->selectedText(), QString("other name"));
+        QTest::keyClicks(name, "corrected name");
+        QTest::keyClick(name, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("other name"));
+        QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("corrected name"));
     }
 
     void linkedDestinationNameCanBeCorrected() {

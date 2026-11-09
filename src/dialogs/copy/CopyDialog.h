@@ -75,7 +75,7 @@ class CCopyDialog : public QDialog {
     bool _canSubmit = true;
     bool _useName = false;
     void BuildDestinationOptions(QVBoxLayout &layout);
-    bool UpdateDestination(bool checkBatch = false);
+    bool UpdateDestination(bool checkBatch = false, QLineEdit **correctionField = nullptr);
     QString DraftDestination() const;
     QString PreviewDestination(const QString &value) const;
     void RefreshSourceSummary();

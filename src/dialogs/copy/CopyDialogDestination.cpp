@@ -173,7 +173,7 @@ QString CCopyDialog::PreviewDestination(const QString &value) const {
     return NormalizeCopyDestination(_destinationContext->RelativeBase + value);
 }
 
-bool CCopyDialog::UpdateDestination(bool checkBatch) {
+bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField) {
     if (!_copyMove || !_pathEdit || !_destinationMessage)
         return true;
     const bool peerWritable = _destinationContext && _destinationContext->IsPeerWritable();
@@ -218,6 +218,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
     }
     QString error;
     bool batchConflict = false;
+    bool nameError = false;
     if (_sources.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
     else if (path.isEmpty())
@@ -225,9 +226,10 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
     else if (path.contains(QChar::Null) ||
              (filesystemDestination && !IsValidWindowsPath(path, preview)))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
-    else if (nameAvailable && !IsName(_name->text(), preview))
+    else if (nameAvailable && !IsName(_name->text(), preview)) {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
-    else if (!directoryError.isEmpty())
+        nameError = true;
+    } else if (!directoryError.isEmpty())
         error = directoryError;
     else if (peerDestination && !peerWritable)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
@@ -243,12 +245,13 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
              (CompareFileNames(ToUString(draft), ToUString(_sources.first())) == 0 ||
               (localTransfer && (!needsDirectory || _useName) &&
                !QtIsFileSystemLink(_sources.first()) &&
-               SameExistingPath(QFileInfo(_sources.first()), QFileInfo(draft)))))
+               SameExistingPath(QFileInfo(_sources.first()), QFileInfo(draft))))) {
         error = Text(
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
-    else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
-             (!peerDestination || _destinationContext->PeerIsFilesystem) &&
-             _destinationContext->IsInsideSourceDirectory(draft))
+        nameError = _useName;
+    } else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
+               (!peerDestination || _destinationContext->PeerIsFilesystem) &&
+               _destinationContext->IsInsideSourceDirectory(draft))
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Destination is inside the source folder: %1")
                     .arg(draft);
@@ -270,6 +273,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
                             .arg(target.filePath());
             if (!error.isEmpty()) {
                 batchConflict = _sources.size() > 1;
+                nameError = _useName;
                 break;
             }
         }
@@ -277,6 +281,8 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
     // A batch conflict can be removed outside the dialog. Keep OK available
     // so the same destination can be checked again without editing the path.
     _canSubmit = error.isEmpty() || batchConflict;
+    if (correctionField)
+        *correctionField = nameError ? _name : _pathEdit;
     _destinationMessage->setText(error);
     _destinationMessage->setVisible(!error.isEmpty());
     if (auto *buttons = findChild<QDialogButtonBox *>("copyButtons"))
