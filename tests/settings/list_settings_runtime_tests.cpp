@@ -7,9 +7,13 @@
 #include <QScopeGuard>
 
 #include <QCheckBox>
+#include <QClipboard>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QThread>
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 namespace {
 struct CurrentDirectoryGuard {
@@ -22,7 +26,8 @@ bool writeFile(const QString &path) {
     return file.open(QIODevice::WriteOnly) && file.write("file") == 4;
 }
 
-bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled) {
+bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled,
+                    const char *name = "showDotsOption") {
     const int outerLoop = QThread::currentThread()->loopLevel();
     QTimer finishOptions;
     bool applied = false;
@@ -37,7 +42,7 @@ bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled) {
             if (dialog->isVisible())
                 dialog->reject();
         });
-        auto *option = dialog->findChild<QCheckBox *>("showDotsOption");
+        auto *option = dialog->findChild<QCheckBox *>(name);
         if (!option)
             return;
         option->setChecked(enabled);
@@ -65,6 +70,45 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         SaveRegLang(UString("-"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+    }
+
+    void hiddenFoldersCanBeToggled() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString hidden = fixture.filePath(".private");
+        QVERIFY(QDir().mkdir(hidden));
+#ifdef Q_OS_WIN
+        QVERIFY(
+            SetFileAttributesW(reinterpret_cast<LPCWSTR>(hidden.utf16()), FILE_ATTRIBUTE_HIDDEN));
+#endif
+        QVERIFY(writeFile(QDir(hidden).filePath("child.txt")));
+        QVERIFY(writeFile(fixture.filePath("visible.txt")));
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(window, ".private") >= 0);
+        auto *settings = action(window, "settingsAction");
+        QVERIFY(setListOptions(window, settings, false, "showHiddenFoldersOption"));
+        QTRY_COMPARE(filesystemRow(window, ".private"), -1);
+        QVERIFY(filesystemRow(window, "visible.txt") >= 0);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        view->setFocus();
+        action(window, "selectAllAction")->trigger();
+        auto *copy = action(window, "copyFilesAction");
+        QVERIFY(copy->isEnabled());
+        copy->trigger();
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList<QUrl>{QUrl::fromLocalFile(fixture.filePath("visible.txt"))});
+        QApplication::clipboard()->clear();
+        window.openPath(hidden);
+        QTRY_VERIFY(filesystemRow(window, "child.txt") >= 0);
+        window.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(window, "visible.txt") >= 0);
+        QCOMPARE(filesystemRow(window, ".private"), -1);
+        QVERIFY(setListOptions(window, settings, true, "showHiddenFoldersOption"));
+        QTRY_VERIFY(filesystemRow(window, ".private") >= 0);
     }
 
     void optionsParentRowAndContextMenu() {

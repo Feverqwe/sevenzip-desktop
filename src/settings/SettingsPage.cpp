@@ -30,6 +30,7 @@ bool CSettingsPage::OnInit() {
     _settings.Load(_settingsPath);
     _appearance->setCurrentIndex(_appearance->findData(int(_settings.ColorScheme)));
     _showDots->setChecked(_settings.ShowDots);
+    _showHiddenFolders->setChecked(_settings.ShowHiddenFolders);
     {
         const auto memory = QtQueryMemoryLimitInfo();
         QtBindMemoryLimitUnitText(findChild<QLabel *>("extractMemoryRam"), memory.RamSizeDefined,
@@ -63,6 +64,7 @@ long CSettingsPage::OnApply() {
     if (_wasChanged) {
         CFmSettings st = _settings;
         st.ShowDots = _showDots->isChecked();
+        st.ShowHiddenFolders = _showHiddenFolders->isChecked();
         st.Save(_settingsPath);
         _settings = st;
         _wasChanged = false;

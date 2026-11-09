@@ -16,6 +16,7 @@ class CSettingsPage : public QDialog {
     CFmSettings _settings;
     QString _settingsPath;
     QCheckBox *_showDots;
+    QCheckBox *_showHiddenFolders;
     QComboBox *_appearance;
     QWidget *_appearanceControls;
     QWidget *_memoryControls;

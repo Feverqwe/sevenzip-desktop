@@ -74,8 +74,6 @@ HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder) {
 }
 
 HRESULT MainWindow::appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex) {
-    QIcon icon;
-    RINOK(app_.GetFocusedPanel().GetItemIcon(sourceIndex, icon))
     auto *folder = static_cast<NFsFolder::CFSFolder *>(app_.GetFocusedPanel().GetFolder());
     const QFileInfo file(
         QDir(baseDirectory)
@@ -84,6 +82,10 @@ HRESULT MainWindow::appendFilesystemEntry(const QString &baseDirectory, quint32 
     panelUi_[projectedPanel_].autoRefreshSnapshot.insert(
         file.absoluteFilePath(), filesystemSignature(file.absoluteFilePath()));
 #endif
+    if (!fileListSettings_.ShowHiddenFolders && file.isHidden() && file.isDir())
+        return S_OK;
+    QIcon icon;
+    RINOK(app_.GetFocusedPanel().GetItemIcon(sourceIndex, icon))
     NWindows::NCOM::CPropVariant name;
     folder->GetProperty(sourceIndex, kpidName, &name);
     const bool directory = app_.GetFocusedPanel().IsItem_Folder(sourceIndex);

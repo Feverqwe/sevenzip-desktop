@@ -35,8 +35,16 @@ bool CPanel::IsItemMarked(UInt32 index) const {
 }
 
 void CPanel::SelectAll(bool selectMode) {
+    EnsureSelectionVectorSize();
     FOR_VECTOR(i, _selectedStatusVector)
-    _selectedStatusVector[i] = selectMode;
+    _selectedStatusVector[i] = false;
+    if (selectMode) {
+        for (int row = 0; row < _selectionList.GetItemCount(); ++row) {
+            const unsigned index = GetRealItemIndex(row);
+            if (index < _selectedStatusVector.Size())
+                _selectedStatusVector[index] = true;
+        }
+    }
     UpdateSelection();
 }
 

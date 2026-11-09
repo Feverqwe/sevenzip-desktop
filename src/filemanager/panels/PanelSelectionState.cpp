@@ -5,6 +5,7 @@
 #include "Windows/PropVariant.h"
 #include "Windows/WinDefs.h"
 #include "filemanager/panels/Panel.h"
+#include <algorithm>
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -55,8 +56,20 @@ void CPanel::Get_ItemIndices_All(CRecordVector<UInt32> &indices) const {
 
 void CPanel::Get_ItemIndices_OperSmart(CRecordVector<UInt32> &indices) const {
     Get_ItemIndices_Operated(indices);
-    if (indices.IsEmpty() || (indices.Size() == 1 && indices[0] == (UInt32)(Int32)-1))
+    if (!indices.IsEmpty() && (indices.Size() != 1 || indices[0] != kParentIndex))
+        return;
+    if (!IsFSFolder()) {
         Get_ItemIndices_All(indices);
+        return;
+    }
+    indices.Clear();
+    for (int row = 0; row < _selectionList.GetItemCount(); ++row) {
+        const UInt32 index = GetRealItemIndex(row);
+        if (index != kParentIndex)
+            indices.Add(index);
+    }
+    if (indices.Size() > 1)
+        std::sort(indices.NonConstData(), indices.NonConstData() + indices.Size());
 }
 
 void CPanel::SaveSelectedState(CSelectedState &s) {

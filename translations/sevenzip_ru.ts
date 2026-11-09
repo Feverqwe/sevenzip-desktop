@@ -1377,6 +1377,10 @@ Are you sure you want to split archive into such volumes?</source>
     <context>
         <name>SettingsRedesign</name>
         <message>
+            <source>Show hidden folders</source>
+            <translation>Показывать скрытые папки</translation>
+        </message>
+        <message>
             <location filename="../src/settings/qtfmoptionslayout.cpp" line="+168" />
             <source>Interface language</source>
             <translation>Язык интерфейса</translation>
