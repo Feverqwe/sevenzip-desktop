@@ -486,17 +486,21 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
     void filesystemShellCommandsUseIndependentOperations_data() {
         QTest::addColumn<QString>("verb");
         QTest::addColumn<QString>("overwriteAnswer");
+        QTest::addColumn<bool>("writeNewEntry");
         for (const QString &verb :
              {QString("Test"), QString("Extract"), QString("ExtractHere"), QString("ExtractTo")})
-            QTest::newRow(qPrintable(verb)) << verb << QString();
+            QTest::newRow(qPrintable(verb)) << verb << QString() << true;
         QTest::newRow("ExtractHere-cancel-overwrite")
-            << QString("ExtractHere") << QString("overwriteCancel");
+            << QString("ExtractHere") << QString("overwriteCancel") << true;
         QTest::newRow("ExtractHere-skip-all")
-            << QString("ExtractHere") << QString("overwriteNoAll");
+            << QString("ExtractHere") << QString("overwriteNoAll") << true;
+        QTest::newRow("ExtractHere-all-items-skipped")
+            << QString("ExtractHere") << QString("overwriteNoAll") << false;
     }
     void filesystemShellCommandsUseIndependentOperations() {
         QFETCH(QString, verb);
         QFETCH(QString, overwriteAnswer);
+        QFETCH(bool, writeNewEntry);
         const bool hasConflict = !overwriteAnswer.isEmpty();
         const bool skipAll = overwriteAnswer == "overwriteNoAll";
         QTemporaryDir fixture(FixtureTemplate());
@@ -510,8 +514,9 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QString expectedRow = QFileInfo(kName).path();
         if (hasConflict) {
             archive = QDir(input).filePath("input.zip");
-            QList<NativeArchiveFixture::Item> entries{{published, "completed entry"},
-                                                      {"z-existing.txt", "incoming"}};
+            QList<NativeArchiveFixture::Item> entries{{"z-existing.txt", "incoming"}};
+            if (writeNewEntry)
+                entries.prepend(NativeArchiveFixture::Item{published, "completed entry"});
             if (skipAll) {
                 entries.append(NativeArchiveFixture::Item{"zz-existing.txt", "second incoming"});
                 QVERIFY(writeFile(secondConflict, "second retained entry"));
@@ -587,7 +592,9 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                                 : verb == "ExtractHere" ? input
                                                         : QDir(input).filePath("input");
             if (hasConflict) {
-                QCOMPARE(readFile(QDir(output).filePath(published)), QByteArray("completed entry"));
+                if (writeNewEntry)
+                    QCOMPARE(readFile(QDir(output).filePath(published)),
+                             QByteArray("completed entry"));
                 QCOMPARE(readFile(conflict), QByteArray("retained entry"));
                 if (skipAll)
                     QCOMPARE(readFile(secondConflict), QByteArray("second retained entry"));
@@ -595,12 +602,15 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                 QCOMPARE(readFile(QDir(output).filePath(kName)),
                          QByteArray("context command bytes"));
             }
-            if (verb == "ExtractHere") {
+            if (verb == "ExtractHere" && writeNewEntry) {
                 QTRY_VERIFY(!source->model()
                                  ->match(source->model()->index(0, 0), Qt::DisplayRole, expectedRow,
                                          1, Qt::MatchExactly)
                                  .isEmpty());
             }
+            if (!writeNewEntry)
+                QCOMPARE(QDir(output).entryList(QDir::Files),
+                         QStringList({"input.zip", "z-existing.txt", "zz-existing.txt"}));
         }
         QCOMPARE(readFile(archive), before);
         QVERIFY(action(window, "refreshAction")->isEnabled());
