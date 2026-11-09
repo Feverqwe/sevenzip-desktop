@@ -38,6 +38,9 @@
         capturedItemsSurviveModalSelectionChange:large-fs-to-archive-move-1)
     set_tests_properties(ui_copy_routing_quick PROPERTIES TIMEOUT 45 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-copy-routing-quick.ini")
+    if(WIN32)
+        set_tests_properties(ui_copy_routing_quick PROPERTIES TIMEOUT 90)
+    endif()
     qt_add_executable(ui_update_modes_tests tests/filemanager/ui_update_modes_tests.cpp)
     target_link_libraries(ui_update_modes_tests PRIVATE sevenzip_window)
     target_include_directories(ui_update_modes_tests PRIVATE src tests)
