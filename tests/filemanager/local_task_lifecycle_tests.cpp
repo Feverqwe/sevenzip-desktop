@@ -543,9 +543,12 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
         const QString moved = QStringLiteral("01 перенести # %23 空.txt");
         const QString skipped = QStringLiteral("02 пропустить δ.txt");
+        const QString fresh = fixture.filePath("new clipboard file.txt");
         QVERIFY(write(source + '/' + moved, "moved bytes"));
         QVERIFY(write(source + '/' + skipped, "skipped bytes"));
         QVERIFY(write(destination + '/' + skipped, "existing bytes"));
+        if (replaceClipboard)
+            QVERIFY(write(fresh, "new clipboard bytes"));
 
         QtWorkspaceApplication application(*qApp);
         ControlledBackend sourceBackend, destinationBackend;
@@ -584,8 +587,11 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 if (answered)
                     return;
                 answered = true;
-                if (replaceClipboard)
-                    QApplication::clipboard()->setText("new clipboard data");
+                if (replaceClipboard) {
+                    auto *replacement = new QMimeData;
+                    replacement->setUrls({QUrl::fromLocalFile(fresh)});
+                    QApplication::clipboard()->setMimeData(replacement);
+                }
                 if (retrying)
                     question->findChild<QPushButton *>("overwriteYes")->click();
                 else if (cancel)
@@ -616,7 +622,18 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         };
         QTRY_COMPARE(stillCut(), !replaceClipboard);
         if (replaceClipboard) {
-            QCOMPARE(QApplication::clipboard()->text(), QString("new clipboard data"));
+            const QList<QUrl> replacement{QUrl::fromLocalFile(fresh)};
+            QCOMPARE(QApplication::clipboard()->mimeData()->urls(), replacement);
+            QVERIFY(paste->isEnabled());
+            QVERIFY(WindowActivation::waitForActive(destinationWindow));
+            QTRY_VERIFY(table(destinationWindow)->hasFocus());
+            PanelKeys::command(destinationWindow.focusWidget(), Qt::Key_V, Qt::ControlModifier);
+            const QString copiedName = QFileInfo(fresh).fileName();
+            QTRY_VERIFY(filesystemRow(destinationWindow, copiedName) >= 0);
+            QCOMPARE(read(destination + '/' + copiedName), QByteArray("new clipboard bytes"));
+            QCOMPARE(read(fresh), QByteArray("new clipboard bytes"));
+            QCOMPARE(read(destination + '/' + skipped), QByteArray("existing bytes"));
+            QCOMPARE(QApplication::clipboard()->mimeData()->urls(), replacement);
             return;
         }
         const auto urls = QApplication::clipboard()->mimeData()->urls();
