@@ -9,6 +9,7 @@
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
 #include "platform/shell/qtshellarchiveservices.h"
+#include <QDir>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPlainTextEdit>
@@ -16,6 +17,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
+#include <algorithm>
 
 namespace {
 using namespace SourceExtractFixture;
@@ -216,13 +218,15 @@ class ShellArchiveServicesTests final : public QObject {
         QCOMPARE(readFile(sentinel), QByteArray("abc"));
         QVERIFY(!backend.busy());
     }
-    void overwriteCancellationPreservesArchiveAndExistingFile_data() {
-        QTest::addColumn<bool>("keyboard");
-        QTest::newRow("cancel-button") << false;
-        QTest::newRow("escape") << true;
+    void overwriteBatchDecisionPreservesArchiveAndExistingFiles_data() {
+        QTest::addColumn<QString>("decision");
+        QTest::newRow("cancel-button") << QString("cancel");
+        QTest::newRow("escape") << QString("escape");
+        QTest::newRow("keep-both-for-all") << QString("keep");
     }
-    void overwriteCancellationPreservesArchiveAndExistingFile() {
-        QFETCH(bool, keyboard);
+    void overwriteBatchDecisionPreservesArchiveAndExistingFiles() {
+        QFETCH(QString, decision);
+        const bool keep = decision == "keep";
         QTemporaryDir input, output;
         const QString name = QStringLiteral("existing 空 file.bin");
         const QString other = QStringLiteral("second conflict.bin");
@@ -240,17 +244,21 @@ class ShellArchiveServicesTests final : public QObject {
         HRESULT error = S_OK;
         QtShellArchiveServices service(
             backend, nullptr, {.Error = [&](HRESULT result, const UString &) { error = result; }});
-        bool answered = false;
+        bool applyAvailable = false;
+        int prompts = 0;
         QTimer answer;
         connect(&answer, &QTimer::timeout, this, [&] {
             for (auto *widget : QApplication::topLevelWidgets())
                 if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                     dialog && dialog->isVisible()) {
                     auto *apply = dialog->findChild<QCheckBox *>("overwriteApplyToRemaining");
-                    answered = apply && apply->isVisible() && apply->isEnabled();
-                    if (answered)
+                    ++prompts;
+                    applyAvailable = apply && apply->isVisible() && apply->isEnabled();
+                    if (applyAvailable)
                         apply->setChecked(true);
-                    if (keyboard)
+                    if (keep && prompts == 1)
+                        dialog->findChild<QPushButton *>("overwriteRename")->click();
+                    else if (decision == "escape")
                         QTest::keyClick(dialog, Qt::Key_Escape);
                     else
                         dialog->findChild<QPushButton *>("overwriteCancel")->click();
@@ -261,12 +269,22 @@ class ShellArchiveServicesTests final : public QObject {
         paths.Add(us(archive));
         CDismissal dismissal;
         QCOMPARE(::ExtractArchives(paths, us(output.path()), false, false, UInt32(-1), service),
-                 E_ABORT);
-        QVERIFY(answered);
+                 keep ? S_OK : E_ABORT);
+        QVERIFY(applyAvailable);
+        QCOMPARE(prompts, 1);
         QCOMPARE(error, S_OK);
         QCOMPARE(readFile(output.filePath(name)), QByteArray("preserved bytes"));
         QCOMPARE(readFile(output.filePath(other)), QByteArray("second preserved bytes"));
         QCOMPARE(readFile(archive), original);
+        auto copies = QDir(output.path()).entryList(QDir::Files | QDir::Hidden);
+        copies.removeAll(name);
+        copies.removeAll(other);
+        QList<QByteArray> contents;
+        for (const auto &copy : copies)
+            contents.append(readFile(output.filePath(copy)));
+        std::sort(contents.begin(), contents.end());
+        QCOMPARE(contents, keep ? (QList<QByteArray>{"archive bytes", "second archive bytes"})
+                                : QList<QByteArray>());
         QVERIFY(!backend.busy());
     }
 };
