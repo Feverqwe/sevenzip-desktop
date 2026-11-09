@@ -278,6 +278,7 @@ class MainWindow : public QMainWindow {
     void showPanelStatus(unsigned panel, const CPanelStatus &status);
     void showStatusMessage(const QString &message, int timeout = 5000);
     void clearStatusMessage();
+    void clearFilesystemReadError();
     void showSelectedProperties();
     void calculateHash(const QString &method);
     void begin(const QString &label, const QString &source, const QString &destination = {});

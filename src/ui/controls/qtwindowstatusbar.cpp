@@ -51,6 +51,14 @@ void QtWindowStatusBar::WatchContext(QObject *context) {
     });
 }
 
+void QtWindowStatusBar::ClearMessageIf(QObject *context, const QString &message) {
+    const auto found = feedback_.find(context);
+    if (found == feedback_.end() || found->text != message)
+        return;
+    *found = {};
+    Render();
+}
+
 void QtWindowStatusBar::Render() {
     const QScopedValueRollback<bool> rendering(rendering_, true);
     if (!context_) {

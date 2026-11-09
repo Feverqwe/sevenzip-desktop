@@ -94,14 +94,17 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         });
         responder.start(1);
         auto *refresh = action(window, "refreshAction");
-        if (automatic) {
+        const auto reload = [&] {
+            if (!automatic) {
+                refresh->trigger();
+                return;
+            }
             panel.Set_AutoRefresh_Mode(true);
             panel.MarkPortableFolderChanged();
             panel.OnTimer();
             panel.Set_AutoRefresh_Mode(false);
-        } else {
-            refresh->trigger();
-        }
+        };
+        reload();
         responder.stop();
         QVERIFY(!modal);
         QCOMPARE(view->rowCount(), 0);
@@ -109,9 +112,14 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(refresh->isEnabled());
 
         QVERIFY(QFile::setPermissions(path, permissions));
-        refresh->trigger();
+        reload();
         QTRY_VERIFY(filesystemRow(window, "control.txt") >= 0);
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        if (automatic) {
+            window.statusBar()->showMessage("Other feedback");
+            reload();
+            QCOMPARE(window.statusBar()->currentMessage(), QString("Other feedback"));
+        }
     }
 
     void navigationDuringReloadStartsAtTop() {

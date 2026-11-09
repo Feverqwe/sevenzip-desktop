@@ -9,6 +9,7 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include <QScopeGuard>
 
 HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateAddress) {
@@ -61,7 +62,15 @@ HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
     if (result != S_OK)
         workspace_->ReportNavigationFailure(
             QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
+    else
+        clearFilesystemReadError();
     return result;
+}
+
+void MainWindow::clearFilesystemReadError() {
+    statusStrip_->ClearMessageIf(
+        &app_.GetFocusedPanel(),
+        QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
 }
 
 HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder) {
@@ -123,6 +132,6 @@ void MainWindow::failFilesystemListing(HRESULT result) {
         return;
     projectedUi().scanningDisk = false;
     setState(State::Filesystem);
-    showStatusMessage(QCoreApplication::translate("mainwindow", "Could not read folder."));
+    showStatusMessage(QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
     workspace_->NavigationFinished(result);
 }
