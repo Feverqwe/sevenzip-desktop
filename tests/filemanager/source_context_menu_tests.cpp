@@ -104,7 +104,9 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             if (menu) {
                 menuShown = menu->objectName() == "panelContextMenu";
                 const auto close = qScopeGuard([&] { menu->close(); });
-                if (!keyboard) {
+                if (keyboard) {
+                    QTest::keyClick(menu, Qt::Key_Escape);
+                } else {
                     auto *rename = menuAction(*menu, "renameAction");
                     QVERIFY(rename && rename->isEnabled());
                     menu->setActiveAction(rename);
@@ -118,7 +120,20 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QVERIFY(menuShown);
         QCOMPARE(selection->currentIndex(), keyboard ? focused : hit);
         QCOMPARE(selection->selectedRows(), selected);
-        if (!keyboard) {
+        if (keyboard) {
+            auto *clipboard = QApplication::clipboard();
+            clipboard->clear();
+            const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
+            QTRY_VERIFY(window.focusWidget());
+            QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+            QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
+            const QList<QUrl> expected{QUrl::fromLocalFile(fixture.filePath("a.txt")),
+                                       QUrl::fromLocalFile(fixture.filePath("b.txt"))};
+            const auto copied = clipboard->mimeData()->urls();
+            QCOMPARE(copied.size(), expected.size());
+            for (const auto &url : expected)
+                QVERIFY(copied.contains(url));
+        } else {
             auto *editor = view->findChild<QLineEdit *>();
             QVERIFY(editor);
             QCOMPARE(editor->text(), QString("b.txt"));
