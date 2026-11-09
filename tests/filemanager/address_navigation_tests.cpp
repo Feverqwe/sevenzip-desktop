@@ -75,6 +75,50 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
+    void parentRowCanBeRetriedAfterAccessIsRestored() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString parent = fixture.filePath("parent");
+        const QString child = QDir(parent).filePath("child");
+        QVERIFY(QDir().mkpath(child));
+        QVERIFY(writeFile(QDir(child).filePath("inside.txt"), "payload"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(child);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "inside.txt") >= 0);
+        QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        view->setFocus();
+
+        const auto permissions = QFile::permissions(parent);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(parent, permissions); });
+        QVERIFY(QFile::setPermissions(parent, QFile::ExeOwner));
+        if (QFileInfo(parent).isReadable())
+            QSKIP("Requires a directory that the current user cannot list");
+        PanelKeys::openSelection(view);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "inside.txt") >= 0);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(view->currentIndex().data().toString(), QString(".."));
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+
+        QVERIFY(QFile::setPermissions(parent, permissions));
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "child") >= 0);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(view->currentIndex().data().toString(), QString("child"));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
     void pastedAddressWithNullDoesNotOpenItsPrefix() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

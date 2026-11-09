@@ -50,7 +50,9 @@ void QtFileManagerCommands::RunNativeOpen(const std::function<void(CPanel &)> &o
         const auto previousState = w.projectedUi().state;
         const QString previousDirectory = w.projectedUi().directory;
         const auto focused = w.projectedUi().table->currentIndex();
-        if (focused.isValid() && focused.data(QtPanelList::SourceIndexRole).toUInt() != UInt32(-1))
+        if (focused.isValid() &&
+            (focused.data(QtPanelList::SourceIndexRole).toUInt() != UInt32(-1) ||
+             !panel.IsArcFolder() || !GetFolderPath(previousFolder).IsEmpty()))
             w.workspace_->RetainNavigationFolder();
         if (wasFilesystem)
             w.projectedUi().returnDirectory = previousDirectory;
