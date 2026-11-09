@@ -625,6 +625,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(WindowActivation::waitForActive(destinationWindow));
         auto *destinationView = table(destinationWindow);
         QTRY_VERIFY(destinationView->hasFocus());
+        if (!cancel)
+            QTRY_COMPARE(destinationWindow.statusBar()->currentMessage(),
+                         QCoreApplication::translate("qtfiletransfertransaction",
+                                                     "Some files skipped; sources retained."));
         PanelKeys::command(destinationWindow.focusWidget(), Qt::Key_V, Qt::ControlModifier);
         QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
@@ -633,6 +637,8 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(!QFileInfo::exists(source + '/' + skipped));
         QTRY_VERIFY(filesystemRow(sourceWindow, skipped) < 0);
         QVERIFY(!paste->isEnabled());
+        QTRY_COMPARE(destinationWindow.statusBar()->currentMessage(),
+                     QCoreApplication::translate("qtfiletransfertransaction", "Items moved."));
     }
     void cleanup() {
         QTimer answer;
