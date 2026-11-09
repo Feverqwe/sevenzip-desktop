@@ -7,6 +7,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/operations/Update.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "fileops/links/qtlinkservices.h"
 #include "fileops/native/correctfspath.h"
 #include "settings/ViewSettings.h"
 #include "ui/controls/qtdisclosure.h"
@@ -234,6 +235,15 @@ void CreateArchiveDialog::validateAndAccept() {
     }
     if (!checkVolumeSizes(volumeResult, volumeInfo))
         return;
+    for (const auto &source : requiredSources_) {
+        if (!QFileInfo::exists(source) && !QtIsFileSystemLink(source)) {
+            const auto message =
+                QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                QDir::toNativeSeparators(source);
+            ShowErrorMessageQt(this, message.toStdWString().c_str());
+            return;
+        }
+    }
     // Existing outputs are opened/validated by source UpdateArchive after OK,
     // just as for the original form. The dialog must not reject update intent.
     auto request = readRequest(resolved);
@@ -351,14 +361,21 @@ HRESULT CreateArchiveDialog::PresentSource(CCompressDialog &source,
                                            const CObjectVector<NWildcard::CCensorPath> &paths,
                                            std::shared_ptr<const ArchiveCodecCatalog> codecs,
                                            QWidget *parent) {
-    QStringList selected;
+    QStringList selected, required;
     FOR_VECTOR(i, paths) {
-        if (paths[i].Include)
-            selected.append(QString::fromWCharArray(paths[i].Path.Ptr()));
+        const auto &entry = paths[i];
+        if (!entry.Include)
+            continue;
+        const QString path = QString::fromWCharArray(entry.Path.Ptr());
+        selected.append(path);
+        if (QDir::isAbsolutePath(path) &&
+            (!entry.Props.WildcardMatching || !DoesNameContainWildcard(entry.Path)))
+            required.append(path);
     }
     const QString directory =
         QFileInfo(QString::fromWCharArray(source.Info.ArcPath.Ptr())).absolutePath();
     CreateArchiveDialog dialog(directory, selected, parent, std::move(codecs), &source);
+    dialog.requiredSources_ = std::move(required);
     if (dialog.exec() != QDialog::Accepted)
         return E_ABORT;
     source.Info = dialog.sourceInfo();

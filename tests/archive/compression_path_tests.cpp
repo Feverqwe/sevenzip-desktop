@@ -239,6 +239,71 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(archive.readAll(), QByteArray("untouched existing bytes"));
 #endif
     }
+    void sourceCanReturnBeforeRetryingTheDialog() {
+#ifndef SEVENZIP_CODEC_MODULE
+        QSKIP("Official codec module unavailable");
+#else
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("selected file.txt");
+        const QString parked = fixture.filePath("parked.txt");
+        QFile file(input);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("payload"), 7);
+        file.close();
+        const auto catalog =
+            std::make_shared<ArchiveCodecCatalog>(QString::fromUtf8(SEVENZIP_CODEC_MODULE), 0);
+        QCOMPARE(catalog->result(), S_OK);
+        const QString target = fixture.filePath("retry.zip");
+        CCompressDialog source;
+        source.Info.FormatIndex = catalog->formatIndex("zip");
+        source.Info.ArcPath = target.toStdWString().c_str();
+        NWildcard::CCensor censor;
+        censor.AddPreItem_NoWildcard(source_.toStdWString().c_str());
+        censor.AddPreItem_NoWildcard(input.toStdWString().c_str());
+        QCOMPARE(NCompressDialog::PrepareFormatSelection(source, catalog->nativeCodecs(),
+                                                         censor.CensorPaths),
+                 S_OK);
+        bool responded = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, this, [&] {
+            auto *dialog = qobject_cast<CreateArchiveDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            responder.stop();
+            const auto reject = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *name = dialog->findChild<QLineEdit *>("archiveName");
+            name->setText(target);
+            QVERIFY(QFile::rename(input, parked));
+            QString error;
+            QTimer::singleShot(0, dialog, [&] {
+                if (auto *message =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    error = message->text();
+                    message->accept();
+                }
+            });
+            submit(*dialog);
+            QVERIFY(dialog->isVisible());
+            QVERIFY(error.contains("selected file.txt"));
+            QCOMPARE(name->text(), target);
+            QVERIFY(QFile::rename(parked, input));
+            submit(*dialog);
+            QCOMPARE(dialog->result(), int(QDialog::Accepted));
+            responded = true;
+        });
+        responder.start(5);
+        QCOMPARE(CreateArchiveDialog::PresentSource(source, censor.CensorPaths, catalog, nullptr),
+                 S_OK);
+        QVERIFY(responded);
+        QCOMPARE(QDir::fromNativeSeparators(QString::fromWCharArray(source.Info.ArcPath.Ptr())),
+                 target);
+#endif
+    }
+
     void unavailableMetadataDisablesSubmission() {
         const auto catalog =
             std::make_shared<ArchiveCodecCatalog>(dir_.filePath("missing module"), 1);
