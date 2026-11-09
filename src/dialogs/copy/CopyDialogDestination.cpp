@@ -290,14 +290,14 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
             else
                 error = QtTransferTargetTypeError(source, target);
             if (!error.isEmpty()) {
-                canRetry = _sources.size() > 1;
+                canRetry = checkBatch;
                 nameError = _useName;
                 break;
             }
             targets.insert(QtTransferTargetKey(target.filePath()));
         }
     }
-    // Source availability and batch conflicts can change outside the dialog.
+    // Source availability and destination conflicts can change outside the dialog.
     _canSubmit = error.isEmpty() || canRetry;
     if (correctionField)
         *correctionField = nameError ? _name : _pathEdit;

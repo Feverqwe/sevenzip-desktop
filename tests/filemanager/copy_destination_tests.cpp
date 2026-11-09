@@ -249,11 +249,15 @@ class CopyDestinationTests final : public QObject {
 
     void destinationNameWithWrongTypeCanBeCorrected_data() {
         QTest::addColumn<bool>("move");
-        QTest::newRow("copy-file") << false;
-        QTest::newRow("move-folder") << true;
+        QTest::addColumn<bool>("removeConflict");
+        QTest::newRow("copy-file") << false << false;
+        QTest::newRow("move-folder") << true << false;
+        QTest::newRow("retry-same-copy-name") << false << true;
+        QTest::newRow("retry-same-move-name") << true << true;
     }
     void destinationNameWithWrongTypeCanBeCorrected() {
         QFETCH(bool, move);
+        QFETCH(bool, removeConflict);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("item");
@@ -292,10 +296,17 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(dialog.isVisible());
         QCOMPARE(dialog.focusWidget(), name);
         QCOMPARE(name->selectedText(), QString("other name"));
-        QTest::keyClicks(name, "corrected name");
+        if (removeConflict) {
+            QVERIFY(ok->isEnabled());
+            ok->click();
+            QVERIFY(dialog.isVisible());
+            QVERIFY(move ? QFile::remove(lateConflict) : QDir().rmdir(lateConflict));
+        } else
+            QTest::keyClicks(name, "corrected name");
         QTest::keyClick(name, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("corrected name"));
+        QCOMPARE(ToQString(dialog.Value),
+                 removeConflict ? lateConflict : QDir(folder).filePath("corrected name"));
     }
 
     void linkedDestinationNameCanBeCorrected() {
