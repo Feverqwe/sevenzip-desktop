@@ -118,29 +118,32 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
     void tableKeepsPartiallyVisibleRowAcrossRefresh_data() {
         QTest::addColumn<bool>("manual");
         QTest::addColumn<bool>("throughLink");
-        QTest::newRow("automatic") << false << false;
-        QTest::newRow("manual") << true << false;
+        QTest::addColumn<int>("count");
+        QTest::newRow("automatic") << false << false << 80;
+        QTest::newRow("manual") << true << false << 80;
+        QTest::newRow("manual-large") << true << false << 301;
 #ifdef Q_OS_UNIX
-        QTest::newRow("linked-folder") << true << true;
+        QTest::newRow("linked-folder") << true << true << 80;
 #endif
     }
 
     void tableKeepsPartiallyVisibleRowAcrossRefresh() {
         QFETCH(bool, manual);
         QFETCH(bool, throughLink);
+        QFETCH(int, count);
         QTemporaryDir fixture;
         QTemporaryDir aliases;
         QVERIFY(fixture.isValid());
         CurrentDirectoryGuard directoryGuard;
         QVERIFY(QDir::setCurrent(fixture.path()));
-        for (int i = 0; i < 80; ++i)
+        for (int i = 0; i < count; ++i)
             QVERIFY(writeFile(fixture.filePath(QString("file-%1.txt").arg(i, 3, 10, QChar('0')))));
 
         MainWindow window;
         window.resize(640, 400);
         window.show();
         auto *files = table(window);
-        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 80);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == count);
         if (throughLink) {
             QVERIFY(aliases.isValid());
             const QString alias = aliases.filePath("folder link");
@@ -151,7 +154,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             QCOMPARE(files->sourcePanel->RefreshListCtrl(), S_OK);
             QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
                      alias);
-            QTRY_COMPARE(files->rowCount(), 80);
+            QTRY_COMPARE(files->rowCount(), count);
         }
         if (manual)
             files->sourcePanel->Set_AutoRefresh_Mode(false);
@@ -159,6 +162,11 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         const QString anchorName = QStringLiteral("file-035.txt");
         const int row = filesystemRow(window, anchorName);
         QVERIFY(row >= 0);
+        const QString selectedName = QStringLiteral("file-040.txt");
+        const int selected = filesystemRow(window, selectedName);
+        QVERIFY(selected >= 0);
+        files->setCurrentCell(selected, 0);
+        files->selectRow(selected);
         files->scrollTo(files->model()->index(row, 0), QAbstractItemView::PositionAtTop);
         auto *scroll = files->verticalScrollBar();
         scroll->setValue(scroll->value() + files->rowHeight(row) / 2);
@@ -180,13 +188,20 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             QTRY_VERIFY(files->hasFocus());
             PanelKeys::command(window.focusWidget(), Qt::Key_R, Qt::ControlModifier);
         }
-        QTRY_VERIFY_WITH_TIMEOUT(files->isEnabled() && files->rowCount() == 81, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(files->isEnabled() && files->rowCount() == count + 1, 5000);
         if (manual)
             QTRY_VERIFY(files->hasFocus());
         const int restoredRow = filesystemRow(window, anchorName);
         QCOMPARE(files->rowAt(0), restoredRow);
         QCOMPARE(files->rowViewportPosition(restoredRow), topOffset);
         QCOMPARE(horizontal->value(), horizontalOffset);
+        const int restoredSelection = filesystemRow(window, selectedName);
+        QCOMPARE(files->currentRow(), restoredSelection);
+        QVERIFY(files->selectionModel()->isRowSelected(restoredSelection, {}));
+        if (manual) {
+            QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+            QCOMPARE(files->currentRow(), restoredSelection + 1);
+        }
     }
 
     void detectsChangesAndPreservesSelectionAndScroll() {
