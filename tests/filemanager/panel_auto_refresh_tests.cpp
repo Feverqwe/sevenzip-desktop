@@ -256,6 +256,45 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 80, 3500);
     }
 
+    void reopeningPeerChecksForFilesystemChanges() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("old.txt");
+        QVERIFY(writeFile(initial));
+        QVERIFY(writeFile(fixture.filePath("keep.txt")));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *left = table(window);
+        auto *twoPanels = action(window, "twoPanelsAction");
+        QTRY_VERIFY(twoPanels->isEnabled());
+        twoPanels->trigger();
+        auto *peer = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peer);
+        auto *files = peer->findChild<FileTable *>("archiveTable");
+        auto *address = peer->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(fixture.path());
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 2);
+        files->setCurrentCell(0, 0);
+        files->selectRow(0);
+        QCOMPARE(files->currentIndex().data().toString(), QString("keep.txt"));
+        left->setFocus();
+        QTRY_VERIFY(left->hasFocus() && twoPanels->isEnabled());
+        twoPanels->trigger();
+        QVERIFY(!peer->isVisible());
+        QVERIFY(QFile::rename(initial, fixture.filePath("added.txt")));
+        QCOMPARE(files->model()->index(1, 0).data().toString(), QString("old.txt"));
+        twoPanels->trigger();
+        QVERIFY(peer->isVisible());
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString("added.txt"));
+        QCOMPARE(files->currentIndex().data().toString(), QString("keep.txt"));
+        QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
+        QVERIFY(left->hasFocus());
+    }
+
     void renameDraftSurvivesAutoRefresh_data() {
         QTest::addColumn<bool>("commit");
         QTest::addColumn<bool>("published");

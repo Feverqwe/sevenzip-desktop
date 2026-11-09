@@ -79,6 +79,8 @@ void MainWindow::togglePanels() {
         return;
     }
     const QPointer<QWidget> focused = focusWidget();
+    const unsigned peer = 1 - app_.LastFocusedPanel;
+    const bool showingExistingPeer = app_.NumPanels == 1 && app_.Panels[peer].PanelCreated;
     const bool editingAddress =
         focused && (focused == projectedUi().path || focused == projectedUi().pathCombo);
     if (app_.NumPanels == 2 && panelSplitter_)
@@ -99,6 +101,8 @@ void MainWindow::togglePanels() {
         focused->setFocus(Qt::OtherFocusReason);
     else
         app_.GetFocusedPanel().SetFocusToList();
+    if (showingExistingPeer && !app_.QtOperations().active())
+        checkPanelForFilesystemChanges(peer);
 }
 
 QString MainWindow::copyDefaultDestination() const {

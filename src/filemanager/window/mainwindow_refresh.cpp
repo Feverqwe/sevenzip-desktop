@@ -202,28 +202,31 @@ void MainWindow::pollAutoRefresh() {
             return;
     for (unsigned offset = 0; offset < kNumPanelsMax; ++offset) {
         const unsigned index = (nextAutoRefreshPanel_ + offset) % kNumPanelsMax;
-        if (!app_.IsPanelVisible(index) || !panelUi_[index].container ||
-            panelUi_[index].state != State::Filesystem || panelUi_[index].locationUnavailable ||
-            renameController_->PendingFor(index))
-            continue;
-        withPanelProjection(index, [&] {
-            CPanel &panel = app_.GetFocusedPanel();
-            const auto &snapshot = panelUi_[index].autoRefreshSnapshot;
-            if (panel.AutoRefresh_Mode) {
-                for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
-                    if (!(filesystemSignature(it.key()) == it.value())) {
-                        panel.MarkPortableFolderChanged();
-                        break;
-                    }
-                }
-            }
-            panel.OnTimer();
-        });
+        checkPanelForFilesystemChanges(index);
         if (app_.QtOperations().active()) {
             nextAutoRefreshPanel_ = (index + 1) % kNumPanelsMax;
             break;
         }
     }
+}
+
+void MainWindow::checkPanelForFilesystemChanges(unsigned index) {
+    const auto &ui = panelUi_[index];
+    auto &panel = app_.Panels[index];
+    if (!app_.IsPanelVisible(index) || !ui.container || ui.state != State::Filesystem ||
+        ui.locationUnavailable || renameController_->PendingFor(index) || !panel.AutoRefresh_Mode ||
+        !panel.ShouldProcessNotifications())
+        return;
+    withPanelProjection(index, [&] {
+        const auto &snapshot = ui.autoRefreshSnapshot;
+        for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
+            if (!(filesystemSignature(it.key()) == it.value())) {
+                panel.MarkPortableFolderChanged();
+                break;
+            }
+        }
+        panel.OnTimer();
+    });
 }
 
 void MainWindow::completeListViewport() {

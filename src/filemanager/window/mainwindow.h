@@ -251,6 +251,7 @@ class MainWindow : public QMainWindow {
     void restoreListSelection(const CSelectedState &selection);
     struct FilesystemSignature;
     void pollAutoRefresh();
+    void checkPanelForFilesystemChanges(unsigned index);
     void completeListViewport();
     FilesystemSignature filesystemSignature(const QString &path) const;
     void SelectAll(bool select);
