@@ -62,6 +62,7 @@ class FileTable : public QTableView {
     void keyboardSearch(const QString &search) override;
 
   protected:
+    QModelIndex moveCursor(CursorAction action, Qt::KeyboardModifiers modifiers) override;
     void startDrag(Qt::DropActions actions) override;
     void changeEvent(QEvent *event) override;
 

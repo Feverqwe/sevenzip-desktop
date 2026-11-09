@@ -51,6 +51,16 @@ class FileColumnHeader final : public QHeaderView {
 
 } // namespace
 
+QModelIndex FileTable::moveCursor(CursorAction action, Qt::KeyboardModifiers modifiers) {
+    if (action != MoveHome && action != MoveEnd)
+        return QTableView::moveCursor(action, modifiers);
+
+    const QModelIndex current = currentIndex();
+    const QModelIndex target = QTableView::moveCursor(action, modifiers | Qt::ControlModifier);
+    return current.isValid() && target.isValid() ? target.siblingAtColumn(current.column())
+                                                 : target;
+}
+
 void FileTable::keyboardSearch(const QString &search) {
     const QModelIndex current = currentIndex();
     const int nameColumn = columnForProperty(kpidName);

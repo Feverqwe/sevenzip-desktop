@@ -249,9 +249,14 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
                      .data(QtPanelList::NameRole)
                      .toString(),
                  control);
-        QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+        views[1]->setCurrentCell(views[1]->currentRow(), sizeColumn, QItemSelectionModel::NoUpdate);
+        QTest::keyClick(window.focusWidget(), Qt::Key_End);
         QCOMPARE(views[1]->currentIndex().data(QtPanelList::NameRole).toString(),
                  QString("z larger.txt"));
+        QCOMPARE(views[1]->currentIndex().column(), sizeColumn);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Home);
+        QCOMPARE(views[1]->currentIndex().data(QtPanelList::NameRole).toString(), control);
+        QCOMPARE(views[1]->currentIndex().column(), sizeColumn);
         QCOMPARE(views[0]->sourcePanel->GetFolder(), peer.Interface());
     }
     void headerDefaults_data() {
