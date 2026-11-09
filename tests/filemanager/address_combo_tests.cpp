@@ -335,6 +335,22 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("keep.txt"));
         QCOMPARE(currentIcon->icon().pixmap(16, 16).toImage(),
                  QFileIconProvider().icon(QFileIconProvider::Folder).pixmap(16, 16).toImage());
+        const QString subfolderAddress =
+            archiveAddress + QStringLiteral(" / внешняя space/内側 密碼");
+        QTRY_COMPARE(address->text(), subfolderAddress);
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "viewMode3Action")->trigger();
+        QTRY_VERIFY(table(window)->isVisible() && table(window)->isEnabled());
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->selectAll();
+        QTest::keyClicks(address, "unfinished address");
+        QTest::keyClick(address, Qt::Key_Escape);
+        QTRY_COMPARE(address->text(), subfolderAddress);
+        QTRY_VERIFY2(table(window)->hasFocus(),
+                     qPrintable(window.focusWidget() ? window.focusWidget()->objectName()
+                                                     : QStringLiteral("no focused widget")));
+        QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("keep.txt"));
         PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         QApplication::processEvents();

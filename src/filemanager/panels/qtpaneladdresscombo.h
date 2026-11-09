@@ -90,6 +90,8 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     quint64 userEditRevision_ = 0;
     std::optional<QtAddressDraft> lastUserDraft_;
     std::optional<QtAddressDraft> popupDraft_;
+    UString displayedFolderPrefix_;
+    std::optional<QString> displayedPath_;
     UString segmentsPath_;
     UInt64 segmentsRevision_ = UInt64(-1);
     std::vector<QtAddressSegment> segments_;

@@ -170,8 +170,11 @@ void QtPanelAddressCombo::SetCurrentIcon(int index) {
     currentIcon_->setVisible(index >= 0);
 }
 void QtPanelAddressCombo::ShowCurrentPath(const QString &displayPath) {
-    if (panel_)
+    if (panel_) {
         panel_->LoadFullPathAndShow(*this, ToUString(displayPath));
+        displayedFolderPrefix_ = panel_->GetCurrentFolderPrefix();
+        displayedPath_ = displayPath;
+    }
 }
 void QtPanelAddressCombo::ReloadCurrentPath() {
     if (!panel_)
@@ -213,7 +216,8 @@ void QtPanelAddressCombo::SetText(const UString &text) { lineEdit()->setText(ToQ
 void QtPanelAddressCombo::DiscardDraft(const UString &path) {
     ++userEditRevision_;
     lastUserDraft_.reset();
-    SetText(path);
+    lineEdit()->setText(displayedPath_ && displayedFolderPrefix_ == path ? *displayedPath_
+                                                                         : ToQString(path));
 }
 QtAddressDraft::QtAddressDraft(const QLineEdit &edit)
     : text(edit.text()), cursor_(edit.cursorPosition()), anchor_(cursor_),
