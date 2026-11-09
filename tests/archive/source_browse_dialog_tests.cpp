@@ -616,6 +616,51 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(!QFile::exists(ToQString(browse.FilePath)));
     }
 
+    void saveNameFollowsNavigationIntoNewFolder() {
+        QTemporaryDir fixture;
+        const QString directory = LongDirectory(fixture);
+        QVERIFY(QDir().mkpath(directory));
+        QFile existing(directory + "/existing.7z");
+        QVERIFY(existing.open(QIODevice::WriteOnly));
+        QCOMPARE(existing.write("existing archive"), qint64(16));
+        existing.close();
+        const QString draft = QStringLiteral("new archive 空.7z");
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *list = dialog->findChild<QTreeWidget *>("browseList");
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            const auto files = list->findItems("existing.7z", Qt::MatchExactly);
+            QCOMPARE(files.size(), 1);
+            list->setCurrentItem(files.front());
+            QCOMPARE(path->text(), QString("existing.7z"));
+            path->setText(draft);
+            list->setFocus();
+            QTest::keyClick(list, Qt::Key_F7);
+            auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
+            QVERIFY(name && name->isVisible());
+            QTest::keyClicks(name, "new folder");
+            QTest::keyClick(name, Qt::Key_Return);
+            QCOMPARE(dialog->focusWidget(), list);
+            QTest::keyClick(list, Qt::Key_Return);
+            QCOMPARE(path->text(), draft);
+            path->setFocus();
+            QTest::keyClick(path, Qt::Key_Return);
+        });
+        CBrowseInfo browse;
+        browse.SaveMode = true;
+        browse.FilePath = ToUString(directory + "/initial.7z");
+        browse.FilterIndex = 0;
+        QVERIFY(browse.BrowseForFile(Filters()));
+        QCOMPARE(QDir::fromNativeSeparators(ToQString(browse.FilePath)),
+                 directory + "/new folder/" + draft);
+        QCOMPARE(browse.FilterIndex, 0);
+    }
+
     void malformedPathCanBeCorrectedOrCancelled_data() {
         QTest::addColumn<bool>("folder");
         QTest::addColumn<bool>("cancel");
