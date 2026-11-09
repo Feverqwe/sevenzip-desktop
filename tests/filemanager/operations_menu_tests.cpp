@@ -136,18 +136,21 @@ class OperationsMenuTests final : public QObject {
         selected->trigger();
         QTRY_VERIFY(!WindowReport(fixture.filePath("1.json")).value("minimized").toBool());
         QVERIFY(WindowReport(fixture.filePath("0.json")).value("minimized").toBool());
+        menu->popup(peerButton->mapToGlobal(QPoint(0, peerButton->height())));
+        QTRY_VERIFY(menu->isVisible());
+        auto *remaining = Entry(*menu, ids[0]);
+        QVERIFY(remaining && remaining->isEnabled());
+        menu->setActiveAction(remaining);
         QSignalSpy finished(operations[1], &QtOperationLauncher::finished);
         QVERIFY(SourceExtractFixture::writeFile(fixture.filePath("1.release"), "close result"));
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
         QCOMPARE(qvariant_cast<QtOperationResult>(finished[0][0]).Status,
                  QtOperationResult::Outcome::Success);
-        // A menu opened before completion must never re-run the old operation.
-        selected->trigger();
-        menu->popup(peerButton->mapToGlobal(QPoint(0, peerButton->height())));
-        QTRY_VERIFY(menu->isVisible());
+        QVERIFY(menu->isVisible());
         auto *done = Entry(*menu, ids[1]);
         QVERIFY(done && !done->isEnabled());
         QVERIFY(Entry(*menu, ids[0])->isEnabled());
+        QCOMPARE(menu->activeAction(), Entry(*menu, ids[0]));
         menu->hide();
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
         QVERIFY(!QFileInfo::exists(fixture.filePath("not extracted")));

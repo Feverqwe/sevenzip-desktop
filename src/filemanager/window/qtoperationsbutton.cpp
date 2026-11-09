@@ -92,6 +92,8 @@ void QtOperationsButton::Refresh() {
     menu_->setTitle(toolTip());
     menu_->setAccessibleName(toolTip());
     setVisible(!entries.isEmpty());
+    if (menu_->isVisible())
+        Populate();
 }
 
 void QtOperationsButton::SetCompact(bool compact) {
@@ -105,6 +107,7 @@ void QtOperationsButton::SetCompact(bool compact) {
 }
 
 void QtOperationsButton::Populate() {
+    const QVariant activeId = menu_->activeAction() ? menu_->activeAction()->data() : QVariant();
     menu_->clear();
     for (const auto &entry : QtOperationRegistry::Application().Listings()) {
         QString title = OperationName(entry.Operation);
@@ -119,6 +122,8 @@ void QtOperationsButton::Populate() {
         action->setEnabled(!entry.Result || NeedsReview(entry));
         connect(action, &QAction::triggered, this,
                 [id = entry.Id] { QtOperationRegistry::Application().Show(id); });
+        if (action->isEnabled() && action->data() == activeId)
+            menu_->setActiveAction(action);
     }
 }
 
