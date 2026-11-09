@@ -763,6 +763,60 @@ class ExtractDialogTests final : public QObject {
                  QByteArray("payload"));
     }
 
+#ifdef Q_OS_WIN
+    void unavailableDestinationDriveCanBeCorrected() {
+        QString root;
+        for (char16_t letter = u'Z'; letter >= u'D'; --letter) {
+            const QString candidate = QString(QChar(letter)) + ":/";
+            if (!QDir(candidate).exists()) {
+                root = candidate;
+                break;
+            }
+        }
+        if (root.isEmpty())
+            QSKIP("No unavailable drive letter");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("archive.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "zip"));
+        const QString unavailable = QDir::toNativeSeparators(root + "new folder");
+        const QString corrected = fixture.filePath("new/output");
+        const auto correctDestination = [&](CExtractDialog &dialog) {
+            const auto close = qScopeGuard([&] {
+                if (dialog.isVisible())
+                    dialog.reject();
+            });
+            auto *destination = path(dialog);
+            dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+            destination->setEditText(unavailable);
+            dialog.accept();
+            QVERIFY(dialog.isVisible());
+            auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+            QVERIFY(error && error->isVisible());
+            QVERIFY2(error->text().contains(QDir::toNativeSeparators(root)),
+                     qPrintable(error->text()));
+            QCOMPARE(destination->lineEdit()->selectedText(), unavailable);
+            auto *clipboard = QApplication::clipboard();
+            const auto clear = qScopeGuard([clipboard] { clipboard->clear(); });
+            clipboard->setText(QDir::toNativeSeparators(corrected));
+            QTest::keySequence(destination->lineEdit(), QKeySequence::Paste);
+            dialog.accept();
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        };
+        CExtractDialog direct(fixture.path(), {});
+        direct.show();
+        correctDestination(direct);
+        QCOMPARE(direct.result(), int(QDialog::Accepted));
+        ArchiveBackend backend;
+        const auto result =
+            ExtractDialogFixture::Run(backend, archive, fixture.path(), correctDestination);
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(QDir(corrected).filePath("entry.txt")),
+                 QByteArray("payload"));
+    }
+#endif
+
     void blockedDestinationCanBeCorrected_data() {
         QTest::addColumn<bool>("split");
         QTest::addColumn<bool>("searchDenied");

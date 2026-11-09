@@ -287,7 +287,8 @@ void CExtractDialog::OnOK() {
                                            .arg(path);
             const QString parent = entry.absolutePath();
             if (parent == path)
-                return {};
+                return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                    .arg(QDir::toNativeSeparators(path));
             path = parent;
         }
     };
