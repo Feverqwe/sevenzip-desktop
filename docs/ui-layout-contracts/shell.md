@@ -177,9 +177,10 @@ current-item metadata remains in the file view and Properties. Loading and
 source-bound transient feedback share the left slot, hiding the selected size.
 Expiry restores the current summary. Read-only/limited-access state belongs to
 the source navigation context and remains visible independently of messages.
-The strip follows font metrics, elides long summaries with full tooltips, and
-retains space for known sizes at compact widths. Sizes and dates consume typed
-native values through shared regional presentation, independently of UI language.
+The strip follows font metrics, offers full tooltips for long summaries and
+transient messages, and retains space for known sizes at compact widths.
+Sizes and dates consume typed native values through shared regional
+presentation, independently of UI language.
 
 Historical reference: `Panel.cpp::Create/OnSize` gives every panel a status strip below
 its list with four parts (`{220, 320, 420, -1}` Win32 boundaries), while

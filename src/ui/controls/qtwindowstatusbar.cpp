@@ -18,6 +18,9 @@ QtWindowStatusBar::QtWindowStatusBar(QWidget *parent) : QStatusBar(parent) {
         // startup diagnostics and other direct consumers.
         if (!rendering_ && context_)
             SetMessage(context_, message);
+        setToolTip(message.isEmpty()
+                       ? QString()
+                       : "<qt>" + message.toHtmlEscaped().replace('\n', "<br>") + "</qt>");
         size_->setVisible(message.isEmpty() && !loading_ && !size_->text().isEmpty());
     });
 }
