@@ -124,6 +124,13 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
                                                               .arg(size.width())));
             }
         }
+        PanelKeys::focusAddress(address);
+        action(window, "parentFolderAction")->trigger();
+        QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), fixture.path());
+        QTRY_COMPARE(window.focusWidget(), view);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), folder);
+        QTRY_COMPARE(view->rowCount(), count + int(dots));
         if (dots) {
             view->selectRow(0);
             view->setFocus();

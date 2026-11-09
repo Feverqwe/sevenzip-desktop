@@ -250,7 +250,13 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
 void MainWindow::goBack() { workspace_->Travel(-1); }
 
 void MainWindow::goParent() {
-    workspace_->Navigate([this] { return goParentImpl(); });
+    const unsigned panel = projectedPanel_;
+    const auto interaction = workspace_->InteractionRevision();
+    workspace_->Navigate([this] { return goParentImpl(); },
+                         [this, panel, interaction](HRESULT result) {
+                             if (result == S_OK)
+                                 workspace_->FocusListAfterLocationOpen(panel, interaction);
+                         });
 }
 
 HRESULT MainWindow::goParentImpl() {
