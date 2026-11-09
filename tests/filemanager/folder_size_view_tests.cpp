@@ -275,6 +275,19 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         if (useMenu) {
             auto *calculate = action(window, "calculateDirectorySizeAction");
             QVERIFY(calculate->isEnabled());
+            QDialog modal(&window);
+            modal.setModal(true);
+            modal.show();
+            QTRY_COMPARE(QApplication::activeModalWidget(), static_cast<QWidget *>(&modal));
+            calculate->trigger();
+            QCOMPARE(property(folder, kpidSize).vt, VARTYPE(VT_EMPTY));
+            modal.reject();
+            view->selectionModel()->select(view->model()->index(filesystemRow(window, "empty"), 0),
+                                           QItemSelectionModel::Deselect |
+                                               QItemSelectionModel::Rows);
+            view->selectionModel()->select(view->model()->index(filesystemRow(window, "empty"), 0),
+                                           QItemSelectionModel::Select | QItemSelectionModel::Rows);
+            QTRY_VERIFY(calculate->isEnabled());
             calculate->trigger();
         } else {
             QTest::keyClick(view, Qt::Key_F3);

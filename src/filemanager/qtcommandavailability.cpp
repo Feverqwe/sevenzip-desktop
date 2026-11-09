@@ -126,12 +126,16 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     availability[OpenArchivePicker] = windowCommands && !w.backend_->busy();
     availability[ManageMounts] = windowCommands;
     availability[IDM_FOLDERS_HISTORY] = windowCommands && !w.app_.QtOperations().active();
-    if (availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningArchive &&
-        !w.projectedUi().scanningDisk) {
+    availability[MountReadOnly] = false;
+    const bool folderCommands = windowCommands && safeFolderQueries &&
+                                !w.projectedUi().scanningArchive && !w.projectedUi().scanningDisk;
+    availability[CalculateDirectorySize] =
+        folderCommands && (panel.IsFSFolder() || availability[OpenArchivePicker]) &&
+        CanCalculateDirectorySize();
+    if (availability[OpenArchivePicker] && folderCommands) {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
         availability[MountReadOnly] =
             folder && ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties());
-        availability[CalculateDirectorySize] = CanCalculateDirectorySize();
     }
     availability[OpenDevicePicker] =
         availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningDisk &&
