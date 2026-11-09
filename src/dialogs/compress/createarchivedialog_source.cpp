@@ -166,7 +166,7 @@ void CreateArchiveDialog::validateAndAccept() {
         archive.VolExtension = format_->currentText().toStdWString().c_str();
     archive.BaseExtension = archive.VolExtension;
     archive.ParseFromPath(ToUString(resolved), k_ArcNameMode_Smart);
-    const QString output = singleVolume ? ToQString(archive.GetFinalPath()) : resolved;
+    const QString output = ToQString(archive.GetFinalPath());
     const QFileInfo target(output);
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
     bool occupiedName = danglingTarget;
@@ -258,10 +258,10 @@ void CreateArchiveDialog::validateAndAccept() {
     }
     // Existing outputs are opened/validated by source UpdateArchive after OK,
     // just as for the original form. The dialog must not reject update intent.
-    auto request = readRequest(resolved);
+    const QString acceptedPath = archive.BaseExtension.IsEmpty() ? resolved : output;
+    auto request = readRequest(acceptedPath);
     CCompressDialog path;
-    path.m_ArchivePath =
-        archive.BaseExtension.IsEmpty() ? resolved : ToQString(archive.GetFinalPath());
+    path.m_ArchivePath = acceptedPath;
     path.Format = format_->currentText();
     path.ShowPassword = showPassword_ && showPassword_->isChecked();
     path.EncryptHeaders = encryptHeaders_ && encryptHeaders_->isChecked();

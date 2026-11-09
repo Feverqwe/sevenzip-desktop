@@ -219,17 +219,20 @@ class ArchiveVolumeCreationTests final : public QObject {
         QCOMPARE(readFile(baseArchive), QByteArray("keep this archive"));
         QCOMPARE(name->selectedText(), QString("existing.7z"));
         QVERIFY(dialog.focusWidget());
-        QTest::keyClicks(dialog.focusWidget(), "different.7z");
-        QCOMPARE(name->text(), QString("different.7z"));
+        QTest::keyClicks(dialog.focusWidget(), "different");
+        QCOMPARE(name->text(), QString("different"));
         QCOMPARE(volume->currentText(), QString("128K"));
+        const QString unrelated = fixture.filePath("different/keep.txt");
+        QVERIFY(writeFile(unrelated, "keep this folder"));
         QVERIFY(writeFile(fixture.filePath("different.7z.0002"), "not a volume"));
-        ok->click();
+        QVERIFY(!submitAndDismissWarning());
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         ArchiveBackend backend;
         QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources(), {},
                                                false, dialog.compressionOptions()),
                  S_OK);
         QVERIFY(QFileInfo(fixture.filePath("different.7z.001")).isFile());
+        QCOMPARE(readFile(unrelated), QByteArray("keep this folder"));
     }
     void smallVolumeConfirmationDoesNotSaveUntilYes() {
         QTemporaryDir fixture;
