@@ -246,6 +246,7 @@ class MainWindow : public QMainWindow {
         int cursorColumn = -1;
         PROPID cursorProperty = kpidNoProperty;
         bool cursorRawProperty = false;
+        bool keepVertical = true;
     };
     ListViewport captureListViewport();
     void restoreListViewport(const ListViewport &viewport);

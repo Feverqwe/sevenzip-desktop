@@ -396,6 +396,11 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             action(window, "viewMode0Action")->trigger();
         auto *active = icons ? ui->findChild<QAbstractItemView *>("iconList") : view;
         QTRY_COMPARE(window.focusWidget(), active);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        if (!icons && !collision && !invalid) {
+            QVERIFY(sizeColumn > 0 && !view->isColumnHidden(sizeColumn));
+            view->setCurrentCell(sourceRow, sizeColumn, QItemSelectionModel::NoUpdate);
+        }
         QVERIFY(action(window, "renameAction")->isEnabled());
         action(window, "renameAction")->trigger();
         auto *editor = active->findChild<QLineEdit *>();
@@ -471,6 +476,8 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         }
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                      collision || invalid ? original : renamed);
+        if (!icons && !collision && !invalid)
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
         QCOMPARE(view->selectionModel()->selectedRows().size(), expectedMarks);
         if (!markFocused)
             QCOMPARE(view->selectionModel()->selectedRows().front().data().toString(), peer);

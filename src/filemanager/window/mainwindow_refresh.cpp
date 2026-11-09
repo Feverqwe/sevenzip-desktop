@@ -273,6 +273,10 @@ void MainWindow::restoreListViewport(const ListViewport &viewport) {
                                                      QItemSelectionModel::NoUpdate);
     }
     view->doItemsLayout();
+    if (!viewport.keepVertical) {
+        view->horizontalScrollBar()->setValue(viewport.scrollPosition.x());
+        return;
+    }
     int row = -1;
     if (!viewport.visiblePaths.isEmpty()) {
         QHash<QString, qsizetype> rank;

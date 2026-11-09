@@ -41,6 +41,7 @@ struct QtRenameController::Request {
     const quint32 sourceIndex;
     const QString path;
     const QPointer<QAbstractItemView> view;
+    std::optional<MainWindow::ListViewport> viewport;
     QPointer<QLineEdit> editor;
     QString name;
     std::function<void()> refresh;
@@ -97,6 +98,8 @@ void QtRenameController::Begin(int row) {
                                                     : panel.GetItemFullPath(sourceIndex)),
                                   view);
     request_ = request;
+    if (view == window_.projectedUi().table)
+        request->viewport = window_.captureListViewport();
     const QPointer<QtRenameController> guard(this);
     auto retireUnopened = qScopeGuard([this, guard, request] {
         if (guard && request_ == request)
@@ -226,8 +229,17 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
         panel.RefreshListCtrl(*selection);
     else if (result != S_OK && panel.IsArcFolder())
         window_.reloadProjectedPanel(*selection);
-    else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK)
+    else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK) {
         window_.restoreListSelection(*selection);
+        if (request.viewport) {
+            auto viewport = *request.viewport;
+            viewport.keepVertical = false;
+            if (window_.projectedUi().scanningDisk || window_.projectedUi().scanningArchive)
+                window_.projectedUi().pendingViewport = std::move(viewport);
+            else
+                window_.restoreListViewport(viewport);
+        }
+    }
     if (!publishedArchive.isEmpty()) {
         if (auto *application = QtWorkspaceApplication::Find())
             application->ArchivePublished(publishedArchive, &panel);
