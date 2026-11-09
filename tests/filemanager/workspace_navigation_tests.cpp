@@ -286,7 +286,7 @@ class WorkspaceNavigationTests final : public QObject {
         QVERIFY(WindowActivation::waitForActive(window));
         const auto listArchive = [&] {
             backend.completeList({ArchiveEntry{"another/first.txt", 1, 1},
-                                  ArchiveEntry{QStringLiteral("папка 空/keep.txt"), 1, 1}});
+                                  ArchiveEntry{QStringLiteral("папка 空/deeper/keep.txt"), 1, 1}});
         };
         backend.queueListAction(listArchive);
         window.openArchive(archive);
@@ -320,6 +320,18 @@ class WorkspaceNavigationTests final : public QObject {
         QTest::keyClick(table, Qt::Key_Return);
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
         QCOMPARE(backend.listCalls, 1);
+        const auto deeper =
+            table->model()->match(table->model()->index(0, 0), Qt::DisplayRole, "deeper");
+        QCOMPARE(deeper.size(), 1);
+        table->setCurrentIndex(deeper.front());
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child + "/deeper");
+        QVERIFY(clickCrumb(archive));
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+        QTRY_VERIFY(table->hasFocus() && table->isEnabled());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(), child);
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
         QVERIFY(clickCrumb(archive));
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
         QVERIFY(clickCrumb(fixture.path()));

@@ -147,12 +147,22 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             bool immediateParent = !ui.locationUnavailable && ui.state == State::Filesystem &&
                                    target != ui.directory &&
                                    target == QFileInfo(ui.directory).absolutePath();
+            QString branch;
             if (!ui.locationUnavailable && ui.state == State::Viewing) {
                 if (!ui.archiveFolder.isEmpty()) {
                     const auto &segments =
                         static_cast<QtPanelAddressCombo *>(ui.pathCombo)->LocationSegments();
-                    immediateParent = segments.size() > 1 &&
-                                      path == ToQString(segments[segments.size() - 2].target);
+                    for (size_t i = segments.size(); i > 1; --i) {
+                        if (segments[i - 1].kind == QtAddressSegmentKind::Archive)
+                            break;
+                        const auto &ancestor = segments[i - 2];
+                        if (path != ToQString(ancestor.target))
+                            continue;
+                        immediateParent = i == segments.size();
+                        if (!immediateParent)
+                            branch = ToQString(segments[i - 1].label);
+                        break;
+                    }
                 } else {
                     const auto &archives = panel.GetParentFolders();
                     immediateParent =
@@ -166,7 +176,6 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                     }
                 }
             }
-            QString branch;
             if (!current && !immediateParent && !ui.locationUnavailable &&
                 ui.state == State::Filesystem && QDir::isAbsolutePath(target)) {
                 const QString prefix = target.endsWith(u'/') ? target : target + u'/';
@@ -178,7 +187,11 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                                        ? workspace_->Navigate([this] { return goParentImpl(); })
                                        : navigateTo(path, true);
             if (result == S_OK) {
-                if (!branch.isEmpty() && ui.state == State::Filesystem && ui.directory == target) {
+                const bool reachedTarget =
+                    (ui.state == State::Filesystem && ui.directory == target) ||
+                    (ui.state == State::Viewing &&
+                     path == ToQString(panel.GetCurrentFolderPrefix()));
+                if (!branch.isEmpty() && reachedTarget) {
                     CSelectedState selection;
                     selection.FocusedName = ToUString(branch);
                     selection.FocusedName_Defined = true;
