@@ -94,8 +94,13 @@ void CPanel::EditItem(bool useEditor) {
                     CDisableNotify notify(*this);
                     operation.Create(ToUString(title), GetParent());
                 }
-                if (_sortID == kpidSize)
+                if (_sortID == kpidSize) {
+                    const int previousRow = _selectionList.GetFocusedItem();
                     _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
+                    const int currentRow = _selectionList.GetFocusedItem();
+                    if (currentRow != previousRow)
+                        _selectionList.EnsureVisible(currentRow);
+                }
                 InvalidateList();
                 return;
             }

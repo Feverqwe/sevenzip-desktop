@@ -32,6 +32,44 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void calculatedFolderRemainsVisibleWhenSizeSortMovesIt() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkdir(fixture.filePath("aaa")));
+        QVERIFY(writeFile(fixture.filePath("aaa/payload"), "123"));
+        for (int index = 0; index < 40; ++index)
+            QVERIFY(QDir().mkdir(fixture.filePath(QString("folder-%1").arg(index))));
+
+        MainWindow window;
+        window.resize(640, 400);
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = static_cast<FileTable *>(table(window));
+        QTRY_VERIFY(filesystemRow(window, "folder-39") >= 0);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        view->sortItems(sizeColumn, Qt::AscendingOrder);
+        const int before = filesystemRow(window, "aaa");
+        QVERIFY(before >= 0);
+        view->setCurrentCell(before, 0);
+        view->selectRow(before);
+        view->scrollToTop();
+        const auto visible = [&](int row) {
+            return view->viewport()->rect().intersects(
+                view->visualRect(view->model()->index(row, 0)));
+        };
+        QVERIFY(visible(before));
+        QVERIFY(!visible(filesystemRow(window, "folder-39")));
+
+        auto *calculate = action(window, "calculateDirectorySizeAction");
+        QVERIFY(calculate->isEnabled());
+        calculate->trigger();
+        const int after = filesystemRow(window, "aaa");
+        QVERIFY(after > filesystemRow(window, "folder-39"));
+        QCOMPARE(view->currentRow(), after);
+        QVERIFY(view->selectionModel()->isRowSelected(after, {}));
+        QTRY_VERIFY(visible(after));
+    }
     void cancellationInsideAFlatDirectoryLeavesTheSizeUnset() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
