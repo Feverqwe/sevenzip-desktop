@@ -455,6 +455,35 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), destination);
     }
 
+    void restoredSourceCanBeRetriedWithoutChangingDestination() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        const QString destination = fixture.filePath("new folder") + '/';
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        CCopyDialog dialog(false, destination, {source});
+        QtCopyDestinationContext context;
+        context.LocalFileTransfer = true;
+        dialog.ConfigureDestination(context);
+        dialog.show();
+        QVERIFY(file.remove());
+        dialog.accept();
+        QVERIFY(dialog.isVisible());
+        const auto *error = dialog.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(error && error->isVisible() && error->text().contains(source));
+        QCOMPARE(dialog.findChild<QLineEdit *>("copyDestination")->text(), destination);
+        auto *ok =
+            dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        QVERIFY(ok->isEnabled());
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        ok->click();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), destination);
+    }
+
     void destinationBelowReadOnlyFolderCanBeCorrected() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -468,6 +497,9 @@ class CopyDestinationTests final : public QObject {
             QSKIP("The test filesystem does not enforce this directory permission");
 
         const QString source = fixture.filePath("source.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
         const QString target = writable + "/writable target.txt";
         CCopyDialog dialog(false, blocked + "/new folder/target.txt", {source});
         QtCopyDestinationContext context{fixture.path(), "source.txt", blocked + '/', true, {}};

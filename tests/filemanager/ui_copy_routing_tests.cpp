@@ -407,13 +407,14 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                     path->setText(move ? "../unneeded/../output/" : "../unneeded/../output");
                 else
                     path->setText(newBatchFolder ? output : output + '/');
-                if (missing)
-                    removed = QFile::remove(QDir(input).filePath(other));
                 if (cancel && !retry)
                     QTest::keyClick(dialog->findChild<QLineEdit *>("copyDestination"),
                                     Qt::Key_Escape);
                 else
                     dialog->accept();
+                // Exercise a transfer failure after the dialog preflight passed.
+                if (missing && dialog->result() == QDialog::Accepted)
+                    removed = QFile::remove(QDir(input).filePath(other));
                 if (dialog->isVisible())
                     dialog->reject();
             }

@@ -219,7 +219,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
         linkedTransferDirectory = transferDirectory.isSymLink() || transferDirectory.isJunction();
     }
     QString error;
-    bool batchConflict = false;
+    bool canRetry = false;
     bool nameError = false;
     if (_sources.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
@@ -257,7 +257,20 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Destination is inside the source folder: %1")
                     .arg(draft);
-    else if (localTransfer && (_sources.size() == 1 || checkBatch)) {
+    if (error.isEmpty() && checkBatch && _destinationContext &&
+        _destinationContext->LocalFileTransfer) {
+        for (const QString &path : _sources) {
+            const QFileInfo source(path);
+            if (!source.exists() && !source.isSymLink() && !source.isJunction()) {
+                error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                    "Source unavailable: %1")
+                            .arg(path);
+                canRetry = true;
+                break;
+            }
+        }
+    }
+    if (error.isEmpty() && localTransfer && (_sources.size() == 1 || checkBatch)) {
         // Check a batch on submit so editing the path does not stat every item.
         const QDir targetDirectory(preview);
         QSet<QString> targets;
@@ -277,16 +290,15 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
             else
                 error = QtTransferTargetTypeError(source, target);
             if (!error.isEmpty()) {
-                batchConflict = _sources.size() > 1;
+                canRetry = _sources.size() > 1;
                 nameError = _useName;
                 break;
             }
             targets.insert(QtTransferTargetKey(target.filePath()));
         }
     }
-    // A batch conflict can be removed outside the dialog. Keep OK available
-    // so the same destination can be checked again without editing the path.
-    _canSubmit = error.isEmpty() || batchConflict;
+    // Source availability and batch conflicts can change outside the dialog.
+    _canSubmit = error.isEmpty() || canRetry;
     if (correctionField)
         *correctionField = nameError ? _name : _pathEdit;
     _destinationMessage->setText(error);
