@@ -42,13 +42,17 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
   private slots:
     void creatingExistingNestedArchiveFolderAllowsRetry_data() {
         QTest::addColumn<QString>("blocked");
-        QTest::newRow("existing-folder") << QString("docs/reports");
-        QTest::newRow("existing-file") << QString("docs/reports/payload.txt");
-        QTest::newRow("file-in-parent-path") << QString("docs/reports/payload.txt/child");
+        QTest::addColumn<QString>("conflict");
+        QTest::newRow("existing-folder") << QString("docs/reports") << QString("docs/reports");
+        QTest::newRow("existing-file")
+            << QString("docs/reports/payload.txt") << QString("docs/reports/payload.txt");
+        QTest::newRow("file-in-parent-path")
+            << QString("docs/reports/payload.txt/child") << QString("docs/reports/payload.txt");
     }
 
     void creatingExistingNestedArchiveFolderAllowsRetry() {
         QFETCH(QString, blocked);
+        QFETCH(QString, conflict);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("folders.zip");
@@ -70,6 +74,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QTest::keyClick(editor, Qt::Key_Return);
         QVERIFY(editor->isVisible());
         QVERIFY(error->isVisible());
+        QVERIFY2(error->text().endsWith(conflict), qPrintable(error->text()));
         QCOMPARE(editor->selectedText(), blocked);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
         editor->setText("docs/new");

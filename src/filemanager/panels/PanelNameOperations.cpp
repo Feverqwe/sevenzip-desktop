@@ -145,6 +145,12 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     const HRESULT res =
         op.DoOperation(*this, LangString(IDS_CREATE_FOLDER), LangString(IDS_CREATE_FOLDER_ERROR));
     error = ToQString(op.Sync.FinalMessage.ErrorMessage.Message);
+    if (FAILED(res) && res != E_ABORT && !op.Sync.Messages.IsEmpty()) {
+        QStringList diagnostics;
+        FOR_VECTOR(i, op.Sync.Messages)
+        diagnostics.append(ToQString(op.Sync.Messages[i]));
+        error = diagnostics.join(QLatin1Char('\n'));
+    }
     SetPublishedArchive(*this, op, publishedArchive);
     if (res == S_OK)
         PrepareCreatedSelection(*this, name, state);

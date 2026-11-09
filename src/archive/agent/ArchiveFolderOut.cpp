@@ -431,11 +431,14 @@ Z7_COM7F_IMF(CAgentFolder::CreateFolder(const wchar_t *name, IProgress *progress
     if (_isAltStreamFolder)
         return E_NOTIMPL;
     bool exists = false;
+    unsigned blockedLength = 0;
     CMyComPtr<IFolderFolder> parent(this);
-    UString remaining(name);
+    const UString path(name);
+    UString remaining(path);
     for (;;) {
         const int separator = NName::FindSepar(remaining);
         const UString part = separator < 0 ? remaining : remaining.Left(unsigned(separator));
+        blockedLength = path.Len() - remaining.Len() + part.Len();
         CMyComPtr<IFolderFolder> child;
         const HRESULT result = parent->BindToFolder(part, &child);
         if (result == E_INVALIDARG) {
@@ -464,6 +467,19 @@ Z7_COM7F_IMF(CAgentFolder::CreateFolder(const wchar_t *name, IProgress *progress
         remaining.DeleteFrontal(unsigned(separator + 1));
     }
     if (exists) {
+        CMyComPtr<IFolderArchiveUpdateCallback> callback;
+        if (progress)
+            progress->QueryInterface(IID_IFolderArchiveUpdateCallback, (void **)&callback);
+        if (callback) {
+            const QString blocked = QString::fromWCharArray(path.Ptr(), blockedLength);
+            const QString message =
+                blockedLength < path.Len()
+                    ? QCoreApplication::translate("CopyRedesign", "Not a folder: %1").arg(blocked)
+                    : QCoreApplication::translate("archivebackend_validation",
+                                                  "Already exists in the destination folder: %1")
+                          .arg(blocked);
+            callback->UpdateErrorMessage(message.toStdWString().c_str());
+        }
 #ifdef _WIN32
         return HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS);
 #else
