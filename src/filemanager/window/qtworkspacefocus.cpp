@@ -11,11 +11,12 @@ void QtWindowWorkspace::RequestInitialFocus(unsigned index) {
         RequestListFocus(index);
 }
 
-void QtWindowWorkspace::RequestListFocus(unsigned index) {
+void QtWindowWorkspace::RequestListFocus(unsigned index, bool switchingPane) {
     if (index >= kNumPanelsMax || window_.app_.QtOperations().closed())
         return;
     CancelListFocus();
     pendingListFocus_ = index;
+    switchingPane_ = switchingPane;
     CompleteListFocusIfReady();
 }
 
@@ -46,6 +47,7 @@ void QtWindowWorkspace::CompleteListFocusIfReady() {
 
 void QtWindowWorkspace::CancelListFocus() {
     pendingListFocus_.reset();
+    switchingPane_ = false;
     ++focusRequest_;
 }
 
@@ -71,7 +73,7 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         // the panel track it, and arbitrate the actual shortcut separately.
         if (key && (key->key() == Qt::Key_Control || key->key() == Qt::Key_Shift))
             return QObject::eventFilter(object, event);
-        const bool waitingForPeer = pendingListFocus_ &&
+        const bool waitingForPeer = switchingPane_ && pendingListFocus_ &&
                                     *pendingListFocus_ != window_.projectedPanel_ &&
                                     window_.panelInputTarget(object, window_.projectedPanel_) ==
                                         MainWindow::PanelInputTarget::List;

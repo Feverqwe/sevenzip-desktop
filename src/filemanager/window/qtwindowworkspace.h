@@ -50,7 +50,7 @@ class QtWindowWorkspace final : public QObject {
     bool CanRefreshPublishedOutput(unsigned panel) const;
     void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RequestInitialFocus(unsigned panel);
-    void RequestListFocus(unsigned panel);
+    void RequestListFocus(unsigned panel, bool switchingPane = false);
     void CompleteListFocusIfReady();
     void CancelListFocus();
     void RetainListFocus(unsigned panel);
@@ -171,6 +171,7 @@ class QtWindowWorkspace final : public QObject {
     QtNativePlaces *nativePlaces_ = nullptr;
     QtRecentPlacesStore *recentPlaces_ = nullptr;
     std::optional<unsigned> pendingListFocus_;
+    bool switchingPane_ = false;
     quint64 focusRequest_ = 0;
     quint64 interactionRevision_ = 0;
     std::array<std::unique_ptr<Navigation>, 2> navigation_;

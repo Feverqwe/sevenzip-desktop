@@ -222,7 +222,7 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     const auto mods = key->modifiers();
     const int virtualKey = QtPanelVirtualKey(*key);
     if (virtualKey == Qt::Key_Tab && app_.NumPanels == 2 && !mods.testFlag(Qt::MetaModifier)) {
-        workspace_->RequestListFocus(1 - projectedPanel_);
+        workspace_->RequestListFocus(1 - projectedPanel_, true);
         return true;
     }
     if (!mods.testFlag(Qt::MetaModifier) &&

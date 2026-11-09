@@ -114,7 +114,9 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         };
         startPeerRefresh();
         QTest::keySequence(files, move ? QKeySequence::Cut : QKeySequence::Copy);
-        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), QList{QUrl::fromLocalFile(input)});
+        const auto *copied = QApplication::clipboard()->mimeData();
+        QVERIFY(copied);
+        QCOMPARE(copied->urls(), QList{QUrl::fromLocalFile(input)});
         QCOMPARE(cut(*files, "item.txt"), move);
         QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
 
