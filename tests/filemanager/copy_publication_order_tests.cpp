@@ -392,7 +392,14 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
         QCOMPARE(read(QDir(input).filePath("control.txt")), QByteArray("source control"));
         QCOMPARE(read(QDir(output).filePath("seed.txt")), QByteArray("peer control"));
         QCOMPARE(source->rowCount(), move ? 1 : 2);
-        QVERIFY(source->selectionModel()->selectedRows().isEmpty());
+        const auto selected = source->selectionModel()->selectedRows();
+        if (!move && result != S_OK) {
+            QCOMPARE(selected.size(), 1);
+            QCOMPARE(selected.front().data().toString().normalized(QString::NormalizationForm_C),
+                     name);
+        } else {
+            QVERIFY(selected.isEmpty());
+        }
         QVERIFY(source->sourcePanel->ShouldProcessNotifications());
         QVERIFY(peer->sourcePanel->ShouldProcessNotifications());
         QVERIFY(WindowActivation::waitForActive(window));

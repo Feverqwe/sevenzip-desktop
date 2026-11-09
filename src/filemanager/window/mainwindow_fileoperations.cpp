@@ -122,6 +122,8 @@ void MainWindow::executeCopyDestination(bool move, bool copyToSame, unsigned sou
         // its operation guards; a blocked reload would only return S_OK.
         if (result != S_OK && result != E_ABORT)
             app_.Panels[sourceIndex].MessageBox_Error_HRESULT(result);
+        if (result != S_OK)
+            appPresentation_->CopyFinished(true);
         return;
     }
     const bool directPath = route == QtCopyRoute::DirectFileSystem ||
