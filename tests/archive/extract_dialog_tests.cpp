@@ -719,6 +719,13 @@ class ExtractDialogTests final : public QObject {
                 QVERIFY(dialog.isVisible());
                 auto *error = dialog.findChild<QLabel *>("extractDestinationError");
                 QVERIFY(error && error->isVisible() && error->text().contains(blocked));
+#ifdef Q_OS_WIN
+                destination->setEditText(output + "/wrong?");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QCOMPARE(destination->lineEdit()->selectedText(), output + "/wrong?");
+                QCOMPARE(overwrite(dialog)->currentIndex(), overwriteIndex);
+#endif
                 destination->setEditText(split ? QFileInfo(output).absolutePath() : output);
                 dialog.accept();
                 QCOMPARE(dialog.result(), int(QDialog::Accepted));

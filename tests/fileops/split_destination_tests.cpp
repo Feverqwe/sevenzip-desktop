@@ -473,6 +473,11 @@ class SplitDestinationTests final : public QObject {
                 dialog.accept();
                 QVERIFY(dialog.isVisible() && error->isVisible());
                 QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+                name(dialog)->setText("wrong*");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+                QCOMPARE(name(dialog)->selectedText(), QString("wrong*"));
 #endif
                 const QString invalidBase = base + "/truncated base" + QChar::Null + "suffix";
                 path(dialog)->setEditText(invalidBase);

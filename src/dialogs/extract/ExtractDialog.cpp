@@ -55,7 +55,8 @@ bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
     if (candidate.isEmpty() || candidate.contains(QChar::Null))
         return false;
     const UString path = ToUString(QDir::toNativeSeparators(candidate));
-    return NWindows::NFile::NDir::MyGetFullPathName(us2fs(path), resolved) &&
+    return FindInvalidWindowsPathCharacter(path) < 0 &&
+           NWindows::NFile::NDir::MyGetFullPathName(us2fs(path), resolved) &&
            !HasEmptyWindowsPathComponent(path, fs2us(resolved));
 }
 

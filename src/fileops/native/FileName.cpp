@@ -15,6 +15,7 @@
 #include "Windows/FileName.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/native/correctfspath.h"
+#include <cwchar>
 
 #ifndef _UNICODE
 extern bool g_IsNT;
@@ -823,6 +824,14 @@ bool GetFullPath(CFSTR path, FString &fullPath) { return GetFullPath(NULL, path,
 
 // Adapted from 7-Zip BrowseDialog.cpp (0766b73); same LGPL notice as above.
 #ifdef _WIN32
+int FindInvalidWindowsPathCharacter(const UString &path) {
+    const unsigned root = NWindows::NFile::NName::GetRootPrefixSize(path);
+    for (unsigned i = root; i < path.Len(); ++i)
+        if (std::wcschr(L"<>\"|?*", path[i]))
+            return int(i);
+    return -1;
+}
+
 static void RemoveDotsAndSpaces(UString &path) {
     while (!path.IsEmpty()) {
         wchar_t c = path.Back();
@@ -911,6 +920,7 @@ bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result
 }
 #else
 bool HasEmptyWindowsPathComponent(const UString &, const UString &) { return false; }
+int FindInvalidWindowsPathCharacter(const UString &) { return -1; }
 
 bool CorrectFsPath(const UString & /* relBase */, const UString &path, UString &result) {
     result = path;
