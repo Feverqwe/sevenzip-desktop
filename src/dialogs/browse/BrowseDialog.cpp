@@ -441,8 +441,10 @@ void CBrowseDialog::FinishOnOK() {
         MessageBox_HResError(this, kInvalidNameError, s);
         return;
     }
-    if (FolderMode) {
+    if (FolderMode || SaveMode) {
         QString candidate = QDir::cleanPath(ToQString(fs2us(destPath)));
+        if (!FolderMode)
+            candidate = QFileInfo(candidate).absolutePath();
         for (;;) {
             const QFileInfo entry(candidate);
             if (entry.isDir())

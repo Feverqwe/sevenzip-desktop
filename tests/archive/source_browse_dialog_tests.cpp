@@ -526,7 +526,14 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(output.IsEmpty());
     }
 
-    void folderPickerRejectsAnExistingFileAndAllowsRetry() {
+    void pickerRejectsAPathBeneathAFileAndAllowsRetry_data() {
+        QTest::addColumn<bool>("folder");
+        QTest::newRow("folder") << true;
+        QTest::newRow("save") << false;
+    }
+
+    void pickerRejectsAPathBeneathAFileAndAllowsRetry() {
+        QFETCH(bool, folder);
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);
         QVERIFY(QDir().mkpath(directory));
@@ -553,7 +560,10 @@ class SourceBrowseDialogTests final : public QObject {
                 }
             });
             reply.start(1);
-            for (const QString draft : {"occupied.txt/", "occupied.txt/child/deeper"}) {
+            const QStringList invalidPaths =
+                folder ? QStringList{"occupied.txt/", "occupied.txt/child/deeper"}
+                       : QStringList{"occupied.txt/child/archive.7z"};
+            for (const auto &draft : invalidPaths) {
                 error.clear();
                 path->setText(draft);
                 dialog->accept();
@@ -562,13 +572,21 @@ class SourceBrowseDialogTests final : public QObject {
                 QCOMPARE(path->text(), draft);
                 QCOMPARE(dialog->focusWidget(), path);
             }
-            path->setText("new folder/child");
+            path->setText(folder ? "new folder/child" : "new folder/archive.7z");
             dialog->accept();
         });
         UString output;
-        QVERIFY(MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output));
+        if (folder) {
+            QVERIFY(MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output));
+        } else {
+            CBrowseInfo browse;
+            browse.SaveMode = true;
+            browse.FilePath = ToUString(directory + "/initial.7z");
+            QVERIFY(browse.BrowseForFile(Filters()));
+            output = browse.FilePath;
+        }
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(output))),
-                 directory + "/new folder/child");
+                 directory + (folder ? "/new folder/child" : "/new folder/archive.7z"));
         QVERIFY(!QFileInfo::exists(directory + "/new folder"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("original"));
