@@ -260,11 +260,13 @@ void QtLocalFileTask::PresentFinish(bool success, bool cancelled, const QString 
     QCoreApplication::sendPostedEvents(progress_, QEvent::MetaCall);
     if (guard && !stopped_) {
         if (progress_->isVisible()) {
-            connect(progress_, &QDialog::finished, this,
-                    [this, success, cancelled, message, partial] {
-                        if (!stopped_)
-                            emit finished(success, cancelled, message, partial);
-                    });
+            connect(
+                progress_, &QDialog::finished, this,
+                [this, success, cancelled, message, partial] {
+                    if (!stopped_)
+                        emit finished(success, cancelled, message, partial);
+                },
+                Qt::SingleShotConnection);
         } else
             emit finished(success, cancelled, message, partial);
     }
