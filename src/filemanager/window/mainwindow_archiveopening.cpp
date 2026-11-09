@@ -7,6 +7,7 @@
 #include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/FormatUtils.h"
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
@@ -73,6 +74,9 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
     }
     const auto pendingSelection = projectedUi().pendingSelection;
     const auto pendingViewport = projectedUi().pendingViewport;
+    const auto addressDraft = projectedUi().path->isModified()
+                                  ? std::optional(QtAddressDraft(*projectedUi().path))
+                                  : std::nullopt;
     cancelListPublication();
     if (projectedUi().state == State::Filesystem)
         projectedUi().returnDirectory = projectedUi().directory;
@@ -104,7 +108,9 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
             panel._sortID = previousSort;
             panel._ascending = previousAscending;
             panel.SetListViewMode(previousMode);
-            renderBoundFolder();
+            renderBoundFolder(!addressDraft);
+            if (addressDraft)
+                addressDraft->Restore(*projectedUi().path);
             restoreListSelection(previousSelection);
         }
     }

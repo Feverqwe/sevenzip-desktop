@@ -170,6 +170,57 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         }
     }
 
+    void canceledArchiveOpenPreservesAddressDraft() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload.txt");
+        const QString archive = fixture.filePath("encrypted.7z");
+        const QString password = QStringLiteral("fixture password");
+        QVERIFY(write(fixture.filePath(name), "payload"));
+        QVERIFY(createArchive(fixture.path(), archive, name, "7z", password));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = active(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, name) >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        const QString draft = QStringLiteral("unsubmitted address");
+        address->selectAll();
+        QTest::keyClicks(address, draft);
+        address->setSelection(11, -4);
+        int prompts = 0;
+        QTimer answer;
+        widgetDialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(widgetDialogs_.activeDialog())) {
+                if (++prompts == 1)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->accept();
+                }
+            }
+        });
+        answer.start(5);
+        window.openArchive(archive);
+        QCOMPARE(prompts, 1);
+        QVERIFY(view->sourcePanel->IsFSFolder());
+        QCOMPARE(address->text(), draft);
+        QCOMPARE(address->selectedText(), draft.mid(7, 4));
+        QCOMPARE(address->cursorPosition(), 7);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(address->hasFocus());
+
+        window.openArchive(archive);
+        QCOMPARE(prompts, 2);
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
+        QVERIFY(address->text().contains("encrypted.7z"));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
     void canceledFavoriteKeepsCurrentFolderAndSelection() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
