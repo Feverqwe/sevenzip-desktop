@@ -224,14 +224,17 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("switchView");
-        QTest::newRow("icons") << 0 << false;
-        QTest::newRow("details") << 3 << false;
-        QTest::newRow("icons-to-details") << 0 << true;
-        QTest::newRow("details-to-icons") << 3 << true;
+        QTest::addColumn<bool>("selectToEnd");
+        QTest::newRow("icons") << 0 << false << false;
+        QTest::newRow("details") << 3 << false << false;
+        QTest::newRow("icons-to-details") << 0 << true << false;
+        QTest::newRow("details-to-icons") << 3 << true << false;
+        QTest::newRow("details-to-last-row") << 3 << false << true;
     }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove() {
         QFETCH(int, mode);
         QFETCH(bool, switchView);
+        QFETCH(bool, selectToEnd);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
         settings.setValue("FM/AlternativeSelection", true);
         settings.sync();
@@ -256,11 +259,11 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         target->setCurrentIndex(view->model()->index(0, 0));
         view->selectRow(0);
         const auto arrow = mode <= 1 ? Qt::Key_Right : Qt::Key_Down;
-        QKeyEvent shiftDown(QEvent::KeyPress, arrow, Qt::ShiftModifier);
+        QKeyEvent shiftDown(QEvent::KeyPress, selectToEnd ? Qt::Key_End : arrow, Qt::ShiftModifier);
         QApplication::sendEvent(target, &shiftDown);
-        QCOMPARE(view->currentRow(), 1);
-        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
-        auto nextArrow = arrow;
+        QCOMPARE(view->currentRow(), selectToEnd ? 2 : 1);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), selectToEnd ? 3 : 2);
+        auto nextArrow = selectToEnd ? Qt::Key_Up : arrow;
         if (switchView) {
             action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
             target = mode == 3 ? window.findChild<QAbstractItemView *>("iconList") : view;
@@ -272,13 +275,13 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         }
         QKeyEvent down(QEvent::KeyPress, nextArrow, Qt::NoModifier);
         QApplication::sendEvent(target, &down);
-        QCOMPARE(view->currentRow(), 2);
+        QCOMPARE(view->currentRow(), selectToEnd ? 1 : 2);
         QApplication::processEvents();
         CPanel *panel = static_cast<FileTable *>(view)->sourcePanel;
         for (int row = 0; row < 3; ++row)
             QCOMPARE(
                 panel->IsItemMarked(view->model()->index(row, 0).data(Qt::UserRole + 6).toUInt()),
-                row == 2);
+                row == view->currentRow());
     }
     void archiveOpenDisablesBothPanelAddresses() {
         QTemporaryDir fixture;
