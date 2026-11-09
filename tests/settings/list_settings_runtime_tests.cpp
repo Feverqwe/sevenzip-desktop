@@ -115,6 +115,8 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QTRY_VERIFY(left->hasFocus() && twoPanels->isEnabled());
         twoPanels->trigger();
         QTRY_VERIFY(!peer->isVisible());
+        action(window, "selectAllAction")->trigger();
+        QCOMPARE(left->selectionModel()->selectedRows().size(), 2);
         auto *settings = action(window, "settingsAction");
         backend.held = true;
         QVERIFY(setListOptions(window, settings, false, "showHiddenFoldersOption"));
@@ -128,13 +130,12 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QTRY_VERIFY(left->isEnabled());
         left->setFocus();
         QTRY_VERIFY(left->hasFocus());
-        action(window, "selectAllAction")->trigger();
         auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
         QVERIFY(summary);
         QTRY_COMPARE(summary->text(), QString("Selected: 1 / 1"));
         auto *copy = action(window, "copyFilesAction");
         QVERIFY(copy->isEnabled());
-        copy->trigger();
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
                  QList<QUrl>{QUrl::fromLocalFile(fixture.filePath("visible.txt"))});
         QApplication::clipboard()->clear();
