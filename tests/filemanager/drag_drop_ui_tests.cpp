@@ -27,6 +27,7 @@
 #include <QScreen>
 #include <QStackedWidget>
 #include <QStandardItemModel>
+#include <QStatusBar>
 #include <QStyle>
 #include <QStyleFactory>
 #include <QThread>
@@ -510,19 +511,22 @@ class DragDropUiTests final : public QObject {
         QTest::addColumn<bool>("archiveSource");
         QTest::addColumn<bool>("drag");
         QTest::addColumn<bool>("replaceClipboard");
-        QTest::newRow("archive-drag") << true << true << false;
-        QTest::newRow("archive-clipboard") << true << false << false;
-        QTest::newRow("filesystem-clipboard") << false << false << false;
-        QTest::newRow("archive-clipboard-replaced") << true << false << true;
+        QTest::addColumn<bool>("cancelExport");
+        QTest::newRow("archive-drag") << true << true << false << false;
+        QTest::newRow("archive-clipboard") << true << false << false << false;
+        QTest::newRow("filesystem-clipboard") << false << false << false << false;
+        QTest::newRow("archive-clipboard-replaced") << true << false << true << false;
+        QTest::newRow("archive-clipboard-cancel-and-retry") << true << false << false << true;
 #ifdef Q_OS_WIN
         if (QGuiApplication::platformName() == QStringLiteral("windows"))
-            QTest::newRow("explorer-clipboard") << true << false << false;
+            QTest::newRow("explorer-clipboard") << true << false << false << false;
 #endif
     }
     void fileExportCanBeCopiedByRecipient() {
         QFETCH(bool, archiveSource);
         QFETCH(bool, drag);
         QFETCH(bool, replaceClipboard);
+        QFETCH(bool, cancelExport);
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
         const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
@@ -536,8 +540,9 @@ class DragDropUiTests final : public QObject {
         const QString source = input.filePath(name);
         QVERIFY(SourceExtractFixture::writeFile(source, bytes));
         const QString password = QStringLiteral("clipboard fixture password");
-        const QString archive = input.filePath(replaceClipboard ? "source.7z" : "source.zip");
-        if (replaceClipboard)
+        const bool encrypted = replaceClipboard || cancelExport;
+        const QString archive = input.filePath(encrypted ? "source.7z" : "source.zip");
+        if (encrypted)
             QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}, "7z", password, false));
         else if (archiveSource)
             QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}, "zip"));
@@ -589,6 +594,36 @@ class DragDropUiTests final : public QObject {
             const QString newer = QStringLiteral("newer clipboard text");
             QStringList existingTemps, exportTemps;
             QTimer replacement;
+            if (cancelExport) {
+                int prompts = 0;
+                QTimer answer;
+                connect(&answer, &QTimer::timeout, &window, [&] {
+                    auto *prompt =
+                        dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
+                    if (!prompt)
+                        return;
+                    if (++prompts == 1)
+                        prompt->reject();
+                    else {
+                        answer.stop();
+                        prompt->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                        prompt->accept();
+                    }
+                });
+                answer.start(5);
+                QTest::keySequence(table, QKeySequence::Copy);
+                QCOMPARE(prompts, 1);
+                QCOMPARE(clipboard->text(), QString("clipboard sentinel"));
+                QCOMPARE(window.statusBar()->currentMessage(),
+                         QCoreApplication::translate("mainwindow_archivecommands",
+                                                     "Operation canceled."));
+                QVERIFY(WindowActivation::waitForActive(window));
+                QTRY_VERIFY(table->hasFocus());
+                QTRY_VERIFY(PanelIndexSelected(item));
+                QTest::keySequence(table, QKeySequence::Copy);
+                QCOMPARE(prompts, 2);
+                QVERIFY(window.statusBar()->currentMessage().isEmpty());
+            }
             if (replaceClipboard) {
                 for (const auto &entry : QtOwnedTempRegistry().Entries())
                     existingTemps.append(entry.path);
@@ -607,7 +642,8 @@ class DragDropUiTests final : public QObject {
                 });
                 replacement.start(5);
             }
-            QTest::keyClick(table, Qt::Key_C, Qt::ControlModifier);
+            if (!cancelExport)
+                QTest::keyClick(table, Qt::Key_C, Qt::ControlModifier);
             if (replaceClipboard) {
                 QVERIFY(!exportTemps.isEmpty());
                 QCOMPARE(clipboard->text(), newer);

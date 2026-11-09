@@ -197,7 +197,14 @@ void QtFileClipboard::Copy(bool move) {
             QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
             result = source.CopyTo(options, indices, &messages, &report);
         }
-        if (result != S_OK || !messages.IsEmpty() || revision_ != revision)
+        if (revision_ != revision)
+            return;
+        if (result == E_ABORT) {
+            window_.showStatusMessage(
+                QCoreApplication::translate("mainwindow_archivecommands", "Operation canceled."));
+            return;
+        }
+        if (result != S_OK || !messages.IsEmpty())
             return;
         if (source.IsArcFolder() && (!report.Status || !report.Status->Complete)) {
             window_.showStatusMessage(tr(
