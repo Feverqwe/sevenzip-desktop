@@ -35,13 +35,19 @@ QString MainWindow::toolbarSettingsPath() { return FmSettingsPath(); }
 
 void MainWindow::showSettings() {
     SettingsDialog dialog(toolbarSettingsPath(), this, folderManager_);
-    connect(&dialog, &SettingsDialog::Applied, this, [this] {
+    const auto apply = [this] {
         const auto previous = fileListSettings_;
         applyFileListSettings();
         if (previous.ShowDots != fileListSettings_.ShowDots ||
             previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
             if (auto *application = QtWorkspaceApplication::Find())
                 application->FileListSettingsChanged(*this);
+    };
+    connect(&dialog, &SettingsDialog::Applied, this, [this, apply] {
+        if (scanningPanelMask())
+            workspace_->WhenReady(apply);
+        else
+            apply();
     });
     dialog.exec();
     refreshActions();

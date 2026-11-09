@@ -156,6 +156,51 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QTRY_COMPARE(peer->rowCount(), 2);
     }
 
+    void parentRowPreferenceAppliesAfterInFlightListing() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString large = fixture.filePath("large");
+        QVERIFY(QDir().mkdir(large));
+        for (int i = 0; i < 301; ++i)
+            QVERIFY(writeFile(QDir(large).filePath(QString("file-%1.txt").arg(i))));
+
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_COMPARE(files->rowCount(), 1);
+        auto *settings = action(window, "settingsAction");
+        QTRY_VERIFY(settings->isEnabled());
+
+        QTimer startListing;
+        const int outerLoop = QThread::currentThread()->loopLevel();
+        connect(&startListing, &QTimer::timeout, &window, [&] {
+            auto *dialog = window.findChild<QDialog *>("settingsDialog");
+            if (!dialog || !dialog->isVisible() ||
+                QThread::currentThread()->loopLevel() <= outerLoop)
+                return;
+            startListing.stop();
+            connect(
+                files->model(), &QAbstractItemModel::rowsInserted, dialog,
+                [dialog] {
+                    if (auto *option = dialog->findChild<QCheckBox *>("showDotsOption")) {
+                        option->setChecked(true);
+                        dialog->accept();
+                    } else {
+                        dialog->reject();
+                    }
+                },
+                Qt::QueuedConnection);
+            window.openPath(large);
+        });
+        startListing.start(5);
+        settings->trigger();
+        QTRY_COMPARE(files->rowCount(), 302);
+        QTRY_VERIFY(files->isEnabled());
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString(".."));
+    }
+
     void optionsParentRowAndContextMenu() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
