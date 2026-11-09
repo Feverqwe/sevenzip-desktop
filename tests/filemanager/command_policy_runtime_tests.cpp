@@ -115,19 +115,23 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
             paths.append(
                 QFileInfo(path).canonicalFilePath().normalized(QString::NormalizationForm_C));
         }
+        const QString folder = temp.filePath(QStringLiteral("Папка 空"));
+        QVERIFY(QDir().mkdir(folder));
+        paths.append(QFileInfo(folder).canonicalFilePath().normalized(QString::NormalizationForm_C));
         ControlledBackend backend;
         QStringList opened;
         MainWindow window(&backend, [&](const QUrl &url) {
-            opened.append(url.toLocalFile().normalized(QString::NormalizationForm_C));
+            opened.append(
+                QDir::cleanPath(url.toLocalFile()).normalized(QString::NormalizationForm_C));
             return true;
         });
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
         auto *view = table(window);
-        QCOMPARE(view->rowCount(), 2);
+        QCOMPARE(view->rowCount(), paths.size());
         view->selectAll();
-        for (int row = 0; row < 2; ++row) {
+        for (int row = 0; row < view->rowCount(); ++row) {
             SetPanelData(view->model()->index(row, 0), "forged name", Qt::EditRole);
             SetPanelData(view->model()->index(row, 1), "/missing/forged path", Qt::EditRole);
         }
@@ -136,7 +140,8 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
         opened.sort();
         paths.sort();
         QCOMPARE(opened, paths);
-        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), paths.size());
+        QCOMPARE(QDir(address->text()).canonicalPath(), QDir(temp.path()).canonicalPath());
     }
     void archiveFolderDisablesExternalOpen() {
         QTemporaryDir temp;
