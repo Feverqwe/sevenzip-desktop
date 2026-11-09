@@ -370,13 +370,19 @@ class SourceBrowseDialogTests final : public QObject {
             auto *path = dialog->findChild<QLineEdit *>("browsePath");
             auto *folder = dialog->findChild<QLabel *>("browseFolder");
             auto *parentButton = dialog->findChild<QPushButton *>("browseParent");
+            auto *createButton = dialog->findChild<QPushButton *>("browseCreateFolder");
+            auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
             auto *buttons = dialog->findChild<QDialogButtonBox *>("browseButtons");
-            QVERIFY(list && path && folder && parentButton && buttons);
+            QVERIFY(list && path && folder && parentButton && createButton && name && buttons);
             const auto matches = list->findItems("Child", Qt::MatchExactly);
             QCOMPARE(matches.size(), 1);
             list->setCurrentItem(matches.front());
             const QString draft = QStringLiteral("  введённый путь 空  ");
             path->setText(draft);
+            const QString folderDraft = QStringLiteral("новая папка 空");
+            createButton->click();
+            QVERIFY(name->isVisible());
+            name->setText(folderDraft);
             const auto navigate = [&] {
                 if (command == "button")
                     parentButton->click();
@@ -401,12 +407,20 @@ class SourceBrowseDialogTests final : public QObject {
             QVERIFY(QDir().rename(parked, target));
             QVERIFY(error.contains(QDir::toNativeSeparators(target)));
             QCOMPARE(path->text(), draft);
+            QVERIFY(name->isVisible());
+            QCOMPARE(name->text(), folderDraft);
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(folder->toolTip())), current);
             QCOMPARE(list->currentItem()->text(0), QString("Child"));
 
             navigate();
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(folder->toolTip())), target);
             QVERIFY(path->text() != draft);
+            QVERIFY(!name->isVisible());
+            createButton->click();
+            QVERIFY(name->isVisible());
+            QVERIFY(name->text().isEmpty());
+            QTest::keyClick(name, Qt::Key_Escape);
+            QVERIFY(!QFileInfo::exists(QDir(target).filePath(folderDraft)));
             path->setText(target);
             path->setFocus();
             buttons->button(QDialogButtonBox::Ok)->click();

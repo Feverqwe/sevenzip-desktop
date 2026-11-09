@@ -334,11 +334,14 @@ void CBrowseDialog::ShowReloadError(HRESULT result) {
 }
 
 void CBrowseDialog::NavigateFolder(const UString &path, const UString &selectedName) {
+    const UString previousFolder = DirPrefix;
     const HRESULT result = Reload(path, selectedName);
     if (result != S_OK) {
         MessageBox_HResError(this, result, path);
         return;
     }
+    if (DirPrefix != previousFolder)
+        _folderDraft->hide();
     SetPathEditText();
 }
 
