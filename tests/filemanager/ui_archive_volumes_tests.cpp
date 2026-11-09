@@ -4,6 +4,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "support/progress_dialog.h"
+#include "support/window_activation.h"
 #include <QPushButton>
 
 namespace {
@@ -172,12 +173,30 @@ class UiArchiveVolumesTests final : public QObject, protected MainWindowTestSupp
         if (mode == 0) {
             const QByteArray missingVolume = readFile(second);
             QVERIFY(QFile::remove(second));
-            window.openArchive(first);
+            window.openPath(fixture.path());
+            QVERIFY(WindowActivation::waitForActive(window));
+            auto *files = table(window);
+            const QString name = QFileInfo(first).fileName();
+            QTRY_VERIFY(filesystemRow(window, name) >= 0);
+            const int row = filesystemRow(window, name);
+            files->setCurrentCell(row, 0);
+            files->selectRow(row);
+            QTRY_VERIFY(files->hasFocus());
+            const auto openInside = action(window, "openInsideAction")->shortcut();
+            QTest::keySequence(window.focusWidget(), openInside);
             QVERIFY(answers.Errors > 0);
             QVERIFY(!backend.busy());
             const int errors = answers.Errors;
             QVERIFY(writeFile(second, missingVolume));
-            window.openArchive(first);
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_COMPARE(window.focusWidget(), files);
+            QVERIFY(files->sourcePanel->IsArcFolder());
+            QTest::keySequence(window.focusWidget(), action(window, "backAction")->shortcut());
+            QTRY_VERIFY(files->sourcePanel->IsFSFolder());
+            QTRY_COMPARE(window.focusWidget(), files);
+            QCOMPARE(files->currentIndex().data(QtPanelList::NameRole).toString(), name);
+            QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
+            QTest::keySequence(window.focusWidget(), openInside);
             QTRY_COMPARE(table(window)->rowCount(), 2);
             QVERIFY(action(window, "testArchiveAction")->isEnabled());
             window.testArchive();
