@@ -217,9 +217,20 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
                                           &destinationDirectory, &publishedArchive);
     }
     const auto selection = panel.TakeRefreshSelection();
+    const auto restoreViewport = [&] {
+        if (!request.viewport)
+            return;
+        auto viewport = *request.viewport;
+        viewport.keepVertical = result != S_OK;
+        if (window_.projectedUi().scanningDisk || window_.projectedUi().scanningArchive)
+            window_.projectedUi().pendingViewport = std::move(viewport);
+        else
+            window_.restoreListViewport(viewport);
+    };
     if (!selection) {
         // The source validation return rejects the edit without reloading.
         rejectLabelEdit(panel, *window_.projectedUi().table, request.sourceIndex);
+        restoreViewport();
         window_.refreshActions();
         return;
     }
@@ -229,17 +240,9 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
         panel.RefreshListCtrl(*selection);
     else if (result != S_OK && panel.IsArcFolder())
         window_.reloadProjectedPanel(*selection);
-    else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK) {
+    else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK)
         window_.restoreListSelection(*selection);
-        if (request.viewport) {
-            auto viewport = *request.viewport;
-            viewport.keepVertical = false;
-            if (window_.projectedUi().scanningDisk || window_.projectedUi().scanningArchive)
-                window_.projectedUi().pendingViewport = std::move(viewport);
-            else
-                window_.restoreListViewport(viewport);
-        }
-    }
+    restoreViewport();
     if (!publishedArchive.isEmpty()) {
         if (auto *application = QtWorkspaceApplication::Find())
             application->ArchivePublished(publishedArchive, &panel);

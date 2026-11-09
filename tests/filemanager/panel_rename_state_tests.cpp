@@ -16,6 +16,7 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
@@ -397,10 +398,12 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         auto *active = icons ? ui->findChild<QAbstractItemView *>("iconList") : view;
         QTRY_COMPARE(window.focusWidget(), active);
         const int sizeColumn = view->columnForProperty(kpidSize);
-        if (!icons && !collision && !invalid) {
+        if (!icons) {
             QVERIFY(sizeColumn > 0 && !view->isColumnHidden(sizeColumn));
             view->setCurrentCell(sourceRow, sizeColumn, QItemSelectionModel::NoUpdate);
+            view->horizontalScrollBar()->setValue(view->horizontalScrollBar()->maximum());
         }
+        const int horizontalPosition = view->horizontalScrollBar()->value();
         QVERIFY(action(window, "renameAction")->isEnabled());
         action(window, "renameAction")->trigger();
         auto *editor = active->findChild<QLineEdit *>();
@@ -476,8 +479,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         }
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                      collision || invalid ? original : renamed);
-        if (!icons && !collision && !invalid)
+        if (!icons) {
             QCOMPARE(view->currentIndex().column(), sizeColumn);
+            QCOMPARE(view->horizontalScrollBar()->value(), horizontalPosition);
+        }
         QCOMPARE(view->selectionModel()->selectedRows().size(), expectedMarks);
         if (!markFocused)
             QCOMPARE(view->selectionModel()->selectedRows().front().data().toString(), peer);
