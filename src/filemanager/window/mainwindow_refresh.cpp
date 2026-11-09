@@ -101,7 +101,7 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
     const QString directory = projectedUi().directory;
     const auto signature = filesystemSignature(directory);
     if (!signature.directory) {
-        const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
+        app_.GetFocusedPanel().LoadListItems();
         auto &snapshot = projectedUi().autoRefreshSnapshot;
         snapshot.clear();
         snapshot.insert(directory, signature);
@@ -110,7 +110,8 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
         showStatusMessage(QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
                           directory);
         refreshActions();
-        return loaded;
+        // The missing-folder state has been published, including the diagnostic.
+        return S_OK;
     }
     const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
                                          !selection.PreserveAddress, true);

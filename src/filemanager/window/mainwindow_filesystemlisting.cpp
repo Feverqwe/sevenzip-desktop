@@ -59,7 +59,7 @@ HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
     applySortMode(true);
     setState(State::Filesystem);
     if (result != S_OK)
-        showStatusMessage(
+        workspace_->ReportNavigationFailure(
             QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
     return result;
 }

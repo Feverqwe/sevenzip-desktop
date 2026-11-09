@@ -9,6 +9,7 @@
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include <QClipboard>
+#include <QScopeGuard>
 #include <QScrollBar>
 
 class AddressNavigationTests final : public QObject, protected MainWindowTestSupport {
@@ -19,6 +20,60 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void unreadableFolderCanBeOpenedAfterAccessIsRestored_data() {
+        QTest::addColumn<bool>("typed");
+        QTest::newRow("address") << true;
+        QTest::newRow("list") << false;
+    }
+
+    void unreadableFolderCanBeOpenedAfterAccessIsRestored() {
+        QFETCH(bool, typed);
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath("blocked");
+        QVERIFY(QDir().mkdir(target));
+        QVERIFY(writeFile(QDir(target).filePath("inside.txt"), "payload"));
+        const auto permissions = QFile::permissions(target);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(target, permissions); });
+        QVERIFY(QFile::setPermissions(target, QFile::ExeOwner));
+        if (QFileInfo(target).isReadable())
+            QSKIP("Requires a directory that the current user cannot list");
+
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "blocked") >= 0);
+        const int row = filesystemRow(window, "blocked");
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        const auto open = [&] {
+            if (typed) {
+                PanelKeys::focusAddress(address);
+                address->setText(target);
+                QTest::keyClick(address, Qt::Key_Return);
+            } else {
+                view->setFocus();
+                PanelKeys::openSelection(view);
+            }
+        };
+        open();
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "blocked") >= 0);
+        QCOMPARE(view->currentIndex().data().toString(), QString("blocked"));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+
+        QVERIFY(QFile::setPermissions(target, permissions));
+        open();
+        QTRY_VERIFY(view->hasFocus() && filesystemRow(window, "inside.txt") >= 0);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
 
     void pastedAddressWithNullDoesNotOpenItsPrefix() {
         QTemporaryDir fixture;
