@@ -764,12 +764,19 @@ class DragDropUiTests final : public QObject {
         QFETCH(bool, cancelExport);
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
-        const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
-                                             input.filePath("owned-temp"));
-        const auto cleanup = qScopeGuard([] {
-            for (const auto &entry : QtOwnedTempRegistry().Entries())
+        const auto registryVariable = "SEVENZIP_OWNED_TEMP_REGISTRY";
+        const QByteArray previousRegistry = qgetenv(registryVariable);
+        const QString registryPath = input.filePath("owned-temp");
+        const auto cleanup = qScopeGuard([&] {
+            for (const auto &entry : QtOwnedTempRegistry(registryPath).Entries())
                 QDir(entry.path).removeRecursively();
+            if (previousRegistry.isNull())
+                qunsetenv(registryVariable);
+            else
+                qputenv(registryVariable, previousRegistry);
         });
+        QVERIFY(qputenv(registryVariable, registryPath.toLocal8Bit()));
+        QCOMPARE(qEnvironmentVariable(registryVariable), registryPath);
         const QString name = QStringLiteral("файл # %23 с пробелами 空.bin");
         const QByteArray bytes("export\0bytes", 12);
         const QString source = input.filePath(name);
@@ -838,8 +845,10 @@ class DragDropUiTests final : public QObject {
                 const QString blockedRegistry = input.filePath("blocked registry");
                 QVERIFY(SourceExtractFixture::writeFile(blockedRegistry, "not a directory"));
                 {
-                    const ScopedTestEnvironment blocked("SEVENZIP_OWNED_TEMP_REGISTRY",
-                                                        blockedRegistry);
+                    const auto restoreRegistry =
+                        qScopeGuard([&] { qputenv(registryVariable, registryPath.toLocal8Bit()); });
+                    QVERIFY(qputenv(registryVariable, blockedRegistry.toLocal8Bit()));
+                    QCOMPARE(qEnvironmentVariable(registryVariable), blockedRegistry);
                     QTest::keySequence(table, QKeySequence::Copy);
                     QCOMPARE(clipboard->text(), QString("clipboard sentinel"));
                     QCOMPARE(window.statusBar()->currentMessage(),
