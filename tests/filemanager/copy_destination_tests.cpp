@@ -382,7 +382,16 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(dialog.isVisible());
         auto *message = dialog.findChild<QLabel *>("copyDestinationMessage");
         QVERIFY(message);
-        QTRY_VERIFY(UiInspection::fullyVisible(*message, dialog));
+        const auto geometry = [&] {
+            QString details;
+            QDebug out(&details);
+            out << "viewport" << scroll->viewport()->size() << "scroll"
+                << scroll->verticalScrollBar()->value() << "path"
+                << path->mapTo(scroll->viewport(), QPoint()) << path->size() << "message"
+                << message->mapTo(scroll->viewport(), QPoint()) << message->size();
+            return details;
+        };
+        QTRY_VERIFY2(UiInspection::fullyVisible(*message, dialog), qPrintable(geometry()));
         QVERIFY(UiInspection::labelFits(*message));
         QVERIFY(UiInspection::fullyVisible(*path, dialog));
         QVERIFY(UiInspection::fullyVisible(*ok, dialog));

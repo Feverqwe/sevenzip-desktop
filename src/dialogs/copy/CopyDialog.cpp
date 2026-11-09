@@ -267,6 +267,11 @@ void CCopyDialog::OnOK() {
                 const int top = _pathEdit->mapTo(scroll->widget(), QPoint()).y();
                 const int bottom = _destinationMessage->mapTo(scroll->widget(), QPoint()).y() +
                                    _destinationMessage->height();
+                const int missingHeight = bottom - top - scroll->viewport()->height();
+                if (missingHeight > 0) {
+                    resize(width(), height() + missingHeight);
+                    QtNormalizeDialogSize(*this, false);
+                }
                 const int margin = qMin((bottom - top + 1) / 2, scroll->viewport()->height() / 2);
                 scroll->ensureVisible(0, top + margin, 0, margin);
             });
