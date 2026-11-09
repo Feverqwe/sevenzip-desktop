@@ -350,6 +350,7 @@ class MainWindow : public QMainWindow {
         FileTable *table = nullptr;
         QListView *iconList = nullptr;
         QStackedWidget *viewStack = nullptr;
+        std::optional<std::pair<PROPID, bool>> tableCursorColumn;
         QLabel *readOnlyIndicator = nullptr;
         QString directory;
         QString returnDirectory;

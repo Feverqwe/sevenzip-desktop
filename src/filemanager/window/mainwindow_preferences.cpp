@@ -68,10 +68,19 @@ void MainWindow::setViewMode(int mode) {
     auto *stack = projectedUi().viewStack;
     auto *address = projectedUi().pathCombo;
     auto *icons = static_cast<FileIconList *>(projectedUi().iconList);
-    auto *horizontal = projectedUi().table->horizontalScrollBar();
+    auto *table = projectedUi().table;
+    auto *horizontal = table->horizontalScrollBar();
     const int tablePosition = horizontal->value();
     const QWidget *focused = QApplication::focusWidget();
     const QWidget *previousView = stack->currentWidget();
+    if (mode != 3 && previousView == table) {
+        const int column = table->currentIndex().column();
+        if (column >= 0)
+            projectedUi().tableCursorColumn.emplace(table->propertyId(column),
+                                                    table->isRawProperty(column));
+        else
+            projectedUi().tableCursorColumn.reset();
+    }
     const bool restoreFocus =
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
     const bool restoreAfterScan =
@@ -88,8 +97,18 @@ void MainWindow::setViewMode(int mode) {
         const QModelIndex current = view->currentIndex();
         if (current.isValid()) {
             // The icon view can only navigate to indexes in its displayed column.
-            const QModelIndex visible =
-                view == icons ? current.siblingAtColumn(icons->modelColumn()) : current;
+            int column = view == icons ? icons->modelColumn() : current.column();
+            if (view == table && projectedUi().tableCursorColumn) {
+                const auto [property, raw] = *projectedUi().tableCursorColumn;
+                for (int candidate = 0; candidate < table->model()->columnCount(); ++candidate)
+                    if (!table->isColumnHidden(candidate) &&
+                        table->propertyId(candidate) == property &&
+                        table->isRawProperty(candidate) == raw) {
+                        column = candidate;
+                        break;
+                    }
+            }
+            const QModelIndex visible = current.siblingAtColumn(column);
             if (visible != current)
                 view->selectionModel()->setCurrentIndex(visible, QItemSelectionModel::NoUpdate);
             view->scrollTo(visible);

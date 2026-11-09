@@ -368,12 +368,17 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(focusedAfterSort.top() >= 0);
         QVERIFY(focusedAfterSort.bottom() < view->viewport()->height());
         QCOMPARE(selectedNames(), marked);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn > 0 && !view->isColumnHidden(sizeColumn));
+        view->setCurrentCell(view->currentRow(), sizeColumn, QItemSelectionModel::NoUpdate);
+        horizontal->setValue(horizontalPosition);
         action(window, "viewMode0Action")->trigger();
         auto *icons = window.findChild<QListView *>("iconList");
         QVERIFY(icons && icons->isVisible());
         action(window, "viewMode3Action")->trigger();
         QVERIFY(view->isVisible());
         QCOMPARE(horizontal->value(), horizontalPosition);
+        QCOMPARE(view->currentIndex().column(), sizeColumn);
         QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(), entries[0].path);
         QCOMPARE(selectedNames(), marked);
     }
