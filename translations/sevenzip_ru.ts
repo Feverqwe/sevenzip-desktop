@@ -7330,7 +7330,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message><source>The original panel is busy.</source><translation>Исходная панель занята.</translation></message>
     <message><source>Opening canceled.</source><translation>Открытие отменено.</translation></message>
     <message><source>The location is unavailable or disconnected.</source><translation>Место недоступно или отключено.</translation></message>
-    <message><source>Could not open this location. %1</source><translation>Не удалось открыть это место. %1</translation></message>
+    <message><source>Could not open %1. %2</source><translation>Не удалось открыть %1. %2</translation></message>
     <message>
         <source>Archive</source>
         <translation>Архив</translation>

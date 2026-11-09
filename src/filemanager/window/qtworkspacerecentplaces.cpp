@@ -77,11 +77,11 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
                 FocusListAfterLocationOpen(panel, interaction);
                 return;
             }
-            const QString error = result == E_ABORT ? tr("Opening canceled.")
-                                  : result == S_FALSE
-                                      ? tr("Location unavailable: %1").arg(label)
-                                      : tr("Could not open this location. %1")
-                                            .arg(ToQString(HResultToMessage(result)));
+            const QString error =
+                result == E_ABORT ? tr("Opening canceled.")
+                : result == S_FALSE
+                    ? tr("Location unavailable: %1").arg(label)
+                    : tr("Could not open %1. %2").arg(label, ToQString(HResultToMessage(result)));
             window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], error, 6000);
         });
 }

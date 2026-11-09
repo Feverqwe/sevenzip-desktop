@@ -360,7 +360,7 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(QDir::cleanPath(ToQString(other->sourcePanel->GetCurrentFolderPrefix())), peer);
 
         QTest::mouseClick(source->viewport(), Qt::LeftButton);
-        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(window.statusBar()->currentMessage().contains(QDir::toNativeSeparators(target)));
         QVERIFY(window.statusBar()->currentMessage() != peerStatus);
         button->click();
         QTRY_VERIFY(RecentPlacesMenu::Visible(window));
