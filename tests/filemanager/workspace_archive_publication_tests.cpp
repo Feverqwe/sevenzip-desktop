@@ -169,7 +169,7 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QVERIFY(QFile::rename(outer, renamed));
         application.FilesystemPublished({fixture.path()});
         QTRY_VERIFY(notice(window));
-        const auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
         const auto labels = retry->parentWidget()->findChildren<QLabel *>();
         QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [&](const QLabel *label) {
             return label->isVisible() && QDir::fromNativeSeparators(label->text()).contains(outer);
@@ -217,10 +217,16 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         if (nested)
             QVERIFY(QFile::remove(inner));
         QVERIFY(writeVersion("replacement.txt"));
-        window.findChild<QPushButton *>("navigationRetry0")->click();
+        QVERIFY(WindowActivation::waitForActive(window));
+        retry->setFocus();
+        QTRY_VERIFY(retry->hasFocus());
+        QTest::keyClick(retry, Qt::Key_Space);
         QTRY_COMPARE(names(window), QStringList{"replacement.txt"});
         QVERIFY(!notice(window));
         QVERIFY(action(window, "createFolderAction")->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), view);
+        QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
     }
 
     void manualRefreshDetectsExternalArchiveReplacement_data() {

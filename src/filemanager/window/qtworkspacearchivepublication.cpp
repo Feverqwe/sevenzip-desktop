@@ -179,6 +179,7 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
     const QPointer<QWidget> focus = QApplication::focusWidget();
     const QPointer<QWidget> active = QApplication::activeWindow();
     const quint64 focusGeneration = focusRequest_;
+    const auto interaction = interactionRevision_;
     QString failure;
     HRESULT result = E_FAIL;
     window_.withPanelProjection(panel, [&] {
@@ -231,5 +232,7 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
             focus->setFocus(Qt::OtherFocusReason);
     }
     window_.refreshActions();
+    if (interactive && result == S_OK && focus && focus == panels_[panel].retry)
+        FocusListAfterLocationOpen(panel, interaction);
     return true;
 }
