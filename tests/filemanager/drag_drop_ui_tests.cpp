@@ -549,7 +549,8 @@ class DragDropUiTests final : public QObject {
         auto *twoPanels = window.findChild<QAction *>("twoPanelsAction");
         QVERIFY(twoPanels);
         QTRY_VERIFY(twoPanels->isEnabled());
-        twoPanels->trigger();
+        if (!twoPanels->isChecked())
+            twoPanels->trigger();
         const auto enterPath = [](QWidget &pane, const QString &path) {
             auto *address = pane.findChild<QLineEdit *>("archivePath");
             QVERIFY(address);
@@ -562,7 +563,7 @@ class DragDropUiTests final : public QObject {
         QVERIFY(peer);
         auto *destination = peer->findChild<FileTable *>("archiveTable");
         QVERIFY(destination);
-        QTRY_VERIFY(destination->isEnabled());
+        QTRY_VERIFY(destination->isVisible() && destination->isEnabled());
         enterPath(*peer, output);
         QTRY_COMPARE(window.focusWidget(), destination);
         QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
@@ -581,7 +582,8 @@ class DragDropUiTests final : public QObject {
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
         QTRY_VERIFY(QApplication::clipboard()->mimeData());
         QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
-        QTest::mouseClick(destination->viewport(), Qt::LeftButton);
+        QCOMPARE(window.focusWidget(), source);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
         QTRY_COMPARE(window.focusWidget(), destination);
         QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
         QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(first)), "first");
