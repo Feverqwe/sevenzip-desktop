@@ -375,6 +375,7 @@ void CPanel::TestArchives(IQtCompressCallServices *services) {
         options.streamMode = true;
         options.showErrorMessages = true;
         options.testMode = true;
+        options.CancellationMayLeaveChanges = false;
         UInt32 folderItems = 0;
         const char *scope = QT_TRANSLATE_NOOP("ArchiveTest", "Scope: selected items");
         if (_folder->GetNumberOfItems(&folderItems) == S_OK && indices.Size() == folderItems) {

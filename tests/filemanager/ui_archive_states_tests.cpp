@@ -497,6 +497,93 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(QDir(folder).entryList(QDir::Files), QStringList{QStringLiteral("input.txt")});
     }
 
+    void encryptedArchiveTestAllowsPasswordRetry_data() {
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("cancel") << true;
+        QTest::newRow("wrong-password") << false;
+    }
+
+    void encryptedArchiveTestAllowsPasswordRetry() {
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("encrypted.zip");
+        const QString password = QStringLiteral("correct password");
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{"selected.txt", "selected"}, {"other.txt", "other"}}, "zip", password));
+        const QByteArray original = SourceExtractFixture::readFile(archive);
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(archive);
+        QTRY_VERIFY(rowWithPath(window, "selected.txt") >= 0);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        const int selected = rowWithPath(window, "selected.txt");
+        view->setFocus();
+        view->selectRow(selected);
+
+        bool retry = false;
+        int prompts = 0;
+        QStringList reports;
+        QStringList errors;
+        QString resultStatus;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
+                ++prompts;
+                if (cancel && !retry)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")
+                        ->setText(retry ? password : QStringLiteral("wrong password"));
+                    dialog->accept();
+                }
+            } else if (auto *report = TestProgressDialog::ResultWindow(modal)) {
+                reports.append(TestProgressDialog::ReportText(*report));
+                resultStatus = report->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
+                TestProgressDialog::CloseResult(*report);
+            } else if (auto *message = qobject_cast<QMessageBox *>(modal)) {
+                errors.append(message->text());
+                message->accept();
+            }
+        });
+        responder.start(5);
+        auto *test = action(window, "testArchiveAction");
+        QVERIFY(test->isEnabled());
+        test->trigger();
+        QTRY_VERIFY(test->isEnabled());
+        QCOMPARE(prompts, 1);
+        QTRY_COMPARE(window.focusWidget(), view);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+        QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(reports.size(), 1);
+        if (cancel) {
+            QCOMPARE(resultStatus, QStringLiteral("The operation was cancelled."));
+            QVERIFY(reports.last().isEmpty());
+        } else {
+            QVERIFY2(reports.last().contains("password", Qt::CaseInsensitive),
+                     qPrintable(reports.last()));
+        }
+
+        retry = true;
+        reports.clear();
+        test->trigger();
+        QTRY_VERIFY(test->isEnabled());
+        QCOMPARE(prompts, 2);
+        QCOMPARE(reports.size(), 1);
+        QVERIFY(reports.last().contains("Scope: selected items"));
+        QVERIFY(reports.last().contains("selected.txt"));
+        QVERIFY(!reports.last().contains("other.txt"));
+        QVERIFY(!reports.last().contains("password", Qt::CaseInsensitive));
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+        QCOMPARE(QDir(fixture.path()).entryList(QDir::Files), QStringList{"encrypted.zip"});
+    }
+
     void testReportIdentifiesWhichItemsWereChecked_data() {
         QTest::addColumn<bool>("corrupt");
         QTest::newRow("healthy") << false;
