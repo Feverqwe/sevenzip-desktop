@@ -101,6 +101,13 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
                      QString("alpha"));
         }
+        const QString current = active->currentIndex().data(QtPanelList::NameRole).toString();
+        QTest::keyClick(window.focusWidget(), Qt::Key_X);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), current);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix()))
+                         .normalized(QString::NormalizationForm_C),
+                     QDir(expected).filePath(current).normalized(QString::NormalizationForm_C));
     }
     void typingStartsFreshAfterSwitchingPanels() {
         const int oldInterval = QApplication::keyboardInputInterval();
