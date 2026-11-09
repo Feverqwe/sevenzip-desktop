@@ -143,6 +143,40 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(peerAddress->text(), QFileInfo(fixture.filePath("right")).canonicalFilePath());
     }
 
+    void tabLeavesLoadingFolderWithoutRestoringItsFocus() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkpath(fixture.filePath("large")));
+        for (int i = 0; i < 301; ++i) {
+            QFile file(fixture.filePath(QString("large/item-%1.txt").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        auto *left = window.findChild<QWidget *>("filePanel0");
+        auto *right = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(left && right);
+        auto *files = left->findChild<FileTable *>("archiveTable");
+        auto *peer = right->findChild<FileTable *>("archiveTable");
+        QVERIFY(files && peer);
+        QTRY_VERIFY(files->isEnabled() && peer->isEnabled());
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        window.openPath(fixture.filePath("large"));
+        QVERIFY(!files->isEnabled());
+        QVERIFY(window.focusWidget());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QVERIFY(peer->hasFocus());
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() >= 301);
+        QVERIFY(peer->hasFocus());
+    }
+
     void independentPanelOwners() {
         CApp first;
         CApp second;

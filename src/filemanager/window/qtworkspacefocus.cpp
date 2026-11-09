@@ -73,6 +73,19 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         // the panel track it, and arbitrate the actual shortcut separately.
         if (key && (key->key() == Qt::Key_Control || key->key() == Qt::Key_Shift))
             return QObject::eventFilter(object, event);
+        const unsigned panel = window_.projectedPanel_;
+        if (key && (key->key() == Qt::Key_Tab || key->key() == Qt::Key_Backtab) &&
+            !(key->modifiers() & (Qt::AltModifier | Qt::ControlModifier | Qt::MetaModifier)) &&
+            widget == window_.panelUi_[panel].container && window_.app_.NumPanels == 2 &&
+            (window_.scanningPanelMask() & (1u << panel)) && !modal &&
+            !window_.app_.QtOperations().blocking()) {
+            if (event->type() == QEvent::KeyPress) {
+                ++interactionRevision_;
+                RequestListFocus(1 - panel, true);
+            }
+            event->accept();
+            return true;
+        }
         const bool waitingForPeer = switchingPane_ && pendingListFocus_ &&
                                     *pendingListFocus_ != window_.projectedPanel_ &&
                                     window_.panelInputTarget(object, window_.projectedPanel_) ==
