@@ -5,7 +5,9 @@
 #include "filemanager/panels/qtmacfilepromisedrag.h"
 #endif
 #include <QContextMenuEvent>
+#include <QDir>
 #include <QDropEvent>
+#include <QFileInfo>
 #include <QMouseEvent>
 #include <QScopeGuard>
 
@@ -161,6 +163,20 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         result = target.DragEnter(data, keys, position.x(), position.y(), &effect);
     else
         result = target.DragOver(keys, position.x(), position.y(), &effect);
+    if (result == S_OK && effect && data->Panel && target.IsFsFolderPath() &&
+        target.TargetPanel()->IsFSFolder()) {
+        const QFileInfo directory(QDir::cleanPath(ToQString(target.GetTargetPath())));
+        bool writable = directory.isDir() && directory.isWritable();
+#ifdef Q_OS_UNIX
+        writable = writable && directory.isExecutable();
+#endif
+        if (!writable) {
+            target.DragLeave();
+            ResetDropTarget();
+            drop.ignore();
+            return true;
+        }
+    }
     if (event.type() == QEvent::Drop && result == S_OK && effect) {
         if (target.IsMenuDrop())
             effect = allowedEffects;
