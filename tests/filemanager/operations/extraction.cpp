@@ -180,11 +180,23 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     choice = "overwriteCancel";
     answered = false;
     window.extractTo(temp.filePath("destination"), true, {}, options);
-    answer.stop();
     QVERIFY(answered);
     QCOMPARE(preflight.size(), 0);
+    QCOMPARE(window.statusBar()->currentMessage(),
+             QCoreApplication::translate("mainwindow_archivecommands", "Operation canceled."));
     QVERIFY(old.open(QIODevice::ReadOnly));
     QCOMPARE(old.readAll(), QByteArray("preserved"));
+    old.close();
+
+    choice = "overwriteYes";
+    answered = false;
+    window.extractTo(temp.filePath("destination"), true, {}, options);
+    answer.stop();
+    QVERIFY(answered);
+    QCOMPARE(window.statusBar()->currentMessage(),
+             QCoreApplication::translate("mainwindow_archivecommands", "Extraction completed."));
+    QVERIFY(old.open(QIODevice::ReadOnly));
+    QCOMPARE(old.readAll(), QByteArray("archive"));
 }
 
 void MainWindowOperationsTests::skippedArchiveMoveKeepsSourceAndShowsPartialResult() {
