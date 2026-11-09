@@ -4,6 +4,7 @@
 #include "filemanager/panels/Panel.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include <QAbstractItemDelegate>
 #include <QFileInfo>
@@ -42,6 +43,7 @@ struct QtRenameController::Request {
     const QString path;
     const QPointer<QAbstractItemView> view;
     std::optional<MainWindow::ListViewport> viewport;
+    quint64 cancelInteraction = 0;
     QPointer<QLineEdit> editor;
     QString name;
     std::function<void()> refresh;
@@ -98,8 +100,7 @@ void QtRenameController::Begin(int row) {
                                                     : panel.GetItemFullPath(sourceIndex)),
                                   view);
     request_ = request;
-    if (view == window_.projectedUi().table)
-        request->viewport = window_.captureListViewport();
+    request->viewport = window_.captureListViewport();
     const QPointer<QtRenameController> guard(this);
     auto retireUnopened = qScopeGuard([this, guard, request] {
         if (guard && request_ == request)
@@ -134,6 +135,7 @@ void QtRenameController::Cancel(unsigned panel) {
     if (!request_ || request_->panel != panel || request_->phase != Request::Phase::Editing)
         return;
     request_->phase = Request::Phase::Cancelled;
+    request_->cancelInteraction = window_.workspace_->InteractionRevision();
     completion_.start();
 }
 
@@ -163,6 +165,12 @@ void QtRenameController::Complete() {
     const QPointer<QtRenameController> guard(this);
     if (request->phase == Request::Phase::Committed)
         Apply(*request);
+    else if (request->phase == Request::Phase::Cancelled && request->viewport &&
+             request->item.isValid() && !window_.app_.QtOperations().closed() &&
+             request->panel == window_.projectedPanel_ &&
+             request->folder == window_.app_.GetFocusedPanel().GetFolder() &&
+             request->cancelInteraction == window_.workspace_->InteractionRevision())
+        window_.restoreListViewport(*request->viewport);
     if (guard && request_ == request) {
         request_.reset();
         if (request->refresh)
