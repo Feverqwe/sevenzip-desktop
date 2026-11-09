@@ -9,6 +9,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
+#include <QScopeGuard>
 #include <QScrollArea>
 
 class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
@@ -248,34 +249,37 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         view->setCurrentCell(row, 0);
         view->setFocus();
         QTRY_VERIFY(view->hasFocus());
+        const QString corrected = fixture.filePath("corrected.txt");
         bool submitted = false;
-        QString failure;
-        QTimer driver;
-        dialogs_.connectResponder(driver, &window, [&] {
-            if (auto *dialog = window.findChild<CopyDialog *>("copyDialog");
-                dialog && dialogs_.ready(*dialog) && !submitted) {
-                auto *name = dialog->findChild<QLineEdit *>("copyDestinationName");
-                QVERIFY(name && name->isVisible());
-                name->setText("occupied");
-                submitted = true;
-                dialog->accept();
-                return;
-            }
-            if (auto *report = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
-                failure = ToQString(report->Sync.FinalMessage.ErrorMessage.Message);
-                TestProgressDialog::CloseResult(*report);
-            } else if (auto *message = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
-                failure = message->text();
-                message->accept();
-            }
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *name = dialog->findChild<QLineEdit *>("copyDestinationName");
+            auto *error = dialog->findChild<QLabel *>("copyDestinationMessage");
+            QVERIFY(name && name->isVisible() && error);
+            name->setText("occupied");
+            dialog->accept();
+            QVERIFY(dialog->isVisible() && error->isVisible());
+            QVERIFY(QFileInfo::exists(source));
+            QVERIFY(!QFileInfo::exists(QDir(target).filePath("source.txt")));
+            name->setText("corrected.txt");
+            auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
+            auto *ok = buttons->button(QDialogButtonBox::Ok);
+            QVERIFY(ok->isEnabled());
+            ok->click();
+            submitted = dialog->result() == QDialog::Accepted;
         });
-        driver.start(2);
         QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(submitted);
-        QTRY_VERIFY(!failure.isEmpty());
-        driver.stop();
-        QVERIFY(original.open(QIODevice::ReadOnly));
-        QCOMPARE(original.readAll(), QByteArray("source bytes"));
+        QTRY_VERIFY(QFileInfo::exists(corrected));
+        QFile result(corrected);
+        QVERIFY(result.open(QIODevice::ReadOnly));
+        QCOMPARE(result.readAll(), QByteArray("source bytes"));
+        QCOMPARE(QFileInfo::exists(source), !move);
         QVERIFY(control.open(QIODevice::ReadOnly));
         QCOMPARE(control.readAll(), QByteArray("keep bytes"));
         QVERIFY(!QFileInfo::exists(QDir(target).filePath("source.txt")));
