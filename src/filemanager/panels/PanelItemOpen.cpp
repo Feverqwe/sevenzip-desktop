@@ -123,7 +123,9 @@ void CPanel::OpenItem(unsigned index, bool tryInternal, bool tryExternal, const 
     std::optional<CDisableNotify> disableNotify(std::in_place, *this);
     UString prefix = GetFsPath();
     UString fullPath = prefix + name;
-    if (IsFSFolder() && !QFileInfo::exists(ToQString(fullPath))) {
+    const QFileInfo entry(ToQString(fullPath));
+    if (IsFSFolder() && (!entry.exists() || (entry.isDir() && !entry.isSymLink() &&
+                                             !entry.isJunction() && !IsItem_Folder(index)))) {
         MessageBox_Error(
             ToUString(QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") +
                       ToQString(fullPath)));

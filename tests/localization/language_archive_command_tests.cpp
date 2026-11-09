@@ -91,13 +91,16 @@ class LanguageArchiveCommandTests final : public QObject {
     void enterRetriesExternalOpenAfterFailure_data() {
         QTest::addColumn<bool>("missing");
         QTest::addColumn<bool>("folder");
-        QTest::newRow("association") << false << false;
-        QTest::newRow("missing-file") << true << false;
-        QTest::newRow("missing-folder") << true << true;
+        QTest::addColumn<bool>("replacement");
+        QTest::newRow("association") << false << false << false;
+        QTest::newRow("missing-file") << true << false << false;
+        QTest::newRow("missing-folder") << true << true << false;
+        QTest::newRow("file-replaced-by-folder") << true << false << true;
     }
     void enterRetriesExternalOpenAfterFailure() {
         QFETCH(bool, missing);
         QFETCH(bool, folder);
+        QFETCH(bool, replacement);
         const QString path = fixture.filePath(folder ? QStringLiteral("open folder 文件")
                                                      : QStringLiteral("open again 文件.txt"));
         const QString parked = fixture.filePath("temporarily moved.txt");
@@ -131,6 +134,8 @@ class LanguageArchiveCommandTests final : public QObject {
             table->sourcePanel->Set_AutoRefresh_Mode(false);
             QVERIFY(QDir().rename(path, parked));
         }
+        if (replacement)
+            QVERIFY(QDir().mkdir(path));
         const auto open = [&] {
             if (folder)
                 window.findChild<QAction *>("openOutsideAction")->trigger();
@@ -153,6 +158,8 @@ class LanguageArchiveCommandTests final : public QObject {
         const QUrl expected = QUrl::fromLocalFile(folder ? path + '/' : path);
         QCOMPARE(attempts, missing ? QList<QUrl>{} : QList{expected});
         QVERIFY(QDir::fromNativeSeparators(message).contains(path));
+        if (replacement)
+            QVERIFY(QDir().rmdir(path));
         if (missing)
             QVERIFY(QDir().rename(parked, path));
         QVERIFY(WindowActivation::waitForActive(window));
