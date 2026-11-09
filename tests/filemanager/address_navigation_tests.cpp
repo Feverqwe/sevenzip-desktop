@@ -20,6 +20,38 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
 
+    void pastedAddressWithNullDoesNotOpenItsPrefix() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath("target");
+        QVERIFY(QDir().mkdir(target));
+        QVERIFY(writeFile(fixture.filePath("original.txt"), "source"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "original.txt") >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        const QString invalid = target + QChar::Null + "/suffix";
+        address->selectAll();
+        QApplication::clipboard()->setText(invalid);
+        QTest::keySequence(address, QKeySequence::Paste);
+        QApplication::clipboard()->clear();
+        QCOMPARE(address->text(), invalid);
+        QTest::keyClick(address, Qt::Key_Return);
+        QCOMPARE(address->text(), invalid);
+        QVERIFY(address->hasFocus());
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(filesystemRow(window, "original.txt") >= 0);
+        address->setText(target);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
     void emptyAddressOpensLocationsAndBackRestoresTheFile_data() {
         QTest::addColumn<bool>("repeatDuringRefresh");
         QTest::newRow("immediate") << false;

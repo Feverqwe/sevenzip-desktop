@@ -15,6 +15,7 @@
 #include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtstatuslabel.h"
+#include "ui/progress/ProgressDialog2.h"
 #include "ui/theme/qtcommandicons.h"
 
 void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
@@ -92,6 +93,10 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             activatePanelUi(index);
             if (projectedPanel_ != index)
                 return E_ABORT;
+            if (!sourcePath && draft.text.contains(QChar::Null)) {
+                showStatusMessage(ToQString(HResultToMessage(E_INVALIDARG)));
+                return E_INVALIDARG;
+            }
             clearStatusMessage();
             // A repeated submission must not replace a scan of the same directory.
             if (!sourcePath && ui.scanningDisk &&
