@@ -294,7 +294,19 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         window.show();
         QApplication::processEvents();
         auto *view = static_cast<FileTable *>(table(window));
-        view->selectRow(0);
+        view->clearSelection();
+        for (const int row : {1, 3})
+            view->selectionModel()->select(view->model()->index(row, 0),
+                                           QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        view->setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
+        const auto selectedNames = [view] {
+            QStringList names;
+            for (const auto &index : view->selectionModel()->selectedRows())
+                names.append(index.data(QtPanelList::NameRole).toString());
+            names.sort();
+            return names;
+        };
+        const QStringList marked{entries[1].path, entries[3].path};
         view->verticalScrollBar()->setValue(0);
         action(window, "sort3Action")->trigger();
         QCOMPARE(view->sourcePanel->_sortID, PROPID(kpidSize));
@@ -303,10 +315,8 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
                  entries[0].path);
         const QRect focused = view->visualRect(view->currentIndex());
         QVERIFY(view->viewport()->rect().contains(focused));
-        CRecordVector<UInt32> selected;
-        view->sourcePanel->Get_ItemIndices_Selected(selected);
-        QCOMPARE(selected.Size(), 1u);
-        QCOMPARE(selected[0], UInt32(0));
+        QCOMPARE(selectedNames(), marked);
+        QVERIFY(!view->selectionModel()->isRowSelected(view->currentRow(), {}));
         action(window, "sort3Action")->trigger();
         QVERIFY(view->sourcePanel->_ascending);
         QVERIFY(view->viewport()->rect().contains(view->visualRect(view->currentIndex())));
@@ -316,6 +326,8 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(view->sourcePanel->_ascending);
         QCOMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                  entries[0].path);
+        QCOMPARE(selectedNames(), marked);
+        QVERIFY(!view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(view->viewport()->rect().contains(view->visualRect(view->currentIndex())));
     }
 };
