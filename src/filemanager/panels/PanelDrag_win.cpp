@@ -484,6 +484,7 @@ Z7_COMWF_B CDataObject::GetData(LPFORMATETC etc, LPSTGMEDIUM medium) {
         medium->pUnkForRelease = NULL;
         medium->hGlobal = NULL;
 
+        RINOK(QueryGetData(etc))
         if (model_->NeedCall_Copy && !model_->Copy_WasCalled) {
             // Original CopyFromPanelTo_Folder restores OLE capture before a
             // password/progress modal. Qt supplies the source window handle.
@@ -496,7 +497,6 @@ Z7_COMWF_B CDataObject::GetData(LPFORMATETC etc, LPSTGMEDIUM medium) {
         // PRF3("+ CDataObject::GetData");
         // PrintFormat(etc->cfFormat);
         HGLOBAL global;
-        RINOK(QueryGetData(etc))
         if (etc->cfFormat == CF_HDROP) {
             RINOK(model_->Copy_HRESULT)
         }

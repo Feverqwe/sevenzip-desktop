@@ -314,8 +314,13 @@ class NativeDragProtocolTests final : public QObject {
         CMyComPtr<IDataObject> data;
         QCOMPARE(CreatePanelDragDataObject(model, &data), S_OK);
         STGMEDIUM medium{};
+        auto unsupported = Format(CF_UNICODETEXT);
+        QCOMPARE(data->GetData(&unsupported, &medium), DV_E_FORMATETC);
+        QCOMPARE(model->Copy_HRESULT, S_OK);
+        QCOMPARE(medium.tymed, DWORD(TYMED_NULL));
         auto format = Format(CF_HDROP);
         QCOMPARE(data->GetData(&format, &medium), E_ABORT);
+        QCOMPARE(medium.tymed, DWORD(TYMED_NULL));
         QCOMPARE(model->Copy_HRESULT, E_ABORT);
         QVERIFY(!model->Copy_WasCalled);
     }
