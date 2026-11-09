@@ -158,6 +158,12 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                     immediateParent =
                         archives.Size() == 1 &&
                         target == QDir::cleanPath(ToQString(archives.Front().ParentFolderPath));
+                    if (archives.Size() > 1) {
+                        UString nestedRoot = ToUString(path);
+                        nestedRoot += archives.Back().RelPath;
+                        nestedRoot.Add_PathSepar();
+                        immediateParent = nestedRoot == panel.GetCurrentFolderPrefix();
+                    }
                 }
             }
             if (current ||

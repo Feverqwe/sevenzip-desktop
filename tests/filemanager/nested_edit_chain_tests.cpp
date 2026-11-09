@@ -12,6 +12,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QToolButton>
 #include <QTreeWidget>
 #include <algorithm>
 
@@ -452,6 +453,7 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         const QByteArray original = read(outer);
         ArchiveBackend backend(nullptr, failSave ? runtime_.engine() : QString());
         MainWindow window(&backend);
+        window.resize(1100, 620);
         window.show();
         bool unexpectedError = false, parentPrompt = false;
         bool cancelParent = true;
@@ -527,7 +529,16 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         view->selectRow(selected);
         view->setFocus();
         QTRY_VERIFY(view->hasFocus());
-        action(window, "upAction")->trigger();
+        const auto clickOuterBreadcrumb = [&] {
+            auto *bar = window.findChild<QWidget *>("panelNavigation0");
+            for (auto *button : bar->findChildren<QToolButton *>())
+                if (button->isVisible() && QDir::cleanPath(button->toolTip()) == outer) {
+                    QTest::mouseClick(button, Qt::LeftButton);
+                    return true;
+                }
+            return false;
+        };
+        QVERIFY(clickOuterBreadcrumb());
         QTRY_VERIFY(parentPrompt);
         QCOMPARE(read(outer), original);
         QTRY_COMPARE(table(window)->rowCount(), 3);
@@ -541,10 +552,11 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         if (failSave)
             QVERIFY(runtime_.armWriter(E_FAIL, false));
         QTRY_VERIFY(action(window, "upAction")->isEnabled());
-        action(window, "upAction")->trigger();
+        QVERIFY(clickOuterBreadcrumb());
         QTRY_VERIFY(parentPrompt);
         QCOMPARE(unexpectedError, failSave);
         QTRY_COMPARE(table(window)->rowCount(), 1);
+        QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), innerName);
         if (failSave) {
             QCOMPARE(read(outer), original);
             QVERIFY(window.close());
