@@ -22,8 +22,10 @@ qsizetype NameLength(const QString &name) {
 
 qsizetype MaximumNameLength(const QString &directory, const QString &existingName) {
 #ifdef _WIN32
-    const QString root = QDir::toNativeSeparators(QStorageInfo(directory).rootPath());
+    QString root = QDir::toNativeSeparators(QStorageInfo(directory).rootPath());
     if (!root.isEmpty()) {
+        if (!root.endsWith(u'\\'))
+            root += u'\\';
         DWORD length = 0;
         UString volume, filesystem;
         if (NWindows::NFile::NSystem::MyGetVolumeInformation(us2fs(root.toStdWString().c_str()),
