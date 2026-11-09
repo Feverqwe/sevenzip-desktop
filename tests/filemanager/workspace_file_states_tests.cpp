@@ -33,20 +33,35 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
     }
     void cleanup() { QApplication::clipboard()->clear(); }
 
+    void copyFollowsFocusBetweenAddressAndFiles_data() {
+        QTest::addColumn<bool>("switchToIcons");
+        QTest::newRow("details") << false;
+        QTest::newRow("switch-to-icons") << true;
+    }
+
     void copyFollowsFocusBetweenAddressAndFiles() {
+        QFETCH(bool, switchToIcons);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("selected 文件.txt");
         const QString source = fixture.filePath(name);
+        const QString secondName = QStringLiteral("second selection.txt");
+        const QString secondSource = fixture.filePath(secondName);
+        const QString focusedName = QStringLiteral("unselected.txt");
         write(source);
+        write(secondSource);
+        write(fixture.filePath(focusedName));
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         window.openPath(fixture.path());
         auto *files = table(window);
-        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 3);
         files->selectRow(rowFor(*files, name));
+        files->selectionModel()->select(files->model()->index(rowFor(*files, secondName), 0),
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        files->setCurrentCell(rowFor(*files, focusedName), 0, QItemSelectionModel::NoUpdate);
         auto *address = window.findChild<QLineEdit *>("archivePath");
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
@@ -54,15 +69,27 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         address->selectAll();
         QTest::keyClicks(address, draft);
         address->setSelection(12, 6);
+        QAbstractItemView *visible = files;
+        if (switchToIcons) {
+            QTest::keySequence(window.focusWidget(), action(window, "viewMode0Action")->shortcut());
+            visible = window.findChild<QListView *>("iconList");
+            QTRY_VERIFY(visible && visible->isVisible());
+            QCOMPARE(address->text(), draft);
+            QCOMPARE(address->selectedText(), QString("folder"));
+        }
         auto *clipboard = QApplication::clipboard();
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
         QCOMPARE(clipboard->text(), QString("folder"));
         QVERIFY(!clipboard->mimeData()->hasUrls());
 
         QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
-        QTRY_VERIFY(files->hasFocus());
+        QTRY_VERIFY(visible->hasFocus());
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
-        QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(source)});
+        QStringList copiedPaths;
+        for (const auto &url : clipboard->mimeData()->urls())
+            copiedPaths.append(url.toLocalFile());
+        copiedPaths.sort();
+        QCOMPARE(copiedPaths, QStringList({secondSource, source}));
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         QCOMPARE(address->text(), draft);
