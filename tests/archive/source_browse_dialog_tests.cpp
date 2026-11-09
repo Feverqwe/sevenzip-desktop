@@ -575,9 +575,18 @@ class SourceBrowseDialogTests final : public QObject {
                 }
             });
             reply.start(1);
-            const QStringList invalidPaths =
+            QStringList invalidPaths =
                 folder ? QStringList{"occupied.txt/", "occupied.txt/child/deeper"}
                        : QStringList{"occupied.txt/child/archive.7z", "occupied-folder.7z"};
+#ifdef Q_OS_WIN
+            for (char16_t letter = u'Z'; letter >= u'D'; --letter) {
+                const QString root = QString(QChar(letter)) + ":/";
+                if (!QDir(root).exists()) {
+                    invalidPaths.append(root + (folder ? "folder/child" : "folder/archive.7z"));
+                    break;
+                }
+            }
+#endif
             for (const auto &draft : invalidPaths) {
                 error.clear();
                 path->setText(draft);

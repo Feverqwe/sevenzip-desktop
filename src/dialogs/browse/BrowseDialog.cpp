@@ -468,15 +468,13 @@ void CBrowseDialog::FinishOnOK() {
             const QFileInfo entry(candidate);
             if (entry.isDir())
                 break;
-            if (entry.exists() || entry.isSymLink()) {
+            const QString parent = entry.absolutePath();
+            if (entry.exists() || entry.isSymLink() || parent == candidate) {
                 MessageBox_HResError(this, kInvalidNameError,
                                      ToUString(QDir::toNativeSeparators(candidate)));
                 _pathEdit->setFocus();
                 return;
             }
-            const QString parent = entry.absolutePath();
-            if (parent == candidate)
-                break;
             candidate = parent;
         }
     }
