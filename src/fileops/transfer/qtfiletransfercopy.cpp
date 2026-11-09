@@ -165,7 +165,7 @@ bool QtFileTransferTransaction::removeMergedSource(const QString &source,
     for (const QString &directory : directories)
         QDir().rmdir(directory);
     rootRemoved = QDir().rmdir(source); // Skipped files keep the source folder.
-    if (worker_.canceled_) {
+    if (!rootRemoved && worker_.canceled_) {
         *error = sourceRemovalCanceled();
         return false;
     }
