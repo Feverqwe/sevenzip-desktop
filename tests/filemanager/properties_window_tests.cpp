@@ -212,7 +212,8 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QPointer<QtPropertiesWindow> first = window.findChild<QtPropertiesWindow *>();
         QVERIFY(first && !first->isModal());
         const QString before = first->Information();
-        openListedArchive(window, backend, "second.zip", {{"second.txt", 19, 9}});
+        openListedArchive(window, backend, "second.zip",
+                          {{"second.txt", 19, 9}, {"z-next.txt", 23, 11}});
         table(window)->selectRow(0);
         window.findChild<QLineEdit *>("archivePath")->setFocus();
         action(window, "selectedPropertiesAction")->trigger();
@@ -236,6 +237,13 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(!second);
         QVERIFY(first && first->isVisible());
         QTRY_COMPARE(QApplication::focusWidget(), focusTarget);
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_End);
+        action(window, "selectedPropertiesAction")->trigger();
+        const auto reopened = window.findChildren<QtPropertiesWindow *>();
+        QCOMPARE(reopened.size(), 2);
+        QVERIFY(reopened.last()->Information().contains("z-next.txt"));
+        QCOMPARE(first->Information(), before);
+        reopened.last()->close();
         ControlledBackend otherBackend;
         MainWindow other(&otherBackend);
         other.show();
