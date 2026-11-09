@@ -12,6 +12,7 @@
 #include "support/progress_dialog.h"
 #include "support/scoped_environment.h"
 #include "support/window_activation.h"
+#include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QContextMenuEvent>
@@ -533,29 +534,38 @@ class DragDropUiTests final : public QObject {
         MainWindow window(&backend);
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
-        window.openPath(output);
-        window.findChild<QAction *>("twoPanelsAction")->trigger();
+        auto *twoPanels = window.findChild<QAction *>("twoPanelsAction");
+        QVERIFY(twoPanels);
+        QTRY_VERIFY(twoPanels->isEnabled());
+        twoPanels->trigger();
+        const auto enterPath = [](QWidget &pane, const QString &path) {
+            auto *address = pane.findChild<QLineEdit *>("archivePath");
+            QVERIFY(address);
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            address->setText(QDir::toNativeSeparators(path));
+            QTest::keyClick(address, Qt::Key_Return);
+        };
         auto *peer = window.findChild<QWidget *>("filePanel1");
         QVERIFY(peer);
         auto *destination = peer->findChild<FileTable *>("archiveTable");
         QVERIFY(destination);
-        destination->setFocus();
+        QTRY_VERIFY(destination->isEnabled());
+        enterPath(*peer, output);
         QTRY_COMPARE(window.focusWidget(), destination);
-        window.openPath(output);
-        QTRY_COMPARE(QDir::cleanPath(ToQString(destination->sourcePanel->GetCurrentFolderPrefix())),
+        QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
+                         ToQString(destination->sourcePanel->GetCurrentFolderPrefix()))),
                      output);
         auto *left = window.findChild<QWidget *>("filePanel0");
         QVERIFY(left);
         auto *source = left->findChild<FileTable *>("archiveTable");
         QVERIFY(source);
-        source->setFocus();
-        QTRY_COMPARE(window.focusWidget(), source);
-        window.openPath(archive);
+        QTRY_VERIFY(source->isEnabled());
+        enterPath(*left, archive);
         QTRY_VERIFY(source->isEnabled() && Row(*source, first) >= 0 && Row(*source, second) >= 0);
-        const auto selection = QItemSelectionModel::Select | QItemSelectionModel::Rows;
-        source->selectionModel()->select(source->model()->index(Row(*source, first), 0), selection);
-        source->selectionModel()->select(source->model()->index(Row(*source, second), 0),
-                                         selection);
+        QTRY_COMPARE(window.focusWidget(), source);
+        QTest::keySequence(source, QKeySequence::SelectAll);
+        QTRY_COMPARE(source->selectionModel()->selectedRows().size(), 2);
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
         QTRY_VERIFY(QApplication::clipboard()->mimeData());
         QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
