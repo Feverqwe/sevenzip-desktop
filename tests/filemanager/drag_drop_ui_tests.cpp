@@ -21,6 +21,7 @@
 #include <QCursor>
 #include <QDrag>
 #include <QDragLeaveEvent>
+#include <QLabel>
 #include <QLibrary>
 #include <QMouseEvent>
 #include <QProcess>
@@ -801,9 +802,14 @@ class DragDropUiTests final : public QObject {
         auto *clipboard = QApplication::clipboard();
         const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
         const QString destination = output.filePath(name);
+        QString exportSummary;
         QTimer closeResult;
-        connect(&closeResult, &QTimer::timeout, &window, [] {
-            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+        connect(&closeResult, &QTimer::timeout, &window, [&] {
+            auto *result = TestProgressDialog::ResultWindow(QApplication::activeModalWidget());
+            if (!result)
+                return;
+            exportSummary = result->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
+            TestProgressDialog::CloseResult(*result);
         });
         closeResult.start(5);
         if (drag) {
@@ -859,6 +865,8 @@ class DragDropUiTests final : public QObject {
                 answer.start(5);
                 QTest::keySequence(table, QKeySequence::Copy);
                 QCOMPARE(prompts, 1);
+                QCOMPARE(exportSummary, QCoreApplication::translate(
+                                            "QtTaskResultDialog", "The operation was cancelled."));
                 QCOMPARE(clipboard->text(), QString("clipboard sentinel"));
                 QCOMPARE(window.statusBar()->currentMessage(),
                          QCoreApplication::translate("mainwindow_archivecommands",

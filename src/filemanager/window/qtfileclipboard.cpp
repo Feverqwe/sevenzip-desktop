@@ -191,6 +191,7 @@ void QtFileClipboard::Copy(bool move) {
         const QString directory = ToQString(fs2us(temporary.GetPath()));
         CCopyToOptions options;
         options.folder = ToUString(QDir::fromNativeSeparators(directory) + '/');
+        options.CancellationMayLeaveChanges = false;
         UStringVector messages;
         QtArchiveExtractReport report;
         report.Purpose = QtArchiveExtractPurpose::Copy;
