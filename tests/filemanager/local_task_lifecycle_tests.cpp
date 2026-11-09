@@ -357,6 +357,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         answer = "overwriteNo";
         QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
         QTRY_VERIFY_WITH_TIMEOUT(prompts == 2 && QtLocalFileTask::Active().isEmpty(), 3000);
+        QTRY_COMPARE(
+            window.statusBar()->currentMessage(),
+            QCoreApplication::translate("qtfiletransfertransaction", "All items were skipped."));
         QCOMPARE(read(source), QByteArray("incoming bytes"));
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
         QVERIFY(clipboard->mimeData());
@@ -370,6 +373,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             const QString renamed = QStringLiteral("файл 空_%1.txt").arg(attempt);
             QTRY_VERIFY(filesystemRow(window, renamed) >= 0 && view->isEnabled());
             QTRY_COMPARE(window.focusWidget(), view);
+            QTRY_COMPARE(window.statusBar()->currentMessage(),
+                         QCoreApplication::translate("qtfiletransfertransaction",
+                                                     move ? "Items moved." : "Items copied."));
             QCOMPARE(prompts, attempt);
             QCOMPARE(read(QDir(destination).filePath(renamed)), QByteArray("incoming bytes"));
             QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
