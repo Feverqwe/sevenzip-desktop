@@ -675,7 +675,14 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kSkip);
     }
 
-    void missingArchiveKeepsExtractionOptionsForRetry() {
+    void unavailableArchiveKeepsExtractionOptionsForRetry_data() {
+        QTest::addColumn<bool>("replacedByDirectory");
+        QTest::newRow("missing") << false;
+        QTest::newRow("directory") << true;
+    }
+
+    void unavailableArchiveKeepsExtractionOptionsForRetry() {
+        QFETCH(bool, replacedByDirectory);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("selected archive.zip");
@@ -696,6 +703,8 @@ class ExtractDialogTests final : public QObject {
                 QVERIFY(skip >= 0);
                 overwrite(dialog)->setCurrentIndex(skip);
                 QVERIFY(QFile::rename(archive, parked));
+                if (replacedByDirectory)
+                    QVERIFY(QDir().mkdir(archive));
                 QTimer::singleShot(0, &dialog, [] {
                     if (auto *message =
                             qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
@@ -706,6 +715,8 @@ class ExtractDialogTests final : public QObject {
                 QCOMPARE(destination->currentText(), output);
                 QCOMPARE(overwrite(dialog)->currentIndex(), skip);
                 QVERIFY(!QFileInfo::exists(output));
+                if (replacedByDirectory)
+                    QVERIFY(QDir().rmdir(archive));
                 QVERIFY(QFile::rename(parked, archive));
                 dialog.accept();
                 QCOMPARE(dialog.result(), int(QDialog::Accepted));

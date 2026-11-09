@@ -1,5 +1,8 @@
+#include "7zip/UI/GUI/ExtractRes.h"
+#include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/taskresult/qttaskresultdialog.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
@@ -100,11 +103,16 @@ HRESULT MainWindow::launchGuiArchiveCompress(const UString &folder, const UStrin
 HRESULT MainWindow::launchGuiArchiveExtract(const UStringVector &paths, const UString &folder,
                                             bool showDialog, bool elimDup, UInt32 writeZone) {
     const QStringList archives = ArchivePaths(paths);
-    for (const auto &path : archives)
-        if (!QFileInfo::exists(path)) {
-            showStatusMessage(MissingInputMessage(path));
+    for (const auto &path : archives) {
+        const QFileInfo file(path);
+        if (!IsArchiveFileOrPackage(file)) {
+            showStatusMessage(
+                file.exists() ? ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE,
+                                                      ToUString(QDir::toNativeSeparators(path))))
+                              : MissingInputMessage(path));
             return E_FAIL;
         }
+    }
     QString error;
     auto *operation = backend_->startGuiExtract(archives, QString::fromWCharArray(folder),
                                                 showDialog, elimDup, writeZone, error);

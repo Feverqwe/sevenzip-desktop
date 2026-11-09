@@ -714,6 +714,11 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(first).fileName()));
             QTRY_COMPARE(window.focusWidget(), source);
             QVERIFY(source->selectionModel()->isRowSelected(firstRow, {}));
+            QVERIFY(QDir().mkdir(first));
+            PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+            QVERIFY(backend.ExtractJobs.isEmpty());
+            QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(first).fileName()));
+            QVERIFY(QDir().rmdir(first));
             QVERIFY(QFile::rename(parked, first));
         }
         backend.ExtractDestination = output;

@@ -6,7 +6,9 @@
 #include "Windows/FileDir.h"
 #include "Windows/FileName.h"
 #include "archive/callbacks/qtguimessages.h"
+#include "archive/resources/archiveinputpath.h"
 #include "dialogs/browse/BrowseDialog.h"
+#include "filemanager/FormatUtils.h"
 #include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
@@ -296,11 +298,15 @@ void CExtractDialog::OnOK() {
     }
     if (_validateSourcePaths) {
         for (const auto &source : _archiveSources) {
-            if (!QFileInfo::exists(source)) {
+            const QFileInfo file(source);
+            if (!IsArchiveFileOrPackage(file)) {
                 const QtTaskPresentation::QuestionScope validation;
+                const QString path = QDir::toNativeSeparators(source);
                 const auto message =
-                    QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
-                    QDir::toNativeSeparators(source);
+                    file.exists()
+                        ? ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, ToUString(path)))
+                        : QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                              path;
                 ShowErrorMessageQt(this, message.toStdWString().c_str());
                 return;
             }
