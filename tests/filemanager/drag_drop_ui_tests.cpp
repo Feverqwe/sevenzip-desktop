@@ -653,6 +653,18 @@ class DragDropUiTests final : public QObject {
             QStringList existingTemps, exportTemps;
             QTimer replacement;
             if (cancelExport) {
+                const QString blockedRegistry = input.filePath("blocked registry");
+                QVERIFY(SourceExtractFixture::writeFile(blockedRegistry, "not a directory"));
+                {
+                    const ScopedTestEnvironment blocked("SEVENZIP_OWNED_TEMP_REGISTRY",
+                                                        blockedRegistry);
+                    QTest::keySequence(table, QKeySequence::Copy);
+                    QCOMPARE(clipboard->text(), QString("clipboard sentinel"));
+                    QCOMPARE(window.statusBar()->currentMessage(),
+                             QCoreApplication::translate("SevenZipDiagnostics",
+                                                         "Can't create temp folder"));
+                    QVERIFY(table->hasFocus());
+                }
                 int prompts = 0;
                 QTimer answer;
                 connect(&answer, &QTimer::timeout, &window, [&] {

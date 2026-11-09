@@ -184,8 +184,11 @@ void QtFileClipboard::Copy(bool move) {
         // expose URLs until the engine reports a complete successful copy.
         const auto revision = revision_;
         NWindows::NFile::NDir::CTempDir temporary;
-        if (!temporary.Create(FTEXT("7zClipboard")))
+        if (!temporary.Create(FTEXT("7zClipboard"))) {
+            window_.showStatusMessage(
+                QCoreApplication::translate("SevenZipDiagnostics", "Can't create temp folder"));
             return;
+        }
         const QString directory = ToQString(fs2us(temporary.GetPath()));
         CCopyToOptions options;
         options.folder = ToUString(QDir::fromNativeSeparators(directory) + '/');
