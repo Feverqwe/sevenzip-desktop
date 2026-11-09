@@ -394,7 +394,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                     copy->accept();
                 else {
                     inspectDialog(*copy, QString("toolbar-archive-copy-%1").arg(pane));
-                    copy->reject();
+                    QTest::keyClick(copy, Qt::Key_Escape);
                 }
             } else
                 dismissResults(dialogs_, errors, successes);
@@ -420,7 +420,8 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         for (int i = 0; i < added; ++i)
             QVERIFY(writeFile(QDir(output).filePath(QString("new-%1.txt").arg(i)), "peer update"));
         QVERIFY(WindowActivation::waitForActive(window));
-        peer->setFocus();
+        QCOMPARE(window.focusWidget(), source);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
         QTRY_VERIFY(peer->hasFocus());
         QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
         QVERIFY(!action(window, "refreshAction")->isEnabled());
