@@ -36,6 +36,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
                              << QString("truncated") << false;
         QTest::newRow("existing-file")
             << QString("occupied.txt") << QString("occupied.txt") << true;
+        QTest::newRow("parent-is-file")
+            << QString("occupied.txt/missing/new folder") << QString("occupied.txt") << true;
 #ifdef Q_OS_WIN
         QTest::newRow("empty-path-component")
             << QString("nested/.../suffix") << QString("nested") << false;
@@ -83,6 +85,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         if (draft.isEmpty())
             QCOMPARE(error->text(),
                      QCoreApplication::translate("InlineCreateFolder", "Enter a folder name."));
+        if (occupied && draft != unexpected)
+            QVERIFY(error->text().contains(QDir::toNativeSeparators(existing.fileName())));
         QCOMPARE(QFileInfo::exists(existing.fileName()), occupied);
         QCOMPARE(view->rowCount(), initialRows);
         QCOMPARE(observed->rowCount(), initialRows);

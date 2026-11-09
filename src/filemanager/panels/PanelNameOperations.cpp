@@ -9,6 +9,7 @@
 #include "filemanager/panels/PanelFolderOperations.h"
 #include "fileops/native/correctfspath.h"
 #include "localization/LangUtils.h"
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <utility>
@@ -118,16 +119,23 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     }
     QString parentDirectory;
     QString firstMissingParent;
-    if (destinationDirectory && IsFSFolder()) {
+    if (IsFSFolder()) {
         parentDirectory = QFileInfo(QDir(ToQString(GetFsPath())), QDir::cleanPath(ToQString(name)))
                               .absolutePath();
         QString ancestor = parentDirectory;
-        while (!QFileInfo::exists(ancestor)) {
-            const QString parent = QFileInfo(ancestor).absolutePath();
+        QFileInfo component(ancestor);
+        while (!component.isDir()) {
+            if (component.exists() || component.isSymLink() || component.isJunction()) {
+                error = QCoreApplication::translate("CopyRedesign", "Not a folder: %1")
+                            .arg(QDir::toNativeSeparators(ancestor));
+                return E_INVALIDARG;
+            }
+            const QString parent = component.absolutePath();
             if (parent == ancestor)
                 break;
             firstMissingParent = ancestor;
             ancestor = parent;
+            component.setFile(ancestor);
         }
     }
     CDisableTimerProcessing disableTimerProcessing2(*this);
@@ -151,10 +159,12 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     SetPublishedArchive(*this, op, publishedArchive);
     if (res == S_OK)
         PrepareCreatedSelection(*this, name, state);
-    if (!parentDirectory.isEmpty() && res == S_OK)
-        *destinationDirectory = parentDirectory;
-    else if (!firstMissingParent.isEmpty() && QFileInfo(firstMissingParent).isDir())
-        *destinationDirectory = QFileInfo(firstMissingParent).absolutePath();
+    if (destinationDirectory) {
+        if (!parentDirectory.isEmpty() && res == S_OK)
+            *destinationDirectory = parentDirectory;
+        else if (!firstMissingParent.isEmpty() && QFileInfo(firstMissingParent).isDir())
+            *destinationDirectory = QFileInfo(firstMissingParent).absolutePath();
+    }
     RefreshTitleAlways();
     RefreshListCtrl(state);
     return res;
