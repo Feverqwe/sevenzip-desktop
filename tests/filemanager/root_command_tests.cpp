@@ -82,12 +82,14 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
         enterFolder(*rightAddress, rightPath);
         action(window, "viewMode3Action")->trigger();
         QTRY_VERIFY(rightTable->hasFocus());
-        if (route == 0)
+        if (route == 0) {
+            PanelKeys::focusAddress(rightAddress);
             action(window, "openRootAction")->trigger();
-        else
+        } else
             QTest::keyClick(rightTable, route == 1 ? Qt::Key_Backslash : Qt::Key_Slash,
                             route == 3 ? Qt::KeypadModifier : Qt::NoModifier);
         QTRY_COMPARE(rightAddress->text(), drivePrefix(language));
+        QTRY_COMPARE(window.focusWidget(), rightTable);
         QVERIFY(static_cast<FileTable *>(rightTable)->sourcePanel->IsFSDrivesFolder());
         QVERIFY(rightTable->rowCount() > 0);
         QVERIFY(action(window, "parentFolderAction")->isEnabled());
@@ -169,6 +171,7 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
             action(window, "viewMode3Action")->trigger();
             action(window, "openRootAction")->trigger();
             QTRY_COMPARE(addresses[i]->text(), drivePrefix("-"));
+            QTRY_COMPARE(window.focusWidget(), views[i]);
         }
         views[1]->setCurrentCell(0, 0);
         views[1]->selectRow(0);
@@ -198,8 +201,10 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
             for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
                 window.resize(size);
                 QApplication::processEvents();
-                QVERIFY(UiInspection::fullyVisible(*addresses[0], window));
-                QVERIFY(UiInspection::fullyVisible(*addresses[1], window));
+                QVERIFY(
+                    UiInspection::fullyVisible(*PanelKeys::navigationFor(addresses[0]), window));
+                QVERIFY(
+                    UiInspection::fullyVisible(*PanelKeys::navigationFor(addresses[1]), window));
                 QVERIFY(UiInspection::writeReport(window, QString("root-language-%1-%2-%3")
                                                               .arg(pending)
                                                               .arg(language)

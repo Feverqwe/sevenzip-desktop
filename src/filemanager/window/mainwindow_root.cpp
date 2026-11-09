@@ -83,7 +83,13 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
 
 void MainWindow::goRoot(bool remember, RootLocation location) {
     Q_UNUSED(remember);
-    workspace_->Navigate([&] { return goRootImpl(location); });
+    const unsigned panel = projectedPanel_;
+    const auto interaction = workspace_->InteractionRevision();
+    workspace_->Navigate([&] { return goRootImpl(location); },
+                         [this, panel, interaction](HRESULT result) {
+                             if (result == S_OK)
+                                 workspace_->FocusListAfterLocationOpen(panel, interaction);
+                         });
 }
 
 HRESULT MainWindow::goRootImpl(RootLocation location) {
