@@ -191,8 +191,10 @@ void CExtractDialog::BuildPresentation() {
                           _ntSecurity});
 }
 
-void CExtractDialog::SetArchiveSources(const QStringList &sources, bool allContents) {
+void CExtractDialog::SetArchiveSources(const QStringList &sources, bool allContents,
+                                       bool validatePaths) {
     _archiveSources = sources;
+    _validateSourcePaths = validatePaths;
     _allContents = allContents;
     _sourcePaths->setPlainText(sources.join('\n'));
     _sourceSummary->setVisible(!sources.isEmpty());

@@ -208,9 +208,10 @@ HRESULT ExtractGUI(
                                   destinationError);
             if (archivePathsFull.Size() == 1)
                 dialog.ArcPath = archivePathsFull[0];
-            dialog.SetArchiveSources(sourceLocations, wildcardCensor.AreAllAllowed() &&
-                                                          !options.ExcludeDirItems &&
-                                                          !options.ExcludeFileItems);
+            dialog.SetArchiveSources(sourceLocations,
+                                     wildcardCensor.AreAllAllowed() && !options.ExcludeDirItems &&
+                                         !options.ExcludeFileItems,
+                                     !options.StdInMode);
 
             dialog.OverwriteMode_Force = options.OverwriteMode_Force;
             dialog.PathMode_Force = options.PathMode_Force;

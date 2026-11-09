@@ -5,6 +5,7 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Windows/FileDir.h"
 #include "Windows/FileName.h"
+#include "archive/callbacks/qtguimessages.h"
 #include "dialogs/browse/BrowseDialog.h"
 #include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
@@ -292,6 +293,18 @@ void CExtractDialog::OnOK() {
                     scroll->ensureWidgetVisible(_destinationError);
         });
         return;
+    }
+    if (_validateSourcePaths) {
+        for (const auto &source : _archiveSources) {
+            if (!QFileInfo::exists(source)) {
+                const QtTaskPresentation::QuestionScope validation;
+                const auto message =
+                    QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                    QDir::toNativeSeparators(source);
+                ShowErrorMessageQt(this, message.toStdWString().c_str());
+                return;
+            }
+        }
     }
     const int pathMode2 = _pathMode->currentData().toInt();
     if (PathMode != NExtract::NPathMode::kCurPaths || pathMode2 != NExtract::NPathMode::kFullPaths)

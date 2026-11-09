@@ -675,6 +675,47 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kSkip);
     }
 
+    void missingArchiveKeepsExtractionOptionsForRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("selected archive.zip");
+        const QString parked = fixture.filePath("parked.zip");
+        const QString output = fixture.filePath("chosen destination");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "zip"));
+        ArchiveBackend backend;
+        const auto result = ExtractDialogFixture::Run(
+            backend, archive, fixture.path(), [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *destination = path(dialog);
+                destination->setEditText(output);
+                dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+                const int skip = overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
+                QVERIFY(skip >= 0);
+                overwrite(dialog)->setCurrentIndex(skip);
+                QVERIFY(QFile::rename(archive, parked));
+                QTimer::singleShot(0, &dialog, [] {
+                    if (auto *message =
+                            qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                        message->accept();
+                });
+                dialog.accept();
+                QVERIFY(dialog.isVisible());
+                QCOMPARE(destination->currentText(), output);
+                QCOMPARE(overwrite(dialog)->currentIndex(), skip);
+                QVERIFY(!QFileInfo::exists(output));
+                QVERIFY(QFile::rename(parked, archive));
+                dialog.accept();
+                QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath("entry.txt")),
+                 QByteArray("payload"));
+    }
+
     void blockedDestinationCanBeCorrected_data() {
         QTest::addColumn<bool>("split");
         QTest::newRow("base-folder") << false;
