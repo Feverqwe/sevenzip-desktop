@@ -132,29 +132,32 @@ class OperationCreationTests final : public QObject {
         QVERIFY(writeFile(source, "protected native payload"));
         const QString initial = directory.filePath("initial.7z");
         const QString actual = directory.filePath("changed target 空.7z");
-        Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", cancel ? "cancel" : "accept");
         Environment target("SEVENZIP_OPERATION_CREATE_TARGET", actual);
         Environment password("SEVENZIP_OPERATION_CREATE_PASSWORD", "fixture password");
         auto job = Compress(initial, {source}, "7z");
         job.ShowDialog = true;
-        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
-        QCOMPARE(result.Status, cancel ? Outcome::Cancelled : Outcome::Success);
-        QVERIFY(!QFileInfo::exists(initial));
         if (cancel) {
+            Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", "cancel");
+            const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+            QCOMPARE(result.Status, Outcome::Cancelled);
+            QVERIFY(!QFileInfo::exists(initial));
             QVERIFY(!QFileInfo::exists(actual));
             QCOMPARE(readFile(source), QByteArray("protected native payload"));
             QVERIFY(result.ChangedDirectories.isEmpty());
-        } else {
-            QCOMPARE(readFile(source), QByteArray("protected native payload"));
-            Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", "fixture password");
-            const QString output = directory.filePath("decrypted");
-            auto extract = Extract(actual, output);
-            extract.YesToAll = false;
-            const auto extracted = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), extract);
-            QVERIFY2(extracted.Status == Outcome::Success, qPrintable(extracted.Error));
-            QCOMPARE(readFile(QDir(output).filePath("secret 空.txt")),
-                     QByteArray("protected native payload"));
         }
+        Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", "accept");
+        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        QCOMPARE(result.Status, Outcome::Success);
+        QVERIFY(!QFileInfo::exists(initial));
+        QCOMPARE(readFile(source), QByteArray("protected native payload"));
+        Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", "fixture password");
+        const QString output = directory.filePath("decrypted");
+        auto extract = Extract(actual, output);
+        extract.YesToAll = false;
+        const auto extracted = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), extract);
+        QVERIFY2(extracted.Status == Outcome::Success, qPrintable(extracted.Error));
+        QCOMPARE(readFile(QDir(output).filePath("secret 空.txt")),
+                 QByteArray("protected native payload"));
     }
     void missingSourceReportsPartialArchiveAndAllowsRetry() {
         QTemporaryDir directory;

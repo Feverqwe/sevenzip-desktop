@@ -314,6 +314,8 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(QApplication::activeWindow(), &peer);
         QCOMPARE(QApplication::focusWidget(), peerView);
         QCOMPARE(window.focusWidget(), view);
+        QCOMPARE(view->currentIndex().data().toString(), QStringLiteral("batch.zip"));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
     }
 
     void testReportIdentifiesWhichItemsWereChecked_data() {
