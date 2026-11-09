@@ -103,10 +103,13 @@ QtLocalFileTask::QtLocalFileTask(FileTransferOperation &worker, const QString &t
         Qt::DirectConnection);
     connect(&worker, &FileTransferOperation::result, this,
             [this, &worker](bool success, const QString &message, const QStringList &movedSources) {
-                Finish(success, worker.resultKind() == FileTransferOperation::ResultKind::Canceled,
-                       message,
+                const bool cancelled =
+                    worker.resultKind() == FileTransferOperation::ResultKind::Canceled;
+                const bool retainedOutput = worker.hasRetainedOutput();
+                progress_->CancellationMayLeaveChanges = retainedOutput;
+                Finish(success, cancelled, message,
                        worker.resultKind() == FileTransferOperation::ResultKind::PartialSuccess,
-                       movedSources, worker.hasRetainedOutput());
+                       movedSources, retainedOutput);
             });
 }
 
@@ -241,7 +244,7 @@ void QtLocalFileTask::PresentFinish(bool success, bool cancelled, const QString 
         return;
     if (!success && !cancelled)
         progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
-    if (cancelled)
+    if (cancelled && progress_->CancellationMayLeaveChanges)
         progress_->Sync.FinalMessage.OkMessage.Message = ToUString(
             QCoreApplication::translate("QtTaskResultDialog", "The operation was cancelled."));
     else if (partial)

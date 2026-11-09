@@ -375,6 +375,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         bool seen = false;
         bool removed = false;
         bool reviewed = false;
+        QString reviewStatus;
         int refusedDestinations = 0;
         int overwritePrompts = 0;
         bool retry = false;
@@ -432,8 +433,12 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                             ->click();
                 } else if (auto *box = qobject_cast<QMessageBox *>(widget))
                     box->accept();
-                else
-                    reviewed |= TestProgressDialog::DismissVisibleResult(widget);
+                else if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+                    if (auto *status = result->findChild<QLabel *>("IDT_PROGRESS_STATUS"))
+                        reviewStatus = status->text();
+                    reviewed = true;
+                    TestProgressDialog::CloseResult(*result);
+                }
             }
         });
         driver.start(1);
@@ -486,6 +491,9 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("other existing bytes"));
         }
+        if (overwrite && !skip)
+            QCOMPARE(reviewStatus, QCoreApplication::translate("QtTaskResultDialog",
+                                                               "The operation was cancelled."));
         if (newBatchFolder) {
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
             QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));

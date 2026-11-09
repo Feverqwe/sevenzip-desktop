@@ -368,7 +368,12 @@ bool CProgressDialog::OnExternalCloseMessage() {
             : hasSuccessReport
                 ? QT_TRANSLATE_NOOP("ProgressRedesign", "Operation completed")
                 : QT_TRANSLATE_NOOP("ProgressRedesign", "Completed with skipped items or messages");
-        QtBindLocalText(GetItem(IDT_PROGRESS_STATUS), "ProgressRedesign", summary);
+        if (cancelled && !CancellationMayLeaveChanges)
+            QtBindLocalText(
+                GetItem(IDT_PROGRESS_STATUS), "QtTaskResultDialog",
+                QT_TRANSLATE_NOOP("QtTaskResultDialog", "The operation was cancelled."));
+        else
+            QtBindLocalText(GetItem(IDT_PROGRESS_STATUS), "ProgressRedesign", summary);
         GetItem(IDT_PROGRESS_STATUS)->show();
         return true;
     }
