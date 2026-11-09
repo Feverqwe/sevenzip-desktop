@@ -46,6 +46,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             QVERIFY(QDir().mkdir(fixture.filePath("Cafe plain")));
         QVERIFY(QDir().mkdir(expected));
         QVERIFY(QDir(expected).mkdir("alpha"));
+        QVERIFY(QDir(expected).mkdir("bravo"));
         QVERIFY(QDir(expected).mkdir("zebra"));
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -118,6 +119,15 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QTest::keyClick(window.focusWidget(), wasAlpha ? Qt::Key_Z : Qt::Key_A);
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
                  wasAlpha ? QString("zebra") : QString("alpha"));
+        const int clickedRow = filesystemRow(window, wasAlpha ? "alpha" : "zebra");
+        QVERIFY(clickedRow >= 0);
+        const int nameColumn = active == view ? 0 : static_cast<QListView *>(active)->modelColumn();
+        const auto clicked = active->model()->index(clickedRow, nameColumn);
+        QTest::mouseClick(active->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          active->visualRect(clicked).center());
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), current);
+        QTest::keyClick(window.focusWidget(), Qt::Key_B);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("bravo"));
     }
     void typingStartsFreshAfterSwitchingPanels() {
         const int oldInterval = QApplication::keyboardInputInterval();
