@@ -233,23 +233,29 @@ class OperationExtractionTests final : public QObject {
         QCOMPARE(create.exitCode(), 0);
         const auto archive = directory.filePath("protected.7z");
         const auto before = readFile(archive);
-        Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", password);
-        std::unique_ptr<Environment> cancellation;
-        if (cancel)
-            cancellation = std::make_unique<Environment>("SEVENZIP_OPERATION_CANCEL_PASSWORD", "1");
         const auto output = directory.filePath("output");
         auto job = Extract(archive, output);
         job.YesToAll = false;
-        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        const auto result = [&] {
+            Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", password);
+            std::unique_ptr<Environment> cancellation;
+            if (cancel)
+                cancellation =
+                    std::make_unique<Environment>("SEVENZIP_OPERATION_CANCEL_PASSWORD", "1");
+            return Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        }();
         const bool correct = !cancel && password == "fixture-password";
         QCOMPARE(result.Status, cancel    ? Outcome::Cancelled
                                 : correct ? Outcome::Success
                                           : Outcome::Failure);
-        if (correct)
-            QCOMPARE(readFile(QDir(output).filePath("secret.txt")),
-                     QByteArray("protected payload"));
-        else
+        if (!correct) {
             QVERIFY(!QFileInfo::exists(QDir(output).filePath("secret.txt")));
+            QCOMPARE(readFile(archive), before);
+            Environment retryPassword("SEVENZIP_OPERATION_PASSWORD", "fixture-password");
+            const auto retry = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+            QCOMPARE(retry.Status, Outcome::Success);
+        }
+        QCOMPARE(readFile(QDir(output).filePath("secret.txt")), QByteArray("protected payload"));
         QCOMPARE(readFile(archive), before);
     }
     void extractionContinuesAfterParentExit() {
