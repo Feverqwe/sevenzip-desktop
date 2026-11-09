@@ -70,16 +70,20 @@ HRESULT CFsFolderStat::Enumerate() {
         if (Progress && ++entries % 256 == 0)
             RINOK(Progress->SetCompleted(NULL))
 #ifdef _WIN32
-        if (!enumerator.Next(fi))
+        if (!enumerator.Next(fi)) {
+            const DWORD error = ::GetLastError();
+            if (error != ERROR_NO_MORE_FILES && error != ERROR_FILE_NOT_FOUND)
+                return GetLastError_noZero_HRESULT();
             break;
+        }
 #else
         bool found;
         if (!enumerator.Next(entry, found))
-            break;
+            return GetLastError_noZero_HRESULT();
         if (!found)
             break;
         if (!enumerator.Fill_FileInfo(entry, fi, false))
-            return E_FAIL;
+            return GetLastError_noZero_HRESULT();
 #endif
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             NumFolders++;

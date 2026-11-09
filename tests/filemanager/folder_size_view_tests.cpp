@@ -64,6 +64,41 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(size.uhVal.QuadPart, UInt64(960));
     }
 
+    void unavailableFolderDoesNotPublishAZeroSize() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("folder");
+        const QString parked = fixture.filePath("parked");
+        QVERIFY(QDir().mkdir(folder));
+        QVERIFY(writeFile(QDir(folder).filePath("file.txt"), "payload"));
+        MainWindow window;
+        window.show();
+        window.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(window, "folder") >= 0);
+        auto *view = table(window);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        auto *provider = view->sourcePanel->GetFolder();
+        CMyComPtr<IFolderCalcItemFullSize> sizes;
+        QCOMPARE(provider->QueryInterface(IID_IFolderCalcItemFullSize,
+                                          reinterpret_cast<void **>(&sizes)),
+                 S_OK);
+        const int row = filesystemRow(window, "folder");
+        const UInt32 index =
+            view->model()->index(row, 0).data(QtPanelList::SourceIndexRole).toUInt();
+        QVERIFY(QDir().rename(folder, parked));
+        QVERIFY(sizes->CalcItemFullSize(index, nullptr) != S_OK);
+        NWindows::NCOM::CPropVariant size;
+        QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
+        QCOMPARE(size.vt, VARTYPE(VT_EMPTY));
+        QVERIFY(QDir().rename(parked, folder));
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        action(window, "calculateDirectorySizeAction")->trigger();
+        QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
+        QCOMPARE(size.vt, VARTYPE(VT_UI8));
+        QCOMPARE(size.uhVal.QuadPart, UInt64(7));
+    }
+
     void calculatesOperatedFoldersWithoutReloading_data() {
         QTest::addColumn<bool>("compact");
         QTest::addColumn<bool>("useMenu");
