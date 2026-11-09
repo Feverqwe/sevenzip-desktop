@@ -28,5 +28,6 @@ struct QtArchiveExtractReport {
 class QtArchiveExtractStatusReceiver {
   public:
     virtual ~QtArchiveExtractStatusReceiver() = default;
+    virtual void ReportSkippedExisting(const wchar_t *path) = 0;
     QtArchiveExtractReport ExtractReport;
 };

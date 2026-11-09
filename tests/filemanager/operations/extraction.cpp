@@ -123,11 +123,16 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QSignalSpy preflight(&backend, &ArchiveBackend::overwriteRequired);
     bool answered = false;
     QByteArray choice("overwriteYes");
+    QString report;
     QTimer answer;
     connect(&answer, &QTimer::timeout, &window, [&] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
-            if (TestProgressDialog::DismissVisibleResult(widget))
+            if (auto *result = TestProgressDialog::ResultWindow(widget);
+                result && result->isVisible()) {
+                report = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
                 continue;
+            }
             if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                 dialog && dialog->isVisible()) {
                 answered = true;
@@ -189,10 +194,12 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     old.close();
 
     answered = false;
+    report.clear();
     ExtractionOptions skip = options;
     skip.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
     window.extractTo(temp.filePath("destination"), true, {}, skip);
     QVERIFY(!answered);
+    QVERIFY(report.contains(QStringLiteral("архивный файл.txt")));
     QCOMPARE(preflight.size(), 0);
     QCOMPARE(window.statusBar()->currentMessage(),
              QCoreApplication::translate("ProgressRedesign",

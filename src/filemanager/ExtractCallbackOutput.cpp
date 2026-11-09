@@ -16,6 +16,11 @@ using namespace NWindows;
 using namespace NFile;
 using namespace NFind;
 
+void CExtractCallbackImp::ReportSkippedExisting(const wchar_t *path) {
+    SomeItemsSkipped = true;
+    ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, path);
+}
+
 Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const FILETIME *existTime,
                                                const UInt64 *existSize, const wchar_t *newName,
                                                const FILETIME *newTime, const UInt64 *newSize,
@@ -38,10 +43,8 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const F
         if (mapped == NOverwriteAnswer::kCancel && writeAnswer != IDCANCEL)
             return E_FAIL;
         *answer = mapped;
-        if (mapped == NOverwriteAnswer::kNo || mapped == NOverwriteAnswer::kNoToAll) {
-            SomeItemsSkipped = true;
-            ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, newName);
-        }
+        if (mapped == NOverwriteAnswer::kNo || mapped == NOverwriteAnswer::kNoToAll)
+            ReportSkippedExisting(newName);
         return writeAnswer == IDCANCEL ? E_ABORT : S_OK;
     });
 }
@@ -87,8 +90,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
 
         switch ((int)OverwriteMode) {
         case NExtract::NOverwriteMode::kSkip:
-            SomeItemsSkipped = true;
-            ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, srcPath);
+            ReportSkippedExisting(srcPath);
             return S_OK;
         case NExtract::NOverwriteMode::kAsk: {
             Int32 overwriteResult;

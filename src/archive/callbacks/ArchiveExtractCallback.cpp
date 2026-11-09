@@ -1198,6 +1198,9 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             return S_OK;
         if (_overwriteMode == NExtract::NOverwriteMode::kSkip) {
             QtExtractStatus.Complete = false;
+            if (auto *receiver =
+                    dynamic_cast<QtArchiveExtractStatusReceiver *>(_extractCallback2.Interface()))
+                receiver->ReportSkippedExisting(_item.Path);
             return S_OK;
         }
 
