@@ -451,6 +451,22 @@ class CopyDestinationTests final : public QObject {
         }
         path->setText(target);
         QVERIFY(ok->isEnabled());
+        QWidget other;
+        other.show();
+        QVERIFY(WindowActivation::waitForActive(dialog));
+        path->setText(blocked + "/new folder/target.txt");
+        QVERIFY(!ok->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(other));
+        QVERIFY(QFile::setPermissions(blocked, permissions));
+        QVERIFY(WindowActivation::waitForActive(dialog));
+        QTRY_VERIFY(ok->isEnabled());
+        QCOMPARE(path->text(), blocked + "/new folder/target.txt");
+        QVERIFY(WindowActivation::waitForActive(other));
+        QVERIFY(QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner));
+        QVERIFY(WindowActivation::waitForActive(dialog));
+        QTRY_VERIFY(!ok->isEnabled());
+        path->setText(target);
+        QVERIFY(ok->isEnabled());
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(ToQString(dialog.Value), target);

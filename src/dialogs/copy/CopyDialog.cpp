@@ -224,6 +224,8 @@ void CCopyDialog::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange) {
         RefreshSourceSummary();
         UpdateDestination();
+    } else if (event->type() == QEvent::ActivationChange && isActiveWindow()) {
+        UpdateDestination();
     }
 }
 
