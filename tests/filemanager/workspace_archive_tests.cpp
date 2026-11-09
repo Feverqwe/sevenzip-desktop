@@ -170,7 +170,14 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         }
     }
 
-    void canceledArchiveOpenPreservesAddressDraft() {
+    void canceledArchiveOpenRestoresInput_data() {
+        QTest::addColumn<bool>("editAddress");
+        QTest::newRow("address draft") << true;
+        QTest::newRow("long file list") << false;
+    }
+
+    void canceledArchiveOpenRestoresInput() {
+        QFETCH(bool, editAddress);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("payload.txt");
@@ -178,6 +185,9 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         const QString password = QStringLiteral("fixture password");
         QVERIFY(write(fixture.filePath(name), "payload"));
         QVERIFY(createArchive(fixture.path(), archive, name, "7z", password));
+        if (!editAddress)
+            for (int index = 0; index < 300; ++index)
+                QVERIFY(write(fixture.filePath(QString("entry-%1.txt").arg(index)), "control"));
         ArchiveBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -186,12 +196,18 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         auto *view = active(window);
         QTRY_VERIFY(view->isEnabled() && filesystemRow(window, name) >= 0);
         auto *address = window.findChild<QLineEdit *>("archivePath");
-        PanelKeys::focusAddress(address);
-        QTRY_VERIFY(address->hasFocus());
         const QString draft = QStringLiteral("unsubmitted address");
-        address->selectAll();
-        QTest::keyClicks(address, draft);
-        address->setSelection(11, -4);
+        if (editAddress) {
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            address->selectAll();
+            QTest::keyClicks(address, draft);
+            address->setSelection(11, -4);
+        } else {
+            view->setCurrentCell(filesystemRow(window, name), 0);
+            view->setFocus();
+            QTRY_VERIFY(view->hasFocus());
+        }
         int prompts = 0;
         QTimer answer;
         widgetDialogs_.connectResponder(answer, &window, [&] {
@@ -208,11 +224,20 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
         window.openArchive(archive);
         QCOMPARE(prompts, 1);
         QVERIFY(view->sourcePanel->IsFSFolder());
-        QCOMPARE(address->text(), draft);
-        QCOMPARE(address->selectedText(), draft.mid(7, 4));
-        QCOMPARE(address->cursorPosition(), 7);
         QVERIFY(WindowActivation::waitForActive(window));
-        QTRY_VERIFY(address->hasFocus());
+        if (editAddress) {
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), draft);
+            QCOMPARE(address->selectedText(), draft.mid(7, 4));
+            QCOMPARE(address->cursorPosition(), 7);
+        } else {
+            QTRY_VERIFY(view->isEnabled() && view->hasFocus());
+            const int row = filesystemRow(window, name);
+            QVERIFY(row > 0);
+            QCOMPARE(view->currentRow(), row);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Up);
+            QCOMPARE(view->currentRow(), row - 1);
+        }
 
         window.openArchive(archive);
         QCOMPARE(prompts, 2);

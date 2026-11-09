@@ -58,7 +58,16 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
         return E_ABORT;
     workspace_->CancelListFocus();
     const QPointer<QWidget> focused = focusWidget();
-    const auto restoreFocus = qScopeGuard([this, focused] {
+    const auto index = projectedPanel_;
+    const auto interaction = workspace_->InteractionRevision();
+    const bool listFocused = focused && focused == projectedUi().viewStack->currentWidget();
+    const auto restoreFocus = qScopeGuard([this, focused, index, interaction, listFocused] {
+        if (projectedPanel_ != index || workspace_->InteractionRevision() != interaction)
+            return;
+        if (listFocused) {
+            workspace_->RequestListFocus(index);
+            return;
+        }
         // Modal archive progress can clear Qt's remembered address focus.
         // Restore the selected control after the operation call scope ends.
         appPresentation_->RestoreWidgetFocus(focused);
