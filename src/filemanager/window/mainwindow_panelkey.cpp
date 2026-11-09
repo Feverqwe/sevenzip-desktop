@@ -241,10 +241,10 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (!panel.ShouldProcessNotifications())
         return true;
     if (QAction *action = panelShortcut(*key)) {
-        if (action == up_) {
+        if (action->property("workspaceViewContext").toBool()) {
             // The View menu keeps its source pane until its selected action
             // is delivered. Keyboard navigation belongs to the focused list.
-            app_.ExecuteCommand(IDM_OPEN_PARENT_FOLDER);
+            app_.ExecuteCommand(action->property("nativeCommandID").toUInt());
             return true;
         }
         // Destination permissions can change between file list updates.
