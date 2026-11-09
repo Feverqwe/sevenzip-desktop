@@ -15,6 +15,7 @@
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QStorageInfo>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -424,6 +425,39 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(error->text().contains(QDir(destination).filePath("item.txt")));
         QVERIFY(!QFileInfo::exists(destination));
     }
+
+#ifdef Q_OS_LINUX
+    void crossFilesystemMoveWaitsForReadAccess() {
+        QTemporaryDir sourceDirectory;
+        QTemporaryDir targetDirectory("/dev/shm/sevenzip-copy-test-XXXXXX");
+        QVERIFY(sourceDirectory.isValid());
+        if (!targetDirectory.isValid() || QStorageInfo(sourceDirectory.path()).device() ==
+                                              QStorageInfo(targetDirectory.path()).device())
+            QSKIP("Requires two writable filesystems");
+        const QString source = sourceDirectory.filePath("source.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        const auto permissions = QFile::permissions(source);
+        QVERIFY(QFile::setPermissions(source, QFile::WriteOwner));
+        if (QFileInfo(source).isReadable())
+            QSKIP("The current user can still read the file");
+        const QString target = targetDirectory.filePath("new folder/target.txt");
+        CCopyDialog move(true, target, {source});
+        QtCopyDestinationContext context;
+        context.LocalFileTransfer = true;
+        move.ConfigureDestination(context);
+        move.show();
+        move.accept();
+        QVERIFY(move.isVisible());
+        auto *message = move.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message && message->isVisible() && message->text().contains(source));
+        QVERIFY(QFile::setPermissions(source, permissions));
+        QTest::keyClick(move.findChild<QLineEdit *>("copyDestination"), Qt::Key_Return);
+        QCOMPARE(move.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(move.Value), target);
+    }
+#endif
 
     void copyBatchCanBeRetriedAfterReadAccessReturns() {
 #ifndef Q_OS_UNIX

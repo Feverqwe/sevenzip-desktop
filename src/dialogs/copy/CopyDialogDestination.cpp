@@ -11,6 +11,7 @@
 #include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QPushButton>
@@ -18,6 +19,9 @@
 #include <QSet>
 #include <QVBoxLayout>
 #include <utility>
+#ifdef Q_OS_UNIX
+#include <sys/stat.h>
+#endif
 
 namespace {
 QString Text(const char *source) { return QCoreApplication::translate("CopyRedesign", source); }
@@ -65,7 +69,8 @@ bool CanSearchDirectory(const QFileInfo &directory) {
 #endif
 }
 
-QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory) {
+QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory,
+                                  QString &existingDirectory) {
     QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
     for (;;) {
         const QFileInfo directory(path);
@@ -75,6 +80,7 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
             if (!CanSearchDirectory(directory))
                 return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Cannot access folder: %1"))
                     .arg(path);
+            existingDirectory = path;
             return directory.isWritable()
                        ? QString()
                        : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The folder is read-only: %1"))
@@ -85,6 +91,20 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
             return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Cannot access folder: %1")).arg(path);
         path = parent;
     }
+}
+
+bool MoveCrossesFilesystems(const QFileInfo &source, const QString &destinationDirectory) {
+#ifdef Q_OS_UNIX
+    struct stat from, to;
+    return !destinationDirectory.isEmpty() &&
+           stat(QFile::encodeName(source.absolutePath()).constData(), &from) == 0 &&
+           stat(QFile::encodeName(destinationDirectory).constData(), &to) == 0 &&
+           from.st_dev != to.st_dev;
+#else
+    (void)source;
+    (void)destinationDirectory;
+    return false;
+#endif
 }
 } // namespace
 
@@ -220,10 +240,11 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
     const bool localTransfer =
         _destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination;
     const QString draft = PreviewDestination(DraftDestination());
+    QString existingDirectory;
     const QString directoryError =
         path.isEmpty() || path.contains(QChar::Null) || !filesystemDestination
             ? QString()
-            : DestinationDirectoryError(destination, needsDirectory);
+            : DestinationDirectoryError(destination, needsDirectory, existingDirectory);
     bool linkedTransferDirectory = false;
     if (localTransfer && directoryError.isEmpty() && !path.isEmpty() &&
         !path.contains(QChar::Null)) {
@@ -273,7 +294,11 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
     if (error.isEmpty() && checkBatch && _destinationContext &&
         _destinationContext->LocalFileTransfer) {
         for (const QString &path : _sources) {
-            error = QtTransferSourceError(QFileInfo(path), _move && filesystemDestination);
+            const QFileInfo source(path);
+            error = QtTransferSourceError(source, false);
+            if (!error.isEmpty() && _move && filesystemDestination &&
+                !MoveCrossesFilesystems(source, existingDirectory))
+                error = QtTransferSourceError(source, true);
             if (!error.isEmpty()) {
                 canRetry = true;
                 break;
