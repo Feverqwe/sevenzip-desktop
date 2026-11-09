@@ -471,43 +471,46 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(saved.PathMode, NExtract::NPathMode::kFullPaths);
     }
     void originalHistoryRules() {
+        const QString initial = dir_.filePath("initial");
+        const QString edited = dir_.filePath(QStringLiteral("новая папка/δ space"));
         QStringList history;
         for (int i = 0; i < 20; i++)
-            history.append(QString("/history/%1/").arg(i));
+            history.append(dir_.filePath(QString("history/%1/").arg(i)));
         {
-            CExtractDialog dialog("/initial", history);
+            CExtractDialog dialog(initial, history);
             QCOMPARE(path(dialog)->count(), 16);
-            QCOMPARE(path(dialog)->currentText(), QString("/initial"));
+            QCOMPARE(path(dialog)->currentText(), initial);
             path(dialog)->setCurrentIndex(5);
             dialog.accept();
         }
         NExtract::CInfo saved;
         saved.Load(settings_);
         QCOMPARE(saved.Paths.Size(), 16u);
-        QCOMPARE(saved.Paths[0], history[5]);
+        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]), history[5]);
         QCOMPARE(saved.Paths[1], history[0]);
         {
-            CExtractDialog dialog("/initial", {});
+            CExtractDialog dialog(initial, {});
             path(dialog)->setCurrentIndex(2);
-            path(dialog)->setEditText(QStringLiteral("  /новая папка/δ space  "));
+            path(dialog)->setEditText("  " + edited + "  ");
             dialog.accept();
-            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                     QStringLiteral("/новая папка/δ space/"));
+            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), edited + '/');
         }
         saved.Load(settings_);
         QCOMPARE(saved.Paths.Size(), 16u);
-        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]),
-                 QStringLiteral("/новая папка/δ space/"));
+        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]), edited + '/');
         QVERIFY(saved.Paths[15] != history[15]);
+        const QString data = dir_.filePath("DATA/");
+        const QString different = dir_.filePath("different/");
         {
-            CExtractDialog dialog("/initial", {" /DATA/ ", "/data/", " /different/ "});
+            CExtractDialog dialog(
+                initial, {" " + data + " ", dir_.filePath("data/"), " " + different + " "});
             path(dialog)->setCurrentIndex(0);
             dialog.accept();
         }
         saved.Load(settings_);
         QCOMPARE(saved.Paths.Size(), 2u);
-        QCOMPARE(saved.Paths[0], QString("/DATA/"));
-        QCOMPARE(saved.Paths[1], QString("/different/"));
+        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]), data);
+        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[1]), different);
     }
     void legacyAndInvalidSettings() {
         {
@@ -588,6 +591,7 @@ class ExtractDialogTests final : public QObject {
         dialog.findChild<QToolButton *>("extractAdvancedToggle")->setChecked(true);
         QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
         destination->setEditText(blocked);
+        QApplication::processEvents();
         scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
         const QSize before = dialog.size();
         buttons->button(QDialogButtonBox::Ok)->click();

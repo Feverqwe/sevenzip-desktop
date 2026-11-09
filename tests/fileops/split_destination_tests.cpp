@@ -333,32 +333,32 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(actualLeaf, leaf);
     }
     void originalSplitControlsAndPersistence() {
-        const QString initial = QStringLiteral("/папка с пробелом/вложенная/");
+        const QString base = dir_.filePath(QStringLiteral("папка с пробелом/"));
+        const QString initial = base + QStringLiteral("вложенная/");
+        const QString other = dir_.filePath(QStringLiteral("другое место"));
         {
             CExtractDialog dialog(initial, {});
             QVERIFY(enabled(dialog)->isChecked());
-            QCOMPARE(path(dialog)->currentText(), QStringLiteral("/папка с пробелом/"));
+            QCOMPARE(path(dialog)->currentText(), base);
             QCOMPARE(name(dialog)->text(), QStringLiteral("вложенная/"));
             QVERIFY(!name(dialog)->isHidden());
             name(dialog)->setText(QStringLiteral("  δ результат  "));
-            QCOMPARE(dialog.destination(), QStringLiteral("/папка с пробелом/δ результат"));
+            QCOMPARE(dialog.destination(), base + QStringLiteral("δ результат"));
             dialog.accept();
             QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                     QStringLiteral("/папка с пробелом/δ результат/"));
+                     base + QStringLiteral("δ результат/"));
         }
         NExtract::CInfo saved;
         saved.Load(settings_);
-        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]),
-                 QStringLiteral("/папка с пробелом/δ результат/"));
+        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]), base + QStringLiteral("δ результат/"));
         {
             CExtractDialog dialog(initial, {});
             enabled(dialog)->setChecked(false);
             QVERIFY(!name(dialog)->isHidden());
             QVERIFY(!name(dialog)->isEnabled());
-            path(dialog)->setEditText(QStringLiteral("/другое место"));
+            path(dialog)->setEditText(other);
             dialog.accept();
-            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                     QStringLiteral("/другое место/"));
+            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), other + '/');
         }
         {
             CExtractDialog restarted(initial, {});
