@@ -47,8 +47,14 @@ void MainWindow::showSettings() {
 }
 
 void MainWindow::applyFileListSettings() {
+    const auto previous = fileListSettings_;
     app_.SetListSettings();
-    app_.RefreshAllPanels(true);
+    if (previous.ShowDots != fileListSettings_.ShowDots)
+        app_.RefreshAllPanels(true);
+    else if (previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
+        for (auto &panel : app_.Panels)
+            if (panel.PanelCreated && panel.IsFSFolder())
+                panel.OnReload(true);
     refreshActions();
 }
 
