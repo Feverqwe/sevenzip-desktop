@@ -43,7 +43,7 @@ class QtPanelList {
     void ClearSelection();
     void DeleteListItems();
     void SelectItem(int row);
-    void SetItemState_Selected(int row, bool selected);
+    void SetSelectedRows(const std::function<bool(int)> &isSelected);
     static void SetItemState_DropHighlighted(QAbstractItemView *view, int row, bool highlighted);
     void SetItemState_DropHighlighted(int row, bool highlighted) {
         SetItemState_DropHighlighted(view_.data(), row, highlighted);

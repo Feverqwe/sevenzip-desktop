@@ -50,13 +50,26 @@ void QtPanelList::SelectItem(int row) {
     view_->selectionModel()->select(view_->model()->index(row, 0),
                                     QItemSelectionModel::Select | QItemSelectionModel::Rows);
 }
-void QtPanelList::SetItemState_Selected(int row, bool selected) {
-    if (!IsBound() || row < 0 || row >= GetItemCount())
+void QtPanelList::SetSelectedRows(const std::function<bool(int)> &isSelected) {
+    if (!IsBound())
         return;
-    view_->selectionModel()->select(
-        view_->model()->index(row, 0),
-        (selected ? QItemSelectionModel::Select : QItemSelectionModel::Deselect) |
-            QItemSelectionModel::Rows);
+    const auto *model = view_->model();
+    const int count = model->rowCount();
+    QItemSelection selection;
+    int first = -1;
+    for (int row = 0; row < count; ++row) {
+        if (isSelected(row)) {
+            if (first < 0)
+                first = row;
+        } else if (first >= 0) {
+            selection.select(model->index(first, 0), model->index(row - 1, 0));
+            first = -1;
+        }
+    }
+    if (first >= 0)
+        selection.select(model->index(first, 0), model->index(count - 1, 0));
+    view_->selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect |
+                                                   QItemSelectionModel::Rows);
 }
 void QtPanelList::SetItemState_DropHighlighted(QAbstractItemView *view, int row, bool highlighted) {
     if (!view || !view->model() || row < 0 || row >= view->model()->rowCount())

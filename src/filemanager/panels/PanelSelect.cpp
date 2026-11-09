@@ -19,12 +19,11 @@ void CPanel::UpdateSelection() {
     EnsureSelectionVectorSize();
     const bool notify = _enableItemChangeNotify;
     _enableItemChangeNotify = false;
-    const int numItems = _selectionList.GetItemCount();
-    for (int i = 0; i < numItems; ++i) {
-        const unsigned realIndex = GetRealItemIndex(i);
-        if (realIndex < _selectedStatusVector.Size())
-            _selectionList.SetItemState_Selected(i, _selectedStatusVector[realIndex]);
-    }
+    _selectionList.SetSelectedRows([this](int row) {
+        const unsigned realIndex = GetRealItemIndex(row);
+        return realIndex < _selectedStatusVector.Size() ? _selectedStatusVector[realIndex]
+                                                        : _selectionList.IsItemSelected(row);
+    });
     _enableItemChangeNotify = notify;
     _selectionList.Invalidate();
 }
