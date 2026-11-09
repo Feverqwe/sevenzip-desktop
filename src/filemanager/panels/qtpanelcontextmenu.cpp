@@ -101,8 +101,11 @@ bool QtPanelContextMenu::GetItemRect(int index, QRect &rect) const {
     const QModelIndex item = impl_->view.currentIndex().siblingAtRow(index);
     if (!item.isValid())
         return false;
-    rect = impl_->view.visualRect(item);
-    return rect.isValid();
+    const QRect viewport = impl_->view.viewport()->rect();
+    rect = impl_->view.visualRect(item).intersected(viewport);
+    if (rect.isEmpty())
+        rect = QRect(viewport.topLeft(), QSize(1, 1));
+    return true;
 }
 void QtPanelContextMenu::ClientToScreen(int &x, int &y) const {
     const QPoint point = impl_->view.viewport()->mapToGlobal(QPoint(x, y));
