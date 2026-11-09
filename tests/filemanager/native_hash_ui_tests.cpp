@@ -2,7 +2,11 @@
 #include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
+#include <QMimeData>
+#include <QScopeGuard>
 #include <QScrollArea>
 
 class NativeHashUiTests final : public QObject, protected MainWindowTestSupport {
@@ -66,7 +70,15 @@ class NativeHashUiTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(UiInspection::writeReport(*properties,
                                               QString("properties-checksum-%1").arg(size.width())));
         }
-        properties->close();
+        QVERIFY(WindowActivation::waitForActive(*properties));
+        QTest::keyClick(properties, Qt::Key_Escape);
+        auto *view = table(window);
+        QTRY_COMPARE(window.focusWidget(), view);
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData());
+        QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(file.fileName())});
     }
     void manifestOpensAsAnOrdinaryFile() {
         QTemporaryDir temporary;
