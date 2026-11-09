@@ -30,8 +30,11 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
     const auto &ui = window_.panelUi_[panel];
     // A same-folder refresh has already saved the selection and viewport.
     // Its live model may be empty or only partially published.
-    if (ui.scanningDisk && ui.pendingSelection &&
-        ui.directory == QDir::cleanPath(QDir::fromNativeSeparators(visit.path))) {
+    const bool refreshingDirectory =
+        ui.scanningDisk && ui.directory == QDir::cleanPath(QDir::fromNativeSeparators(visit.path));
+    const bool refreshingArchive =
+        ui.scanningArchive && ui.pendingViewport && !visit.archiveLocation.physicalPath.isEmpty();
+    if (ui.pendingSelection && (refreshingDirectory || refreshingArchive)) {
         visit.selection = *ui.pendingSelection;
         if (ui.pendingViewport && ui.pendingViewport->directory == ui.directory &&
             ui.pendingViewport->view == ui.viewStack->currentWidget())

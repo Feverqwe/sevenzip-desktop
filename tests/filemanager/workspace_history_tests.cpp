@@ -1,3 +1,4 @@
+#include "archive/support/native_archive_fixture.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
@@ -494,6 +495,49 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(view->currentIndex().data().toString(), created);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(view->viewport()->rect().intersects(view->visualRect(view->currentIndex())));
+    }
+
+    void backRestoresArchiveViewWhenLeavingDuringRefresh() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("history.zip");
+        const QString other = fixture.filePath("other");
+        createDirectory(other);
+        QList<NativeArchiveFixture::Item> items;
+        for (int index = 0; index < 270; ++index)
+            items.append({QString("entry-%1.txt").arg(index, 3, 10, QChar('0')), "payload"});
+        QVERIFY(NativeArchiveFixture::Write(archive, items, "zip"));
+        MainWindow window;
+        window.resize(640, 440);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openArchive(archive);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == items.size());
+        const QString selected = QStringLiteral("entry-020.txt");
+        const int row = rowWithPath(window, selected);
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        auto *scroll = view->verticalScrollBar();
+        QTRY_VERIFY(scroll->maximum() > 2);
+        scroll->setValue(scroll->maximum() / 2);
+        const int position = scroll->value();
+        QVERIFY(view->rowAt(0) > row);
+
+        auto *refresh = action(window, "refreshAction");
+        QVERIFY(refresh->isEnabled());
+        refresh->trigger();
+        QVERIFY(!view->isEnabled());
+        window.openPath(other);
+        QTRY_VERIFY(view->isEnabled() && location(window) == other);
+        auto *back = action(window, "backAction");
+        QVERIFY(back->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == items.size());
+        QCOMPARE(view->currentIndex().data().toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QCOMPARE(scroll->value(), position);
     }
 
     void paneBackButtonIgnoresTheClosingViewMenu() {
