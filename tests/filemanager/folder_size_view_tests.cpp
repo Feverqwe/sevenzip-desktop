@@ -6,6 +6,7 @@
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QLabel>
+#include <QScrollBar>
 
 namespace {
 class CancelDuringWalk final : public IProgress, public CMyUnknownImp {
@@ -53,10 +54,15 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(before >= 0);
         view->setCurrentCell(before, 0);
         view->selectRow(before);
+        view->setColumnWidth(0, view->viewport()->width() * 2);
+        auto *horizontal = view->horizontalScrollBar();
+        QTRY_VERIFY(horizontal->maximum() > 0);
+        horizontal->setValue(horizontal->maximum());
+        const int horizontalPosition = horizontal->value();
         view->scrollToTop();
         const auto visible = [&](int row) {
-            return view->viewport()->rect().intersects(
-                view->visualRect(view->model()->index(row, 0)));
+            const int top = view->rowViewportPosition(row);
+            return top < view->viewport()->height() && top + view->rowHeight(row) > 0;
         };
         QVERIFY(visible(before));
         QVERIFY(!visible(filesystemRow(window, "folder-39")));
@@ -69,6 +75,7 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(view->currentRow(), after);
         QVERIFY(view->selectionModel()->isRowSelected(after, {}));
         QTRY_VERIFY(visible(after));
+        QCOMPARE(horizontal->value(), horizontalPosition);
     }
     void cancellationInsideAFlatDirectoryLeavesTheSizeUnset() {
         QTemporaryDir fixture;

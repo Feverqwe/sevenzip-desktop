@@ -106,7 +106,7 @@ void CPanel::EditItem(bool useEditor) {
                     _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
                     const int currentRow = _selectionList.GetFocusedItem();
                     if (currentRow != previousRow)
-                        _selectionList.EnsureVisible(currentRow);
+                        _selectionList.EnsureVisible(currentRow, true);
                 }
                 InvalidateList();
                 return;
