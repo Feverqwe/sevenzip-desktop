@@ -113,7 +113,8 @@ void QtFileManagerCommands::MoveToTrash() {
                                                           .diagnostics = diagnostics,
                                                           .source = directory,
                                                           .partial = moved != 0});
-            });
+            },
+            {}, true);
     }
 }
 void QtFileManagerCommands::CalculateCrc(const char *method) {

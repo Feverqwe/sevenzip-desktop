@@ -1,5 +1,6 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QScopedValueRollback>
@@ -53,7 +54,8 @@ QJsonObject QtWindowWorkspace::Save() {
             {"geometry", QString::fromLatin1(window_.saveGeometry().toBase64())}};
 }
 
-void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void()> canceled) {
+void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void()> canceled,
+                                  bool presentingResult) {
     auto *timer = new QTimer(this);
     const auto pending = std::make_shared<bool>(true);
     const auto cancel = [pending, canceled = std::move(canceled)] {
@@ -62,20 +64,21 @@ void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void
     };
     connect(timer, &QObject::destroyed, cancel);
     timer->setInterval(25);
-    connect(timer, &QTimer::timeout, this, [this, timer, pending, body = std::move(body), cancel] {
-        if (window_.app_.QtOperations().closed()) {
-            timer->stop();
-            timer->deleteLater();
-            cancel();
-            return;
-        }
-        if (!Ready())
-            return;
-        timer->stop();
-        timer->deleteLater();
-        *pending = false;
-        body();
-    });
+    connect(timer, &QTimer::timeout, this,
+            [this, timer, pending, body = std::move(body), cancel, presentingResult] {
+                if (window_.app_.QtOperations().closed()) {
+                    timer->stop();
+                    timer->deleteLater();
+                    cancel();
+                    return;
+                }
+                if (!Ready() || (presentingResult && !QtTaskPresentation::CanPresent()))
+                    return;
+                timer->stop();
+                timer->deleteLater();
+                *pending = false;
+                body();
+            });
     timer->start();
 }
 

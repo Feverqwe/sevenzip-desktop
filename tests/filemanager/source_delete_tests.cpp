@@ -629,8 +629,19 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         });
         responder.start(1);
         action(window, "deleteAction")->trigger();
-        if (partial)
+        if (partial) {
+            auto *menu = window.findChild<QMenu *>("viewMenu");
+            QVERIFY(menu);
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            const auto closeMenu = qScopeGuard([&] { menu->hide(); });
+            QTRY_VERIFY(menu->isVisible());
+            QTRY_COMPARE(view->rowCount(), 2);
+            QTest::qWait(100);
+            QCOMPARE(errors, 0);
+            QVERIFY(menu->isVisible());
+            QTest::keyClick(menu, Qt::Key_Escape);
             QTRY_COMPARE(errors, 1);
+        }
         responder.stop();
         QCOMPARE(confirmations, 1);
         QCOMPARE(errors, partial ? 1 : 0);
