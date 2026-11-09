@@ -225,18 +225,21 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QTest::addColumn<qint32>("result");
         QTest::addColumn<bool>("virtualPath");
         QTest::addColumn<bool>("refreshing");
-        QTest::newRow("refused") << qint32(S_FALSE) << false << false;
-        QTest::newRow("failed") << qint32(E_FAIL) << false << false;
-        QTest::newRow("cancelled") << qint32(E_ABORT) << false << false;
-        QTest::newRow("virtual-failed") << qint32(E_FAIL) << true << false;
-        QTest::newRow("virtual-cancelled") << qint32(E_ABORT) << true << false;
-        QTest::newRow("cancelled-during-refresh") << qint32(E_ABORT) << false << true;
-        QTest::newRow("virtual-failed-during-refresh") << qint32(E_FAIL) << true << true;
+        QTest::addColumn<bool>("leaveDraft");
+        QTest::newRow("refused") << qint32(S_FALSE) << false << false << false;
+        QTest::newRow("failed") << qint32(E_FAIL) << false << false << false;
+        QTest::newRow("cancelled") << qint32(E_ABORT) << false << false << false;
+        QTest::newRow("virtual-failed") << qint32(E_FAIL) << true << false << false;
+        QTest::newRow("virtual-cancelled") << qint32(E_ABORT) << true << false << false;
+        QTest::newRow("cancelled-during-refresh") << qint32(E_ABORT) << false << true << false;
+        QTest::newRow("virtual-failed-during-refresh") << qint32(E_FAIL) << true << true << false;
+        QTest::newRow("tab-after-error") << qint32(E_FAIL) << true << true << true;
     }
     void rejectedArchiveAddressKeepsEditingFocus() {
         QFETCH(qint32, result);
         QFETCH(bool, virtualPath);
         QFETCH(bool, refreshing);
+        QFETCH(bool, leaveDraft);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString path = fixture.filePath(QStringLiteral("архив с ошибкой 空.zip"));
@@ -312,6 +315,18 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QFile source(path);
         QVERIFY(source.open(QIODevice::ReadOnly));
         QCOMPARE(source.readAll(), bytes);
+        if (leaveDraft) {
+            QTRY_VERIFY(address->hasFocus());
+            QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+            QTRY_VERIFY(view->hasFocus());
+            const int row = view->currentRow();
+            QVERIFY(row >= 0 && row + 1 < view->rowCount());
+            QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+            QCOMPARE(view->currentRow(), row + 1);
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), draft);
+        }
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(view->hasFocus());
