@@ -100,6 +100,11 @@ void QtPanelList::SortItems(PROPID property, bool ascending, Int32 raw) {
     if (!IsBound() || !table || !sortColumn_)
         return;
     const int column = sortColumn_(property, raw);
-    if (column >= 0 && column < table->model()->columnCount())
+    if (column >= 0 && column < table->model()->columnCount()) {
         table->sortByColumn(column, ascending ? Qt::AscendingOrder : Qt::DescendingOrder);
+        auto *visibleView = presentationView_ && presentationView_->model() == view_->model()
+                                ? presentationView_.data()
+                                : view_.data();
+        visibleView->keyboardSearch({});
+    }
 }

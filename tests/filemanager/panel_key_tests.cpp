@@ -132,6 +132,12 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("alpha"));
         QTest::keyClick(window.focusWidget(), Qt::Key_Z);
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
+        PanelKeys::command(window.focusWidget(), Qt::Key_F6, Qt::ControlModifier);
+        QVERIFY(action(window, "sort3Action")->isChecked());
+        QCOMPARE(window.focusWidget(), active);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_B);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("bravo"));
     }
     void typingStartsFreshAfterSwitchingPanels() {
         const int oldInterval = QApplication::keyboardInputInterval();
