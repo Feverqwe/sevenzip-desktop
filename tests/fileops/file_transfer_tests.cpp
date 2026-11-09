@@ -1313,13 +1313,14 @@ class FileTransferTests : public QObject {
     }
 
     void directoryMergeReportsTheConflictingDestination_data() {
-        QTest::addColumn<bool>("link");
-        QTest::newRow("folder") << false;
-        QTest::newRow("dangling-link") << true;
+        QTest::addColumn<QString>("obstruction");
+        QTest::newRow("folder") << QString("folder");
+        QTest::newRow("dangling-link") << QString("link");
+        QTest::newRow("file-blocks-source-folder") << QString("file");
     }
 
     void directoryMergeReportsTheConflictingDestination() {
-        QFETCH(bool, link);
+        QFETCH(QString, obstruction);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("incoming/folder");
@@ -1328,13 +1329,22 @@ class FileTransferTests : public QObject {
         QVERIFY(QDir().mkpath(source));
         QVERIFY(QDir().mkpath(QFileInfo(target).absolutePath()));
         const QString missing = fixture.filePath("missing.txt");
+        const bool link = obstruction == "link";
+        const bool fileBlocksFolder = obstruction == "file";
         if (link) {
             if (!CreateNativeSymbolicLink(target, missing))
                 QSKIP("Native symbolic links are unavailable");
+        } else if (fileBlocksFolder) {
+            QFile existing(target);
+            QVERIFY(existing.open(QIODevice::WriteOnly));
+            QCOMPARE(existing.write("target bytes"), qint64(12));
         } else {
             QVERIFY(QDir().mkdir(target));
         }
-        QFile incoming(QDir(source).filePath("conflict.txt"));
+        const QString incomingPath = QDir(source).filePath("conflict.txt");
+        if (fileBlocksFolder)
+            QVERIFY(QDir().mkdir(incomingPath));
+        QFile incoming(fileBlocksFolder ? QDir(incomingPath).filePath("child.txt") : incomingPath);
         QVERIFY(incoming.open(QIODevice::WriteOnly));
         QCOMPARE(incoming.write("source bytes"), qint64(12));
         incoming.close();
@@ -1345,13 +1355,17 @@ class FileTransferTests : public QObject {
         QTRY_COMPARE(result.size(), 1);
         QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
         const QString message = result.first().at(1).toString();
-        QVERIFY2(message.contains(target), qPrintable(message));
+        QVERIFY2(QDir::fromNativeSeparators(message).contains(target), qPrintable(message));
         QVERIFY(!message.contains(".sevenzip-"));
         QVERIFY(incoming.open(QIODevice::ReadOnly));
         QCOMPARE(incoming.readAll(), QByteArray("source bytes"));
         if (link) {
             QVERIFY(QFileInfo(target).isSymLink());
             QVERIFY(!QFileInfo::exists(missing));
+        } else if (fileBlocksFolder) {
+            QFile existing(target);
+            QVERIFY(existing.open(QIODevice::ReadOnly));
+            QCOMPARE(existing.readAll(), QByteArray("target bytes"));
         } else {
             QVERIFY(QFileInfo(target).isDir());
         }

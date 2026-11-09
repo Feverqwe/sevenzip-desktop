@@ -614,6 +614,10 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                  mergeEntry(source, stage, target, &entry.writtenSources, &error))
               : (entry.sourceState == SourceState::Renamed || copyEntry(source, stage, &error));
     if (!staged || !error.isEmpty()) {
+        error.replace(stage, target);
+#ifdef Q_OS_WIN
+        error.replace(QDir::toNativeSeparators(stage), QDir::toNativeSeparators(target));
+#endif
         if (error.isEmpty())
             error =
                 QCoreApplication::translate("qtfiletransfertransaction", "Could not move item: %1")
