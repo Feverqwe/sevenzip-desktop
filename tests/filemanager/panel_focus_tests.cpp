@@ -62,12 +62,15 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
 
     void changingViewPreservesTheActivePane_data() {
         QTest::addColumn<bool>("addressFocused");
-        QTest::newRow("list") << false;
-        QTest::newRow("address") << true;
+        QTest::addColumn<bool>("openFromIcons");
+        QTest::newRow("list") << false << false;
+        QTest::newRow("address") << true << false;
+        QTest::newRow("icons") << false << true;
     }
 
     void changingViewPreservesTheActivePane() {
         QFETCH(bool, addressFocused);
+        QFETCH(bool, openFromIcons);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -119,7 +122,8 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
         QWidget *const initialFocus = window.focusWidget();
         QVERIFY(initialFocus);
 
-        for (const int mode : {0, 3}) {
+        const QList<int> modes = openFromIcons ? QList{0} : QList{0, 3};
+        for (const int mode : modes) {
             action(window, mode == 0 ? "viewMode0Action" : "viewMode3Action")->trigger();
             auto *visible = qobject_cast<QAbstractItemView *>(stack->currentWidget());
             QCOMPARE(visible, mode == 0 ? static_cast<QAbstractItemView *>(icons) : files);
@@ -134,8 +138,10 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
             QVERIFY(QDir().mkpath(fixture.filePath("left/added")));
             QTest::keySequence(window.focusWidget(), action(window, "refreshAction")->shortcut());
             QTRY_VERIFY(rowInLeftPane("added") >= 0);
-            QTRY_VERIFY(files->isEnabled() && files->hasFocus());
-            QCOMPARE(files->currentIndex().siblingAtColumn(0).data().toString(),
+            auto *visible = qobject_cast<QAbstractItemView *>(stack->currentWidget());
+            QVERIFY(visible);
+            QTRY_VERIFY(visible->isEnabled() && visible->hasFocus());
+            QCOMPARE(visible->currentIndex().siblingAtColumn(0).data().toString(),
                      QString("selected"));
         }
         QTest::keySequence(window.focusWidget(), action(window, "openItemAction")->shortcut());
