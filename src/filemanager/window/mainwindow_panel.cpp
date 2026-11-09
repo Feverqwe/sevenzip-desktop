@@ -166,10 +166,26 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                     }
                 }
             }
-            if (current ||
-                (immediateParent ? workspace_->Navigate([this] { return goParentImpl(); })
-                                 : navigateTo(path, true)) == S_OK)
+            QString branch;
+            if (!current && !immediateParent && !ui.locationUnavailable &&
+                ui.state == State::Filesystem && QDir::isAbsolutePath(target)) {
+                const QString prefix = target.endsWith(u'/') ? target : target + u'/';
+                if (ui.directory.startsWith(prefix))
+                    branch = ui.directory.mid(prefix.size()).section(u'/', 0, 0);
+            }
+            const HRESULT result = current ? S_OK
+                                   : immediateParent
+                                       ? workspace_->Navigate([this] { return goParentImpl(); })
+                                       : navigateTo(path, true);
+            if (result == S_OK) {
+                if (!branch.isEmpty() && ui.state == State::Filesystem && ui.directory == target) {
+                    CSelectedState selection;
+                    selection.FocusedName = ToUString(branch);
+                    selection.FocusedName_Defined = true;
+                    restoreListSelection(selection);
+                }
                 workspace_->RequestListFocus(index);
+            }
         },
         navigationRow,
         [this, index] {

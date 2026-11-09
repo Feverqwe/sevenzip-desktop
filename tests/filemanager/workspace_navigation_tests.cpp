@@ -255,6 +255,23 @@ class WorkspaceNavigationTests final : public QObject {
         QTest::keyClick(table, Qt::Key_Return);
         QTRY_COMPARE(QDir::cleanPath(ToQString(table->sourcePanel->GetCurrentFolderPrefix())),
                      child);
+        const QString deep = child + "/deeper";
+        QVERIFY(QDir().mkpath(deep));
+        window.resize(980, 620);
+        window.openPath(deep);
+        QTRY_VERIFY(table->isEnabled());
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), deep);
+        QToolButton *ancestor = nullptr;
+        for (auto *button : bar->findChildren<QToolButton *>())
+            if (button->isVisible() && QDir::cleanPath(button->toolTip()) == parent)
+                ancestor = button;
+        QVERIFY(ancestor);
+        QTest::mouseClick(ancestor, Qt::LeftButton);
+        QTRY_VERIFY(table->isEnabled() && table->hasFocus());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QStringLiteral("child 空"));
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), child);
     }
     void archiveParentBreadcrumbReturnsToTheChildRow() {
         QTemporaryDir fixture;
