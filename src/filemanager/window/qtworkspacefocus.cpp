@@ -51,6 +51,15 @@ void QtWindowWorkspace::CancelListFocus() {
     ++focusRequest_;
 }
 
+HRESULT QtWindowWorkspace::NavigateToList(const std::function<HRESULT()> &body) {
+    const unsigned panel = window_.projectedPanel_;
+    const auto interaction = interactionRevision_;
+    return Navigate(body, [this, panel, interaction](HRESULT result) {
+        if (result == S_OK)
+            FocusListAfterLocationOpen(panel, interaction);
+    });
+}
+
 void QtWindowWorkspace::FocusListAfterLocationOpen(unsigned panel, quint64 interaction) {
     // The scan completion can still be inside a temporary panel projection.
     QTimer::singleShot(0, this, [this, panel, interaction] {
