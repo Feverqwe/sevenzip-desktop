@@ -56,6 +56,64 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(survivor)});
     }
 
+    void unreadableOpenFolderCanBeRefreshed_data() {
+        QTest::addColumn<bool>("automatic");
+        QTest::newRow("manual") << false;
+        QTest::newRow("automatic") << true;
+    }
+
+    void unreadableOpenFolderCanBeRefreshed() {
+        QFETCH(bool, automatic);
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.path();
+        QVERIFY(writeControl(fixture.filePath("control.txt")));
+        const auto permissions = QFile::permissions(path);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(path, permissions); });
+        MainWindow window;
+        window.show();
+        window.openPath(path);
+        auto *view = table(window);
+        QTRY_VERIFY(filesystemRow(window, "control.txt") >= 0);
+        auto &panel = *view->sourcePanel;
+        panel.Set_AutoRefresh_Mode(false);
+        QVERIFY(QFile::setPermissions(path, QFile::ExeOwner));
+        if (QFileInfo(path).isReadable())
+            QSKIP("Requires a directory that the current user cannot list");
+
+        bool modal = false;
+        QTimer responder;
+        widgetDialogs_.connectResponder(responder, &window, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
+                modal = true;
+                message->accept();
+            }
+        });
+        responder.start(1);
+        auto *refresh = action(window, "refreshAction");
+        if (automatic) {
+            panel.Set_AutoRefresh_Mode(true);
+            panel.MarkPortableFolderChanged();
+            panel.OnTimer();
+            panel.Set_AutoRefresh_Mode(false);
+        } else {
+            refresh->trigger();
+        }
+        responder.stop();
+        QVERIFY(!modal);
+        QCOMPARE(view->rowCount(), 0);
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(refresh->isEnabled());
+
+        QVERIFY(QFile::setPermissions(path, permissions));
+        refresh->trigger();
+        QTRY_VERIFY(filesystemRow(window, "control.txt") >= 0);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
     void navigationDuringReloadStartsAtTop() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

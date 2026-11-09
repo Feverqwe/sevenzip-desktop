@@ -212,7 +212,8 @@ HRESULT CPanel::RefreshListCtrl_SaveFocused(bool preserveAddress) {
 
 void CPanel::OnReload(bool preserveAddress) {
     const auto completed = [this](HRESULT result) {
-        if (result != S_OK)
+        // The Qt filesystem projection already presents synchronous read errors.
+        if (result != S_OK && !(_reloadPresentation && IsFSFolder()))
             MessageBox_Error_HRESULT(result);
     };
     QScopedValueRollback<std::function<void(HRESULT)>> completion(_reloadCompletion, completed);
