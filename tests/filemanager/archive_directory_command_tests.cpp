@@ -164,6 +164,7 @@ class ArchiveDirectoryCommandTests final : public QObject {
         view->selectRow(Row(*view, directory));
         const int column = view->columnForProperty(kpidSize);
         QVERIFY(column >= 0);
+        view->setCurrentCell(Row(*view, directory), column, QItemSelectionModel::NoUpdate);
         const auto size = [&] {
             return view->model()->index(Row(*view, directory), column).data(Qt::UserRole + 2);
         };
@@ -206,6 +207,7 @@ class ArchiveDirectoryCommandTests final : public QObject {
         QCOMPARE(ToQString(view->sourcePanel->GetCurrentFolderPrefix()), sourcePrefix);
         QCOMPARE(address->text(), draft);
         QVERIFY(view->selectionModel()->isRowSelected(Row(*view, directory), {}));
+        QCOMPARE(view->currentIndex(), view->model()->index(Row(*view, directory), column));
         QCOMPARE(ToQString(peerView->sourcePanel->GetCurrentFolderPrefix()), peerPrefix);
         QCOMPARE(peerAddress->text(), peerDraft);
         QVERIFY(peerView->selectionModel()->isRowSelected(

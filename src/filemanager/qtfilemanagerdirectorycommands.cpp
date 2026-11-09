@@ -55,6 +55,7 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     panel.Get_ItemIndices_Operated(indices);
     CSelectedState selection;
     panel.SaveSelectedState(selection);
+    selection.PreserveAddress = true;
     HRESULT result;
     {
         QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
@@ -65,8 +66,7 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     // A cancelled recursive read can still have completed individual folders.
     // Refresh the projection from the retained reader, preserving selection.
     window_.withPanelProjection(source, [&] {
-        if (window_.renderBoundFolder(false) == S_OK)
-            window_.restoreListSelection(selection);
+        window_.reloadProjectedPanel(selection);
         if (result != S_OK && result != E_ABORT)
             panel.MessageBox_Error_HRESULT(result);
         window_.refreshActions();
