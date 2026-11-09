@@ -365,7 +365,9 @@ class DragArchiveTests : public QObject {
         responder.start(1);
         app.Panels[0].OnDrag(false);
         responder.stop();
-        if (outcome == 6 || outcome == 7 || outcome == 10)
+        if (outcome == 10)
+            QCOMPARE(errors.size(), 1);
+        else if (outcome == 6 || outcome == 7)
             QVERIFY(!errors.isEmpty());
         else
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));

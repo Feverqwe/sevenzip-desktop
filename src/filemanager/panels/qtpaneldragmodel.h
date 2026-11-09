@@ -79,6 +79,7 @@ class CDataObject : public std::enable_shared_from_this<CDataObject> {
     bool DoNotProcessInTarget = false, NeedCall_Copy = false, Copy_WasCalled = false;
     bool DeferredTempFiles = false;
     HRESULT Copy_HRESULT = S_OK;
+    bool CopyResultPresented = false;
     bool m_Transfer_WasSet = false;
     CDataObject_SetTransfer m_Transfer;
     std::shared_ptr<QtOwnedTempLease> OwnedTempLease;

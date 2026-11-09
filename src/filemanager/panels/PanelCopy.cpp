@@ -178,8 +178,10 @@ void CPanel::Get_ZoneId_Stream_from_ParentFolders(CByteBuffer &buf) {
 HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &indices,
                        UStringVector *messages, bool &usePassword, UString &password,
                        const UStringVector *filePaths, QtArchiveExtractReport *report) {
-    if (report)
+    if (report) {
         report->Status.reset();
+        report->ResultPresented = false;
+    }
     if (options.NeedRegistryZone && !options.testMode) {
         CContextMenuInfo ci;
         ci.Load(_settingsPath);
@@ -337,6 +339,12 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
         }
 
         extracter.ShowFinalResults(GetParent());
+        if (report)
+            report->ResultPresented =
+                extracter.MessagesDisplayed && !extracter.DisableUserQuestions &&
+                !extracter.DeferResultReview &&
+                (res != S_OK || !extracter.Sync.Messages.IsEmpty() || report->HadErrors ||
+                 (report->Status && !report->Status->Complete));
     }
 
     RefreshTitleAlways();

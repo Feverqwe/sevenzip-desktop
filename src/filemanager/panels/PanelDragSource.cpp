@@ -111,6 +111,7 @@ void CDataObject::CopyFromPanelTo_Folder(CPanel *source) {
         Copy_HRESULT = E_FAIL;
         QtArchiveExtractReport report;
         Copy_HRESULT = source->CopyTo(options, Indices, &Messages, &report);
+        CopyResultPresented = report.ResultPresented;
         if (Copy_HRESULT == S_OK && source->IsArcFolder() &&
             (!Messages.IsEmpty() || report.HadErrors ||
              (report.Status && !report.Status->Complete)))
@@ -271,14 +272,16 @@ void CPanel::OnDrag(bool isRightButton) {
                     else
                         options.moveMode = effect == DROPEFFECT_MOVE;
                 }
-                res = CopyTo(options, indices, &dataObjectSpec->Messages);
+                QtArchiveExtractReport report;
+                res = CopyTo(options, indices, &dataObjectSpec->Messages, &report);
+                dataObjectSpec->CopyResultPresented = report.ResultPresented;
             }
     } else {
         if (res != DRAGDROP_S_CANCEL && res != S_OK && res != HRESULT(0x8000FFFFL))
             MessageBox_Error_HRESULT(res);
         res = dataObjectSpec->Copy_HRESULT;
     }
-    if (!dataObjectSpec->Messages.IsEmpty()) {
+    if (!dataObjectSpec->CopyResultPresented && !dataObjectSpec->Messages.IsEmpty()) {
         QStringList lines;
         FOR_VECTOR(i, dataObjectSpec->Messages)
         lines.append(ToQString(dataObjectSpec->Messages[i]));
@@ -294,7 +297,7 @@ void CPanel::OnDrag(bool isRightButton) {
         QtTaskResultDialog result(summary, lines.join('\n'), GetParent());
         result.setAttribute(Qt::WA_DeleteOnClose, false);
         result.exec();
-    } else if (res != S_OK && res != E_ABORT) {
+    } else if (!dataObjectSpec->CopyResultPresented && res != S_OK && res != E_ABORT) {
         disableNotify.Restore();
         MessageBox_Error_HRESULT(res);
     }
