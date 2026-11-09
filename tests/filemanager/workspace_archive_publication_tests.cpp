@@ -107,12 +107,13 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         selectionAfterRefresh.sort();
         QCOMPARE(selectionAfterRefresh, selectedNames);
         auto *view = table(writer);
+        QCOMPARE(QApplication::activeWindow(), &writer);
+        QTRY_COMPARE(writer.focusWidget(), view);
         const int row = names(writer).indexOf("original.txt");
         QVERIFY(row >= 0);
-        view->setFocus();
         view->setCurrentCell(row, 0);
         view->selectRow(row);
-        action(writer, "renameAction")->trigger();
+        QTest::keyClick(writer.focusWidget(), Qt::Key_F2);
         auto *editor = qobject_cast<QLineEdit *>(writer.focusWidget());
         QVERIFY(editor && view->isAncestorOf(editor));
         editor->setText("renamed.txt");

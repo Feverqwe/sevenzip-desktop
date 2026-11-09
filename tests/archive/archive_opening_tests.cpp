@@ -115,7 +115,8 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(openType.toStdWString().c_str()), nullptr),
+                                              UString(openType.toStdWString().c_str()), UString(),
+                                              nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -255,7 +256,7 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString("zip"), nullptr),
+                                              UString("zip"), UString(), nullptr),
                  HRESULT(S_OK));
         QVERIFY(opening.Folder);
         QCOMPARE(opening.Folder->LoadItems(), HRESULT(S_OK));
@@ -268,7 +269,7 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
                  QFileInfo(source).fileName().normalized(QString::NormalizationForm_C));
         CFfpOpen plain(manager);
         QCOMPARE(plain.OpenFileFolderPlugin(nullptr, us2fs(source.toStdWString().c_str()),
-                                            UString(), nullptr),
+                                            UString(), UString(), nullptr),
                  HRESULT(S_FALSE));
         QVERIFY(!plain.Folder);
         QVERIFY(!plain.Encrypted);
@@ -360,7 +361,7 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
         const QString virtualPath = fixture.filePath("virtual archive.tar");
         // A full intermediate spool exceeds the source's opening read budget.
         QCOMPARE(opening.OpenFileFolderPlugin(input, us2fs(virtualPath.toStdWString().c_str()),
-                                              UString(L"tar"), nullptr),
+                                              UString(L"tar"), UString(), nullptr),
                  S_OK);
         budget->Remaining = UInt64(-1);
         CMyComPtr<IFolderFolder> child;
@@ -448,7 +449,7 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(stream, FString("virtual-name.zip"), UString("zip"),
-                                              nullptr),
+                                              UString(), nullptr),
                  HRESULT(S_OK));
         CMyComPtr<IFolderFolder> child;
         QCOMPARE(opening.Folder->BindToFolder(L"inside", &child), HRESULT(S_OK));
@@ -470,8 +471,9 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
                              size_t(invalid.size()));
         buffer->Init();
         CFfpOpen bad(manager);
-        QCOMPARE(bad.OpenFileFolderPlugin(stream, FString("bad.zip"), UString(), nullptr),
-                 HRESULT(S_FALSE));
+        QCOMPARE(
+            bad.OpenFileFolderPlugin(stream, FString("bad.zip"), UString(), UString(), nullptr),
+            HRESULT(S_FALSE));
         QVERIFY(!bad.Folder);
         QVERIFY(!backend.busy());
     }
@@ -504,7 +506,7 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
         });
         responder.start();
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(), nullptr),
+                                              UString(), UString(), nullptr),
                  HRESULT(accept ? S_OK : E_ABORT));
         QVERIFY(observed);
         QCOMPARE(bool(opening.Folder), accept);
@@ -524,7 +526,7 @@ class ArchiveOpeningTests : public QObject, protected ArchiveBackendTestSupport 
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(), nullptr),
+                                              UString(), UString(), nullptr),
                  HRESULT(E_FAIL));
         QVERIFY(!opening.Folder);
         QVERIFY(!backend.busy());

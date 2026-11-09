@@ -573,7 +573,7 @@ class SourceBrowseDialogTests final : public QObject {
                 QCOMPARE(dialog->focusWidget(), path);
             }
             path->setText(folder ? "new folder/child" : "new folder/archive.7z");
-            dialog->accept();
+            QTest::keyClick(dialog->focusWidget(), Qt::Key_Return);
         });
         UString output;
         if (folder) {

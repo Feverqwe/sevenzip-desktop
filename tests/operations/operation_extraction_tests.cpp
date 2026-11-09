@@ -173,15 +173,24 @@ class OperationExtractionTests final : public QObject {
         const auto before = readFile(archive);
         const auto output = directory.filePath("output");
         QVERIFY(writeFile(QDir(output).filePath("z-existing.txt"), "retained existing entry"));
-        Environment cancel("SEVENZIP_OPERATION_OVERWRITE", "overwriteCancel");
         auto job = Extract(archive, output);
         job.YesToAll = false;
-        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        const auto result = [&] {
+            Environment cancel("SEVENZIP_OPERATION_OVERWRITE", "overwriteCancel");
+            return Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        }();
         QCOMPARE(result.Status, Outcome::Cancelled);
         QCOMPARE(readFile(QDir(output).filePath("a-new.txt")), QByteArray("completed entry"));
         QCOMPARE(readFile(QDir(output).filePath("z-existing.txt")),
                  QByteArray("retained existing entry"));
         QCOMPARE(Roots(result), QStringList{QFileInfo(output).canonicalFilePath()});
+        QCOMPARE(readFile(archive), before);
+        Environment replace("SEVENZIP_OPERATION_OVERWRITE", "overwriteYes");
+        const auto retry = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        QCOMPARE(retry.Status, Outcome::Success);
+        QCOMPARE(readFile(QDir(output).filePath("a-new.txt")), QByteArray("completed entry"));
+        QCOMPARE(readFile(QDir(output).filePath("z-existing.txt")),
+                 QByteArray("incoming replacement"));
         QCOMPARE(readFile(archive), before);
     }
     void checksumFailureRetainsReadableAndPartialOutput() {
@@ -233,23 +242,29 @@ class OperationExtractionTests final : public QObject {
         QCOMPARE(create.exitCode(), 0);
         const auto archive = directory.filePath("protected.7z");
         const auto before = readFile(archive);
-        Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", password);
-        std::unique_ptr<Environment> cancellation;
-        if (cancel)
-            cancellation = std::make_unique<Environment>("SEVENZIP_OPERATION_CANCEL_PASSWORD", "1");
         const auto output = directory.filePath("output");
         auto job = Extract(archive, output);
         job.YesToAll = false;
-        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        const auto result = [&] {
+            Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", password);
+            std::unique_ptr<Environment> cancellation;
+            if (cancel)
+                cancellation =
+                    std::make_unique<Environment>("SEVENZIP_OPERATION_CANCEL_PASSWORD", "1");
+            return Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        }();
         const bool correct = !cancel && password == "fixture-password";
         QCOMPARE(result.Status, cancel    ? Outcome::Cancelled
                                 : correct ? Outcome::Success
                                           : Outcome::Failure);
-        if (correct)
-            QCOMPARE(readFile(QDir(output).filePath("secret.txt")),
-                     QByteArray("protected payload"));
-        else
+        if (!correct) {
             QVERIFY(!QFileInfo::exists(QDir(output).filePath("secret.txt")));
+            QCOMPARE(readFile(archive), before);
+            Environment retryPassword("SEVENZIP_OPERATION_PASSWORD", "fixture-password");
+            const auto retry = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+            QCOMPARE(retry.Status, Outcome::Success);
+        }
+        QCOMPARE(readFile(QDir(output).filePath("secret.txt")), QByteArray("protected payload"));
         QCOMPARE(readFile(archive), before);
     }
     void extractionContinuesAfterParentExit() {

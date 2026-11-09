@@ -487,6 +487,59 @@ class WorkspaceSessionTests final : public QObject {
         }
     }
 
+    void sessionRestoreKeepsANewerPaneSwitch() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString leftPath = fixture.filePath("left folder");
+        const QString rightPath = fixture.filePath("right folder");
+        QVERIFY(QDir().mkpath(leftPath) && QDir().mkpath(rightPath));
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SavePanelPath(0, ToUString(leftPath), settings);
+        SavePanelPath(1, ToUString(rightPath), settings);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.findChild<QAction *>("twoPanelsAction")->trigger();
+        auto *left = window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>();
+        auto *right = window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>();
+        QTRY_VERIFY(left->hasFocus());
+        QTRY_COMPARE(QDir::cleanPath(ToQString(right->sourcePanel->GetFsPath())), rightPath);
+        const auto saved = workspace(window)->Save();
+        bool restored = false;
+        workspace(window)->Restore(saved, [&] { restored = true; });
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(right->hasFocus());
+        QTRY_VERIFY(restored);
+        QTRY_VERIFY(right->hasFocus());
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(window.windowTitle())), rightPath);
+    }
+
+    void sessionRestoreDoesNotRaiseOverANewerActiveWindow() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend restoredBackend, peerBackend;
+        MainWindow restored(&restoredBackend), peer(&peerBackend);
+        peer.show();
+        restored.show();
+        restored.openPath(fixture.path());
+        QTRY_COMPARE(location(restored), fixture.path());
+        QVERIFY(WindowActivation::waitForActive(restored));
+        const auto saved = workspace(restored)->Save();
+        QVERIFY(saved.value("activeWindow").toBool());
+        const QString other = fixture.filePath("other");
+        QVERIFY(QDir().mkdir(other));
+        restored.openPath(other);
+        QTRY_COMPARE(location(restored), other);
+        bool finished = false;
+        workspace(restored)->Restore(saved, [&] { finished = true; });
+        QApplication::setActiveWindow(&peer);
+        QCOMPARE(QApplication::activeWindow(), &peer);
+        QTRY_VERIFY(finished);
+        QCOMPARE(location(restored), fixture.path());
+        QCOMPARE(QApplication::activeWindow(), &peer);
+    }
+
     void sessionKeepsUnavailableFolderAndAllowsRetry() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

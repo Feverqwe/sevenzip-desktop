@@ -1,5 +1,6 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "ui/lifecycle/qttaskpresentation.h"
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QScopedValueRollback>
@@ -53,7 +54,8 @@ QJsonObject QtWindowWorkspace::Save() {
             {"geometry", QString::fromLatin1(window_.saveGeometry().toBase64())}};
 }
 
-void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void()> canceled) {
+void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void()> canceled,
+                                  bool presentingResult) {
     auto *timer = new QTimer(this);
     const auto pending = std::make_shared<bool>(true);
     const auto cancel = [pending, canceled = std::move(canceled)] {
@@ -62,20 +64,21 @@ void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void
     };
     connect(timer, &QObject::destroyed, cancel);
     timer->setInterval(25);
-    connect(timer, &QTimer::timeout, this, [this, timer, pending, body = std::move(body), cancel] {
-        if (window_.app_.QtOperations().closed()) {
-            timer->stop();
-            timer->deleteLater();
-            cancel();
-            return;
-        }
-        if (!Ready())
-            return;
-        timer->stop();
-        timer->deleteLater();
-        *pending = false;
-        body();
-    });
+    connect(timer, &QTimer::timeout, this,
+            [this, timer, pending, body = std::move(body), cancel, presentingResult] {
+                if (window_.app_.QtOperations().closed()) {
+                    timer->stop();
+                    timer->deleteLater();
+                    cancel();
+                    return;
+                }
+                if (!Ready() || (presentingResult && !QtTaskPresentation::CanPresent()))
+                    return;
+                timer->stop();
+                timer->deleteLater();
+                *pending = false;
+                body();
+            });
     timer->start();
 }
 
@@ -149,6 +152,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                                 const QtArchiveLocation &firstArchive) {
     const auto panels = value.value("panels").toArray();
     const auto interaction = interactionRevision_;
+    const QPointer<QWidget> activeAtStart = QApplication::activeWindow();
     const bool savedTwo = value.value("count").toInt(1) == 2;
     bool needsOtherPane = false;
     for (unsigned panel = 0; panel < 2 && panel < panels.size(); ++panel)
@@ -157,12 +161,15 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
     if ((needsOtherPane || savedTwo) && window_.app_.NumPanels == 1)
         window_.togglePanels();
     WhenReady(
-        [this, value, panels, finished = std::move(finished), canceled, firstArchive, interaction] {
-            const auto complete = [this, value, finished, interaction] {
+        [this, value, panels, finished = std::move(finished), canceled, firstArchive, interaction,
+         activeAtStart] {
+            const auto complete = [this, value, finished, interaction, activeAtStart] {
                 const unsigned focus = qBound(0, value.value("focused").toInt(), 1);
-                if (window_.panelUi_[focus].container)
+                const bool restoreFocus = interactionRevision_ == interaction;
+                const bool singlePane = value.value("count").toInt(1) == 1;
+                if ((restoreFocus || singlePane) && window_.panelUi_[focus].container)
                     window_.activatePanelUi(focus);
-                if (value.value("count").toInt(1) == 1 && window_.app_.NumPanels == 2)
+                if (singlePane && window_.app_.NumPanels == 2)
                     window_.togglePanels();
                 const QByteArray geometry =
                     QByteArray::fromBase64(value.value("geometry").toString().toLatin1());
@@ -176,11 +183,12 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.panelSplitter_->RememberPosition();
                 }
                 window_.refreshActions();
-                if (value.value("activeWindow").toBool()) {
+                if (value.value("activeWindow").toBool() &&
+                    QApplication::activeWindow() == activeAtStart) {
                     window_.raise();
                     window_.activateWindow();
                 }
-                if (interactionRevision_ == interaction)
+                if (restoreFocus)
                     RequestListFocus(focus);
                 if (finished)
                     finished();

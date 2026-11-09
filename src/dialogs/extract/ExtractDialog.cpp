@@ -44,8 +44,12 @@ QString InvalidOutputDirectory() {
 }
 
 QString DestinationDraft(const QString &draft, const QString &prefix = {}) {
-    const QString trimmed = draft.trimmed();
-    if (draft == trimmed || draft.contains(QChar::Null))
+    if (draft.contains(QChar::Null))
+        return draft;
+    UString source = ToUString(draft);
+    source.Trim();
+    const QString trimmed = ToQString(source);
+    if (draft == trimmed)
         return draft;
     const QFileInfo literal(prefix + draft);
     return literal.exists() || literal.isSymLink() ? draft : trimmed;

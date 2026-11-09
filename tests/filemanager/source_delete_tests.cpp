@@ -500,12 +500,13 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 for (int mode : {3, 4})
                     QTest::newRow(qPrintable(QString("%1-%2-%3").arg(pane).arg(language).arg(mode)))
                         << pane << language << mode;
+        QTest::newRow("partial-while-editing-address") << 0u << QString("-") << 5;
     }
     void accepted() {
         QFETCH(unsigned, pane);
         QFETCH(QString, language);
         QFETCH(int, mode);
-        const bool partial = mode == 4;
+        const bool partial = mode != 3;
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -629,8 +630,35 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         });
         responder.start(1);
         action(window, "deleteAction")->trigger();
-        if (partial)
+        if (mode == 5) {
+            QApplication::setActiveWindow(&window);
+            auto *sourcePane = window.findChild<QWidget *>("filePanel0");
+            auto *address = sourcePane->findChild<QLineEdit *>("archivePath");
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            address->selectAll();
+            QTest::keyClicks(address, "unfinished path");
+            QTRY_COMPARE(view->rowCount(), 2);
+            QTest::qWait(100);
+            QCOMPARE(errors, 0);
+            QVERIFY(address->hasFocus());
+            QTest::keyClicks(address, " draft");
+            QCOMPARE(address->text(), QString("unfinished path draft"));
+            QTest::keyClick(address, Qt::Key_Escape);
             QTRY_COMPARE(errors, 1);
+        } else if (partial) {
+            auto *menu = window.findChild<QMenu *>("viewMenu");
+            QVERIFY(menu);
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            const auto closeMenu = qScopeGuard([&] { menu->hide(); });
+            QTRY_VERIFY(menu->isVisible());
+            QTRY_COMPARE(view->rowCount(), 2);
+            QTest::qWait(100);
+            QCOMPARE(errors, 0);
+            QVERIFY(menu->isVisible());
+            QTest::keyClick(menu, Qt::Key_Escape);
+            QTRY_COMPARE(errors, 1);
+        }
         responder.stop();
         QCOMPARE(confirmations, 1);
         QCOMPARE(errors, partial ? 1 : 0);

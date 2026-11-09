@@ -159,7 +159,7 @@ class SourceMetadataStorageTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(), nullptr),
+                                              UString(), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);

@@ -667,7 +667,8 @@ class ExtractDialogTests final : public QObject {
                 QCOMPARE(edit->cursorPosition(), 1);
             }
         }
-        dialog.accept();
+        QTRY_VERIFY(dialog.focusWidget() == edit || dialog.focusWidget() == destination);
+        QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())),
                  QDir(selected).filePath(subfolder->text()));

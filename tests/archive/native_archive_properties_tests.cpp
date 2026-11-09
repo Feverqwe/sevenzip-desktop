@@ -94,7 +94,8 @@ class NativeArchivePropertiesTests final : public QObject {
 
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
-        QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(ToUString(path)), UString(), nullptr),
+        QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(ToUString(path)), UString(), UString(),
+                                              nullptr),
                  S_OK);
         QCOMPARE(opening.Folder->LoadItems(), S_OK);
         UInt32 count = 0;
@@ -231,9 +232,9 @@ class NativeArchivePropertiesTests final : public QObject {
             QVERIFY(native.GetArc()->FormatIndex < 0);
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
-        QCOMPARE(
-            opening.OpenFileFolderPlugin(nullptr, us2fs(ToUString(path)), ToUString(type), nullptr),
-            S_OK);
+        QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(ToUString(path)), ToUString(type),
+                                              UString(), nullptr),
+                 S_OK);
         CMyComPtr<IGetFolderArcProps> provider;
         QCOMPARE(opening.Folder.QueryInterface(IID_IGetFolderArcProps, &provider), S_OK);
         CMyComPtr<IFolderArcProps> props;

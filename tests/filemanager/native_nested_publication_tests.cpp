@@ -11,6 +11,7 @@
 #include "platform/support/native_property_failure_runtime.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
@@ -107,7 +108,7 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
             CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
             CFfpOpen opening(manager);
             QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                                  UString(L"tar"), nullptr),
+                                                  UString(L"tar"), UString(), nullptr),
                      S_OK);
             CMyComPtr<IFolderSetFlatMode> flat;
             QCOMPARE(opening.Folder.QueryInterface(IID_IFolderSetFlatMode, &flat), S_OK);
@@ -233,10 +234,21 @@ class NativeNestedPublicationTests final : public QObject, protected MainWindowT
         elapsed.start();
         QTimer driver, responder;
         dialogs_.connectResponder(responder, &window, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(dialogs_.activeDialog())) {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *report = TestProgressDialog::ResultWindow(dialog)) {
+                if (report->Sync.FinalMessage.Result.value_or(E_ABORT) != E_ABORT)
+                    errors << TestProgressDialog::ReportText(*report);
+                TestProgressDialog::CloseResult(*report);
+            } else if (auto *box = qobject_cast<QMessageBox *>(dialog)) {
                 if (box->objectName() == "progressCancelQuestion") {
                     replied = true;
-                    box->button(QMessageBox::StandardButton(answer))->click();
+                    if (answer == QMessageBox::Cancel)
+                        QTest::keyClick(box, Qt::Key_Escape);
+                    else {
+                        auto *button = box->button(QMessageBox::StandardButton(answer));
+                        QVERIFY(button);
+                        button->click();
+                    }
                 } else {
                     errors << box->text();
                     box->accept();

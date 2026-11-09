@@ -153,16 +153,20 @@ class WorkspacePlacesTests final : public QObject {
                 button->text() == QCoreApplication::translate("QtWindowWorkspace", "Retry"))
                 retry = button;
         QVERIFY(retry);
-        QTest::mouseClick(retry, Qt::LeftButton);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_COMPARE(window.focusWidget(), retry);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Space);
         QTRY_VERIFY(errorVisible());
+        QTRY_COMPARE(window.focusWidget(), retry);
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
         QVERIFY(!QSettings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat)
                      .value("FolderHistory")
                      .toStringList()
                      .contains(missing));
         QVERIFY(QDir().mkpath(missing));
-        QTest::mouseClick(retry, Qt::LeftButton);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Space);
         QTRY_VERIFY(window.findChild<QAction *>("createFolderAction")->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), files);
         QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), missing);
         window.findChild<QAction *>("backAction")->trigger();
         QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());

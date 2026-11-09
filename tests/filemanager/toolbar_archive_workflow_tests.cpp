@@ -352,6 +352,21 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                                       QFileInfo(healthy).canonicalFilePath()}));
         QCOMPARE(source->selectionModel()->selectedRows().size(), 2);
         QTRY_VERIFY(source->hasFocus());
+        const auto healthyRows =
+            source->model()->match(source->model()->index(0, 0), QtPanelList::NameRole,
+                                   QFileInfo(healthy).fileName(), 1, Qt::MatchExactly);
+        QCOMPARE(healthyRows.size(), 1);
+        QTest::mouseClick(source->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          source->visualRect(healthyRows.front()).center());
+        QCOMPARE(source->selectionModel()->selectedRows(), healthyRows);
+        PanelKeys::command(window.focusWidget(), Qt::Key_T,
+                           Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 2, 30000);
+        QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
+        QCOMPARE(backend.Selections.size(), 2);
+        QCOMPARE(backend.Selections.last().size(), 1);
+        QCOMPARE(QFileInfo(backend.Selections.last().front()).canonicalFilePath(),
+                 QFileInfo(healthy).canonicalFilePath());
         QCOMPARE(readFile(damaged), invalid);
         QCOMPARE(readFile(healthy), before);
     }
@@ -467,6 +482,8 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         const auto archive = makeArchive(input, "context command bytes");
         QVERIFY(!archive.isEmpty());
         QVERIFY(QFile::remove(QDir(input).filePath(kName)));
+        const QString extractedFolder = QFileInfo(kName).path();
+        QVERIFY(QDir(input).rmdir(extractedFolder));
         const auto before = readFile(archive);
         CContextMenuInfo context;
         context.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
@@ -483,7 +500,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *source = openPanel(window, 0, input);
-        QTRY_COMPARE(source->rowCount(), 2);
+        QTRY_COMPARE(source->rowCount(), 1);
         int selected = -1;
         for (int row = 0; row < source->rowCount(); ++row)
             if (source->model()->index(row, 0).data().toString() == "input.zip")
@@ -520,6 +537,12 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                                 : verb == "ExtractHere" ? input
                                                         : QDir(input).filePath("input");
             QCOMPARE(readFile(QDir(output).filePath(kName)), QByteArray("context command bytes"));
+            if (verb == "ExtractHere") {
+                QTRY_VERIFY(!source->model()
+                                 ->match(source->model()->index(0, 0), Qt::DisplayRole,
+                                         extractedFolder, 1, Qt::MatchExactly)
+                                 .isEmpty());
+            }
         }
         QCOMPARE(readFile(archive), before);
         QVERIFY(action(window, "refreshAction")->isEnabled());

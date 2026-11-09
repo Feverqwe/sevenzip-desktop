@@ -114,6 +114,8 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
         return S_FALSE;
     }
     const unsigned peer = 1 - source;
+    const auto interaction = InteractionRevision();
+    const bool listFocused = window_.focusWidget() == ui.viewStack->currentWidget();
     HRESULT outcome = E_ABORT;
     window_.withPanelProjection(peer, [&] {
         auto &destination = window_.panelUi_[peer];
@@ -125,12 +127,19 @@ HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt3
         const auto failure = std::make_shared<QString>();
         outcome = Navigate(
             [&] {
-                return OpenRecordedLocation(peer, target.path, target.nativePlaceIdentity,
-                                            target.archiveLocation, failure.get());
+                const HRESULT result =
+                    OpenRecordedLocation(peer, target.path, target.nativePlaceIdentity,
+                                         target.archiveLocation, failure.get());
+                if (result == S_OK)
+                    window_.restoreListSelection(CSelectedState());
+                return result;
             },
-            [this, source, peer, path = target.path, revision, draft, failure](HRESULT result) {
+            [this, source, peer, path = target.path, revision, draft, failure, interaction,
+             listFocused](HRESULT result) {
                 if (window_.app_.QtOperations().closed())
                     return;
+                if (listFocused)
+                    FocusListAfterLocationOpen(source, interaction);
                 if (result != S_OK) {
                     auto &owner = window_.panelUi_[peer];
                     auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
