@@ -1161,18 +1161,24 @@ class FileTransferTests : public QObject {
 
     void keepBothReservesTheNamesOfLaterFiles_data() {
         QTest::addColumn<bool>("move");
-        QTest::newRow("copy") << false;
-        QTest::newRow("move") << true;
+        QTest::addColumn<QString>("laterName");
+        QTest::newRow("copy") << false << QString("report_1.txt");
+        QTest::newRow("move") << true << QString("report_1.txt");
+#ifdef Q_OS_WIN
+        QTest::newRow("copy-with-different-case") << false << QString("REPORT_1.txt");
+        QTest::newRow("move-with-different-case") << true << QString("REPORT_1.txt");
+#endif
     }
 
     void keepBothReservesTheNamesOfLaterFiles() {
         QFETCH(bool, move);
+        QFETCH(QString, laterName);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString destination = fixture.filePath("destination");
         QVERIFY(QDir().mkdir(destination));
         const QString first = fixture.filePath("report.txt");
-        const QString second = fixture.filePath("report_1.txt");
+        const QString second = fixture.filePath(laterName);
         const QString existing = QDir(destination).filePath("report.txt");
         const auto write = [](const QString &path, const QByteArray &bytes) {
             QFile file(path);
@@ -1194,8 +1200,8 @@ class FileTransferTests : public QObject {
         QCOMPARE(prompts, 1);
         QVERIFY(result.first().first().toBool());
         for (const auto &[name, expected] :
-             {qMakePair("report.txt", "existing"), qMakePair("report_1.txt", "other source"),
-              qMakePair("report_2.txt", "incoming")}) {
+             {qMakePair(QString("report.txt"), "existing"), qMakePair(laterName, "other source"),
+              qMakePair(QString("report_2.txt"), "incoming")}) {
             QFile file(QDir(destination).filePath(name));
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray(expected));

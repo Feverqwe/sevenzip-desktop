@@ -530,8 +530,16 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                 mayReplace = true;
                 break;
             case OverwriteDecision::Rename: {
-                const QString candidate = availableName(
-                    target, [this](const QString &name) { return plannedTargets_.contains(name); });
+                const QString candidate = availableName(target, [this](const QString &name) {
+#ifdef Q_OS_WIN
+                    return std::any_of(plannedTargets_.cbegin(), plannedTargets_.cend(),
+                                       [&name](const QString &planned) {
+                                           return planned.compare(name, Qt::CaseInsensitive) == 0;
+                                       });
+#else
+                    return plannedTargets_.contains(name);
+#endif
+                });
                 if (candidate.isEmpty()) {
                     error = QCoreApplication::translate("qtfiletransfertransaction",
                                                         "Could not find an available name: %1")
