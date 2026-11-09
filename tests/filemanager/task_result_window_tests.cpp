@@ -308,9 +308,20 @@ class TaskResultWindowTests final : public QObject {
             QCOMPARE(QApplication::activeModalWidget(), modal ? &question : nullptr);
             draft = input->text();
             QCOMPARE(draft, QString("unfinished input-draft retained"));
-            if (address)
-                QTest::keyClick(input, Qt::Key_Escape);
-            else
+            if (address) {
+                auto *operations = peer.findChild<QMenu *>("operationsMenu");
+                QVERIFY(operations);
+                operations->popup(peer.mapToGlobal(QPoint(20, 20)));
+                QTRY_COMPARE(QApplication::activePopupWidget(), operations);
+                QAction *review = nullptr;
+                for (auto *entry : operations->actions())
+                    if (entry->toolTip().contains(archive))
+                        review = entry;
+                QVERIFY(review && review->isEnabled());
+                operations->setActiveAction(review);
+                QTest::keyClick(operations, Qt::Key_Return);
+                QCOMPARE(input->text(), draft);
+            } else
                 question.reject();
         }
         QTRY_VERIFY(!QApplication::activeModalWidget());
