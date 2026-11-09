@@ -1282,6 +1282,46 @@ class FileTransferTests : public QObject {
         }
     }
 
+    void mergeReportsWhenAnEmptySourceFolderCannotBeRemoved() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source/folder");
+        const QString protectedFolder = QDir(source).filePath("read only");
+        const QString empty = QDir(protectedFolder).filePath("empty");
+        const QString destination = fixture.filePath("destination");
+        const QString target = QDir(destination).filePath("folder");
+        QVERIFY(QDir().mkpath(empty));
+        QVERIFY(QDir().mkpath(target));
+        QFile input(QDir(source).filePath("entry.txt"));
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+        const auto permissions = QFile::permissions(protectedFolder);
+        const auto restore =
+            qScopeGuard([&] { QFile::setPermissions(protectedFolder, permissions); });
+        QVERIFY(QFile::setPermissions(protectedFolder, QFile::ReadOwner | QFile::ExeOwner));
+        if (QFileInfo(protectedFolder).isWritable())
+            QSKIP("The current user can still write to the source folder");
+
+        FileTransferOperation move({source}, destination, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QCOMPARE(result.size(), 1);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(empty));
+        QVERIFY(move.hasRetainedOutput());
+        QVERIFY(QFileInfo(empty).isDir());
+        QVERIFY(QFileInfo(QDir(target).filePath("read only/empty")).isDir());
+        QVERIFY(!QFileInfo::exists(input.fileName()));
+        QFile moved(QDir(target).filePath("entry.txt"));
+        QVERIFY(moved.open(QIODevice::ReadOnly));
+        QCOMPARE(moved.readAll(), QByteArray("payload"));
+    }
+
     void directoryMoveMergeKeepsSkippedSourceFile_data() {
         QTest::addColumn<bool>("directoryLink");
         QTest::newRow("file") << false;

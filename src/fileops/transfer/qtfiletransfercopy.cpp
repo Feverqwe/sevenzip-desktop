@@ -164,8 +164,16 @@ bool QtFileTransferTransaction::removeMergedSource(const QString &source,
     }
     std::sort(directories.begin(), directories.end(),
               [](const QString &a, const QString &b) { return a.size() > b.size(); });
-    for (const QString &directory : directories)
-        QDir().rmdir(directory);
+    for (const QString &directory : directories) {
+        if (!QDir().rmdir(directory) &&
+            QDir(directory).isEmpty(QDir::AllEntries | QDir::Hidden | QDir::System |
+                                    QDir::NoDotAndDotDot)) {
+            *error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                 "Could not delete source after copying: %1")
+                         .arg(directory);
+            return false;
+        }
+    }
     rootRemoved = QDir().rmdir(source); // Skipped files keep the source folder.
     if (!rootRemoved && worker_.canceled_) {
         *error = sourceRemovalCanceled();

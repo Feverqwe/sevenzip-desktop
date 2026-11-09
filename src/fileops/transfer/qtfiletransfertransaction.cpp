@@ -381,6 +381,8 @@ bool QtFileTransferTransaction::removeStagedSource(TransferEntry &entry, QString
             for (const auto &path : entry.writtenSources)
                 stagedFiles.append(QDir(staged).filePath(original.relativeFilePath(path)));
             removed = removeMergedSource(staged, stagedFiles, &error, rootRemoved);
+            if (!removed)
+                error.replace(staged, entry.source);
         } else {
             rootRemoved = removed = worker_.adapter_.removeSource(staged);
         }
