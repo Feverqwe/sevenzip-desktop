@@ -78,11 +78,18 @@ bool CPanel::CorrectFsPath(const UString &path2, UString &result) {
     return ::CorrectFsPath(GetFsPath(), path2, result);
 }
 
+static bool CorrectItemPath(CPanel &panel, const UString &path, UString &result) {
+    if (!panel.CorrectFsPath(path, result) || result.IsEmpty())
+        return false;
+    return !HasEmptyWindowsPathComponent(
+        path, NWindows::NFile::NName::IsAbsolutePath(result) ? result : panel.GetFsPath() + result);
+}
+
 static bool PrepareFilesystemName(CPanel &panel, UString &name) {
     if (!panel.IsFSFolder())
         return true;
     UString correctName;
-    if (!panel.CorrectFsPath(name, correctName) || correctName.IsEmpty()) {
+    if (!CorrectItemPath(panel, name, correctName)) {
         panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         return false;
     }
@@ -105,10 +112,7 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
         return E_INVALIDARG;
     if (IsFSFolder()) {
         UString corrected;
-        if (!CorrectFsPath(name, corrected) || corrected.IsEmpty() ||
-            HasEmptyWindowsPathComponent(name, NWindows::NFile::NName::IsAbsolutePath(corrected)
-                                                   ? corrected
-                                                   : GetFsPath() + corrected))
+        if (!CorrectItemPath(*this, name, corrected))
             return E_INVALIDARG;
         name = corrected;
     }

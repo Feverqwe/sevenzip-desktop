@@ -260,6 +260,11 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTest::newRow("unmarked-focused-row-collision")
             << 0u << QString("-") << true << QString() << false << false;
         QTest::newRow("icons-collision") << 1u << QString("-") << true << QString() << true << true;
+#ifdef Q_OS_WIN
+        QTest::newRow("empty-path-component")
+            << 0u << QString("-") << false << QStringLiteral("./.../renamed 空.txt") << true
+            << false;
+#endif
     }
     void editorPreservesSavedSelection() {
         QFETCH(unsigned, sourceIndex);
@@ -429,7 +434,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(payload.open(QIODevice::ReadOnly));
             QCOMPARE(payload.readAll(), entry.second);
         }
-        if (collision || (invalid && invalidName.isEmpty()) || invalidName.contains(QChar::Null)) {
+        if (collision || (invalid && invalidName != "..")) {
             QVERIFY(!QFileInfo::exists(fixture.filePath(QStringLiteral("renamed 空.txt"))));
             QTRY_COMPARE(window.focusWidget(), active);
             QTest::keyClick(window.focusWidget(), Qt::Key_F2);
