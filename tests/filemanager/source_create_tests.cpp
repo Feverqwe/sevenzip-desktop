@@ -247,15 +247,18 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<int>("count");
         QTest::addColumn<bool>("peerDraft");
         QTest::addColumn<bool>("peerScan");
-        QTest::newRow("immediate") << 100 << false << false;
-        QTest::newRow("deferred") << 257 << false << false;
-        QTest::newRow("deferred-with-peer-draft") << 257 << true << false;
-        QTest::newRow("deferred-with-peer-scan") << 257 << false << true;
+        QTest::addColumn<bool>("sameDirectory");
+        QTest::newRow("immediate") << 100 << false << false << false;
+        QTest::newRow("deferred") << 257 << false << false << false;
+        QTest::newRow("deferred-with-peer-draft") << 257 << true << false << false;
+        QTest::newRow("deferred-with-peer-scan") << 257 << false << true << false;
+        QTest::newRow("deferred-with-shared-directory") << 257 << true << false << true;
     }
     void revealsCreatedFolder() {
         QFETCH(int, count);
         QFETCH(bool, peerDraft);
         QFETCH(bool, peerScan);
+        QFETCH(bool, sameDirectory);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         CFmSettings preferences;
@@ -278,8 +281,12 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         if (peerDraft || peerScan) {
             QVERIFY(peerFolder.isValid());
             action(window, "twoPanelsAction")->trigger();
-            peer = openPanel(window, 1, peerFolder.path());
+            peer = openPanel(window, 1, sameDirectory ? fixture.path() : peerFolder.path());
             QTRY_VERIFY(peer->isEnabled());
+            if (sameDirectory) {
+                QTRY_COMPARE(peer->rowCount(), count);
+                peer->sourcePanel->Set_AutoRefresh_Mode(false);
+            }
         }
         if (peerDraft) {
             action(window, "createFolderAction")->trigger();
@@ -341,6 +348,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QFile keep(fixture.filePath("old-0.bin"));
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("keep bytes"));
+        if (sameDirectory) {
+            QTRY_VERIFY(row(peer, name) >= 0);
+            QCOMPARE(window.focusWidget(), peerName);
+            QTest::keyClick(peerName, Qt::Key_Return);
+            QTRY_VERIFY(QFileInfo(fixture.filePath("peer draft")).isDir());
+            QTRY_VERIFY(row(view, "peer draft") >= 0);
+            QTRY_VERIFY(row(peer, "peer draft") >= 0);
+        }
     }
     void navigationDoesNotRetargetDraft_data() {
         QTest::addColumn<bool>("queued");
