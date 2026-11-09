@@ -173,15 +173,24 @@ class OperationExtractionTests final : public QObject {
         const auto before = readFile(archive);
         const auto output = directory.filePath("output");
         QVERIFY(writeFile(QDir(output).filePath("z-existing.txt"), "retained existing entry"));
-        Environment cancel("SEVENZIP_OPERATION_OVERWRITE", "overwriteCancel");
         auto job = Extract(archive, output);
         job.YesToAll = false;
-        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        const auto result = [&] {
+            Environment cancel("SEVENZIP_OPERATION_OVERWRITE", "overwriteCancel");
+            return Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        }();
         QCOMPARE(result.Status, Outcome::Cancelled);
         QCOMPARE(readFile(QDir(output).filePath("a-new.txt")), QByteArray("completed entry"));
         QCOMPARE(readFile(QDir(output).filePath("z-existing.txt")),
                  QByteArray("retained existing entry"));
         QCOMPARE(Roots(result), QStringList{QFileInfo(output).canonicalFilePath()});
+        QCOMPARE(readFile(archive), before);
+        Environment replace("SEVENZIP_OPERATION_OVERWRITE", "overwriteYes");
+        const auto retry = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        QCOMPARE(retry.Status, Outcome::Success);
+        QCOMPARE(readFile(QDir(output).filePath("a-new.txt")), QByteArray("completed entry"));
+        QCOMPARE(readFile(QDir(output).filePath("z-existing.txt")),
+                 QByteArray("incoming replacement"));
         QCOMPARE(readFile(archive), before);
     }
     void checksumFailureRetainsReadableAndPartialOutput() {
