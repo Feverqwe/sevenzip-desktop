@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QPointer>
 #include <QPushButton>
+#include <QTimer>
 
 struct QtExternalFileTask::State {
     CTempFileInfo file;
@@ -23,6 +24,7 @@ struct QtExternalFileTask::State {
     QPointer<QDialog> dialog;
     QPointer<QDialog> question;
     std::unique_ptr<QFileSystemWatcher> watcher;
+    QTimer observationPresentation;
     QPointer<FileTransferOperation> copy;
     QPointer<QLabel> status;
     QPointer<QLabel> retainedText;
