@@ -741,6 +741,7 @@ class CompressionPathTests final : public QObject {
         QTest::addColumn<QString>("obstruction");
 #ifdef Q_OS_UNIX
         QTest::newRow("dangling-link") << QString("link");
+        QTest::newRow("write-only-archive") << QString("write-only");
 #endif
         QTest::newRow("read-only-archive") << QString("read-only");
         QTest::newRow("existing-folder") << QString("folder");
@@ -749,6 +750,7 @@ class CompressionPathTests final : public QObject {
     void occupiedArchiveNameCanBeCorrected() {
         QFETCH(QString, obstruction);
         const bool dangling = obstruction == "link";
+        const bool writeOnly = obstruction == "write-only";
         const bool inferredExtension = obstruction == "inferred-extension";
         const bool folder = obstruction == "folder" || inferredExtension;
         QTemporaryDir fixture;
@@ -773,7 +775,10 @@ class CompressionPathTests final : public QObject {
             QVERIFY(archive.open(QIODevice::ReadOnly));
             original = archive.readAll();
             archive.close();
-            QVERIFY(QFile::setPermissions(occupied, QFile::ReadOwner | QFile::ReadUser));
+            QVERIFY(QFile::setPermissions(
+                occupied, writeOnly ? QFile::WriteOwner : QFile::ReadOwner | QFile::ReadUser));
+            if (writeOnly && QFileInfo(occupied).isReadable())
+                QSKIP("The current user can still read the archive");
         }
         QVERIFY(SourceCreationFixture::Create(backend, occupied, {source_}) != S_OK);
 
@@ -820,6 +825,8 @@ class CompressionPathTests final : public QObject {
             QVERIFY(QFileInfo(occupied).isSymLink());
             QVERIFY(!QFileInfo::exists(missing));
         } else {
+            if (writeOnly)
+                QVERIFY(QFile::setPermissions(occupied, originalPermissions));
             QFile archive(occupied);
             QVERIFY(archive.open(QIODevice::ReadOnly));
             QCOMPARE(archive.readAll(), original);

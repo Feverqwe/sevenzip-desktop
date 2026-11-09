@@ -1,6 +1,7 @@
 #include "7zip/UI/FileManager/PasswordDialogRes.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/CompressDialogRes.h"
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "Windows/ErrorMsg.h"
 #include "Windows/FileFind.h"
 #include "Windows/FileName.h"
@@ -8,6 +9,7 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/operations/Update.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "filemanager/FormatUtils.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/native/correctfspath.h"
 #include "fileops/transfer/qttransfertargetname.h"
@@ -194,6 +196,12 @@ void CreateArchiveDialog::validateAndAccept() {
                 QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only") + '\n' +
                 QDir::toNativeSeparators(output);
         }
+#ifdef Q_OS_UNIX
+        if (pathError.isEmpty() && (!target.isFile() || !target.isReadable())) {
+            occupiedName = true;
+            pathError = ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, nativePath));
+        }
+#endif
     }
     if (pathError.isEmpty() && !singleVolume) {
         const UString first = archive.GetFinalVolPath() + L".001";
