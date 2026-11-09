@@ -118,10 +118,12 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
         name = corrected;
     }
     QString parentDirectory;
+    QString filesystemDestination;
     QString firstMissingParent;
     if (IsFSFolder()) {
-        parentDirectory = QFileInfo(QDir(ToQString(GetFsPath())), QDir::cleanPath(ToQString(name)))
-                              .absolutePath();
+        const QFileInfo destination(QDir(ToQString(GetFsPath())), QDir::cleanPath(ToQString(name)));
+        filesystemDestination = destination.absoluteFilePath();
+        parentDirectory = destination.absolutePath();
         QString ancestor = parentDirectory;
         QFileInfo component(ancestor);
         while (!component.isDir()) {
@@ -155,6 +157,11 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
         FOR_VECTOR(i, op.Sync.Messages)
         diagnostics.append(ToQString(op.Sync.Messages[i]));
         error = diagnostics.join(QLatin1Char('\n'));
+    }
+    if (FAILED(res) && res != E_ABORT && !filesystemDestination.isEmpty()) {
+        if (error.isEmpty())
+            error = ToQString(HResultToMessage(res));
+        error.prepend(QDir::toNativeSeparators(filesystemDestination) + u'\n');
     }
     SetPublishedArchive(*this, op, publishedArchive);
     if (res == S_OK)

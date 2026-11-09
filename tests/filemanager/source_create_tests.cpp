@@ -85,7 +85,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         if (draft.isEmpty())
             QCOMPARE(error->text(),
                      QCoreApplication::translate("InlineCreateFolder", "Enter a folder name."));
-        if (occupied && draft != unexpected)
+        if (occupied)
             QVERIFY(error->text().contains(QDir::toNativeSeparators(existing.fileName())));
         QCOMPARE(QFileInfo::exists(existing.fileName()), occupied);
         QCOMPARE(view->rowCount(), initialRows);
@@ -537,6 +537,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(name, Qt::Key_Return);
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
+        QVERIFY(error->text().contains(QDir::toNativeSeparators(fixture.filePath(occupied))));
         QCOMPARE(name->text(), occupied);
         QCOMPARE(name->selectedText(), occupied);
         const QString corrected = QStringLiteral("corrected folder");
