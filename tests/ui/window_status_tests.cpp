@@ -36,8 +36,8 @@ class WindowStatusTests final : public QObject {
         auto *size = bar.findChild<QLabel *>("selectedSizeStatus");
         auto *summary = bar.findChild<QLabel *>("selectedItemsStatus");
         QVERIFY(size->isVisible());
-        const QString message = QStringLiteral("Cannot open: ") +
-                                QStringLiteral("/long folder").repeated(20) + "/<b>&.zip";
+        const QString message = QStringLiteral("Cannot open:\n") +
+                                QStringLiteral("/long  folder").repeated(20) + "/<b>&.zip";
         bar.SetMessage(&left, message);
         QCOMPARE(bar.currentMessage(), message);
         QVERIFY(!size->isVisible());
