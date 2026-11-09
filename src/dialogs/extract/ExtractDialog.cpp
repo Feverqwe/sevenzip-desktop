@@ -296,6 +296,7 @@ void CExtractDialog::OnOK() {
         });
         return;
     }
+    _destinationError->hide();
     if (_validateSourcePaths) {
         for (const auto &source : _archiveSources) {
             const QFileInfo file(source);

@@ -702,6 +702,12 @@ class ExtractDialogTests final : public QObject {
                 const int skip = overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
                 QVERIFY(skip >= 0);
                 overwrite(dialog)->setCurrentIndex(skip);
+                QVERIFY(SourceExtractFixture::writeFile(output, "destination blocker"));
+                dialog.accept();
+                auto *destinationError = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(dialog.isVisible());
+                QVERIFY(destinationError && destinationError->isVisible());
+                QVERIFY(QFile::remove(output));
                 QVERIFY(QFile::rename(archive, parked));
                 if (replacedByDirectory)
                     QVERIFY(QDir().mkdir(archive));
@@ -712,6 +718,7 @@ class ExtractDialogTests final : public QObject {
                 });
                 dialog.accept();
                 QVERIFY(dialog.isVisible());
+                QVERIFY(!destinationError->isVisible());
                 QCOMPARE(destination->currentText(), output);
                 QCOMPARE(overwrite(dialog)->currentIndex(), skip);
                 QVERIFY(!QFileInfo::exists(output));
