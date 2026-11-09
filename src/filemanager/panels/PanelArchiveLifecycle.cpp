@@ -134,8 +134,11 @@ HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFile
             message = MyFormatNew(opRes.Encrypted ? IDS_CANT_OPEN_ENCRYPTED_ARCHIVE
                                                   : IDS_CANT_OPEN_ARCHIVE,
                                   virtualFilePath);
-        else
-            message = HResultToMessage(res);
+        else {
+            message = MyFormatNew(IDS_CANT_OPEN_ARCHIVE, virtualFilePath);
+            message.Add_LF();
+            message += opRes.ErrorMessage.IsEmpty() ? HResultToMessage(res) : opRes.ErrorMessage;
+        }
         if (failure)
             *failure = message;
         else

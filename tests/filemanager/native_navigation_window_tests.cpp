@@ -722,6 +722,49 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                 QTest::newRow(qPrintable(QString("%1-%2").arg(origin).arg(cancel)))
                     << origin << cancel;
     }
+    void unreadableArchiveFromListShowsItsPathAndCanBeRetried() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires file permissions that deny reading without hiding the entry");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.filePath(QStringLiteral("архив без доступа.zip"));
+        QVERIFY(NativeArchiveFixture::Write(path, {{"entry.txt", "payload"}}, "zip"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        openFilesystemPanel(window, 0, fixture.path());
+        auto *view = table(window);
+        view->selectRow(0);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+
+        const auto permissions = QFile::permissions(path);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(path, permissions); });
+        QVERIFY(QFile::setPermissions(path, QFile::WriteOwner));
+        QFile unreadable(path);
+        if (unreadable.open(QIODevice::ReadOnly))
+            QSKIP("The test process can still read the archive");
+        QString message;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                message = error->text();
+                error->accept();
+            }
+        });
+        dismiss.start(5);
+        PanelKeys::openSelection(view);
+        QVERIFY(message.contains(path));
+        QCOMPARE(view->currentIndex().data().toString(), QFileInfo(path).fileName());
+
+        QVERIFY(QFile::setPermissions(path, permissions));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view->hasFocus());
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(view->model()->index(0, 0).data().toString(), QString("entry.txt"));
+    }
     void encryptedArchivePassword_data() {
         QTest::addColumn<QString>("password");
         QTest::addColumn<bool>("accept");
