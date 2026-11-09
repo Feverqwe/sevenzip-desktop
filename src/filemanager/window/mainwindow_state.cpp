@@ -61,10 +61,12 @@ void MainWindow::refreshActions() {
                 continue;
             const bool projecting = ui.scanningDisk || ui.scanningArchive;
             const bool panelIdle = navigating && !projecting && !ui.locationUnavailable;
+            const bool keepListFocus =
+                navigating && ui.scanningDisk && ui.refreshingDisk && !ui.locationUnavailable;
             // A closing popup can leave global focus unset while the window
             // still remembers the file list that owned keyboard input.
             QWidget *focused = operating ? focusWidget() : QApplication::focusWidget();
-            if ((projecting || operating) && focused &&
+            if (((projecting && !keepListFocus) || operating) && focused &&
                 (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
                  ui.iconList->isAncestorOf(focused)))
                 workspace_->RetainListFocus(index);
@@ -72,8 +74,8 @@ void MainWindow::refreshActions() {
             // restoration finish. Keep that policy across Qt's asynchronous batches.
             ui.table->setUpdatesEnabled(!projecting);
             ui.iconList->setUpdatesEnabled(!projecting);
-            ui.table->setEnabled(panelIdle);
-            ui.iconList->setEnabled(panelIdle);
+            ui.table->setEnabled(panelIdle || keepListFocus);
+            ui.iconList->setEnabled(panelIdle || keepListFocus);
             // Native archive progress is modal to the file manager. Qt disables
             // its lists during the operation; disable the address controls too so
             // focus cannot move to an inactive pane while its source guards block

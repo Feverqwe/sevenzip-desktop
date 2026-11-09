@@ -108,8 +108,9 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
             peer->setFocus();
             QVERIFY(peer->hasFocus());
             QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
-            QVERIFY(!peer->isEnabled());
-            files->setFocus();
+            QVERIFY(peer->hasFocus());
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
+            QTest::keyClick(peer, Qt::Key_Tab);
             QVERIFY(files->hasFocus());
         };
         startPeerRefresh();

@@ -111,7 +111,8 @@ int QtFileManagerDrag::PanelAtPoint(int x, int y) const {
 }
 bool QtFileManagerDrag::PanelEnabled(unsigned i) const {
     const auto &ui = window_.panelUi_[i];
-    return ui.container && ui.container->isEnabled() && ui.table && ui.table->isEnabled();
+    return !ui.scanningDisk && !ui.scanningArchive && ui.container && ui.container->isEnabled() &&
+           ui.table && ui.table->isEnabled();
 }
 int QtFileManagerDrag::FolderAtPoint(unsigned i, int x, int y, UString &name) const {
     const auto &ui = window_.panelUi_[i];

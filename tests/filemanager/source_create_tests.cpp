@@ -270,7 +270,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             peer->setFocus();
             QVERIFY(peer->hasFocus());
             QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
-            QVERIFY(!peer->isEnabled());
+            QVERIFY(peer->rowCount() < count);
             view->setFocus();
             QVERIFY(view->hasFocus());
         }
@@ -326,13 +326,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QPointer<QLineEdit> name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
         name->setText("retained draft");
+        const int initialRows = view->rowCount();
         action(window, "refreshAction")->trigger();
-        QTRY_VERIFY(view->isEnabled());
+        QTRY_COMPARE(view->rowCount(), initialRows);
         QVERIFY(name && name->isVisible());
         QCOMPARE(name->text(), QString("retained draft"));
         if (queued) {
             action(window, "refreshAction")->trigger();
-            QVERIFY(!view->isEnabled());
+            QVERIFY(view->rowCount() < initialRows);
             QTest::keyClick(name, Qt::Key_Return);
         }
         openPanel(window, 0, destination.path());
@@ -430,7 +431,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(name->selectedText(), QString("keep.bin"));
         const QString corrected = QStringLiteral("corrected folder");
         if (deferred)
-            QVERIFY(!view->isEnabled());
+            QVERIFY(view->rowCount() < initialRows);
         if (retry || deferred) {
             QCOMPARE(window.focusWidget(), name);
             QTest::keyClicks(name, corrected);

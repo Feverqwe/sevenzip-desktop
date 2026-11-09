@@ -279,7 +279,8 @@ filesystem root remains accessible through its volume or an explicit `/` path.
 The saved places menu resolves bookmark identities when invoked. The splitter
 applies the original ratio policy to the two file areas. Restoring geometry
 precedes restoring the split.
-List publication restores focus within the same pane while the input request
+Refreshing the current filesystem list keeps keyboard focus while item input
+waits for publication. Navigation restores list focus while the input request
 is current. View menus capture their source pane when opened and resolve it at
 dispatch. Checked state and command availability follow that pane. File Manager
 keeps automatic refresh enabled.

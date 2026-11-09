@@ -57,6 +57,22 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     // Activation can be refused while an operation owns the source panel.
     // Classify against the resulting projection before delivering the event.
     const auto target = panelInputTarget(watched, projectedPanel_);
+    const unsigned inputPanel = panelIndexFor(watched);
+    if (inputPanel < kNumPanelsMax && panelUi_[inputPanel].scanningDisk &&
+        panelUi_[inputPanel].refreshingDisk &&
+        panelInputTarget(watched, inputPanel) != PanelInputTarget::Address) {
+        switch (event->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::MouseMove:
+        case QEvent::ContextMenu:
+            event->ignore();
+            return true;
+        default:
+            break;
+        }
+    }
     if (target == PanelInputTarget::ListViewport &&
         (event->type() == QEvent::MouseButtonPress ||
          event->type() == QEvent::MouseButtonDblClick)) {
@@ -101,6 +117,9 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     }
     if (list && !isPanelEditorFocused() && event->type() == QEvent::ShortcutOverride) {
         const auto *key = static_cast<QKeyEvent *>(event);
+        if (projectedUi().scanningDisk && projectedUi().refreshingDisk &&
+            key->key() != Qt::Key_Tab && key->key() != Qt::Key_Backtab)
+            return false;
         if (overridePanelKey(*key)) {
             event->accept();
             return true;
@@ -204,8 +223,16 @@ bool MainWindow::handlePanelKey(PanelInputTarget target, QKeyEvent *key) {
 
 bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (app_.QtOperations().closed() || app_.QtOperations().blocking() ||
-        app_.QtOperations().callActive() || sourceArchiveProgress_ || projectedUi().scanningDisk ||
+        app_.QtOperations().callActive() || sourceArchiveProgress_ ||
         projectedUi().scanningArchive || QApplication::activeModalWidget())
+        return true;
+    const auto mods = key->modifiers();
+    const int virtualKey = QtPanelVirtualKey(*key);
+    if (virtualKey == Qt::Key_Tab && app_.NumPanels == 2 && !mods.testFlag(Qt::MetaModifier)) {
+        workspace_->RequestListFocus(1 - projectedPanel_, true);
+        return true;
+    }
+    if (projectedUi().scanningDisk)
         return true;
     CPanel &panel = app_.GetFocusedPanel();
     // Original Panel.cpp::OnNotify suppresses LVN_KEYDOWN with other list
@@ -219,12 +246,6 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     }
     if (reservedPanelKey(*key))
         return true;
-    const auto mods = key->modifiers();
-    const int virtualKey = QtPanelVirtualKey(*key);
-    if (virtualKey == Qt::Key_Tab && app_.NumPanels == 2 && !mods.testFlag(Qt::MetaModifier)) {
-        workspace_->RequestListFocus(1 - projectedPanel_, true);
-        return true;
-    }
     if (!mods.testFlag(Qt::MetaModifier) &&
         panel.OnListViewKeyDown({virtualKey, mods.testFlag(Qt::AltModifier),
                                  mods.testFlag(Qt::ControlModifier), false,

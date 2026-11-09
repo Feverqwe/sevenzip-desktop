@@ -8,7 +8,7 @@
 #include <QScopedValueRollback>
 
 HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourceAlreadyBound,
-                                  bool updateAddress) {
+                                  bool updateAddress, bool refreshing) {
     if (app_.QtOperations().closed())
         return E_ABORT;
     QtAppOperationState::CallScope call(app_.QtOperations());
@@ -28,6 +28,7 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
         clearStatusMessage();
     Q_UNUSED(remember);
     cancelListPublication();
+    projectedUi().refreshingDisk = refreshing;
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     projectedUi().directory = next;

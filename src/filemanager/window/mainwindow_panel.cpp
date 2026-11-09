@@ -330,6 +330,9 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
     const auto activate = [host, owner] {
         if (!host || !host->isVisible() || host->isPanelEditorFocused())
             return false;
+        const auto &ui = host->panelUi_[owner];
+        if (ui.scanningDisk || ui.scanningArchive)
+            return false;
         host->activatePanelUi(owner);
         if (host->projectedPanel_ != owner)
             return false;

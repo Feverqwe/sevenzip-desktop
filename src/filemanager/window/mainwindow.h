@@ -222,7 +222,7 @@ class MainWindow : public QMainWindow {
     QList<QAction *> panelShortcutActions_;
     void updatePanelModifier(const QKeyEvent &key);
     HRESULT showDirectory(const QString &path, bool remember, bool sourceAlreadyBound = false,
-                          bool updateAddress = true);
+                          bool updateAddress = true, bool refreshing = false);
     HRESULT renderRootFolder(bool updateAddress = true);
     HRESULT appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex);
     void appendParentEntry();
@@ -358,6 +358,7 @@ class MainWindow : public QMainWindow {
         State state = State::Filesystem;
         bool locationUnavailable = false;
         bool scanningDisk = false;
+        bool refreshingDisk = false;
         bool scanningArchive = false;
         FilesystemScanner *filesystemScanner = nullptr;
         QtFolderProjection *listProjection = nullptr;

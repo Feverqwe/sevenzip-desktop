@@ -34,8 +34,9 @@ class PanelFocusTests : public QObject, protected MainWindowTestSupport {
         view->setFocus();
         QTRY_VERIFY(view->hasFocus());
         QTest::keySequence(view, action(window, "refreshAction")->shortcut());
-        QVERIFY(!view->isEnabled());
-        QVERIFY(window.focusWidget());
+        QVERIFY(view->rowCount() < 301);
+        QVERIFY(view->hasFocus());
+        QVERIFY(!action(window, "openItemAction")->isEnabled());
         if (shortcutAction == "modifier") {
             QTest::keyClick(window.focusWidget(), Qt::Key_Control);
             QTest::keyClick(window.focusWidget(), Qt::Key_Shift);

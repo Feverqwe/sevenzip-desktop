@@ -42,7 +42,7 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         bool scheduled = false;
         bool navigated = false;
         connect(view->model(), &QAbstractItemModel::rowsInserted, &window, [&] {
-            if (!scheduled && !view->isEnabled() && view->rowCount() > 1) {
+            if (!scheduled && view->rowCount() > 1) {
                 scheduled = true;
                 QTimer::singleShot(0, &window, [&] {
                     navigated = true;

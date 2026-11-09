@@ -102,7 +102,7 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
         return loaded;
     }
     const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
-                                         !selection.PreserveAddress);
+                                         !selection.PreserveAddress, true);
     if (loaded != S_OK)
         return loaded;
     panelUi_[projectedPanel_].pendingViewport = std::move(viewport);
