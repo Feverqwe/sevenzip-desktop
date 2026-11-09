@@ -16,7 +16,7 @@ class QtRenameController final : public QObject {
     void Begin(int row);
     void Cancel(unsigned panel);
     void Stop();
-    bool Pending() const { return bool(request_); }
+    bool Pending() const;
     bool PendingFor(unsigned panel) const;
     void AfterEdit(unsigned panel, std::function<void()> refresh);
 

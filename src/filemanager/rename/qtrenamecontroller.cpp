@@ -72,11 +72,10 @@ void QtRenameController::Attach(QAbstractItemView &view, unsigned panel) {
 }
 
 void QtRenameController::Begin(int row) {
-    if (request_ && request_->phase == Request::Phase::Cancelled && !request_->refresh &&
-        (!request_->editor || !request_->editor->isVisible()))
-        Stop();
-    if (request_ || window_.app_.QtOperations().closed())
+    if (Pending() || window_.app_.QtOperations().closed())
         return;
+    if (request_)
+        Stop();
     auto &panel = window_.app_.GetFocusedPanel();
     const bool streams = panel.GetFolder() && panel.IsAltStreamsFolder();
     const bool archive = window_.projectedUi().state == MainWindow::State::Viewing;
@@ -133,6 +132,11 @@ void QtRenameController::Cancel(unsigned panel) {
         return;
     request_->phase = Request::Phase::Cancelled;
     completion_.start();
+}
+
+bool QtRenameController::Pending() const {
+    return request_ && (request_->phase != Request::Phase::Cancelled || request_->refresh ||
+                        (request_->editor && request_->editor->isVisible()));
 }
 
 bool QtRenameController::PendingFor(unsigned panel) const {

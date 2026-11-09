@@ -171,6 +171,18 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
                      QFileInfo(child).canonicalFilePath());
         QVERIFY(QFileInfo(child).isDir());
+        action(window, "backAction")->trigger();
+        QTRY_COMPARE(window.focusWidget(), view);
+        QTRY_COMPARE(view->rowCount(), 1);
+        QTest::keyClick(window.focusWidget(), Qt::Key_F2);
+        auto *editor = qobject_cast<QLineEdit *>(window.focusWidget());
+        QVERIFY(editor);
+        QTest::keyClicks(editor, "discarded folder");
+        QTest::keyClick(editor, Qt::Key_Escape);
+        QCOMPARE(window.focusWidget(), view);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
+                     QFileInfo(child).canonicalFilePath());
     }
     void clipboardShortcutsReturnToFilesAfterRename() {
         QTemporaryDir fixture;
