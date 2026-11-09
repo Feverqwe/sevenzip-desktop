@@ -274,7 +274,14 @@ class WorkspaceNavigationTests final : public QObject {
         QTest::keyClick(table, Qt::Key_Return);
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), child);
     }
+    void archiveParentBreadcrumbReturnsToTheChildRow_data() {
+        QTest::addColumn<bool>("directToDisk");
+        QTest::newRow("through-archive-root") << false;
+        QTest::newRow("from-archive-subfolder") << true;
+    }
+
     void archiveParentBreadcrumbReturnsToTheChildRow() {
+        QFETCH(bool, directToDisk);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("folders.zip");
@@ -333,8 +340,10 @@ class WorkspaceNavigationTests final : public QObject {
         QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(), child);
         QTest::keyClick(table, Qt::Key_Return);
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
-        QVERIFY(clickCrumb(archive));
-        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+        if (!directToDisk) {
+            QVERIFY(clickCrumb(archive));
+            QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+        }
         QVERIFY(clickCrumb(fixture.path()));
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), fixture.path());
         QTRY_VERIFY(table->isEnabled() && table->hasFocus());

@@ -50,11 +50,17 @@ void QtWindowWorkspace::NavigateBreadcrumb(unsigned index, const QString &path) 
             }
         }
     }
-    if (!current && !immediateParent && !ui.locationUnavailable &&
-        ui.state == MainWindow::State::Filesystem && QDir::isAbsolutePath(target)) {
+    if (!current && !immediateParent && !ui.locationUnavailable && branch.isEmpty() &&
+        QDir::isAbsolutePath(target)) {
+        QString origin;
+        if (ui.state == MainWindow::State::Filesystem)
+            origin = ui.directory;
+        else if (ui.state == MainWindow::State::Viewing && !panel.GetParentFolders().IsEmpty())
+            origin =
+                QDir::fromNativeSeparators(ToQString(panel.GetParentFolders().Front().VirtualPath));
         const QString prefix = target.endsWith(u'/') ? target : target + u'/';
-        if (ui.directory.startsWith(prefix))
-            branch = ui.directory.mid(prefix.size()).section(u'/', 0, 0);
+        if (origin.startsWith(prefix))
+            branch = origin.mid(prefix.size()).section(u'/', 0, 0);
     }
     const HRESULT result = current           ? S_OK
                            : immediateParent ? Navigate([this] { return window_.goParentImpl(); })
