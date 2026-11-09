@@ -281,13 +281,15 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         MainWindow window(&backend);
         window.resize(980, 620);
         window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
         window.openPath(a);
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled() && view->rowCount() >= count);
         const int row = count * 3 / 4;
         view->selectRow(row);
         view->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
-        view->scrollTo(view->model()->index(row, 0), QAbstractItemView::PositionAtCenter);
+        view->scrollTo(view->model()->index(count / 3, 0), QAbstractItemView::PositionAtCenter);
+        QVERIFY(!view->viewport()->rect().intersects(view->visualRect(view->currentIndex())));
         const QString selected = view->model()->index(row, 0).data().toString();
         const int scroll = view->verticalScrollBar()->value();
         QVERIFY(scroll > 0);
@@ -311,6 +313,10 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(!action(window, "forwardAction")->isEnabled());
         action(window, "backAction")->trigger();
         QTRY_COMPARE(location(window), b);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
         action(window, "backAction")->trigger();
         if (count == 100) {
             QCOMPARE(location(window), a);
@@ -319,6 +325,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
             action(window, "backAction")->trigger();
         }
         QTRY_VERIFY(view->isEnabled() && location(window) == a && view->rowCount() >= count);
+        QTRY_COMPARE(window.focusWidget(), view);
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data().toString(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QTRY_COMPARE(view->verticalScrollBar()->value(), scroll);
