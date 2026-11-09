@@ -140,6 +140,42 @@ class FileTransferTests : public QObject {
             QStringList{name});
     }
 
+    void batchTypeConflictDoesNotAskToOverwriteEarlierFile() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("input");
+        const QString target = fixture.filePath("target");
+        const QString first = QDir(source).filePath("first.txt");
+        const QString existing = QDir(target).filePath("first.txt");
+        const QString last = QDir(source).filePath("folder");
+        const QString obstruction = QDir(target).filePath("folder");
+        QVERIFY(QDir().mkpath(last));
+        QVERIFY(QDir().mkpath(target));
+        for (const auto &path : {first, existing, obstruction}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(path.toUtf8()), path.toUtf8().size());
+        }
+        FileTransferOperation operation({first, last}, target, true);
+        QSignalSpy prompts(&operation, &FileTransferOperation::overwriteRequested);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
+            [&] { operation.submitOverwriteAnswer(NOverwriteAnswer::kYes); }, Qt::DirectConnection);
+        operation.start();
+        QVERIFY(operation.wait(30000));
+        QCOMPARE(prompts.size(), 0);
+        QCOMPARE(result.size(), 1);
+        QVERIFY(!result.first().first().toBool());
+        QVERIFY(result.first().at(1).toString().contains(obstruction));
+        QVERIFY(QFileInfo(last).isDir());
+        for (const auto &path : {first, existing, obstruction}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), path.toUtf8());
+        }
+    }
+
     void overwriteSnapshotSurvivesQueuedFilesystemChanges_data() {
         QTest::addColumn<bool>("merge");
         QTest::addColumn<bool>("link");

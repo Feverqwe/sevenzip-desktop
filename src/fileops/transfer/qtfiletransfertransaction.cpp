@@ -47,7 +47,7 @@ QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
         return QCoreApplication::translate("qtfiletransfertransaction",
                                            "Destination is a symbolic link: %1")
             .arg(target.filePath());
-    return {};
+    return QtTransferTargetTypeError(source, target);
 }
 
 struct MergeMember {
@@ -179,9 +179,6 @@ QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
         const QString target = directory.filePath(source.fileName());
         if (const QString error = TargetPathError(source, QFileInfo(target), targets,
                                                   canonicalDestination, QtIsFileSystemLink(path));
-            !error.isEmpty())
-            return error;
-        if (const QString error = QtTransferTargetTypeError(source, QFileInfo(target));
             !error.isEmpty())
             return error;
         targets.insert(QtTransferTargetKey(target));
