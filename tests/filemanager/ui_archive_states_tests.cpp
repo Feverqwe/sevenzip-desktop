@@ -39,6 +39,72 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void openAsArchiveReportsUnrecognizedFile_data() {
+        QTest::addColumn<bool>("nested");
+        QTest::newRow("filesystem") << false;
+        QTest::newRow("inside-archive") << true;
+    }
+
+    void openAsArchiveReportsUnrecognizedFile() {
+        QFETCH(bool, nested);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString plainName = QStringLiteral("обычный файл.txt");
+        const QString validName = QStringLiteral("valid archive.zip");
+        QVERIFY(NativeArchiveFixture::Write(fixture.filePath(validName),
+                                            {{"payload.txt", "payload"}}, "zip"));
+        const QString outer = fixture.filePath("outer.zip");
+        if (nested) {
+            QFile inner(fixture.filePath(validName));
+            QVERIFY(inner.open(QIODevice::ReadOnly));
+            QVERIFY(NativeArchiveFixture::Write(
+                outer, {{plainName, "plain text"}, {validName, inner.readAll()}}, "zip"));
+        } else {
+            QFile plain(fixture.filePath(plainName));
+            QVERIFY(plain.open(QIODevice::WriteOnly));
+            QCOMPARE(plain.write("plain text"), qint64(10));
+        }
+
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        if (nested)
+            window.openArchive(outer);
+        else
+            window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, plainName) >= 0);
+        view->setFocus();
+        view->setCurrentCell(filesystemRow(window, plainName), 0);
+        view->selectRow(view->currentRow());
+
+        QStringList messages;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                messages.append(box->text());
+                box->accept();
+            }
+        });
+        responder.start(5);
+        auto *open = action(window, "openInsideAction");
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        QCOMPARE(messages.size(), 1);
+        QVERIFY(messages.front().contains(plainName));
+        QTRY_VERIFY(view->isEnabled() && window.focusWidget() == view);
+        QCOMPARE(view->currentRow(), filesystemRow(window, plainName));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+
+        view->setCurrentCell(filesystemRow(window, validName), 0);
+        view->selectRow(view->currentRow());
+        open->trigger();
+        QTRY_VERIFY(view->isEnabled() && rowWithPath(window, "payload.txt") >= 0);
+        QCOMPARE(messages.size(), 1);
+    }
+
     void rejectedExtractionDestinationKeepsSelectedItems() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

@@ -2,6 +2,7 @@
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
 // Item launch policy, warnings and changed-file update presentation.
 #include "7zip/UI/FileManager/resource.h"
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/StringConvert.h"
 #include "Windows/ErrorMsg.h"
 #include "filemanager/FormatUtils.h"
@@ -147,6 +148,8 @@ void CPanel::OpenItem(unsigned index, bool tryInternal, bool tryExternal, const 
                 // OpenAsArc_Msg already presented this opening failure.
                 return;
             }
+            if (!tryExternal)
+                MessageBox_Error(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, fullPath));
         }
     if (tryExternal) {
         if (_externalFileServices)
