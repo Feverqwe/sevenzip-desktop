@@ -592,6 +592,7 @@ class CompressionPathTests final : public QObject {
 #ifdef Q_OS_WIN
         QTest::newRow("empty-windows-component") << QString("empty-component");
         QTest::newRow("windows-wildcard") << QString("wildcard");
+        QTest::newRow("unavailable-drive") << QString("unavailable-drive");
 #endif
 #ifndef Q_OS_WIN
         QTest::newRow("dangling-link") << QString("link");
@@ -618,12 +619,26 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(occupied.write("keep"), qint64(4));
         occupied.close();
         const QString missing = fixture.filePath("missing folder");
-        const QString blocker = obstruction == "empty-component" ? fixture.filePath(" ... ")
-                                : wildcard                       ? fixture.filePath("wrong?")
-                                : danglingLink                   ? fixture.filePath("old shortcut")
-                                : readOnly                       ? fixture.filePath("read only")
-                                : searchDenied                   ? fixture.filePath("no access")
-                                                                 : occupied.fileName();
+        QString blocker = obstruction == "empty-component" ? fixture.filePath(" ... ")
+                          : wildcard                       ? fixture.filePath("wrong?")
+                          : danglingLink                   ? fixture.filePath("old shortcut")
+                          : readOnly                       ? fixture.filePath("read only")
+                          : searchDenied                   ? fixture.filePath("no access")
+                                                           : occupied.fileName();
+#ifdef Q_OS_WIN
+        if (obstruction == "unavailable-drive") {
+            blocker.clear();
+            for (QChar letter = u'Z'; letter >= u'D'; letter = QChar(letter.unicode() - 1)) {
+                const QString root = QString(letter) + ":/";
+                if (!QDir(root).exists()) {
+                    blocker = root;
+                    break;
+                }
+            }
+            if (blocker.isEmpty())
+                QSKIP("No unavailable drive letter");
+        }
+#endif
         if (danglingLink)
             QVERIFY(QFile::link(missing, blocker));
         const QString name = QStringLiteral("архив с пробелом.7z");
@@ -647,7 +662,7 @@ class CompressionPathTests final : public QObject {
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *archiveName = dialog.findChild<QLineEdit *>("archiveName");
         archiveName->setText(name);
-        const QString blocked = QDir::toNativeSeparators(blocker + "/child");
+        const QString blocked = QDir::toNativeSeparators(QDir(blocker).filePath("child"));
         folder->setText(blocked);
         dialog.show();
         QString diagnostic;
