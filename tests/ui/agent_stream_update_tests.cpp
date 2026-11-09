@@ -94,7 +94,7 @@ class AgentStreamUpdateTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(L"wim"), nullptr),
+                                              UString(L"wim"), UString(), nullptr),
                  S_OK);
         CMyComPtr<IFolderFolder> target = opening.Folder;
         QCOMPARE(target->LoadItems(), S_OK);

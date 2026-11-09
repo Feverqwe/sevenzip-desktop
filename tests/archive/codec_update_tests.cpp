@@ -183,7 +183,8 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(format.toStdWString().c_str()), nullptr),
+                                              UString(format.toStdWString().c_str()), UString(),
+                                              nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -268,7 +269,7 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString("zip"), nullptr),
+                                              UString("zip"), UString(), nullptr),
                  S_OK);
         QCOMPARE(opening.Folder->LoadItems(), S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
@@ -319,7 +320,7 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString("zip"), nullptr),
+                                              UString("zip"), UString(), nullptr),
                  S_OK);
         QCOMPARE(opening.Folder->LoadItems(), S_OK);
         CMyComPtr<IFolderOperations> operations;
@@ -349,7 +350,7 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         QCOMPARE(opening.Folder->LoadItems(), S_OK);
         CFfpOpen refreshed(manager);
         QCOMPARE(refreshed.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                                UString("zip"), nullptr),
+                                                UString("zip"), UString(), nullptr),
                  S_OK);
         QCOMPARE(refreshed.Folder->LoadItems(), S_OK);
         CMyComPtr<IFolderOperations> current;
@@ -406,7 +407,8 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(format.toStdWString().c_str()), nullptr),
+                                              UString(format.toStdWString().c_str()), UString(),
+                                              nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -443,7 +445,7 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(L"7z"), nullptr),
+                                              UString(L"7z"), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -551,7 +553,7 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(*backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(L"zip"), nullptr),
+                                              UString(L"zip"), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -672,7 +674,7 @@ class CodecUpdateTests final : public QObject, protected ArchiveBackendTestSuppo
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(L"zip"), nullptr),
+                                              UString(L"zip"), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
