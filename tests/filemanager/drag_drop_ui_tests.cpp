@@ -71,12 +71,22 @@ void Navigate(QWidget &panel, const QString &path) {
     address->setText(path);
     QTest::keyClick(address, Qt::Key_Return);
 }
-bool CopyExport(const QMimeData *mime, const QString &destination) {
+bool CopyExport(const QMimeData *mime, const QString &destination, QString *error = nullptr) {
     if (!mime)
         return false;
     const auto urls = mime->urls();
-    return urls.size() == 1 && urls.front().isLocalFile() &&
-           QFile::copy(urls.front().toLocalFile(), destination);
+    if (urls.size() != 1 || !urls.front().isLocalFile()) {
+        if (error)
+            *error = QStringLiteral("Expected one local file, got %1 URLs").arg(urls.size());
+        return false;
+    }
+    QFile source(urls.front().toLocalFile());
+    if (source.copy(destination))
+        return true;
+    if (error)
+        *error =
+            QStringLiteral("Copy from %1 failed: %2").arg(source.fileName(), source.errorString());
+    return false;
 }
 
 #ifdef Q_OS_WIN
@@ -112,6 +122,8 @@ class NativeDropReceiver final : public QWidget {
     bool ReadPathsOnEnter = false;
     std::function<void()> BeforeDrop;
     std::atomic_bool Entered = false;
+    bool DropReceived = false;
+    QString CopyError;
 
     explicit NativeDropReceiver(const QString &destination) : Destination(destination) {
         setAcceptDrops(true);
@@ -131,9 +143,10 @@ class NativeDropReceiver final : public QWidget {
         }
     }
     void dropEvent(QDropEvent *event) override {
+        DropReceived = true;
         if (BeforeDrop)
             BeforeDrop();
-        if (CopyExport(event->mimeData(), Destination)) {
+        if (CopyExport(event->mimeData(), Destination, &CopyError)) {
             event->acceptProposedAction();
             if (!EnteredMarker.isEmpty())
                 QTimer::singleShot(0, qApp, &QCoreApplication::quit);
@@ -467,7 +480,13 @@ class DragDropUiTests final : public QObject {
             return;
         }
 #endif
-        QTRY_VERIFY_WITH_TIMEOUT(!warnings.isEmpty() || QFileInfo::exists(destination), 8000);
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            !warnings.isEmpty() || QFileInfo::exists(destination),
+            qPrintable(QStringLiteral("Drag entered: %1; drop received: %2; %3")
+                           .arg(receiver.Entered.load())
+                           .arg(receiver.DropReceived)
+                           .arg(receiver.CopyError)),
+            8000);
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
 #ifdef Q_OS_WIN
         drive.join();
