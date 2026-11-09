@@ -197,6 +197,7 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         const QString control = QStringLiteral("control 文件.txt");
         QCOMPARE(firstName(*views[0]), control);
         QCOMPARE(firstName(*views[1]), control);
+        views[1]->setCurrentCell(0, 0);
         views[1]->selectRow(0);
         views[1]->sortItems(2, Qt::DescendingOrder);
         QCOMPARE(firstName(*views[1]), QString("z larger.txt"));
@@ -230,6 +231,28 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(action(window, "viewMode0Action")->isChecked());
         QVERIFY(!details->isChecked());
         QVERIFY(detailsChanges.isEmpty());
+
+        auto *header = views[1]->horizontalHeader();
+        const int sizeColumn = views[1]->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        QTest::mouseClick(
+            header->viewport(), Qt::LeftButton, Qt::NoModifier,
+            QPoint(header->sectionViewportPosition(sizeColumn) + 10, header->height() / 2));
+        QTRY_COMPARE(firstName(*views[1]), control);
+        QTRY_VERIFY(views[1]->hasFocus());
+        QCOMPARE(views[1]->currentIndex().data(QtPanelList::NameRole).toString(), control);
+        QCOMPARE(views[1]->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(views[1]
+                     ->selectionModel()
+                     ->selectedRows()
+                     .front()
+                     .data(QtPanelList::NameRole)
+                     .toString(),
+                 control);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+        QCOMPARE(views[1]->currentIndex().data(QtPanelList::NameRole).toString(),
+                 QString("z larger.txt"));
+        QCOMPARE(views[0]->sourcePanel->GetFolder(), peer.Interface());
     }
     void headerDefaults_data() {
         QTest::addColumn<quint32>("property");
