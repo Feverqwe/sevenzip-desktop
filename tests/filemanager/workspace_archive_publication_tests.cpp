@@ -179,14 +179,25 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(names(window), QStringList{"original.txt"});
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
         if (leave) {
+            QVERIFY(WindowActivation::waitForActive(window));
+            auto *parent = window.findChild<QPushButton *>("navigationParent0");
+            QVERIFY(parent);
+            const auto leaveWithKeyboard = [&] {
+                parent->setFocus();
+                QTRY_VERIFY(parent->hasFocus());
+                QTest::keyClick(window.focusWidget(), Qt::Key_Space);
+                QTRY_COMPARE(window.focusWidget(), view);
+            };
             if (nested) {
-                window.findChild<QPushButton *>("navigationParent0")->click();
+                leaveWithKeyboard();
                 QTRY_COMPARE(names(window), QStringList{"inner.zip"});
                 QVERIFY(notice(window));
             }
-            window.findChild<QPushButton *>("navigationParent0")->click();
+            leaveWithKeyboard();
             QTRY_VERIFY(names(window).contains("renamed.7z"));
             QVERIFY(!notice(window));
+            QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
+            QVERIFY(view->selectionModel()->isRowSelected(filesystemRow(window, "renamed.7z"), {}));
             return;
         }
         const QString output = fixture.filePath("recovered");
