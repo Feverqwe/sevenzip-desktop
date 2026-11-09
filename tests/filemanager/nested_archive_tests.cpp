@@ -8,6 +8,7 @@
 #include "mount/qtmountrow.h"
 #include "mount/qtsmbmountplatform.h"
 #include "support/progress_dialog.h"
+#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 
 #include <QAction>
@@ -529,6 +530,8 @@ class NestedArchiveTests : public QObject {
         QVERIFY(outer.open(QIODevice::WriteOnly));
         outer.close();
         MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
         window.openArchive(dir.filePath("outer.7z"));
         auto *table = window.findChild<FileTable *>("archiveTable");
         auto *inside = window.findChild<QAction *>("openInsideAction");
@@ -539,6 +542,9 @@ class NestedArchiveTests : public QObject {
                      QStringLiteral("вложенный архив.zip"));
         table->selectRow(0);
         int reviewed = 0;
+        QVERIFY(WindowActivation::waitForActive(window));
+        table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
         QTimer review;
         connect(&review, &QTimer::timeout, &window, [&] {
             for (auto *widget : QApplication::topLevelWidgets())
@@ -556,6 +562,12 @@ class NestedArchiveTests : public QObject {
         QCOMPARE(backend.listed.size(), 1);
         QCOMPARE(table->model()->index(0, 0).data().toString(),
                  QStringLiteral("вложенный архив.zip"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_COMPARE(window.focusWidget(), table);
+        backend.cancelExtraction = false;
+        QTest::keySequence(window.focusWidget(), inside->shortcut());
+        QTRY_COMPARE(backend.listed.size(), 2);
+        QTRY_COMPARE(table->model()->index(0, 0).data().toString(), QString("inside.txt"));
     }
 
     void failedNestedListingRestoresParent() {
