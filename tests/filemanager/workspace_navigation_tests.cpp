@@ -260,16 +260,18 @@ class WorkspaceNavigationTests final : public QObject {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("folders.zip");
+        QVERIFY(QDir(fixture.path()).mkdir("another folder"));
         ControlledBackend backend;
         QVERIFY(backend.prepareArchiveFixture(archive));
         MainWindow window(&backend);
         window.resize(1100, 620);
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
-        backend.queueListAction([&] {
+        const auto listArchive = [&] {
             backend.completeList({ArchiveEntry{"another/first.txt", 1, 1},
                                   ArchiveEntry{QStringLiteral("папка 空/keep.txt"), 1, 1}});
-        });
+        };
+        backend.queueListAction(listArchive);
         window.openArchive(archive);
         auto *table = visibleTable(window);
         QVERIFY(table);
@@ -283,14 +285,17 @@ class WorkspaceNavigationTests final : public QObject {
         QTest::keyClick(table, Qt::Key_Return);
         auto *bar = window.findChild<QWidget *>("panelNavigation0");
         QVERIFY(bar);
+        const auto clickCrumb = [&](const QString &location) {
+            for (auto *button : bar->findChildren<QToolButton *>())
+                if (button->isVisible() && QDir::cleanPath(button->toolTip()) == location) {
+                    QTest::mouseClick(button, Qt::LeftButton);
+                    return true;
+                }
+            return false;
+        };
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
         QVERIFY(WindowActivation::waitForActive(window));
-        QToolButton *parent = nullptr;
-        for (auto *button : bar->findChildren<QToolButton *>())
-            if (button->isVisible() && QDir::cleanPath(button->toolTip()) == archive)
-                parent = button;
-        QVERIFY(parent);
-        QTest::mouseClick(parent, Qt::LeftButton);
+        QVERIFY(clickCrumb(archive));
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
         QTRY_VERIFY(table->isEnabled());
         QTRY_VERIFY(table->hasFocus());
@@ -298,6 +303,16 @@ class WorkspaceNavigationTests final : public QObject {
         QTest::keyClick(table, Qt::Key_Return);
         QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
         QCOMPARE(backend.listCalls, 1);
+        QVERIFY(clickCrumb(archive));
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+        QVERIFY(clickCrumb(fixture.path()));
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), fixture.path());
+        QTRY_VERIFY(table->isEnabled() && table->hasFocus());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QString("folders.zip"));
+        backend.queueListAction(listArchive);
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
     }
 
     void backKeepsTheSelectedFileVisibleAfterSwitchingViews() {
