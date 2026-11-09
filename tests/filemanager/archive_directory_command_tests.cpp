@@ -8,6 +8,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QAction>
 #include <QFile>
+#include <QLabel>
 #include <QLineEdit>
 #include <QProcess>
 #include <QSignalSpy>
@@ -172,9 +173,15 @@ class ArchiveDirectoryCommandTests final : public QObject {
         auto *calculate = window.findChild<QAction *>("calculateDirectorySizeAction");
         QVERIFY(calculate && calculate->isEnabled());
         bool observed = false, closed = false;
+        QString reviewStatus;
         QTimer review;
-        connect(&review, &QTimer::timeout, &window, [] {
-            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+        connect(&review, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                if (auto *status = result->findChild<QLabel *>("IDT_PROGRESS_STATUS"))
+                    reviewStatus = status->text();
+                TestProgressDialog::CloseResult(*result);
+            }
         });
         OnProgressShow observer([&](CProgressDialog &dialog) {
             if (observed)
@@ -192,6 +199,9 @@ class ArchiveDirectoryCommandTests final : public QObject {
         calculate->trigger();
         review.stop();
         QVERIFY(observed && closed);
+        if (cancel)
+            QCOMPARE(reviewStatus, QCoreApplication::translate("QtTaskResultDialog",
+                                                               "The operation was cancelled."));
         QCOMPARE(size().isValid(), !cancel);
         QCOMPARE(ToQString(view->sourcePanel->GetCurrentFolderPrefix()), sourcePrefix);
         QCOMPARE(address->text(), draft);

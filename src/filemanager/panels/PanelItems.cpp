@@ -57,6 +57,7 @@ class FolderSizeOperation final : public CProgressThreadVirt {
         : folder_(folder), indices_(indices), paths_(paths) {
         ShowCompressionInfo = false;
         WaitMode = true;
+        CancellationMayLeaveChanges = false;
     }
 };
 } // namespace
