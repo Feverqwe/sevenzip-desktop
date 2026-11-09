@@ -531,7 +531,7 @@ class DragDropUiTests final : public QObject {
             for (const auto &entry : QtOwnedTempRegistry().Entries())
                 QDir(entry.path).removeRecursively();
         });
-        const QString name = QStringLiteral("файл с пробелами 空.bin");
+        const QString name = QStringLiteral("файл # %23 с пробелами 空.bin");
         const QByteArray bytes("export\0bytes", 12);
         const QString source = input.filePath(name);
         QVERIFY(SourceExtractFixture::writeFile(source, bytes));

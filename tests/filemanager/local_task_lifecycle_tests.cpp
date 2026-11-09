@@ -514,7 +514,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         const QString source = fixture.filePath("source");
         const QString destination = fixture.filePath("destination");
         QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
-        const QString moved = QStringLiteral("01 перенести 空.txt");
+        const QString moved = QStringLiteral("01 перенести # %23 空.txt");
         const QString skipped = QStringLiteral("02 пропустить δ.txt");
         QVERIFY(write(source + '/' + moved, "moved bytes"));
         QVERIFY(write(source + '/' + skipped, "skipped bytes"));
