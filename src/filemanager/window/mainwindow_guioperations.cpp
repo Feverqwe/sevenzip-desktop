@@ -3,6 +3,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "fileops/links/qtlinkservices.h"
 #include "operations/qtoperationlauncher.h"
 #include "operations/qtoperationregistry.h"
 #include "platform/temp/qtownedtempidentity.h"
@@ -31,6 +32,10 @@ QString NormalPath(const QString &path) {
     const QFileInfo info(path);
     const QString canonical = info.canonicalFilePath();
     return canonical.isEmpty() ? info.absoluteFilePath() : canonical;
+}
+QString MissingInputMessage(const QString &path) {
+    return QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+           QDir::toNativeSeparators(path);
 }
 bool ContainsDirectory(const QString &parent, const QString &child) {
     const QString relative = QDir(parent).relativeFilePath(child);
@@ -71,9 +76,17 @@ HRESULT MainWindow::launchGuiArchiveCompress(const UString &folder, const UStrin
                                              const UStringVector &paths, bool email,
                                              bool showDialog) {
     QString error;
+    const QStringList sources = ArchivePaths(paths);
+    if (sources.size() == 1 && !QFileInfo::exists(sources.front()) &&
+        !QtIsFileSystemLink(sources.front())) {
+        showStatusMessage(MissingInputMessage(sources.front()));
+        return E_FAIL;
+    }
     auto *operation = backend_->startGuiCompress(
         QFileInfo(QString::fromWCharArray(folder + name)).absoluteFilePath(),
-        QString::fromWCharArray(type), addExtension, ArchivePaths(paths), email, showDialog, error);
+        QString::fromWCharArray(type), addExtension, sources, email, showDialog, error);
+    if (operation)
+        clearStatusMessage();
     return observeGuiArchiveOperation(operation, error);
 }
 
@@ -82,9 +95,7 @@ HRESULT MainWindow::launchGuiArchiveExtract(const UStringVector &paths, const US
     const QStringList archives = ArchivePaths(paths);
     for (const auto &path : archives)
         if (!QFileInfo::exists(path)) {
-            showStatusMessage(
-                QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
-                QDir::toNativeSeparators(path));
+            showStatusMessage(MissingInputMessage(path));
             return E_FAIL;
         }
     QString error;

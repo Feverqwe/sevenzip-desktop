@@ -170,6 +170,24 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         QTRY_COMPARE(selected->rowCount(), 3);
         selected->sourcePanel->Set_AutoRefresh_Mode(false);
         peer->sourcePanel->Set_AutoRefresh_Mode(false);
+        if (cancel) {
+            for (int row = 0; row < selected->rowCount(); ++row)
+                if (selected->model()->index(row, 0).data().toString() == "second.txt") {
+                    selected->setCurrentCell(row, 0);
+                    selected->selectRow(row);
+                    break;
+                }
+            selected->setFocus();
+            QTRY_VERIFY(selected->hasFocus());
+            const QString parked = output.filePath("parked.txt");
+            QVERIFY(QFile::rename(extra, parked));
+            action(window, "toolbarAddAction")->trigger();
+            QVERIFY(backend.Requests.isEmpty());
+            QVERIFY(window.statusBar()->currentMessage().contains("second.txt"));
+            QTRY_COMPARE(window.focusWidget(), selected);
+            QVERIFY(selected->selectionModel()->isRowSelected(selected->currentRow(), {}));
+            QVERIFY(QFile::rename(parked, extra));
+        }
         for (int row = 0; row < selected->rowCount(); ++row) {
             const auto item = selected->model()->index(row, 0);
             if (item.data().toString() == "unselected.txt")
@@ -182,6 +200,8 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         QTRY_VERIFY(selected->hasFocus());
         QVERIFY(action(window, "toolbarAddAction")->isEnabled());
         action(window, "toolbarAddAction")->trigger();
+        if (cancel)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QVERIFY(action(window, "refreshAction")->isEnabled());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.first().Status, cancel ? QtOperationResult::Outcome::Cancelled
