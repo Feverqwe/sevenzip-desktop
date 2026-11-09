@@ -1182,6 +1182,65 @@ class FileTransferTests : public QObject {
         }
     }
 
+    void failedCopyRollsBackReadOnlyFolder() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("read only");
+        const QString denied = fixture.filePath("later/blocked.txt");
+        const QString destination = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(folder));
+        QVERIFY(QDir().mkpath(QFileInfo(denied).absolutePath()));
+        QVERIFY(QDir().mkdir(destination));
+        for (const auto &path : {QDir(folder).filePath("keep.txt"), denied}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("payload"), qint64(7));
+        }
+        const auto permissions = QFile::permissions(folder);
+        const auto deniedPermissions = QFile::permissions(denied);
+        const QString copied = QDir(destination).filePath(QFileInfo(folder).fileName());
+        const auto restore = qScopeGuard([&] {
+            QFile::setPermissions(folder, permissions);
+            QFile::setPermissions(denied, deniedPermissions);
+            if (QFileInfo(copied).isDir())
+                QFile::setPermissions(copied, permissions);
+        });
+        QVERIFY(QFile::setPermissions(folder, QFile::ReadOwner | QFile::ExeOwner));
+        QVERIFY(QFile::setPermissions(denied, QFile::WriteOwner));
+        if (QFileInfo(folder).isWritable() || QFileInfo(denied).isReadable())
+            QSKIP("The filesystem does not enforce the fixture permissions");
+        FileTransferOperation copy({folder, denied}, destination, false);
+        QSignalSpy result(&copy, &FileTransferOperation::result);
+        copy.start();
+        QVERIFY(copy.wait(30000));
+        QCOMPARE(result.size(), 1);
+        QVERIFY(!result.first().first().toBool());
+        QVERIFY(result.first().at(1).toString().contains(denied));
+        QVERIFY(!copy.hasRetainedOutput());
+        QVERIFY(QDir(destination)
+                    .entryList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot)
+                    .isEmpty());
+        QVERIFY(!QFileInfo(folder).isWritable());
+        QVERIFY(QFileInfo::exists(QDir(folder).filePath("keep.txt")));
+
+        QVERIFY(QFile::setPermissions(denied, deniedPermissions));
+        FileTransferOperation retry({folder, denied}, destination, false);
+        QSignalSpy retried(&retry, &FileTransferOperation::result);
+        retry.start();
+        QVERIFY(retry.wait(30000));
+        QCOMPARE(retried.size(), 1);
+        QVERIFY(retried.first().first().toBool());
+        for (const auto &path :
+             {QDir(copied).filePath("keep.txt"), QDir(destination).filePath("blocked.txt")}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), QByteArray("payload"));
+        }
+    }
+
     void directoryConflictMergesAndAsksForNestedFile() {
         for (const int answer : {NOverwriteAnswer::kNo, NOverwriteAnswer::kYes}) {
             QTemporaryDir temp;
