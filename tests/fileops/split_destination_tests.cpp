@@ -123,6 +123,23 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
     }
 
+    void enteringAnExistingHistoryPathKeepsTheTypedSubfolder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString saved = fixture.filePath("previous output/");
+        CExtractDialog dialog(fixture.filePath("current/initial"), {saved});
+        dialog.show();
+        QVERIFY(enabled(dialog)->isChecked());
+        name(dialog)->setText("new subfolder");
+        auto *editor = path(dialog)->lineEdit();
+        editor->setFocus();
+        editor->selectAll();
+        QTest::keyClicks(editor, saved);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QDir(saved).filePath("new subfolder"));
+    }
+
     void historyDeduplicatesEquivalentAbsolutePaths() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

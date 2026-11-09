@@ -45,6 +45,7 @@ class CExtractDialog : public QDialog {
     void OnOK();
     UString DraftDestination() const;
     void OnButtonSetPath();
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void showEvent(QShowEvent *event) override;
     static QString settingsPath();
