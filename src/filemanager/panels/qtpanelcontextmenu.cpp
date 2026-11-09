@@ -64,6 +64,7 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
         option->setEnabled(i != 0);
         QObject::connect(
             option, &QAction::toggled, &window, [&window, table, &panel, index = i](bool) {
+                const PROPID previousSort = panel.GetSortID();
                 const int removed = panel.GetColumns()[index].IsVisible
                                         ? panel.GetVisibleColumns().FindItem_for_PropID(
                                               panel.GetColumns()[index].ID)
@@ -85,6 +86,10 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
                 {
                     const QSignalBlocker blocker(table->horizontalHeader());
                     table->horizontalHeader()->setSortIndicator(column, order);
+                    if (panel.GetSortID() != previousSort) {
+                        panel.SetSortRawStatus();
+                        table->sortItems(column, order);
+                    }
                 }
                 window.saveColumns();
             });

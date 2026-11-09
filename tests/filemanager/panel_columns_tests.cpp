@@ -219,13 +219,16 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(temp.isValid());
         QFile file(temp.filePath("payload.txt"));
         QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("large"), qint64(5));
         file.close();
+        QFile first(temp.filePath("alpha.txt"));
+        QVERIFY(first.open(QIODevice::WriteOnly));
+        first.close();
         MainWindow window;
         window.show();
         window.openPath(temp.path());
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && filesystemRow(window, "payload.txt") >= 0);
-        const int row = filesystemRow(window, "payload.txt");
         int column = files->columnForProperty(kpidSize);
         if (typeColumn) {
             column = -1;
@@ -238,6 +241,11 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
                 }
         }
         QVERIFY(column > 0 && !files->isColumnHidden(column));
+        if (!typeColumn) {
+            files->sortItems(column, Qt::DescendingOrder);
+            QVERIFY(filesystemRow(window, "payload.txt") < filesystemRow(window, "alpha.txt"));
+        }
+        const int row = filesystemRow(window, "payload.txt");
         files->selectRow(row);
         files->setCurrentCell(row, column, QItemSelectionModel::NoUpdate);
         const QString label = files->model()->headerData(column, Qt::Horizontal).toString();
@@ -255,7 +263,9 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
                                           Qt::DirectConnection, Q_ARG(QPoint, QPoint(10, 5))));
         QVERIFY(files->isColumnHidden(column));
         QCOMPARE(files->currentIndex().data().toString(), QString("payload.txt"));
-        QVERIFY(files->selectionModel()->isRowSelected(row, {}));
+        QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
+        if (!typeColumn)
+            QVERIFY(filesystemRow(window, "alpha.txt") < filesystemRow(window, "payload.txt"));
     }
 
     void sourceCatalogAndHeaderSettingsPersist() {
