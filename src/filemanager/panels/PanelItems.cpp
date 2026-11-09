@@ -4,6 +4,7 @@
 // use the source load/property stages and a separate Qt row-publication stage.
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "Common/StringConvert.h"
 #include "Windows/FileName.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
@@ -34,12 +35,20 @@ class FolderSizeOperation final : public CProgressThreadVirt {
 
     HRESULT ProcessVirt() override {
         CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
+        HRESULT firstError = S_OK;
         FOR_VECTOR(i, indices_) {
             RINOK(Sync.CheckStop())
             Sync.Set_FilePath(paths_[i], true);
-            RINOK(folder_.CalcItemFullSize(indices_[i], progress))
+            const HRESULT result = folder_.CalcItemFullSize(indices_[i], progress);
+            if (result == E_ABORT)
+                return result;
+            if (result != S_OK) {
+                if (firstError == S_OK)
+                    firstError = result;
+                AddErrorPath(us2fs(paths_[i]));
+            }
         }
-        return S_OK;
+        return firstError;
     }
 
   public:

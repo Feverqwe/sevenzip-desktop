@@ -2,6 +2,7 @@
 #include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "support/progress_dialog.h"
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QLabel>
@@ -67,29 +68,56 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
     void unavailableFolderDoesNotPublishAZeroSize() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString folder = fixture.filePath("folder");
         const QString parked = fixture.filePath("parked");
-        QVERIFY(QDir().mkdir(folder));
-        QVERIFY(writeFile(QDir(folder).filePath("file.txt"), "payload"));
+        for (const QString name : {"folder", "other"}) {
+            QVERIFY(QDir().mkdir(fixture.filePath(name)));
+            QVERIFY(writeFile(fixture.filePath(name + "/file.txt"), "payload"));
+        }
         MainWindow window;
         window.show();
         window.openPath(fixture.path());
-        QTRY_VERIFY(filesystemRow(window, "folder") >= 0);
         auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 2);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         auto *provider = view->sourcePanel->GetFolder();
         CMyComPtr<IFolderCalcItemFullSize> sizes;
         QCOMPARE(provider->QueryInterface(IID_IFolderCalcItemFullSize,
                                           reinterpret_cast<void **>(&sizes)),
                  S_OK);
-        const int row = filesystemRow(window, "folder");
-        const UInt32 index =
-            view->model()->index(row, 0).data(QtPanelList::SourceIndexRole).toUInt();
+        const auto sourceIndex = [&](int row) {
+            return view->model()->index(row, 0).data(QtPanelList::SourceIndexRole).toUInt();
+        };
+        const int row = sourceIndex(0) < sourceIndex(1) ? 0 : 1;
+        const UInt32 index = sourceIndex(row);
+        const UInt32 otherIndex = sourceIndex(1 - row);
+        const QString name = view->model()->index(row, 0).data().toString();
+        const QString folder = fixture.filePath(name);
         QVERIFY(QDir().rename(folder, parked));
         QVERIFY(sizes->CalcItemFullSize(index, nullptr) != S_OK);
         NWindows::NCOM::CPropVariant size;
         QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
         QCOMPARE(size.vt, VARTYPE(VT_EMPTY));
+        view->selectAll();
+        QString report;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            for (auto *widget : QApplication::topLevelWidgets()) {
+                if (auto *result = TestProgressDialog::ResultWindow(widget);
+                    result && result->isVisible()) {
+                    report = TestProgressDialog::ReportText(*result);
+                    TestProgressDialog::CloseResult(*result);
+                }
+            }
+        });
+        responder.start(1);
+        action(window, "calculateDirectorySizeAction")->trigger();
+        responder.stop();
+        QVERIFY(report.contains(name));
+        QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
+        QCOMPARE(size.vt, VARTYPE(VT_EMPTY));
+        QCOMPARE(provider->GetProperty(otherIndex, kpidSize, &size), S_OK);
+        QCOMPARE(size.vt, VARTYPE(VT_UI8));
+        QCOMPARE(size.uhVal.QuadPart, UInt64(7));
         QVERIFY(QDir().rename(parked, folder));
         view->setCurrentCell(row, 0);
         view->selectRow(row);
