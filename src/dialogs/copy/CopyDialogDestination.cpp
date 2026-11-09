@@ -273,7 +273,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
     if (error.isEmpty() && checkBatch && _destinationContext &&
         _destinationContext->LocalFileTransfer) {
         for (const QString &path : _sources) {
-            error = QtTransferSourceError(QFileInfo(path), _move);
+            error = QtTransferSourceError(QFileInfo(path), _move && filesystemDestination);
             if (!error.isEmpty()) {
                 canRetry = true;
                 break;

@@ -460,7 +460,25 @@ class CopyDestinationTests final : public QObject {
         move.accept();
         QCOMPARE(move.result(), int(QDialog::Accepted));
 
+        const QString archive = fixture.filePath("output.zip") + '/';
+        context.PeerDestination = archive;
+        context.PeerIsArchive = true;
+        context.PeerSupportsWriting = true;
+        CCopyDialog moveToArchive(true, archive, {first, blocked});
+        moveToArchive.ConfigureDestination(context);
+        moveToArchive.show();
+        moveToArchive.accept();
+        QVERIFY(moveToArchive.isVisible());
+        auto *archiveMessage = moveToArchive.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(archiveMessage && archiveMessage->isVisible() &&
+                archiveMessage->text().contains(blocked));
+
         QVERIFY(QFile::setPermissions(blocked, permissions));
+        auto *archivePath = moveToArchive.findChild<QLineEdit *>("copyDestination");
+        QCOMPARE(archivePath->text(), archive);
+        QTest::keyClick(archivePath, Qt::Key_Return);
+        QCOMPARE(moveToArchive.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(moveToArchive.Value), archive);
         auto *path = copy.findChild<QLineEdit *>("copyDestination");
         QCOMPARE(path->text(), destination);
         QTest::keyClick(path, Qt::Key_Return);
