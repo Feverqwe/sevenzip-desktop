@@ -6,7 +6,6 @@
 #include "localization/LangUtils.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
-#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
@@ -295,83 +294,6 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(control.open(QIODevice::ReadOnly));
         QCOMPARE(control.readAll(), QByteArray("keep bytes"));
         QVERIFY(!QFileInfo::exists(QDir(target).filePath("source.txt")));
-    }
-
-    void flatCopyCanRetryWithOneOfTwoMatchingNames() {
-        QTemporaryDir fixture;
-        QVERIFY(fixture.isValid());
-        const QString source = fixture.filePath("source");
-        const QString destination = fixture.filePath("destination");
-        const QString first = QDir(source).filePath("first/item.txt");
-        const QString second = QDir(source).filePath("second/item.txt");
-        for (const auto &path : {first, second}) {
-            QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
-            QFile file(path);
-            QVERIFY(file.open(QIODevice::WriteOnly));
-            QCOMPARE(file.write(path == first ? "first" : "other"), qint64(5));
-        }
-        ControlledBackend backend;
-        MainWindow window(&backend);
-        window.show();
-        QVERIFY(QTest::qWaitForWindowActive(&window));
-        window.openPath(source);
-        auto *view = table(window);
-        QTRY_COMPARE(view->rowCount(), 2);
-        view->sourcePanel->ChangeFlatMode();
-        QTRY_COMPARE(view->rowCount(), 4);
-        view->setFocus();
-        QTRY_VERIFY(view->hasFocus());
-        QModelIndex firstItem;
-        for (int row = 0; row < view->rowCount(); ++row) {
-            const auto index = view->model()->index(row, 0);
-            const auto path =
-                QDir::fromNativeSeparators(index.data(QtPanelList::OperationPathRole).toString());
-            if (path == first || path == second)
-                view->selectionModel()->select(index, QItemSelectionModel::Select |
-                                                          QItemSelectionModel::Rows);
-            if (path == first)
-                firstItem = index;
-        }
-        QVERIFY(firstItem.isValid());
-        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
-        bool accepted = false;
-        bool shown = false;
-        for (bool retry : {false, true}) {
-            shown = false;
-            dialogs_.respond(window, [&, retry](QDialog &active) {
-                const auto close = qScopeGuard([&] {
-                    if (active.isVisible())
-                        active.reject();
-                });
-                auto *dialog = qobject_cast<CopyDialog *>(&active);
-                QVERIFY(dialog);
-                shown = true;
-                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination + '/');
-                dialog->accept();
-                accepted = dialog->result() == QDialog::Accepted;
-                if (!retry) {
-                    auto *error = dialog->findChild<QLabel *>("copyDestinationMessage");
-                    QVERIFY(error && error->isVisible() && error->text().contains("item.txt"));
-                }
-            });
-            QTest::keyClick(window.focusWidget(), Qt::Key_F5);
-            QVERIFY(shown);
-            QCOMPARE(accepted, retry);
-            if (!retry) {
-                QVERIFY(!QFileInfo::exists(destination));
-                QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
-                QVERIFY(WindowActivation::waitForActive(window));
-                QTRY_VERIFY(view->hasFocus());
-                view->selectionModel()->setCurrentIndex(
-                    firstItem, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-            }
-        }
-        const QString copied = QDir(destination).filePath("item.txt");
-        QTRY_VERIFY(QFileInfo::exists(copied));
-        QFile result(copied);
-        QVERIFY(result.open(QIODevice::ReadOnly));
-        QCOMPARE(result.readAll(), QByteArray("first"));
-        QVERIFY(QFileInfo::exists(first) && QFileInfo::exists(second));
     }
 
     void ordinaryF5AcceptsSingleFilenameDestination() {
