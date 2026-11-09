@@ -730,6 +730,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         const QString earlier = nameAt(120);
         const QString removed = nameAt(130);
         const QString next = nameAt(131);
+        const QString first = nameAt(0);
         view->setCurrentCell(130, 0);
         view->selectRow(130);
         view->selectionModel()->select(view->model()->index(120, 0),
@@ -778,6 +779,15 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(nameAt(view->currentRow()), next);
         QTRY_VERIFY(
             active->visualRect(active->currentIndex()).intersects(active->viewport()->rect()));
+        QApplication::clipboard()->clear();
+        const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        QTest::keyClick(window.focusWidget(), Qt::Key_Home);
+        QCOMPARE(nameAt(view->currentRow()), first);
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(QApplication::clipboard()->mimeData() &&
+                    QApplication::clipboard()->mimeData()->hasUrls());
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList{QUrl::fromLocalFile(fixture.filePath(first))});
         QFile keep(fixture.filePath("entry-257.bin"));
         QVERIFY(keep.open(QIODevice::ReadOnly));
         QCOMPARE(keep.readAll(), QByteArray("protected bytes"));
