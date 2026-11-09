@@ -119,8 +119,10 @@ HRESULT MainWindow::openArchiveAsImpl(const QFileInfo &file, const QString &type
     }
     if (result == E_ABORT)
         message = QCoreApplication::translate("mainwindow_archiveopening", "Operation canceled.");
-    else if (message.isEmpty() && result != S_OK)
-        message = ToQString(HResultToMessage(result));
+    else if (message.isEmpty() && result != S_OK) {
+        message = ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, ToUString(file.absoluteFilePath())));
+        message += '\n' + ToQString(HResultToMessage(result));
+    }
     showStatusMessage(message);
     if (result != S_OK && result != E_ABORT) {
         QMessageBox warning(QMessageBox::Warning, QStringLiteral("Sevenzip"), message,

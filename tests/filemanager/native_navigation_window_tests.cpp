@@ -722,7 +722,13 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
                 QTest::newRow(qPrintable(QString("%1-%2").arg(origin).arg(cancel)))
                     << origin << cancel;
     }
-    void unreadableArchiveFromListShowsItsPathAndCanBeRetried() {
+    void unreadableArchiveShowsItsPathAndCanBeRetried_data() {
+        QTest::addColumn<bool>("typed");
+        QTest::newRow("list") << false;
+        QTest::newRow("address") << true;
+    }
+    void unreadableArchiveShowsItsPathAndCanBeRetried() {
+        QFETCH(bool, typed);
 #ifndef Q_OS_UNIX
         QSKIP("Requires file permissions that deny reading without hiding the entry");
 #endif
@@ -737,8 +743,23 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         auto *view = table(window);
         view->selectRow(0);
         view->setCurrentCell(0, 0);
-        view->setFocus();
-        QTRY_VERIFY(view->hasFocus());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QWidget *editor = view;
+        if (typed) {
+            PanelKeys::focusAddress(address);
+            address->setText(path);
+            address->setModified(true);
+            editor = address;
+        } else {
+            view->setFocus();
+        }
+        QTRY_VERIFY(editor->hasFocus());
+        const auto open = [&] {
+            if (typed)
+                QTest::keyClick(editor, Qt::Key_Return);
+            else
+                PanelKeys::openSelection(editor);
+        };
 
         const auto permissions = QFile::permissions(path);
         const auto restore = qScopeGuard([&] { QFile::setPermissions(path, permissions); });
@@ -755,14 +776,16 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             }
         });
         dismiss.start(5);
-        PanelKeys::openSelection(view);
+        open();
         QVERIFY(message.contains(path));
         QCOMPARE(view->currentIndex().data().toString(), QFileInfo(path).fileName());
 
         QVERIFY(QFile::setPermissions(path, permissions));
         QVERIFY(WindowActivation::waitForActive(window));
-        QTRY_VERIFY(view->hasFocus());
-        PanelKeys::openSelection(window.focusWidget());
+        QTRY_VERIFY(editor->hasFocus());
+        if (typed)
+            QCOMPARE(address->text(), path);
+        open();
         QTRY_COMPARE(view->model()->index(0, 0).data().toString(), QString("entry.txt"));
     }
     void encryptedArchivePassword_data() {
