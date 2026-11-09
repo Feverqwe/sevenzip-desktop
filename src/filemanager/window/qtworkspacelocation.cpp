@@ -303,8 +303,10 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
                 return OpenPanelLocation(panel);
             },
             [this, panel, interaction](HRESULT result) {
-                if (result == S_OK)
+                if (result == S_OK) {
+                    window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], {});
                     FocusListAfterLocationOpen(panel, interaction);
+                }
             });
         if (result != S_OK)
             CompleteLocationOpen(panel, requested, result);
