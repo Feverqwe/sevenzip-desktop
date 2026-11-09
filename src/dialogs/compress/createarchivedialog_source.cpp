@@ -1,3 +1,4 @@
+#include "7zip/UI/FileManager/PasswordDialogRes.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/CompressDialogRes.h"
 #include "Windows/ErrorMsg.h"
@@ -104,6 +105,11 @@ void CreateArchiveDialog::validateAndAccept() {
     }
     if (password_) {
         const bool protect = password_->isEnabled();
+        if (protect && password_->text().isEmpty()) {
+            ShowErrorMessageHwndResQt(this, IDD_PASSWORD);
+            password_->setFocus();
+            return;
+        }
         const auto error = CCompressDialog::CheckPassword(
             protect ? password_->text() : QString(),
             protect ? passwordConfirmation_->text() : QString(), showPassword_->isChecked(),

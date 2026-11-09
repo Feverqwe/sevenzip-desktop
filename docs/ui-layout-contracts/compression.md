@@ -281,6 +281,7 @@ Reference: the same upstream commit, `CPP/7zip/UI/GUI/CompressDialog.rc`,
   CPU threads, and memory controls. Encryption retains the upstream order:
   password, confirmation, Show Password, method, Encrypt file names.
   Show Password hides confirmation and its label; headers are hidden for ZIP.
+  When password protection is enabled, a password is required before creation.
   Disabled password protection retains its draft but excludes it from validation
   and effective archive options, including after changing to a format without encryption.
   Compression stays in the left column and encryption in the right at both sizes.

@@ -143,12 +143,21 @@ class CompressionEncryptionTests final : public QObject {
         QCOMPARE(restored.findChild<QComboBox *>("archiveFormat")->currentText(), QString("7z"));
         QVERIFY(!restored.findChild<QCheckBox *>("archiveShowPassword")->isChecked());
     }
-    void passwordMismatchReturnsToConfirmation() {
+    void invalidProtectionReturnsToPasswordField_data() {
+        QTest::addColumn<bool>("empty");
+        QTest::newRow("confirmation-mismatch") << false;
+        QTest::newRow("protection-without-password") << true;
+    }
+    void invalidProtectionReturnsToPasswordField() {
+        QFETCH(bool, empty);
         CreateArchiveDialog dialog(directory_.path(), {source_});
+        auto *password = dialog.findChild<QLineEdit *>("archivePassword");
         auto *confirmation = dialog.findChild<QLineEdit *>("archivePasswordConfirmation");
         dialog.findChild<QCheckBox *>("archivePasswordEnabled")->setChecked(true);
-        setPassword(dialog, "correct password");
-        confirmation->setText("mistyped password");
+        if (!empty) {
+            setPassword(dialog, "correct password");
+            confirmation->setText("mistyped password");
+        }
         dialog.show();
         dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->setFocus();
         bool refused = false;
@@ -160,9 +169,13 @@ class CompressionEncryptionTests final : public QObject {
         });
         submit(dialog);
         QVERIFY(refused && dialog.isVisible());
-        QCOMPARE(dialog.focusWidget(), confirmation);
-        QCOMPARE(confirmation->text(), QString("mistyped password"));
-        QCOMPARE(confirmation->selectionLength(), confirmation->text().size());
+        QCOMPARE(dialog.focusWidget(), empty ? password : confirmation);
+        if (empty)
+            QTest::keyClicks(password, "correct password");
+        else {
+            QCOMPARE(confirmation->text(), QString("mistyped password"));
+            QCOMPARE(confirmation->selectionLength(), confirmation->text().size());
+        }
         QTest::keyClicks(confirmation, "correct password");
         QCOMPARE(confirmation->text(), QString("correct password"));
         submit(dialog);
