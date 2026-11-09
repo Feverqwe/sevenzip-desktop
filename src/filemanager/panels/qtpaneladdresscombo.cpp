@@ -82,6 +82,7 @@ QtPanelAddressCombo::~QtPanelAddressCombo() {
 void QtPanelAddressCombo::showPopup() {
     if (!panel_)
         return;
+    CancelPendingListFocus();
     const QString text = currentText();
     {
         const QSignalBlocker blocker(this);
