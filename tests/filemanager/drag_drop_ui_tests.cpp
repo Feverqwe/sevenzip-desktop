@@ -1158,17 +1158,20 @@ class DragDropUiTests final : public QObject {
         QTest::addColumn<bool>("right");
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<Qt::DropActions>("actions");
+        QTest::addColumn<bool>("refreshTarget");
         const auto both = Qt::CopyAction | Qt::MoveAction;
-        QTest::newRow("left-table-copy") << false << false << 0 << false << false << both;
-        QTest::newRow("right-table-move") << false << true << 1 << false << false << both;
-        QTest::newRow("left-icons-move") << true << true << 0 << false << false << both;
-        QTest::newRow("right-icons-copy") << true << false << 1 << false << false << both;
-        QTest::newRow("right-button-copy") << false << false << 0 << true << false << both;
+        QTest::newRow("left-table-copy") << false << false << 0 << false << false << both << false;
+        QTest::newRow("right-table-move") << false << true << 1 << false << false << both << false;
+        QTest::newRow("left-icons-move") << true << true << 0 << false << false << both << false;
+        QTest::newRow("right-icons-copy") << true << false << 1 << false << false << both << false;
+        QTest::newRow("right-button-copy") << false << false << 0 << true << false << both << false;
         QTest::newRow("right-button-copy-only")
-            << false << false << 0 << true << false << Qt::DropActions(Qt::CopyAction);
+            << false << false << 0 << true << false << Qt::DropActions(Qt::CopyAction) << false;
         QTest::newRow("right-button-move-only")
-            << true << true << 1 << true << false << Qt::DropActions(Qt::MoveAction);
-        QTest::newRow("right-button-cancel") << true << false << 1 << true << true << both;
+            << true << true << 1 << true << false << Qt::DropActions(Qt::MoveAction) << false;
+        QTest::newRow("right-button-cancel") << true << false << 1 << true << true << both << false;
+        QTest::newRow("copy-after-target-refresh")
+            << false << false << 0 << false << false << both << true;
     }
     void nativeSourceUsesActualTargetView() {
         QFETCH(bool, icons);
@@ -1177,6 +1180,7 @@ class DragDropUiTests final : public QObject {
         QFETCH(bool, right);
         QFETCH(bool, cancel);
         QFETCH(Qt::DropActions, actions);
+        QFETCH(bool, refreshTarget);
         QTemporaryDir root;
         const QString name = QStringLiteral("перенос с пробелом.txt");
         const QString source = root.filePath("source");
@@ -1228,6 +1232,12 @@ class DragDropUiTests final : public QObject {
         const QModelIndex folder = targetTable->model()->index(folderRow, 0);
         const QPoint point = view->visualRect(folder).center();
         QVERIFY(view->viewport()->rect().contains(point));
+        if (refreshTarget) {
+            targetTable->sourcePanel->Set_AutoRefresh_Mode(false);
+            for (int i = 0; i < 257; ++i)
+                QVERIFY(SourceExtractFixture::writeFile(
+                    QDir(target).filePath(QString("refresh-%1.txt").arg(i)), "fixture"));
+        }
         const auto selection = targetTable->selectionModel()->selectedRows();
         bool entered = false, dropped = false, highlighted = false, sourceRefused = false;
         bool menuShown = false;
@@ -1279,7 +1289,25 @@ class DragDropUiTests final : public QObject {
             QCoreApplication::sendEvent(view->viewport(), &enter);
             entered = enter.isAccepted();
             highlighted = folder.data(Qt::UserRole + 19).toBool();
-            QDropEvent drop(point, actions, drag.mimeData(), button, modifiers);
+            QPoint dropPoint = point;
+            if (refreshTarget) {
+                if (targetTable->sourcePanel->RefreshListCtrl() != S_OK ||
+                    targetTable->updatesEnabled())
+                    return Qt::IgnoreAction;
+                QDragMoveEvent blocked(point, actions, drag.mimeData(), button, modifiers);
+                QCoreApplication::sendEvent(view->viewport(), &blocked);
+                if (blocked.isAccepted() ||
+                    !QTest::qWaitFor([&] { return targetTable->updatesEnabled(); }))
+                    return Qt::IgnoreAction;
+                const auto refreshed = targetTable->model()->index(Row(*targetTable, subfolder), 0);
+                dropPoint = view->visualRect(refreshed).center();
+                QDragMoveEvent resumed(dropPoint, actions, drag.mimeData(), button, modifiers);
+                QCoreApplication::sendEvent(view->viewport(), &resumed);
+                if (!resumed.isAccepted() ||
+                    !refreshed.data(QtPanelList::DropHighlightedRole).toBool())
+                    return Qt::IgnoreAction;
+            }
+            QDropEvent drop(dropPoint, actions, drag.mimeData(), button, modifiers);
             QCoreApplication::sendEvent(view->viewport(), &drop);
             dropped = drop.isAccepted();
             return dropped ? drop.dropAction() : Qt::IgnoreAction;
@@ -1319,7 +1347,10 @@ class DragDropUiTests final : public QObject {
             QCOMPARE(canArchive, actions.testFlag(Qt::CopyAction));
             QCOMPARE(canMove, actions.testFlag(Qt::MoveAction));
         }
-        QVERIFY(!folder.data(Qt::UserRole + 19).toBool());
+        QVERIFY(!targetTable->model()
+                     ->index(Row(*targetTable, subfolder), 0)
+                     .data(QtPanelList::DropHighlightedRole)
+                     .toBool());
         QCOMPARE(targetTable->selectionModel()->selectedRows(), selection);
         if (cancel) {
             QTRY_COMPARE(window.focusWidget(), sourceTable);
