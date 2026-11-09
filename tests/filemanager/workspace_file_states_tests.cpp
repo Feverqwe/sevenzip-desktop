@@ -33,6 +33,41 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
     }
     void cleanup() { QApplication::clipboard()->clear(); }
 
+    void copyFollowsFocusBetweenAddressAndFiles() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("selected 文件.txt");
+        const QString source = fixture.filePath(name);
+        write(source);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        files->selectRow(rowFor(*files, name));
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        const QString draft = QStringLiteral("unsubmitted folder");
+        address->selectAll();
+        QTest::keyClicks(address, draft);
+        address->setSelection(12, 6);
+        auto *clipboard = QApplication::clipboard();
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QCOMPARE(clipboard->text(), QString("folder"));
+        QVERIFY(!clipboard->mimeData()->hasUrls());
+
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(source)});
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(address->text(), draft);
+    }
+
     void duplicateClipboardTargetsAreRejectedWithoutStartingPaste() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
