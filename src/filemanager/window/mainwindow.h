@@ -282,6 +282,7 @@ class MainWindow : public QMainWindow {
     void showPanelStatus(unsigned panel, const CPanelStatus &status);
     void showStatusMessage(const QString &message, int timeout = 5000);
     void clearStatusMessage();
+    QString recordFilesystemReadError();
     void clearFilesystemReadError();
     void showSelectedProperties();
     void calculateHash(const QString &method);
@@ -357,6 +358,7 @@ class MainWindow : public QMainWindow {
         std::optional<std::pair<PROPID, bool>> tableCursorColumn;
         QLabel *readOnlyIndicator = nullptr;
         QString directory;
+        QString filesystemReadError;
         QString returnDirectory;
         QString archive;
         QString displayArchive;

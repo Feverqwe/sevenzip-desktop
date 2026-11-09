@@ -3,6 +3,7 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
@@ -646,6 +647,14 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(window.statusBar()->currentMessage(),
                  QCoreApplication::translate("FSFolderCopy", "Could not read folder: %1")
                      .arg(QDir::toNativeSeparators(folder)));
+        const QString readError = window.statusBar()->currentMessage();
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SaveRegLang(UString("ru"), settings);
+        ReloadLang(settings);
+        QtNotifyLanguageChanged();
+        QVERIFY(QCoreApplication::translate("FSFolderCopy", "Could not read folder: %1") !=
+                QStringLiteral("Could not read folder: %1"));
+        QCOMPARE(window.statusBar()->currentMessage(), readError);
         QVERIFY(QFile::setPermissions(folder, permissions));
         refresh->trigger();
         QTRY_COMPARE(files->rowCount(), 1);
