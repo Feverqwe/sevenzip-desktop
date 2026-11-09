@@ -33,7 +33,7 @@
 #include "Windows/SecurityUtils.h"
 #endif
 
-#include "7zip/Common/FilePathAutoRename.h"
+#include "fileops/paths/qtautorename.h"
 #include "7zip/Common/StreamUtils.h"
 
 #include "7zip/Archive/Common/ItemNameUtils.h"
@@ -1256,14 +1256,14 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             }
         }
         if (renameOnce || _overwriteMode == NExtract::NOverwriteMode::kRename) {
-            if (!AutoRenamePath(fullProcessedPath)) {
+            if (!QtAutoRenamePath(fullProcessedPath)) {
                 RINOK(SendMessageError(kCantAutoRename, fullProcessedPath))
                 return E_FAIL;
             }
             _isRenamed = true;
         } else if (_overwriteMode == NExtract::NOverwriteMode::kRenameExisting) {
             FString existPath(fullProcessedPath);
-            if (!AutoRenamePath(existPath)) {
+            if (!QtAutoRenamePath(existPath)) {
                 RINOK(SendMessageError(kCantAutoRename, fullProcessedPath))
                 return E_FAIL;
             }

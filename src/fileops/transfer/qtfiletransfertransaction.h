@@ -62,8 +62,6 @@ class QtFileTransferTransaction final {
     static QStringList movedSources(const QList<TransferEntry> &completed);
     bool validateEntry(const QString &source, QString *error);
     static bool removeEntry(const QString &path);
-    static QString availableName(const QString &target,
-                                 const std::function<bool(const QString &)> &reserved);
 
   public:
     explicit QtFileTransferTransaction(FileTransferOperation &worker) : worker_(worker) {}

@@ -1,6 +1,7 @@
 #include "Common/StringConvert.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
+#include "fileops/paths/qtautorename.h"
 #include "fileops/transfer/qtfiletransfercopycallback.h"
 #include "fileops/transfer/qtfiletransfertransaction.h"
 #include "localization/qtlanguageservices.h"
@@ -87,10 +88,11 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
                 case OverwriteDecision::Skip:
                     return std::nullopt;
                 case OverwriteDecision::Rename: {
-                    effective = availableName(requested, [&source, &stage](const QString &name) {
-                        const QString original = source + name.mid(stage.size());
-                        return QFileInfo::exists(original) || QtIsFileSystemLink(original);
-                    });
+                    effective =
+                        QtAvailableRenamePath(requested, [&source, &stage](const QString &name) {
+                            const QString original = source + name.mid(stage.size());
+                            return QFileInfo::exists(original) || QtIsFileSystemLink(original);
+                        });
                     if (effective.isEmpty())
                         return std::unexpected(E_ABORT);
                     break;

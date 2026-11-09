@@ -38,6 +38,39 @@ class ExtractionOptionsTests : public QObject {
     }
 
   private slots:
+    void keepBothExtractsAnEntryWithALimitLengthName() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QDir output(temp.filePath("output"));
+        QVERIFY(QDir().mkpath(output.path()));
+        const QString stem(251, u'a');
+        const QString name = stem + ".txt";
+        QFile existing(output.filePath(name));
+        if (!existing.open(QIODevice::WriteOnly))
+            QSKIP("The test filesystem cannot create this long destination name");
+        QCOMPARE(existing.write("old"), qint64(3));
+        existing.close();
+        const QString shorter = stem.left(249);
+        writeFile(output.filePath(shorter + "_1.txt"), "occupied");
+        const QString archive = temp.filePath("fixture.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{name, "new"}}, "zip"));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        backend.list(archive);
+        await(backend, true);
+        QSignalSpy questions(&backend, &ArchiveBackend::overwriteRequired);
+        connect(&backend, &ArchiveBackend::overwriteRequired, &backend,
+                [&backend] { backend.provideOverwriteAnswer(NOverwriteAnswer::kAutoRenameOnce); });
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
+        backend.extract(archive, output.path(), {}, {}, options);
+        await(backend, true);
+        QCOMPARE(questions.size(), 1);
+        QCOMPARE(readFile(existing.fileName()), QByteArray("old"));
+        QCOMPARE(readFile(output.filePath(shorter + "_1.txt")), QByteArray("occupied"));
+        QCOMPARE(readFile(output.filePath(shorter + "_2.txt")), QByteArray("new"));
+    }
+
     void overwriteCancellationLeavesReplacementRunning_data() {
         QTest::addColumn<bool>("hashReplacement");
         QTest::newRow("read-to-hash") << true;

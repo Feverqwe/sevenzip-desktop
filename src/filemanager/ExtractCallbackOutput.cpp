@@ -1,6 +1,5 @@
 // Entry output callbacks adapted from 7-Zip UI/FileManager/ExtractCallback.cpp.
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
-#include "7zip/Common/FilePathAutoRename.h"
 #include "Common/ComTry.h"
 #include "Common/StringConvert.h"
 #include "Windows/FileFind.h"
@@ -10,6 +9,7 @@
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/ExtractCallback.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/paths/qtautorename.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 
 using namespace NWindows;
@@ -131,7 +131,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
         }
 
         if (renameOnce || OverwriteMode == NExtract::NOverwriteMode::kRename) {
-            if (!AutoRenamePath(destPathSys)) {
+            if (!QtAutoRenamePath(destPathSys)) {
                 RINOK(MessageError(
                     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot create name for file"),
                     destPathSys))
