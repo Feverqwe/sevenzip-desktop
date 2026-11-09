@@ -353,14 +353,14 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
         QCOMPARE(clipboard->mimeData()->urls(), original);
         QVERIFY(WindowActivation::waitForActive(window));
-        view->setFocus();
-        QVERIFY(view->hasFocus());
+        QTRY_COMPARE(window.focusWidget(), view);
         cancel = false;
         prompts = 0;
         for (int attempt = 1; attempt <= (move ? 1 : 2); ++attempt) {
-            QTest::keySequence(view, QKeySequence::Paste);
+            QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
             const QString renamed = QStringLiteral("файл 空_%1.txt").arg(attempt);
             QTRY_VERIFY(filesystemRow(window, renamed) >= 0 && view->isEnabled());
+            QTRY_COMPARE(window.focusWidget(), view);
             QCOMPARE(prompts, attempt);
             QCOMPARE(read(QDir(destination).filePath(renamed)), QByteArray("incoming bytes"));
             QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
