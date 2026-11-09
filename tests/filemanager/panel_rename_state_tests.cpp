@@ -258,6 +258,54 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             QCOMPARE(untouched.readAll(), QByteArray("focus bytes"));
         }
     }
+    void tabFinishesOneRename_data() {
+        QTest::addColumn<bool>("reverse");
+        QTest::newRow("tab") << false;
+        QTest::newRow("shift-tab") << true;
+    }
+
+    void tabFinishesOneRename() {
+        QFETCH(bool, reverse);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(write(fixture.filePath("a.txt"), "first"));
+        QVERIFY(write(fixture.filePath("b.txt"), "rename me"));
+        QVERIFY(write(fixture.filePath("c.txt"), "last"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "b.txt") >= 0);
+        view->setFocus();
+        view->setCurrentCell(filesystemRow(window, "b.txt"), 0);
+        view->selectRow(view->currentRow());
+        QTest::keyClick(view, Qt::Key_F2);
+        auto *editor = qobject_cast<QLineEdit *>(window.focusWidget());
+        QVERIFY(editor && view->isAncestorOf(editor));
+        editor->setText("renamed.txt");
+        QTest::keyClick(editor, reverse ? Qt::Key_Backtab : Qt::Key_Tab,
+                        reverse ? Qt::ShiftModifier : Qt::NoModifier);
+        QCOMPARE(window.focusWidget(), view);
+        QTRY_VERIFY(filesystemRow(window, "renamed.txt") >= 0);
+        QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+        QTest::keyClick(view, Qt::Key_F2);
+        editor = qobject_cast<QLineEdit *>(window.focusWidget());
+        QVERIFY(editor && view->isAncestorOf(editor));
+        QCOMPARE(editor->text(), QString("renamed.txt"));
+        editor->setText("finished.txt");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(filesystemRow(window, "finished.txt") >= 0);
+        QVERIFY(!QFileInfo::exists(fixture.filePath("b.txt")));
+        QVERIFY(!QFileInfo::exists(fixture.filePath("renamed.txt")));
+        QFile finished(fixture.filePath("finished.txt"));
+        QVERIFY(finished.open(QIODevice::ReadOnly));
+        QCOMPARE(finished.readAll(), QByteArray("rename me"));
+    }
+
     void editorPreservesSavedSelection_data() {
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<QString>("language");
