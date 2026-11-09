@@ -670,18 +670,21 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
     void missingFolderClearsStaleRowsAndRecovers_data() {
         QTest::addColumn<bool>("automatic");
         QTest::addColumn<bool>("publishedRename");
+        QTest::addColumn<bool>("externalRename");
         QTest::addColumn<bool>("goUp");
         QTest::addColumn<bool>("replacedByFile");
-        QTest::newRow("automatic") << true << false << false << false;
-        QTest::newRow("manual") << false << false << false << false;
-        QTest::newRow("automatic-file-replacement") << true << false << false << true;
-        QTest::newRow("manual-file-replacement") << false << false << false << true;
-        QTest::newRow("published-rename") << false << true << false << false;
-        QTest::newRow("parent-after-rename") << false << true << true << false;
+        QTest::newRow("automatic") << true << false << false << false << false;
+        QTest::newRow("manual") << false << false << false << false << false;
+        QTest::newRow("automatic-file-replacement") << true << false << false << false << true;
+        QTest::newRow("manual-file-replacement") << false << false << false << false << true;
+        QTest::newRow("published-rename") << false << true << false << false << false;
+        QTest::newRow("parent-after-rename") << false << true << false << true << false;
+        QTest::newRow("parent-after-external-rename") << true << false << true << true << false;
     }
     void missingFolderClearsStaleRowsAndRecovers() {
         QFETCH(bool, automatic);
         QFETCH(bool, publishedRename);
+        QFETCH(bool, externalRename);
         QFETCH(bool, goUp);
         QFETCH(bool, replacedByFile);
         QTemporaryDir temp;
@@ -736,6 +739,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(peerFiles->hasFocus());
             files->setFocus();
             QTRY_VERIFY(files->hasFocus());
+        } else if (externalRename) {
+            QVERIFY(QDir().rename(folder, renamed));
         } else {
             QVERIFY(QFile::remove(folder + QStringLiteral("/old.txt")));
             bool removed = false;
@@ -758,7 +763,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(!action(window, "testArchiveAction")->isEnabled());
         QVERIFY(action(window, "refreshAction")->isEnabled());
         QVERIFY(action(window, "parentFolderAction")->isEnabled());
-        if (publishedRename) {
+        if (publishedRename || externalRename) {
             QFile retained(renamed + "/old.txt");
             QVERIFY(retained.open(QIODevice::ReadOnly));
             QCOMPARE(retained.readAll(), QByteArray("control"));
