@@ -245,17 +245,21 @@ void CreateArchiveDialog::validateAndAccept() {
         }
         return;
     }
-    if (!checkVolumeSizes(volumeResult, volumeInfo))
-        return;
-    for (const auto &source : requiredSources_) {
-        if (!QFileInfo::exists(source) && !QtIsFileSystemLink(source)) {
+    const auto sourcesAvailable = [&] {
+        for (const auto &source : requiredSources_) {
+            if (QFileInfo::exists(source) || QtIsFileSystemLink(source))
+                continue;
             const auto message =
                 QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
                 QDir::toNativeSeparators(source);
             ShowErrorMessageQt(this, message.toStdWString().c_str());
-            return;
+            return false;
         }
-    }
+        return true;
+    };
+    if (!sourcesAvailable() || !checkVolumeSizes(volumeResult, volumeInfo) ||
+        (volumeResult == CCompressDialog::kConfirmSmallVolume && !sourcesAvailable()))
+        return;
     // Existing outputs are opened/validated by source UpdateArchive after OK,
     // just as for the original form. The dialog must not reject update intent.
     const QString acceptedPath = archive.BaseExtension.IsEmpty() ? resolved : output;

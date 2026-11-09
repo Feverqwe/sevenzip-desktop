@@ -277,22 +277,37 @@ class CompressionPathTests final : public QObject {
             });
             auto *name = dialog->findChild<QLineEdit *>("archiveName");
             name->setText(target);
+            auto *volume = dialog->findChild<QComboBox *>("archiveVolumeSize");
+            QVERIFY(volume);
+            volume->setEditText("64K");
             QVERIFY(QFile::rename(input, parked));
-            QString error;
-            QTimer::singleShot(0, dialog, [&] {
+            QStringList errors;
+            int confirmations = 0;
+            QTimer dismiss;
+            connect(&dismiss, &QTimer::timeout, dialog, [&] {
                 if (auto *message =
                         qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-                    error = message->text();
-                    message->accept();
+                    if (auto *yes = message->button(QMessageBox::Yes)) {
+                        ++confirmations;
+                        yes->click();
+                    } else {
+                        errors.append(message->text());
+                        message->accept();
+                    }
                 }
             });
+            dismiss.start(1);
             submit(*dialog);
             QVERIFY(dialog->isVisible());
-            QVERIFY(error.contains("selected file.txt"));
+            QCOMPARE(confirmations, 0);
+            QCOMPARE(errors.size(), 1);
+            QVERIFY(errors.first().contains("selected file.txt"));
             QCOMPARE(name->text(), target);
+            QCOMPARE(volume->currentText(), QString("64K"));
             QVERIFY(QFile::rename(parked, input));
             submit(*dialog);
             QCOMPARE(dialog->result(), int(QDialog::Accepted));
+            QCOMPARE(confirmations, 1);
             responded = true;
         });
         responder.start(5);
