@@ -433,7 +433,10 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
          std::any_of(completed.cbegin(), completed.cend(), [](const TransferEntry &entry) {
              return entry.merged && entry.sourceState != SourceState::Removed;
          }));
-    if (!worker_.move_ && partial)
+    if (skipped_ && completed.isEmpty())
+        message =
+            QCoreApplication::translate("qtfiletransfertransaction", "All items were skipped.");
+    else if (!worker_.move_ && partial)
         message =
             QCoreApplication::translate("qtfiletransfertransaction", "Some items were skipped.");
     else if (!worker_.move_)

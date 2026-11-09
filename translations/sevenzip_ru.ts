@@ -6500,6 +6500,7 @@ Use `Revert` to recover timestamp.</source>
             <translation>Не удалось восстановить «%1» из резервной копии «%2».</translation>
         </message>
         <message><source>Some items were skipped.</source><translation>Некоторые объекты пропущены.</translation></message>
+        <message><source>All items were skipped.</source><translation>Все объекты пропущены.</translation></message>
         <message>
             <location filename="../src/fileops/transfer/qtfiletransfertransaction.cpp" line="+261" />
             <source> Some items may have been moved.</source>

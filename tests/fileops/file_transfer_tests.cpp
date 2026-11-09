@@ -1262,15 +1262,18 @@ class FileTransferTests : public QObject {
     void noToAllAndCancelDuringPromptLeaveSourcesUntouched_data() {
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<bool>("queued");
-        QTest::newRow("skip-before-wait") << false << false;
-        QTest::newRow("cancel-before-wait") << true << false;
-        QTest::newRow("skip-from-gui") << false << true;
-        QTest::newRow("cancel-from-gui") << true << true;
+        QTest::addColumn<bool>("move");
+        QTest::newRow("skip-before-wait") << false << false << false;
+        QTest::newRow("cancel-before-wait") << true << false << false;
+        QTest::newRow("skip-from-gui") << false << true << false;
+        QTest::newRow("cancel-from-gui") << true << true << false;
+        QTest::newRow("skip-move-from-gui") << false << true << true;
     }
 
     void noToAllAndCancelDuringPromptLeaveSourcesUntouched() {
         QFETCH(bool, cancel);
         QFETCH(bool, queued);
+        QFETCH(bool, move);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         QVERIFY(QDir(temp.path()).mkdir("destination"));
@@ -1286,7 +1289,7 @@ class FileTransferTests : public QObject {
             target.close();
             sources << source.fileName();
         }
-        FileTransferOperation copy(sources, temp.filePath("destination"), false);
+        FileTransferOperation copy(sources, temp.filePath("destination"), move);
         QSignalSpy requested(&copy, &FileTransferOperation::overwriteRequested);
         QSignalSpy result(&copy, &FileTransferOperation::result);
         connect(
@@ -1304,6 +1307,8 @@ class FileTransferTests : public QObject {
         QCOMPARE(result.first().first().toBool(), !cancel);
         QCOMPARE(copy.resultKind(), cancel ? FileTransferOperation::ResultKind::Canceled
                                            : FileTransferOperation::ResultKind::PartialSuccess);
+        if (!cancel)
+            QCOMPARE(result.first().at(1).toString(), QString("All items were skipped."));
         QCOMPARE(requested.size(), 1);
         for (const QString &source : sources) {
             QVERIFY(QFile::exists(source));
