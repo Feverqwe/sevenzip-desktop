@@ -318,6 +318,55 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
     }
 
+    void compressionLaunchFailureShowsOnlyTheActualError() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QString folder = fixture.path();
+        while (folder.size() < 270)
+            folder += '/' + QString(80, u'w');
+        QVERIFY(QDir().mkpath(folder));
+        const QString source = QDir(folder).filePath("input.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("input"), qint64(5));
+        file.close();
+        struct RefusingBackend : ControlledBackend {
+            QtOperationLauncher *startGuiCompress(const QString &, const QString &, bool,
+                                                  const QStringList &, bool, bool,
+                                                  QString &error) override {
+                error = QStringLiteral("Could not start the archive operation");
+                return nullptr;
+            }
+        } backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(folder);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(filesystemRow(window, "input.txt") >= 0);
+        auto *view = table(window);
+        const int row = filesystemRow(window, "input.txt");
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        view->setFocus();
+        QStringList diagnostics;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                diagnostics.append(message->text());
+                message->accept();
+            }
+        });
+        dismiss.start(5);
+        action(window, "toolbarAddAction")->trigger();
+        dismiss.stop();
+        QCOMPARE(diagnostics, QStringList{QStringLiteral("Could not start the archive operation")});
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view->hasFocus());
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QCOMPARE(QDir(folder).entryList(QDir::Files), QStringList{QStringLiteral("input.txt")});
+    }
+
     void testReportIdentifiesWhichItemsWereChecked_data() {
         QTest::addColumn<bool>("corrupt");
         QTest::newRow("healthy") << false;
