@@ -153,13 +153,16 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
     void failedPasteLeavesTheDestinationPanelUsable_data() {
         QTest::addColumn<bool>("move");
         QTest::addColumn<bool>("editingAddress");
-        QTest::newRow("copy") << false << false;
-        QTest::newRow("cut") << true << false;
-        QTest::newRow("copy-with-address-draft") << false << true;
+        QTest::addColumn<bool>("folderConflict");
+        QTest::newRow("copy") << false << false << false;
+        QTest::newRow("cut") << true << false << false;
+        QTest::newRow("copy-with-address-draft") << false << true << false;
+        QTest::newRow("cut-with-folder-conflict") << true << false << true;
     }
     void failedPasteLeavesTheDestinationPanelUsable() {
         QFETCH(bool, move);
         QFETCH(bool, editingAddress);
+        QFETCH(bool, folderConflict);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
         QTemporaryDir destination, peerDirectory;
@@ -189,6 +192,10 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QCOMPARE(file.write(bytes), bytes.size());
         };
         writeSource(existingName, "ready bytes");
+        if (folderConflict) {
+            writeSource(missingName, "restored bytes");
+            QVERIFY(QDir().mkdir(destination.filePath(missingName)));
+        }
         const QList<QUrl> sources{QUrl::fromLocalFile(peerDirectory.filePath(existingName)),
                                   QUrl::fromLocalFile(peerDirectory.filePath(missingName))};
         const auto publishFiles = [&] {
@@ -245,7 +252,8 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         dismiss.stop();
         QVERIFY(report.isEmpty());
         QVERIFY(window.statusBar()->currentMessage().contains(missingName));
-        QVERIFY(!QFileInfo::exists(destination.filePath(missingName)));
+        QCOMPARE(QFileInfo(destination.filePath(missingName)).isDir(), folderConflict);
+        QCOMPARE(QFileInfo::exists(destination.filePath(missingName)), folderConflict);
         QVERIFY(!QFileInfo::exists(destination.filePath(existingName)));
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), sources);
         QCOMPARE(QApplication::clipboard()->mimeData()->data("application/x-kde-cutselection"),
@@ -261,7 +269,8 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(row(*owner, "control.txt") >= 0);
-        writeSource(missingName, "restored bytes");
+        if (!folderConflict)
+            writeSource(missingName, "restored bytes");
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
         auto *peerAddress =
