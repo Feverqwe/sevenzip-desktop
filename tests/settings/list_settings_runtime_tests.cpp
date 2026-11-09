@@ -180,6 +180,14 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
                  QStringLiteral("Parent folder"));
         QCOMPARE(files->accessibleName(), QStringLiteral("File list"));
         const QPersistentModelIndex parent = files->model()->index(0, 0);
+        files->setCurrentCell(0, 0);
+        files->selectRow(0);
+        auto *deselect = action(window, "deselectAllAction");
+        QTRY_VERIFY(deselect->isEnabled());
+        deselect->trigger();
+        QVERIFY(!files->selectionModel()->hasSelection());
+        QCOMPARE(files->currentIndex().siblingAtColumn(0), QModelIndex(parent));
+        QVERIFY(!deselect->isEnabled());
         const QString languageSettings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(UString("ru"), languageSettings);
         ReloadLang(languageSettings);

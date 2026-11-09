@@ -101,6 +101,7 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
         agent ? dynamic_cast<QtArchiveFileResource *>(agent->GetEngineResource()) : nullptr;
     c.writable = c.mutationWritable && !(resource && resource->Info.encrypted);
     c.rows = w.projectedUi().table->rowCount() > 0;
+    c.selection = w.projectedUi().table->selectionModel()->hasSelection();
     UStringVector history;
     w.app_.AppState.FolderHistory.GetList(history);
     c.foldersHistory = !history.IsEmpty();
@@ -229,7 +230,7 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_SELECT_ALL:
         return c.rows;
     case IDM_DESELECT_ALL:
-        return c.operated;
+        return c.selection;
     case IDM_FOLDERS_HISTORY:
         return c.foldersHistory;
     }
