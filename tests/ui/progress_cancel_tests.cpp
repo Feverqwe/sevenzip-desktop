@@ -37,7 +37,8 @@ class CWorker : public CProgressThreadVirt {
             QThread::msleep(5);
         }
         Returned = true;
-        return S_OK;
+        // The GUI can release a stopped worker before its next checkpoint.
+        return HonorPauseStop && Sync.Get_Stopped() ? E_ABORT : S_OK;
     }
     void ProcessWasFinished_GuiVirt() override { ++GuiFinishes; }
 };
