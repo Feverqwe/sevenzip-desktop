@@ -322,12 +322,13 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QApplication::clipboard()->setMimeData(mime);
 
         QTimer drive;
-        bool skipped = false;
+        int overwritePrompts = 0;
+        bool retry = false;
         dialogs_.connectResponder(drive, &destinationWindow, [&] {
             auto *dialog = dialogs_.activeDialog();
             if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
-                skipped = true;
-                question->findChild<QPushButton *>("overwriteNo")->click();
+                ++overwritePrompts;
+                question->findChild<QPushButton *>(retry ? "overwriteYes" : "overwriteNo")->click();
             } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
                 TestProgressDialog::CloseResult(*report);
         });
@@ -335,7 +336,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         auto *paste = action(destinationWindow, "pasteFilesAction");
         QTRY_VERIFY(paste->isEnabled());
         paste->trigger();
-        QTRY_VERIFY(skipped && QtLocalFileTask::Active().isEmpty());
+        QTRY_VERIFY(overwritePrompts == 1 && QtLocalFileTask::Active().isEmpty());
         QCOMPARE(read(target + "/moved.txt"), QByteArray("moved bytes"));
         QCOMPARE(read(target + "/skipped.txt"), QByteArray("existing bytes"));
         QCOMPARE(read(source + "/skipped.txt"), QByteArray("skipped bytes"));
@@ -343,6 +344,21 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_VERIFY(filesystemRow(sourceWindow, "moved.txt") < 0);
         QVERIFY(filesystemRow(sourceWindow, "skipped.txt") >= 0);
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QCOMPARE(QApplication::clipboard()->mimeData()->data("application/x-kde-cutselection"),
+                 QByteArray("1"));
+
+        retry = true;
+        QVERIFY(WindowActivation::waitForActive(destinationWindow));
+        auto *destinationList = table(destinationWindow);
+        destinationList->setFocus();
+        QTRY_VERIFY(destinationList->hasFocus() && paste->isEnabled());
+        QTest::keySequence(destinationList, QKeySequence::Paste);
+        QTRY_VERIFY(overwritePrompts == 2 && QtLocalFileTask::Active().isEmpty());
+        QVERIFY(!QFileInfo::exists(source));
+        QCOMPARE(read(target + "/moved.txt"), QByteArray("moved bytes"));
+        QCOMPARE(read(target + "/skipped.txt"), QByteArray("skipped bytes"));
+        QVERIFY(!QApplication::clipboard()->mimeData() ||
+                !QApplication::clipboard()->mimeData()->hasUrls());
     }
 
     void gnomeCutAppliesOnlyToMatchingClipboardFiles_data() {
