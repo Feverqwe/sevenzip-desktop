@@ -175,6 +175,7 @@ HRESULT ExtractGUI(
     messageWasDisplayed = false;
 
     CThreadExtracting extracter;
+    extracter.CancellationMayLeaveChanges = !options.TestMode;
     /*
     #ifdef Z7_EXTERNAL_CODECS
     extracter.externalCodecs = _externalCodecs;
