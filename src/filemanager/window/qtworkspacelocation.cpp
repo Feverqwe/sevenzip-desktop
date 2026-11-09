@@ -218,14 +218,27 @@ HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
 }
 
 void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &view,
-                                            const QPoint &position) {
+                                            const Visit &visit) {
     const UInt64 revision = source.FolderBindingRevision();
     const auto interaction = interactionRevision_;
     auto restore = [this, owner = QPointer<CPanel>(&source),
-                    target = QPointer<QAbstractItemView>(&view), position, revision, interaction] {
+                    target = QPointer<QAbstractItemView>(&view), position = visit.scroll,
+                    cursorColumn = visit.cursorColumn, revision, interaction] {
         if (interactionRevision_ != interaction || !owner ||
             owner->FolderBindingRevision() != revision || !target || !target->isVisible())
             return;
+        if (auto *table = qobject_cast<FileTable *>(target.data());
+            table && cursorColumn && table->currentIndex().isValid()) {
+            const auto [property, raw] = *cursorColumn;
+            for (int column = 0; column < table->columnCount(); ++column)
+                if (!table->isColumnHidden(column) && table->propertyId(column) == property &&
+                    table->isRawProperty(column) == raw) {
+                    table->selectionModel()->setCurrentIndex(
+                        table->currentIndex().siblingAtColumn(column),
+                        QItemSelectionModel::NoUpdate);
+                    break;
+                }
+        }
         target->doItemsLayout();
         target->horizontalScrollBar()->setValue(position.x());
         target->verticalScrollBar()->setValue(position.y());

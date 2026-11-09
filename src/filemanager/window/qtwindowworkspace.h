@@ -48,7 +48,6 @@ class QtWindowWorkspace final : public QObject {
                                  bool checkSource = false);
     bool CanRefreshPublishedArchives() const;
     bool CanRefreshPublishedOutput(unsigned panel) const;
-    void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RequestInitialFocus(unsigned panel);
     void RequestListFocus(unsigned panel, bool switchingPane = false);
     void CompleteListFocusIfReady();
@@ -99,6 +98,7 @@ class QtWindowWorkspace final : public QObject {
         QPoint scroll;
         UInt32 viewMode = 3;
         bool diskFolder = false;
+        std::optional<std::pair<PROPID, bool>> cursorColumn = {};
         bool SameLocation(const Visit &other) const;
     };
     struct Navigation {
@@ -143,6 +143,7 @@ class QtWindowWorkspace final : public QObject {
     bool Ready(bool allowSourceCall = false) const;
     void Capture(unsigned panel, bool retainView = true);
     Visit CaptureVisit(unsigned panel);
+    void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const Visit &visit);
     void FinishNavigation(unsigned panel, HRESULT result);
     struct ReopenLayer {
         QString format;

@@ -303,7 +303,9 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(view->isEnabled() && view->rowCount() >= count);
         const int row = count * 3 / 4;
         view->selectRow(row);
-        view->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn > 0 && !view->isColumnHidden(sizeColumn));
+        view->setCurrentCell(row, sizeColumn, QItemSelectionModel::NoUpdate);
         view->scrollTo(view->model()->index(count / 3, 0), QAbstractItemView::PositionAtCenter);
         QVERIFY(!view->viewport()->rect().intersects(view->visualRect(view->currentIndex())));
         const QString selected = view->model()->index(row, 0).data().toString();
@@ -344,6 +346,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(window.focusWidget(), view);
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data().toString(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QCOMPARE(view->currentIndex().column(), sizeColumn);
         QTRY_COMPARE(view->verticalScrollBar()->value(), scroll);
     }
 
