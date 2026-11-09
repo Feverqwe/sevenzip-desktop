@@ -1,4 +1,3 @@
-#include "7zip/Common/FilePathAutoRename.h"
 #include "Common/StringConvert.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
@@ -63,8 +62,9 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
                                            const QString &target, QStringList *writtenSources,
                                            QString *error) {
     CFileTransferCopyCallback callback(
-        [this, &stage, &target](const OverwriteQuestion::File &incoming, const QString &requested)
-            -> CFileTransferCopyCallback::WriteDecision {
+        [this, &source, &stage,
+         &target](const OverwriteQuestion::File &incoming,
+                  const QString &requested) -> CFileTransferCopyCallback::WriteDecision {
             if (worker_.canceled_)
                 return std::unexpected(E_ABORT);
             const QFileInfo existing(requested);
@@ -77,10 +77,12 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
                 case OverwriteDecision::Skip:
                     return std::nullopt;
                 case OverwriteDecision::Rename: {
-                    FString renamed = us2fs(requested.toStdWString().c_str());
-                    if (!AutoRenamePath(renamed))
+                    effective = availableName(requested, [&source, &stage](const QString &name) {
+                        const QString original = source + name.mid(stage.size());
+                        return QFileInfo::exists(original) || QtIsFileSystemLink(original);
+                    });
+                    if (effective.isEmpty())
                         return std::unexpected(E_ABORT);
-                    effective = QString::fromWCharArray(fs2us(renamed));
                     break;
                 }
                 case OverwriteDecision::Replace:

@@ -1204,7 +1204,14 @@ class FileTransferTests : public QObject {
         QCOMPARE(QFileInfo::exists(second), !move);
     }
 
+    void directoryMergeAutoRenamesNestedConflict_data() {
+        QTest::addColumn<bool>("reserveName");
+        QTest::newRow("free-name") << false;
+        QTest::newRow("name-in-source-folder") << true;
+    }
+
     void directoryMergeAutoRenamesNestedConflict() {
+        QFETCH(bool, reserveName);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         QVERIFY(QDir().mkpath(temp.filePath("incoming/folder")));
@@ -1213,6 +1220,11 @@ class FileTransferTests : public QObject {
         QVERIFY(source.open(QIODevice::WriteOnly));
         QCOMPARE(source.write("incoming"), qint64(8));
         source.close();
+        if (reserveName) {
+            QFile other(temp.filePath("incoming/folder/same_1.txt"));
+            QVERIFY(other.open(QIODevice::WriteOnly));
+            QCOMPARE(other.write("other"), qint64(5));
+        }
         QFile target(temp.filePath("destination/folder/same.txt"));
         QVERIFY(target.open(QIODevice::WriteOnly));
         QCOMPARE(target.write("existing"), qint64(8));
@@ -1220,25 +1232,29 @@ class FileTransferTests : public QObject {
         FileTransferOperation copy({temp.filePath("incoming/folder")}, temp.filePath("destination"),
                                    false);
         QSignalSpy result(&copy, &FileTransferOperation::result);
+        QSignalSpy prompts(&copy, &FileTransferOperation::overwriteRequested);
         connect(
             &copy, &FileTransferOperation::overwriteRequested, &copy,
-            [&copy]() { copy.submitOverwriteAnswer(NOverwriteAnswer::kAutoRename); },
+            [&copy]() { copy.submitOverwriteAnswer(NOverwriteAnswer::kAutoRenameOnce); },
             Qt::DirectConnection);
         copy.start();
         QVERIFY(copy.wait(30000));
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(result.first().first().toBool());
+        QCOMPARE(prompts.size(), 1);
         QVERIFY(target.open(QIODevice::ReadOnly));
         QCOMPARE(target.readAll(), QByteArray("existing"));
         const QStringList names =
             QDir(temp.filePath("destination/folder")).entryList(QDir::Files | QDir::NoDotAndDotDot);
-        QCOMPARE(names.size(), 2);
-        for (const QString &name : names) {
-            if (name == QStringLiteral("same.txt"))
-                continue;
-            QFile renamed(temp.filePath("destination/folder/" + name));
-            QVERIFY(renamed.open(QIODevice::ReadOnly));
-            QCOMPARE(renamed.readAll(), QByteArray("incoming"));
+        QCOMPARE(names.size(), reserveName ? 3 : 2);
+        QFile renamed(temp.filePath(reserveName ? "destination/folder/same_2.txt"
+                                                : "destination/folder/same_1.txt"));
+        QVERIFY(renamed.open(QIODevice::ReadOnly));
+        QCOMPARE(renamed.readAll(), QByteArray("incoming"));
+        if (reserveName) {
+            QFile other(temp.filePath("destination/folder/same_1.txt"));
+            QVERIFY(other.open(QIODevice::ReadOnly));
+            QCOMPARE(other.readAll(), QByteArray("other"));
         }
     }
 
