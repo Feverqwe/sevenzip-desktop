@@ -20,6 +20,10 @@ if(BUILD_TESTING)
     target_include_directories(drag_drop_ui_tests PRIVATE src tests)
     target_link_libraries(drag_drop_ui_tests PRIVATE Qt6::Test sevenzip_location sevenzip_folder_loader)
     add_test(NAME drag_drop_ui COMMAND drag_drop_ui_tests -silent)
+    add_test(NAME archive_clipboard_paste COMMAND drag_drop_ui_tests -silent
+        archiveClipboardPastesBothSelectedEntriesIntoPeer)
+    set_tests_properties(archive_clipboard_paste PROPERTIES TIMEOUT 60 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_TEST_ARCHIVE_CLIPBOARD_PASTE=1")
     set_tests_properties(drag_drop_ui PROPERTIES TIMEOUT 60 RESOURCE_LOCK sevenzip_ui_artifacts ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag_drop_ui.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     if(WIN32)

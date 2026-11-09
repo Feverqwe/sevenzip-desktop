@@ -507,6 +507,67 @@ class DragDropUiTests final : public QObject {
     }
 #endif
 
+    void archiveClipboardPastesBothSelectedEntriesIntoPeer() {
+        if (!qEnvironmentVariableIsSet("SEVENZIP_TEST_ARCHIVE_CLIPBOARD_PASTE"))
+            QSKIP("Requires an isolated test process");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const ScopedTestEnvironment settings("SEVENZIP_SETTINGS_PATH",
+                                             fixture.filePath("settings.ini"));
+        const QString archive = fixture.filePath("source.zip");
+        const QString output = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(output));
+        const QString first = QStringLiteral("первый #.txt");
+        const QString second = QStringLiteral("second file.txt");
+        QVERIFY(
+            NativeArchiveFixture::Write(archive, {{first, "first"}, {second, "second"}}, "zip"));
+        const auto original = SourceExtractFixture::readFile(archive);
+        const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
+                                             fixture.filePath("owned-temp"));
+        const auto cleanup = qScopeGuard([] {
+            QApplication::clipboard()->clear();
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                QDir(entry.path).removeRecursively();
+        });
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(output);
+        window.findChild<QAction *>("twoPanelsAction")->trigger();
+        auto *peer = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peer);
+        auto *destination = peer->findChild<FileTable *>("archiveTable");
+        QVERIFY(destination);
+        destination->setFocus();
+        QTRY_COMPARE(window.focusWidget(), destination);
+        window.openPath(output);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(destination->sourcePanel->GetCurrentFolderPrefix())),
+                     output);
+        auto *left = window.findChild<QWidget *>("filePanel0");
+        QVERIFY(left);
+        auto *source = left->findChild<FileTable *>("archiveTable");
+        QVERIFY(source);
+        source->setFocus();
+        QTRY_COMPARE(window.focusWidget(), source);
+        window.openPath(archive);
+        QTRY_VERIFY(source->isEnabled() && Row(*source, first) >= 0 && Row(*source, second) >= 0);
+        const auto selection = QItemSelectionModel::Select | QItemSelectionModel::Rows;
+        source->selectionModel()->select(source->model()->index(Row(*source, first), 0), selection);
+        source->selectionModel()->select(source->model()->index(Row(*source, second), 0),
+                                         selection);
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(QApplication::clipboard()->mimeData());
+        QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_COMPARE(window.focusWidget(), destination);
+        QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
+        QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(first)), "first");
+        QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(second)), "second");
+        QTRY_VERIFY(Row(*destination, first) >= 0 && Row(*destination, second) >= 0);
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+    }
+
     void archiveClipboardReportsFailedExtraction() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
