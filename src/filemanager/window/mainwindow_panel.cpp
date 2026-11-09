@@ -142,7 +142,14 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             const auto &panel = app_.GetFocusedPanel();
             const bool current = !projectedUi().locationUnavailable && panel.GetFolder() &&
                                  path == ToQString(panel.GetCurrentFolderPrefix());
-            if (current || navigateTo(path, true) == S_OK)
+            const auto &ui = projectedUi();
+            const QString target = QDir::cleanPath(path);
+            const bool immediateParent = !ui.locationUnavailable && ui.state == State::Filesystem &&
+                                         target != ui.directory &&
+                                         target == QFileInfo(ui.directory).absolutePath();
+            if (current ||
+                (immediateParent ? workspace_->Navigate([this] { return goParentImpl(); })
+                                 : navigateTo(path, true)) == S_OK)
                 workspace_->RequestListFocus(index);
         },
         navigationRow,

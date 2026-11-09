@@ -196,6 +196,7 @@ class WorkspaceNavigationTests final : public QObject {
         const QString parent = fixture.filePath(QStringLiteral("folder with archive.zip"));
         const QString child = parent + QStringLiteral("/child 空");
         QVERIFY(QDir().mkpath(child));
+        QVERIFY(QDir(parent).mkdir("another folder"));
         writeFile(child + "/keep.txt", "unchanged");
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -242,6 +243,8 @@ class WorkspaceNavigationTests final : public QObject {
                      parent);
         QTRY_VERIFY(table->hasFocus());
         QVERIFY(table->sourcePanel->IsFSFolder());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QStringLiteral("child 空"));
         QCOMPARE(backend.listCalls, 0);
         for (int width : {980, 640}) {
             window.resize(width, 620);
@@ -249,6 +252,9 @@ class WorkspaceNavigationTests final : public QObject {
             QVERIFY(UiInspection::fullyVisible(*bar, window));
             QVERIFY(UiInspection::writeReport(window, QString("native-location-%1").arg(width)));
         }
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(table->sourcePanel->GetCurrentFolderPrefix())),
+                     child);
     }
     void backKeepsTheSelectedFileVisibleAfterSwitchingViews() {
         QTemporaryDir fixture;
@@ -489,7 +495,11 @@ class WorkspaceNavigationTests final : public QObject {
         QTRY_VERIFY(table->hasFocus());
         QTest::keySequence(table, QKeySequence::Paste);
         QTRY_VERIFY_WITH_TIMEOUT(
-            (sameFolder ? failure.contains(name) : canceled) && table->isEnabled(), 10000);
+            (sameFolder ? window.statusBar()->currentMessage().contains(name) : canceled) &&
+                table->isEnabled(),
+            10000);
+        if (sameFolder)
+            QVERIFY(failure.isEmpty());
         responder.stop();
         QFile old(destination + '/' + name);
         QVERIFY(old.open(QIODevice::ReadOnly));
