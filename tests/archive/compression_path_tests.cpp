@@ -683,11 +683,13 @@ class CompressionPathTests final : public QObject {
 #endif
         QTest::newRow("read-only-archive") << QString("read-only");
         QTest::newRow("existing-folder") << QString("folder");
+        QTest::newRow("folder-with-inferred-extension") << QString("inferred-extension");
     }
     void occupiedArchiveNameCanBeCorrected() {
         QFETCH(QString, obstruction);
         const bool dangling = obstruction == "link";
-        const bool folder = obstruction == "folder";
+        const bool inferredExtension = obstruction == "inferred-extension";
+        const bool folder = obstruction == "folder" || inferredExtension;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString missing = fixture.filePath("missing.7z");
@@ -716,7 +718,8 @@ class CompressionPathTests final : public QObject {
 
         CreateArchiveDialog dialog(fixture.path(), {source_});
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
-        const auto draft = QDir::toNativeSeparators("./old.7z");
+        const QString enteredName = inferredExtension ? "old" : "old.7z";
+        const auto draft = QDir::toNativeSeparators("./" + enteredName);
         name->setText(draft);
         auto *level = dialog.findChild<QComboBox *>("compressionLevel");
         QVERIFY(level);
@@ -737,7 +740,7 @@ class CompressionPathTests final : public QObject {
         if (folder)
             QVERIFY2(diagnostic.contains("Archive path is a folder"), qPrintable(diagnostic));
         QCOMPARE(name->text(), draft);
-        QCOMPARE(name->selectedText(), QString("old.7z"));
+        QCOMPARE(name->selectedText(), enteredName);
         auto *editor = dialog.focusWidget();
         QVERIFY(editor);
         QTest::keyClicks(editor, "new.7z");

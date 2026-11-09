@@ -159,8 +159,15 @@ void CreateArchiveDialog::validateAndAccept() {
     const bool invalidFolder =
         relativeName && (FindInvalidWindowsPathCharacter(nativeFolder) >= 0 ||
                          HasEmptyWindowsPathComponent(nativeFolder, nativeResolved));
-    const QFileInfo target(resolved);
     const bool singleVolume = volumeInfo.VolumeSizes.IsEmpty();
+    CArchivePath archive;
+    archive.VolExtension = archiveNameState_.Get_ArcInfoEx().GetMainExt();
+    if (!codecs_ && archive.VolExtension.IsEmpty())
+        archive.VolExtension = format_->currentText().toStdWString().c_str();
+    archive.BaseExtension = archive.VolExtension;
+    archive.ParseFromPath(ToUString(resolved), k_ArcNameMode_Smart);
+    const QString output = singleVolume ? ToQString(archive.GetFinalPath()) : resolved;
+    const QFileInfo target(output);
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
     bool occupiedName = danglingTarget;
     QString pathError =
@@ -173,37 +180,31 @@ void CreateArchiveDialog::validateAndAccept() {
         occupiedName = true;
         pathError =
             QCoreApplication::translate("CreateArchiveDialog", "Archive path is a folder: %1")
-                .arg(QDir::toNativeSeparators(resolved));
+                .arg(QDir::toNativeSeparators(output));
     }
     if (danglingTarget)
-        pathError += '\n' + QDir::toNativeSeparators(resolved);
+        pathError += '\n' + QDir::toNativeSeparators(output);
     if (pathError.isEmpty() && singleVolume && target.exists()) {
         NWindows::NFile::NFind::CFileInfo existing;
-        const UString nativePath(QDir::toNativeSeparators(resolved).toStdWString().c_str());
+        const UString nativePath = ToUString(QDir::toNativeSeparators(output));
         if (existing.Find_FollowLink(us2fs(nativePath)) && existing.IsReadOnly()) {
             occupiedName = true;
             pathError =
                 QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only") + '\n' +
-                QDir::toNativeSeparators(resolved);
+                QDir::toNativeSeparators(output);
         }
     }
     if (pathError.isEmpty() && !singleVolume) {
-        CArchivePath volumes;
-        volumes.VolExtension = archiveNameState_.Get_ArcInfoEx().GetMainExt();
-        if (!codecs_ && volumes.VolExtension.IsEmpty())
-            volumes.VolExtension = format_->currentText().toStdWString().c_str();
-        volumes.BaseExtension = volumes.VolExtension;
-        volumes.ParseFromPath(UString(resolved.toStdWString().c_str()), k_ArcNameMode_Smart);
-        const UString first = volumes.GetFinalVolPath() + L".001";
+        const UString first = archive.GetFinalVolPath() + L".001";
         QString occupied;
-        for (const UString &candidate : {volumes.GetFinalPath(), first}) {
+        for (const UString &candidate : {archive.GetFinalPath(), first}) {
             if (NWindows::NFile::NFind::DoesFileOrDirExist(us2fs(candidate))) {
                 occupied = ToQString(candidate);
                 break;
             }
         }
         if (occupied.isEmpty())
-            occupied = ExistingVolume(volumes.GetFinalVolPath());
+            occupied = ExistingVolume(archive.GetFinalVolPath());
         if (!occupied.isEmpty()) {
             occupiedName = true;
             pathError =
