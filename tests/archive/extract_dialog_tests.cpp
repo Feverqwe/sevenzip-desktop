@@ -574,10 +574,20 @@ class ExtractDialogTests final : public QObject {
         const QString output = fixture.filePath(QFileInfo(target).completeBaseName() + "_1.zip");
         QCOMPARE(SourceExtractFixture::readFile(output), payload);
     }
+    void compactDestinationErrorKeepsFieldAndButtonsVisible_data() {
+        QTest::addColumn<bool>("split");
+        QTest::addColumn<int>("height");
+        QTest::newRow("destination") << false << 300;
+        QTest::newRow("subfolder") << true << 340;
+        QTest::newRow("short-subfolder") << true << 260;
+    }
     void compactDestinationErrorKeepsFieldAndButtonsVisible() {
+        QFETCH(bool, split);
+        QFETCH(int, height);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString blocked = fixture.filePath(QString(180, u'w'));
+        const QString name(180, u'w');
+        const QString blocked = fixture.filePath(name);
         QVERIFY(SourceExtractFixture::writeFile(blocked, "unchanged"));
         CExtractDialog dialog(fixture.path(), {});
         auto *destination = path(dialog);
@@ -588,32 +598,41 @@ class ExtractDialogTests final : public QObject {
         dialog.show();
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         QApplication::processEvents();
-        dialog.resize(360, 300);
+        dialog.resize(360, height);
         dialog.findChild<QToolButton *>("extractAdvancedToggle")->setChecked(true);
         QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
-        destination->setEditText(blocked);
+        dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(split);
+        destination->setEditText(split ? fixture.path() : blocked);
+        auto *edit =
+            split ? dialog.findChild<QLineEdit *>("extractPathName") : destination->lineEdit();
+        if (split)
+            edit->setText(name);
         QApplication::processEvents();
         scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
         const QSize before = dialog.size();
         buttons->button(QDialogButtonBox::Ok)->click();
         QVERIFY(dialog.isVisible());
         QVERIFY(error->text().contains(blocked));
-        QTRY_VERIFY(UiInspection::fullyVisible(*error, dialog));
+        const QWidget *field = split ? static_cast<QWidget *>(edit) : destination;
+        QTRY_VERIFY(UiInspection::fullyVisible(*field, dialog));
+        const QRect fieldBounds(field->mapTo(scroll->widget(), QPoint()), field->size());
+        const QRect errorBounds(error->mapTo(scroll->widget(), QPoint()), error->size());
+        if (fieldBounds.united(errorBounds).height() <= scroll->viewport()->height())
+            QVERIFY(UiInspection::fullyVisible(*error, dialog));
         QVERIFY(UiInspection::labelFits(*error));
-        QVERIFY(UiInspection::fullyVisible(*destination, dialog));
         QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
         QCOMPARE(dialog.size(), before);
         QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
-        QVERIFY(UiInspection::writeReport(dialog, "extract-compact-destination-error"));
-        auto *edit = destination->lineEdit();
+        QVERIFY(UiInspection::writeReport(
+            dialog, QString("extract-compact-destination-error-%1").arg(QTest::currentDataTag())));
         QVERIFY(edit->hasFocus());
-        QCOMPARE(edit->selectedText(), blocked);
+        QCOMPARE(edit->selectedText(), split ? name : blocked);
         const QString corrected = fixture.filePath(QStringLiteral("исправленный путь"));
         auto *clipboard = QApplication::clipboard();
         const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
-        clipboard->setText(corrected);
+        clipboard->setText(split ? QFileInfo(corrected).fileName() : corrected);
         QTest::keySequence(edit, QKeySequence::Paste);
-        QCOMPARE(destination->currentText(), corrected);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())), corrected);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
     }

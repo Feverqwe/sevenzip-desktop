@@ -20,6 +20,7 @@
 #include <QFileInfo>
 #include <QLabel>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QTimer>
@@ -294,17 +295,27 @@ void CExtractDialog::OnOK() {
     if (!error.isEmpty()) {
         _destinationError->setText(error);
         _destinationError->show();
-        if (_nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error) {
-            _pathName->setFocus();
-            _pathName->selectAll();
-        } else {
-            _path->setFocus();
-            _path->lineEdit()->selectAll();
-        }
-        QTimer::singleShot(0, this, [this] {
-            if (_destinationError->isVisible())
-                if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll"))
-                    scroll->ensureWidgetVisible(_destinationError);
+        auto *editor =
+            _nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error
+                ? _pathName
+                : _path->lineEdit();
+        editor->setFocus();
+        editor->selectAll();
+        QTimer::singleShot(0, this, [this, editor] {
+            auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
+            if (!scroll || !_destinationError->isVisible())
+                return;
+            const auto bounds = [scroll](QWidget *widget) {
+                return QRect(widget->mapTo(scroll->widget(), QPoint()), widget->size());
+            };
+            const QRect field =
+                bounds(editor == _pathName ? static_cast<QWidget *>(editor) : _path);
+            const QRect combined = field.united(bounds(_destinationError));
+            const int height = scroll->viewport()->height();
+            const QRect target = combined.height() <= height ? combined : field;
+            auto *bar = scroll->verticalScrollBar();
+            const int first = qMin(target.bottom() + 1 - height, target.top());
+            bar->setValue(qBound(first, bar->value(), target.top()));
         });
         return;
     }
