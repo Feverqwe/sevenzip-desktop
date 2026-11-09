@@ -295,13 +295,23 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             QVERIFY(window.statusBar()->currentMessage().isEmpty());
         }
     }
-    void openingParentRowInPeerRecordsPreviousFolder() {
+    void openingFolderInPeerRecordsPreviousFolder_data() {
+        QTest::addColumn<bool>("flat");
+        QTest::newRow("parent-row") << false;
+        QTest::newRow("flat-subfolder") << true;
+    }
+    void openingFolderInPeerRecordsPreviousFolder() {
+        QFETCH(bool, flat);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString child = fixture.filePath("parent/child");
+        const QString child = fixture.filePath(flat ? "parent/branch/child" : "parent/child");
         const QString previous = fixture.filePath("previous");
         QVERIFY(QDir().mkpath(child));
         QVERIFY(QDir().mkpath(previous));
+        if (flat) {
+            QFile payload(QDir(child).filePath("nested.txt"));
+            QVERIFY(payload.open(QIODevice::WriteOnly));
+        }
         QFile entry(QDir(previous).filePath("previous.txt"));
         QVERIFY(entry.open(QIODevice::WriteOnly));
         entry.close();
@@ -322,12 +332,19 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         const QString originalAddress = address->text();
         source->setFocus();
         QTRY_VERIFY(source->hasFocus());
-        window.openPath(child);
-        QTRY_COMPARE(source->rowCount(), 1);
+        window.openPath(flat ? fixture.filePath("parent") : child);
+        QTRY_COMPARE(source->rowCount(), flat ? 2 : 1);
         QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral(".."));
-        source->setCurrentCell(0, 0);
+        if (flat) {
+            source->sourcePanel->ChangeFlatMode();
+            QTRY_COMPARE(source->model()->index(2, 0).data().toString(), QStringLiteral("child"));
+        }
+        source->setCurrentCell(flat ? 2 : 0, 0);
         PanelKeys::command(source, Qt::Key_Right, Qt::AltModifier | Qt::ShiftModifier);
-        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(), QStringLiteral("child"));
+        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(),
+                     flat ? QStringLiteral("nested.txt") : QStringLiteral("child"));
+        QCOMPARE(QDir::cleanPath(address->text()),
+                 QFileInfo(flat ? child : fixture.filePath("parent")).canonicalFilePath());
         QCOMPARE(window.focusWidget(), static_cast<QWidget *>(source));
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
