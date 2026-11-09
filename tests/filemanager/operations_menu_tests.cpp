@@ -10,6 +10,7 @@
 #include "support/scoped_environment.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonDocument>
+#include <QRandomGenerator>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSplitter>
@@ -211,22 +212,42 @@ class OperationsMenuTests final : public QObject {
         QVERIFY(UiInspection::writeReport(*menu, "operations-extraction-warning"));
         menu->hide();
     }
-    void compressionWarningNamesTheWrittenArchive() {
+    void compressionNamesTheWrittenArchive_data() {
+        QTest::addColumn<bool>("split");
+        QTest::newRow("single-with-warning") << false;
+        QTest::newRow("split-with-edited-name") << true;
+    }
+    void compressionNamesTheWrittenArchive() {
+        QFETCH(bool, split);
         using namespace SourceExtractFixture;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("input.txt");
-        QVERIFY(writeFile(source, "payload"));
+        QByteArray payload("payload");
+        if (split) {
+            payload.resize(256 * 1024);
+            QRandomGenerator random(42);
+            for (auto &byte : payload)
+                byte = char(random.generate() & 0xff);
+        }
+        QVERIFY(writeFile(source, payload));
+        const QString target = fixture.filePath("result archive.zip");
+        const ScopedTestEnvironment decision("SEVENZIP_OPERATION_CREATE_DECISION",
+                                             split ? "accept" : "");
+        const ScopedTestEnvironment output("SEVENZIP_OPERATION_CREATE_TARGET", target);
+        const ScopedTestEnvironment volume("SEVENZIP_OPERATION_VOLUME", split ? "128K" : "");
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         QtOperationJob job;
         job.Operation = QtOperationJob::Command::Compress;
-        job.Paths = {source, fixture.filePath("missing.txt")};
-        job.ArchivePath = fixture.filePath("result archive");
+        job.Paths = {source};
+        if (!split)
+            job.Paths.append(fixture.filePath("missing.txt"));
+        job.ArchivePath = fixture.filePath(split ? "initial archive" : "result archive");
         job.ArchiveType = "zip";
         job.AddExtension = true;
-        job.ShowDialog = false;
+        job.ShowDialog = split;
         QString error;
         QPointer<QtOperationLauncher> operation =
             QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
@@ -238,18 +259,24 @@ class OperationsMenuTests final : public QObject {
         const auto id = QtOperationRegistry::Application().Registration(*operation);
         QSignalSpy finished(operation, &QtOperationLauncher::finished);
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
+        using Outcome = QtOperationResult::Outcome;
         QCOMPARE(qvariant_cast<QtOperationResult>(finished[0][0]).Status,
-                 QtOperationResult::Outcome::Warning);
-        QVERIFY(QFileInfo(fixture.filePath("result archive.zip")).isFile());
+                 split ? Outcome::Success : Outcome::Warning);
+        const QString written = split ? target + ".001" : target;
+        QVERIFY(QFileInfo(written).isFile());
+        if (split) {
+            QVERIFY(QFileInfo(target + ".002").isFile());
+            QVERIFY(!QFileInfo::exists(target));
+        }
         auto *button = window.findChild<QToolButton *>("operationsButton");
         QVERIFY(button && button->isVisible());
         auto *menu = button->menu();
         menu->popup(button->mapToGlobal(QPoint(0, button->height())));
         QTRY_VERIFY(menu->isVisible());
-        const auto *warning = Entry(*menu, id);
-        QVERIFY(warning);
-        QVERIFY(warning->text().contains("result archive.zip"));
-        QVERIFY(warning->toolTip().contains("result archive.zip"));
+        const auto *result = Entry(*menu, id);
+        QVERIFY(result);
+        QVERIFY(result->text().contains(QFileInfo(written).fileName()));
+        QVERIFY(result->toolTip().contains(QFileInfo(written).fileName()));
         menu->hide();
     }
 
