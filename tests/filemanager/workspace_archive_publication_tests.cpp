@@ -127,18 +127,24 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
     }
 
-    void missingOuterArchiveNotifiesNestedView_data() {
+    void missingArchiveKeepsPreviousView_data() {
+        QTest::addColumn<bool>("nested");
         QTest::addColumn<bool>("leave");
-        QTest::newRow("reopen") << false;
-        QTest::newRow("leave") << true;
+        QTest::newRow("archive-reopen") << false << false;
+        QTest::newRow("archive-leave") << false << true;
+        QTest::newRow("nested-reopen") << true << false;
+        QTest::newRow("nested-leave") << true << true;
     }
-    void missingOuterArchiveNotifiesNestedView() {
+    void missingArchiveKeepsPreviousView() {
+        QFETCH(bool, nested);
         QFETCH(bool, leave);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString outer = fixture.filePath("outer.7z");
         const QString inner = fixture.filePath("inner.zip");
         const auto writeVersion = [&](const QString &member) {
+            if (!nested)
+                return NativeArchiveFixture::Write(outer, {{member, "payload"}});
             return NativeArchiveFixture::Write(inner, {{member, "payload"}}, "zip") &&
                    NativeArchiveFixture::Write(outer, {{"inner.zip", readFile(inner)}});
         };
@@ -147,11 +153,13 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         MainWindow window;
         window.show();
         window.openArchive(outer);
-        QTRY_COMPARE(names(window), QStringList{"inner.zip"});
         auto *view = table(window);
-        view->setCurrentCell(0, 0);
-        view->selectRow(0);
-        action(window, "openItemAction")->trigger();
+        if (nested) {
+            QTRY_COMPARE(names(window), QStringList{"inner.zip"});
+            view->setCurrentCell(0, 0);
+            view->selectRow(0);
+            action(window, "openItemAction")->trigger();
+        }
         QTRY_COMPARE(names(window), QStringList{"original.txt"});
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         QVERIFY(action(window, "createFolderAction")->isEnabled());
@@ -162,15 +170,18 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(names(window), QStringList{"original.txt"});
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
         if (leave) {
-            window.findChild<QPushButton *>("navigationParent0")->click();
-            QTRY_COMPARE(names(window), QStringList{"inner.zip"});
-            QVERIFY(notice(window));
+            if (nested) {
+                window.findChild<QPushButton *>("navigationParent0")->click();
+                QTRY_COMPARE(names(window), QStringList{"inner.zip"});
+                QVERIFY(notice(window));
+            }
             window.findChild<QPushButton *>("navigationParent0")->click();
             QTRY_VERIFY(names(window).contains("renamed.7z"));
             QVERIFY(!notice(window));
             return;
         }
-        QVERIFY(QFile::remove(inner));
+        if (nested)
+            QVERIFY(QFile::remove(inner));
         QVERIFY(writeVersion("replacement.txt"));
         window.findChild<QPushButton *>("navigationRetry0")->click();
         QTRY_COMPARE(names(window), QStringList{"replacement.txt"});

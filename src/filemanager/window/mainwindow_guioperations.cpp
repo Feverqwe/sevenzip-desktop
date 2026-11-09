@@ -179,7 +179,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
         return;
     if (panel.IsArcFolder()) {
         const auto &parents = panel.GetParentFolders();
-        if (parents.Size() > 1 && !output.directories.isEmpty()) {
+        if (!parents.IsEmpty() && !output.directories.isEmpty()) {
             const QString outer = ToQString(parents.Front().VirtualPath);
             if (!QFileInfo::exists(outer) &&
                 std::any_of(output.directories.cbegin(), output.directories.cend(),
