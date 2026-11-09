@@ -199,7 +199,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_COMPARE(window.focusWidget(), view);
     }
 
-    void movingFolderClosesTheArchiveAtItsOldLocationInThePeer() {
+    void movingFolderKeepsThePreviousArchiveViewInThePeer() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source");
@@ -263,7 +263,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         submit.start(1);
         QTest::keyClick(files, Qt::Key_F6);
         const QString moved = QDir(destination).filePath("source/opened.zip");
-        QTRY_VERIFY(failed || peer->sourcePanel->IsFSFolder());
+        auto *retryArchive = peerPanel->findChild<QPushButton *>("navigationRetry1");
+        QVERIFY(retryArchive);
+        QTRY_VERIFY(failed || retryArchive->isVisible());
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         if (failed) {
             QVERIFY(report.contains("Could not delete source after copying:"));
@@ -289,7 +291,11 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         } else {
             QVERIFY(!QFileInfo::exists(source));
             QCOMPARE(read(moved), bytes);
-            QCOMPARE(QDir::cleanPath(ToQString(peer->sourcePanel->GetFsPath())), fixture.path());
+            QVERIFY(peer->sourcePanel->IsArcFolder());
+            QVERIFY(peer->model()
+                        ->match(peer->model()->index(0, 0), Qt::DisplayRole, "entry.txt", 1,
+                                Qt::MatchExactly)
+                        .size() == 1);
         }
         QVERIFY(WindowActivation::waitForActive(window));
         QTRY_VERIFY(files->hasFocus());
