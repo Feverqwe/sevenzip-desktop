@@ -727,6 +727,14 @@ class SourceBrowseDialogTests final : public QObject {
                 QVERIFY(UiInspection::writeReport(
                     *dialog, QString("source-browser-folder-error-%1").arg(size.width())));
             }
+#ifdef Q_OS_WIN
+            name->setText("nested/.../suffix");
+            QTest::keyClick(name, Qt::Key_Return);
+            QVERIFY(name->isVisible() && error->isVisible());
+            QCOMPARE(name->selectedText(), QString("nested/.../suffix"));
+            QVERIFY(!QFileInfo::exists(directory + "/nested"));
+            QCOMPARE(Names(*list), before);
+#endif
             QTest::keyClicks(name, "retry folder");
             QTest::keyClick(name, Qt::Key_Return);
             QVERIFY(!name->isVisible());

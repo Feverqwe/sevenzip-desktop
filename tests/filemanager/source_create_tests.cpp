@@ -27,7 +27,18 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         return -1;
     }
   private slots:
+    void invalidDraftCanBeCorrected_data() {
+        QTest::addColumn<QString>("draft");
+        QTest::addColumn<QString>("unexpected");
+        QTest::newRow("nul") << (QStringLiteral("truncated") + QChar::Null + "suffix")
+                             << QString("truncated");
+#ifdef Q_OS_WIN
+        QTest::newRow("empty-path-component") << QString("nested/.../suffix") << QString("nested");
+#endif
+    }
     void invalidDraftCanBeCorrected() {
+        QFETCH(QString, draft);
+        QFETCH(QString, unexpected);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         QtWorkspaceApplication application(*qApp);
@@ -42,15 +53,19 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto *view = openPanel(window, 0, fixture.path());
         QTRY_COMPARE(view->rowCount(), 0);
         view->setFocus();
+#ifdef Q_OS_WIN
         const QString finalName = QStringLiteral("corrected folder");
+#else
+        const QString finalName = QStringLiteral(" corrected folder ");
+#endif
         action(window, "createFolderAction")->trigger();
         auto *name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
-        name->setText(QStringLiteral("truncated") + QChar::Null + "suffix");
+        name->setText(draft);
         QTest::keyClick(name, Qt::Key_Return);
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
-        QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
+        QVERIFY(!QFileInfo::exists(fixture.filePath(unexpected)));
         QCOMPARE(view->rowCount(), 0);
         QCOMPARE(observed->rowCount(), 0);
         QCOMPARE(name->selectedText(), name->text());
@@ -59,7 +74,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(name, Qt::Key_Return);
         const QFileInfo created(fixture.filePath(finalName));
         QVERIFY(created.isDir());
-        QVERIFY(!QFileInfo::exists(fixture.filePath("truncated")));
+        QVERIFY(!QFileInfo::exists(fixture.filePath(unexpected)));
         QTRY_COMPARE(view->rowCount(), 1);
         QTRY_COMPARE(row(observed, finalName), 0);
         QCOMPARE(view->currentRow(), row(view, finalName));

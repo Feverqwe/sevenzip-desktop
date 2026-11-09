@@ -105,7 +105,10 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
         return E_INVALIDARG;
     if (IsFSFolder()) {
         UString corrected;
-        if (!CorrectFsPath(name, corrected))
+        if (!CorrectFsPath(name, corrected) || corrected.IsEmpty() ||
+            HasEmptyWindowsPathComponent(name, NWindows::NFile::NName::IsAbsolutePath(corrected)
+                                                   ? corrected
+                                                   : GetFsPath() + corrected))
             return E_INVALIDARG;
         name = corrected;
     }

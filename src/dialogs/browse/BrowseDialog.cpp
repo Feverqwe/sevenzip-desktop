@@ -378,11 +378,13 @@ void CBrowseDialog::OnCreateDir() {
 
 void CBrowseDialog::CreateDirFromDraft() {
     const QString value = _folderDraft->NameField()->text();
+    const UString entered = ToUString(value);
     UString name;
     FString destPath;
     if (value.isEmpty() || value.contains(QChar::Null) ||
-        !CorrectFsPath(DirPrefix, ToUString(value), name) || name.IsEmpty() ||
-        !GetFullPath(us2fs(DirPrefix), us2fs(name), destPath)) {
+        !CorrectFsPath(DirPrefix, entered, name) || name.IsEmpty() ||
+        !GetFullPath(us2fs(DirPrefix), us2fs(name), destPath) ||
+        HasEmptyWindowsPathComponent(entered, fs2us(destPath))) {
         _folderDraft->ShowError(ToQString(HResultToMessage(kInvalidNameError)));
         return;
     }
