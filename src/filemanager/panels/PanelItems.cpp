@@ -11,8 +11,43 @@
 #include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/ExtractingFilePath.h"
 #include "filemanager/panels/Panel.h"
+#include "ui/progress/ProgressDialog2.h"
+#include <QCoreApplication>
 
 static const UInt32 kParentIndex = (UInt32)-1;
+
+namespace {
+class FolderSizeCheckpoint final : public IProgress, public CMyUnknownImp {
+    Z7_COM_UNKNOWN_IMP_1(IProgress)
+    CProgressSync &sync_;
+
+  public:
+    explicit FolderSizeCheckpoint(CProgressSync &sync) : sync_(sync) {}
+    Z7_COM7F_IMF(SetTotal(UInt64)) override { return sync_.CheckStop(); }
+    Z7_COM7F_IMF(SetCompleted(const UInt64 *)) override { return sync_.CheckStop(); }
+};
+
+class FolderSizeOperation final : public CProgressThreadVirt {
+    IFolderCalcItemFullSize &folder_;
+    const CRecordVector<UInt32> &indices_;
+
+    HRESULT ProcessVirt() override {
+        CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
+        FOR_VECTOR(i, indices_) {
+            RINOK(Sync.CheckStop())
+            RINOK(folder_.CalcItemFullSize(indices_[i], progress))
+        }
+        return S_OK;
+    }
+
+  public:
+    FolderSizeOperation(IFolderCalcItemFullSize &folder, const CRecordVector<UInt32> &indices)
+        : folder_(folder), indices_(indices) {
+        ShowCompressionInfo = false;
+        WaitMode = true;
+    }
+};
+} // namespace
 
 UInt32 CPanel::GetFocusedFileIndex() const {
     const int focusedItem = _selectionList.GetFocusedItem();
@@ -29,17 +64,22 @@ void CPanel::EditItem(bool useEditor) {
         CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;
         _folder.QueryInterface(IID_IFolderCalcItemFullSize, &calcItemFullSize);
         if (calcItemFullSize) {
-            bool needRefresh = false;
             CRecordVector<UInt32> indices;
             Get_ItemIndices_Operated(indices);
+            CRecordVector<UInt32> folders;
             FOR_VECTOR(i, indices) {
-                UInt32 index = indices[i];
-                if (IsItem_Folder(index)) {
-                    calcItemFullSize->CalcItemFullSize(index, NULL);
-                    needRefresh = true;
-                }
+                if (IsItem_Folder(indices[i]))
+                    folders.Add(indices[i]);
             }
-            if (needRefresh) {
+            if (!folders.IsEmpty()) {
+                CDisableTimerProcessing timer(*this);
+                FolderSizeOperation operation(*calcItemFullSize.Interface(), folders);
+                const auto title =
+                    QCoreApplication::translate("ArchiveDirectory", "Calculating folder size…");
+                {
+                    CDisableNotify notify(*this);
+                    operation.Create(ToUString(title), GetParent());
+                }
                 InvalidateList();
                 return;
             }

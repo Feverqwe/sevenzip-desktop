@@ -65,7 +65,10 @@ HRESULT CFsFolderStat::Enumerate() {
 #ifndef _WIN32
     NWindows::NFile::NFind::CDirEntry entry;
 #endif
+    unsigned entries = 0;
     for (;;) {
+        if (Progress && ++entries % 256 == 0)
+            RINOK(Progress->SetCompleted(NULL))
 #ifdef _WIN32
         if (!enumerator.Next(fi))
             break;

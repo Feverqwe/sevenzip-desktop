@@ -44,7 +44,7 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     auto &panel = window_.app_.GetFocusedPanel();
     if (panel.IsFSFolder()) {
         if (CanCalculateDirectorySize())
-            panel.EditItem(false); // Native filesystem folder-size path also used by F3.
+            EditItem(false); // Native filesystem folder-size path also used by F3.
         return;
     }
     CMyComPtr<IFolderFolder> owner = panel.GetFolder();

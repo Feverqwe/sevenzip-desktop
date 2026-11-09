@@ -7,6 +7,20 @@
 #include <QLabel>
 
 namespace {
+class CancelDuringWalk final : public IProgress, public CMyUnknownImp {
+    Z7_COM_UNKNOWN_IMP_1(IProgress)
+    bool entered_ = false;
+
+  public:
+    Z7_COM7F_IMF(SetTotal(UInt64)) override { return S_OK; }
+    Z7_COM7F_IMF(SetCompleted(const UInt64 *)) override {
+        if (entered_)
+            return E_ABORT;
+        entered_ = true;
+        return S_OK;
+    }
+};
+
 bool writeFile(const QString &path, const QByteArray &bytes) {
     QFile file(path);
     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
@@ -17,6 +31,39 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void cancellationInsideAFlatDirectoryLeavesTheSizeUnset() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("large");
+        QVERIFY(QDir().mkdir(folder));
+        for (int index = 0; index < 320; ++index)
+            QVERIFY(writeFile(QDir(folder).filePath(QString::number(index)), "123"));
+        MainWindow window;
+        window.show();
+        window.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(window, "large") >= 0);
+        auto *view = table(window);
+        auto *provider = view->sourcePanel->GetFolder();
+        CMyComPtr<IFolderCalcItemFullSize> sizes;
+        QCOMPARE(provider->QueryInterface(IID_IFolderCalcItemFullSize,
+                                          reinterpret_cast<void **>(&sizes)),
+                 S_OK);
+        const int row = filesystemRow(window, "large");
+        const UInt32 index =
+            view->model()->index(row, 0).data(QtPanelList::SourceIndexRole).toUInt();
+        CMyComPtr<IProgress> cancel = new CancelDuringWalk;
+        QCOMPARE(sizes->CalcItemFullSize(index, cancel), E_ABORT);
+        NWindows::NCOM::CPropVariant size;
+        QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
+        QCOMPARE(size.vt, VARTYPE(VT_EMPTY));
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        action(window, "calculateDirectorySizeAction")->trigger();
+        QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
+        QCOMPARE(size.vt, VARTYPE(VT_UI8));
+        QCOMPARE(size.uhVal.QuadPart, UInt64(960));
+    }
+
     void calculatesOperatedFoldersWithoutReloading_data() {
         QTest::addColumn<bool>("compact");
         QTest::addColumn<bool>("useMenu");

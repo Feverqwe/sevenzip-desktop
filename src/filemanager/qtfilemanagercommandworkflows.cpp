@@ -80,6 +80,16 @@ void QtFileManagerCommands::OpenItemInside(const wchar_t *type) { OpenNative(tru
 void QtFileManagerCommands::OpenItemOutside() { OpenNative(false, true, nullptr); }
 void QtFileManagerCommands::EditItem(bool editor) {
     auto &panel = window_.app_.GetFocusedPanel();
+    if (!editor && panel.IsFSFolder() && CanCalculateDirectorySize()) {
+        const QPointer<QWidget> focus = window_.focusWidget();
+        {
+            const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+            panel.EditItem(false);
+        }
+        window_.refreshActions();
+        window_.appPresentation_->RestoreWidgetFocus(focus);
+        return;
+    }
     panel.EditItem(editor);
 }
 void QtFileManagerCommands::Rename() { window_.app_.GetFocusedPanel().RenameFile(); }
