@@ -8,6 +8,7 @@
 #include "Windows/ProcessUtils.h"
 #include "platform/loader/DLL.h"
 #include "platform/shell/Shell.h"
+#include <QCoreApplication>
 #include <QMessageBox>
 
 using namespace NWindows;
@@ -19,7 +20,7 @@ HRESULT ShellFolder_ParseDisplayName(IShellFolder *shellFolder, HWND hwnd, const
 HRESULT StartApplication(const UString &dir, const UString &path, QWidget *window,
                          CProcess &process) {
     UString path2 = path;
-    UINT32 result;
+    HRESULT error = S_OK;
     {
 #ifdef _WIN32
         NShell::CItemIDList pidl;
@@ -52,7 +53,7 @@ HRESULT StartApplication(const UString &dir, const UString &path, QWidget *windo
             // execInfo.lpParameters = NULL;
             // execInfo.hProcess = NULL;
             execInfo.cbSize = sizeof(execInfo);
-            execInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_DDEWAIT;
+            execInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_DDEWAIT | SEE_MASK_FLAG_NO_UI;
             if (!dir.IsEmpty())
                 execInfo.lpDirectory = dir;
             execInfo.nShow = SW_SHOWNORMAL;
@@ -68,9 +69,9 @@ HRESULT StartApplication(const UString &dir, const UString &path, QWidget *windo
             const Func_ShellExecuteExW f_ShellExecuteExW = Z7_GET_PROC_ADDRESS(
                 Func_ShellExecuteExW, ::GetModuleHandleW(L"shell32.dll"), "ShellExecuteExW");
             if (!f_ShellExecuteExW)
-                return 0;
-            f_ShellExecuteExW(&execInfo);
-            result = (UINT32)(UINT_PTR)execInfo.hInstApp;
+                error = HRESULT_FROM_WIN32(ERROR_PROC_NOT_FOUND);
+            else if (!f_ShellExecuteExW(&execInfo))
+                error = GetLastError_noZero_HRESULT();
             process.Attach(execInfo.hProcess);
         } else
 #endif
@@ -84,7 +85,7 @@ HRESULT StartApplication(const UString &dir, const UString &path, QWidget *windo
             // execInfo.lpParameters = NULL;
             // execInfo.hProcess = NULL;
             execInfo.cbSize = sizeof(execInfo);
-            execInfo.fMask = SEE_MASK_NOCLOSEPROCESS
+            execInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI
 #ifndef UNDER_CE
                              | SEE_MASK_FLAG_DDEWAIT
 #endif
@@ -102,20 +103,23 @@ HRESULT StartApplication(const UString &dir, const UString &path, QWidget *windo
                 execInfo.fMask |= SEE_MASK_IDLIST;
             } else
                 execInfo.lpFile = sysPath;
-            ::ShellExecuteEx(&execInfo);
-            result = (UINT32)(UINT_PTR)execInfo.hInstApp;
+            if (!::ShellExecuteEx(&execInfo))
+                error = GetLastError_noZero_HRESULT();
             process.Attach(execInfo.hProcess);
         }
-        // DEBUG_PRINT_NUM("-- ShellExecuteEx -- execInfo.hInstApp = ", result)
     }
-    if (result <= 32) {
-        switch (result) {
-        case SE_ERR_NOASSOC:
-            const UString message = HResultToMessage(GetLastError_noZero_HRESULT());
-            QMessageBox::critical(window, QStringLiteral("7-Zip"),
-                                  QString::fromWCharArray(message.Ptr()));
-        }
-        return E_FAIL; // fixed in 15.13. Can we use it for any Windows version?
-    }
-    return S_OK;
+    if (error == S_OK)
+        return S_OK;
+    if (error == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+        return E_ABORT;
+    QMessageBox box(
+        QMessageBox::Warning, QCoreApplication::translate("qtassociatedfileservices", "Open file"),
+        QCoreApplication::translate("qtassociatedfileservices", "Could not open file: %1")
+            .arg(QString::fromWCharArray(path.Ptr())),
+        QMessageBox::Ok, window);
+    box.setObjectName("externalFileOpenError");
+    box.setTextFormat(Qt::PlainText);
+    box.setInformativeText(QString::fromWCharArray(HResultToMessage(error).Ptr()));
+    box.exec();
+    return E_FAIL;
 }
