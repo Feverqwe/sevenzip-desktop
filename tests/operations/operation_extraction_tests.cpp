@@ -131,11 +131,13 @@ class OperationExtractionTests final : public QObject {
         QTest::newRow("keep existing") << "overwriteNo" << false << false;
         QTest::newRow("replace existing") << "overwriteYes" << true << false;
         QTest::newRow("cancel overwrite") << "overwriteCancel" << false << true;
+        QTest::newRow("keep both") << "overwriteRename" << false << false;
     }
     void overwriteDecision() {
         QFETCH(QString, button);
         QFETCH(bool, replace);
         QFETCH(bool, cancel);
+        const bool keepBoth = button == "overwriteRename";
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         const auto archive = makeArchive(directory.path(), "incoming bytes");
@@ -148,13 +150,21 @@ class OperationExtractionTests final : public QObject {
         job.YesToAll = false;
         const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
         QVERIFY2(
-            result.Status == (cancel    ? Outcome::Cancelled
-                              : replace ? Outcome::Success
-                                        : Outcome::Warning),
+            result.Status == (cancel                ? Outcome::Cancelled
+                              : replace || keepBoth ? Outcome::Success
+                                                    : Outcome::Warning),
             qPrintable(
                 QString("Operation outcome %1: %2").arg(int(result.Status)).arg(result.Error)));
         QCOMPARE(readFile(QDir(output).filePath(kName)),
                  replace ? QByteArray("incoming bytes") : QByteArray("retained bytes"));
+        if (keepBoth) {
+            const QFileInfo original(QDir(output).filePath(kName));
+            const QDir folder = original.dir();
+            auto files = folder.entryList(QDir::Files);
+            QVERIFY(files.removeOne(original.fileName()));
+            QCOMPARE(files.size(), 1);
+            QCOMPARE(readFile(folder.filePath(files.first())), QByteArray("incoming bytes"));
+        }
         QCOMPARE(Roots(result), QStringList{QFileInfo(output).canonicalFilePath()});
         QCOMPARE(readFile(archive), before);
     }
