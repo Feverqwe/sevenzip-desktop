@@ -243,6 +243,46 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(view->currentRow(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
     }
+    void partialFolderCreationUpdatesTheDestinationWindow() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires a filesystem that rejects an overlong leaf during creation");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString target = fixture.filePath("target");
+        QVERIFY(QDir().mkdir(source));
+        QVERIFY(QDir().mkdir(target));
+        const QString parent = QDir(target).filePath("created parent");
+        const QString draft = QDir(parent).filePath(QString(1024, u'x'));
+
+        QtWorkspaceApplication application(*qApp);
+        MainWindow window, observer;
+        observer.show();
+        auto *observed = openPanel(observer, 0, target);
+        QTRY_VERIFY(observed->isEnabled());
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
+        window.show();
+        auto *view = openPanel(window, 0, source);
+        QTRY_VERIFY(view->isEnabled());
+        action(window, "createFolderAction")->trigger();
+        auto *input = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(input && input->isVisible());
+        input->setText(draft);
+        QTest::keyClick(input, Qt::Key_Return);
+
+        QVERIFY(QFileInfo(parent).isDir());
+        QVERIFY(!QFileInfo::exists(draft));
+        QCOMPARE(input->text(), draft);
+        QCOMPARE(input->selectedText(), draft);
+        QTRY_VERIFY(row(observed, "created parent") >= 0);
+        const QString corrected = QDir(parent).filePath("corrected");
+        input->setText(corrected);
+        QTest::keyClick(input, Qt::Key_Return);
+        QTRY_VERIFY(QFileInfo(corrected).isDir());
+        QTRY_VERIFY(!window.findChild<QLineEdit *>("inlineFolderName"));
+    }
+
     void revealsCreatedFolder_data() {
         QTest::addColumn<int>("count");
         QTest::addColumn<bool>("peerDraft");

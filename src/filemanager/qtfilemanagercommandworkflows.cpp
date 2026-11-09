@@ -218,13 +218,13 @@ void QtFileManagerCommands::CreateFolder() {
             else
                 window_.ArchivePublished(publishedArchive, &panel);
         }
+        if (!destinationDirectory.isEmpty()) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->FilesystemPublished({destinationDirectory}, &window_);
+            window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
+        }
         if (result == S_OK) {
             finish();
-            if (!destinationDirectory.isEmpty()) {
-                if (auto *application = QtWorkspaceApplication::Find())
-                    application->FilesystemPublished({destinationDirectory}, &window_);
-                window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
-            }
             if (focusOwner) {
                 window_.workspace_->RequestListFocus(index);
                 window_.refreshSelectionActions();

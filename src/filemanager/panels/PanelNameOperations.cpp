@@ -119,6 +119,20 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
             return E_INVALIDARG;
         name = corrected;
     }
+    QString parentDirectory;
+    QString firstMissingParent;
+    if (destinationDirectory && IsFSFolder()) {
+        parentDirectory = QFileInfo(QDir(ToQString(GetFsPath())), QDir::cleanPath(ToQString(name)))
+                              .absolutePath();
+        QString ancestor = parentDirectory;
+        while (!QFileInfo::exists(ancestor)) {
+            const QString parent = QFileInfo(ancestor).absolutePath();
+            if (parent == ancestor)
+                break;
+            firstMissingParent = ancestor;
+            ancestor = parent;
+        }
+    }
     CDisableTimerProcessing disableTimerProcessing2(*this);
     CSelectedState state;
     SaveSelectedState(state);
@@ -132,12 +146,12 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
         op.DoOperation(*this, LangString(IDS_CREATE_FOLDER), LangString(IDS_CREATE_FOLDER_ERROR));
     error = ToQString(op.Sync.FinalMessage.ErrorMessage.Message);
     SetPublishedArchive(*this, op, publishedArchive);
-    if (res == S_OK) {
+    if (res == S_OK)
         PrepareCreatedSelection(*this, name, state);
-        if (destinationDirectory && IsFSFolder())
-            *destinationDirectory =
-                QFileInfo(QDir(ToQString(GetFsPath())), ToQString(name)).absolutePath();
-    }
+    if (!parentDirectory.isEmpty() && res == S_OK)
+        *destinationDirectory = parentDirectory;
+    else if (!firstMissingParent.isEmpty() && QFileInfo(firstMissingParent).isDir())
+        *destinationDirectory = QFileInfo(firstMissingParent).absolutePath();
     RefreshTitleAlways();
     RefreshListCtrl(state);
     return res;
