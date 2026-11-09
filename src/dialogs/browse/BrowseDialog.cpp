@@ -443,8 +443,15 @@ void CBrowseDialog::FinishOnOK() {
     }
     if (FolderMode || SaveMode) {
         QString candidate = QDir::cleanPath(ToQString(fs2us(destPath)));
-        if (!FolderMode)
+        if (!FolderMode) {
+            if (QFileInfo(candidate).isDir()) {
+                MessageBox_HResError(this, kInvalidNameError,
+                                     ToUString(QDir::toNativeSeparators(candidate)));
+                _pathEdit->setFocus();
+                return;
+            }
             candidate = QFileInfo(candidate).absolutePath();
+        }
         for (;;) {
             const QFileInfo entry(candidate);
             if (entry.isDir())

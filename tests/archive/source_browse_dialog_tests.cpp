@@ -526,13 +526,13 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(output.IsEmpty());
     }
 
-    void pickerRejectsAPathBeneathAFileAndAllowsRetry_data() {
+    void pickerRejectsConflictingPathsAndAllowsRetry_data() {
         QTest::addColumn<bool>("folder");
         QTest::newRow("folder") << true;
         QTest::newRow("save") << false;
     }
 
-    void pickerRejectsAPathBeneathAFileAndAllowsRetry() {
+    void pickerRejectsConflictingPathsAndAllowsRetry() {
         QFETCH(bool, folder);
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);
@@ -541,6 +541,7 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("original"), qint64(8));
         file.close();
+        QVERIFY(QDir().mkdir(directory + "/occupied-folder.7z"));
         QTimer::singleShot(0, [&] {
             auto *dialog = Dialog();
             QVERIFY(dialog);
@@ -562,12 +563,12 @@ class SourceBrowseDialogTests final : public QObject {
             reply.start(1);
             const QStringList invalidPaths =
                 folder ? QStringList{"occupied.txt/", "occupied.txt/child/deeper"}
-                       : QStringList{"occupied.txt/child/archive.7z"};
+                       : QStringList{"occupied.txt/child/archive.7z", "occupied-folder.7z"};
             for (const auto &draft : invalidPaths) {
                 error.clear();
                 path->setText(draft);
                 dialog->accept();
-                QVERIFY(error.contains("occupied.txt"));
+                QVERIFY(error.contains(draft.section('/', 0, 0)));
                 QVERIFY(dialog->isVisible());
                 QCOMPARE(path->text(), draft);
                 QCOMPARE(dialog->focusWidget(), path);
