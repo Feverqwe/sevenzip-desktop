@@ -414,13 +414,20 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<bool>("retry");
         QTest::addColumn<bool>("switchPane");
         QTest::addColumn<bool>("editAfterSubmit");
+        QTest::addColumn<bool>("existingFolder");
         for (const QString language : {"-", "ru"})
-            QTest::newRow(qPrintable(language)) << language << false << false << false << false;
-        QTest::newRow("immediate-retry") << QString("-") << false << true << false << false;
-        QTest::newRow("deferred") << QString("-") << true << false << false << false;
-        QTest::newRow("deferred-retry") << QString("-") << true << true << false << false;
-        QTest::newRow("deferred-retry-peer-focus") << QString("-") << true << true << true << false;
-        QTest::newRow("deferred-retry-edited") << QString("-") << true << true << false << true;
+            QTest::newRow(qPrintable(language))
+                << language << false << false << false << false << false;
+        QTest::newRow("immediate-retry")
+            << QString("-") << false << true << false << false << false;
+        QTest::newRow("existing-folder-retry")
+            << QString("-") << false << true << false << false << true;
+        QTest::newRow("deferred") << QString("-") << true << false << false << false << false;
+        QTest::newRow("deferred-retry") << QString("-") << true << true << false << false << false;
+        QTest::newRow("deferred-retry-peer-focus")
+            << QString("-") << true << true << true << false << false;
+        QTest::newRow("deferred-retry-edited")
+            << QString("-") << true << true << false << true << false;
     }
     void failure() {
         QFETCH(QString, language);
@@ -428,6 +435,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QFETCH(bool, retry);
         QFETCH(bool, switchPane);
         QFETCH(bool, editAfterSubmit);
+        QFETCH(bool, existingFolder);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -442,7 +450,10 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        QFile keep(fixture.filePath("keep.bin"));
+        const QString occupied = existingFolder ? QString("keep folder") : QString("keep.bin");
+        if (existingFolder)
+            QVERIFY(QDir(fixture.path()).mkdir(occupied));
+        QFile keep(fixture.filePath(existingFolder ? occupied + "/keep.bin" : occupied));
         QVERIFY(keep.open(QIODevice::WriteOnly));
         QCOMPARE(keep.write("protected bytes"), qint64(15));
         keep.close();
@@ -466,7 +477,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows);
         QVERIFY(WindowActivation::waitForActive(window));
         view->sourcePanel->Set_AutoRefresh_Mode(false);
-        const int originalRow = row(view, "keep.bin");
+        const int originalRow = row(view, occupied);
         QVERIFY(originalRow >= 0);
         view->selectRow(originalRow);
         view->setCurrentCell(originalRow, 0);
@@ -478,12 +489,12 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(external.open(QIODevice::WriteOnly));
         QCOMPARE(external.write("external bytes"), qint64(14));
         external.close();
-        name->setText("keep.bin");
+        name->setText(occupied);
         QTest::keyClick(name, Qt::Key_Return);
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
-        QCOMPARE(name->text(), QString("keep.bin"));
-        QCOMPARE(name->selectedText(), QString("keep.bin"));
+        QCOMPARE(name->text(), occupied);
+        QCOMPARE(name->selectedText(), occupied);
         const QString corrected = QStringLiteral("corrected folder");
         if (deferred)
             QVERIFY(view->rowCount() < initialRows);
@@ -513,7 +524,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows + 1 + int(retry));
         QTRY_COMPARE(window.focusWidget(), peer ? peer : view);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
-        QCOMPARE(view->currentRow(), row(view, retry ? corrected : QString("keep.bin")));
+        QCOMPARE(view->currentRow(), row(view, retry ? corrected : occupied));
         QCOMPARE(QFileInfo(fixture.filePath(corrected)).isDir(), retry);
         if (peer)
             QVERIFY(!QFileInfo::exists(peerFolder.filePath(corrected)));
