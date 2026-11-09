@@ -97,8 +97,9 @@ bool QtCopyDestinationContext::IsPeerWritable() const {
 }
 
 bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath) {
-    return (path.endsWith('/') || path.endsWith(QDir::separator())) &&
-           SameDirectory(path, panelPath);
+    const bool folder = path.endsWith('/') || path.endsWith(QDir::separator());
+    const bool streams = path.endsWith(':') && panelPath.endsWith(':');
+    return (folder || streams) && SameDirectory(path, panelPath);
 }
 
 QString NormalizeCopyDestination(const QString &path) {

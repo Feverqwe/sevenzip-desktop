@@ -7,6 +7,7 @@
 #include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
 #include "support/delete_reply.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -246,6 +247,12 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
             if (QTest::currentTestFailed())
                 return;
             QVERIFY(asked);
+            CProgressDialog *report = nullptr;
+            QTRY_VERIFY(
+                (report = TestProgressDialog::ResultWindow(QApplication::activeModalWidget())));
+            QVERIFY(TestProgressDialog::ReportText(*report).contains(QCoreApplication::translate(
+                "mainwindow_archive_transfer", "The destination archive was restored.")));
+            TestProgressDialog::CloseResult(*report);
             QCOMPARE(readFile(archive), targetBeforeMove);
             QCOMPARE(readFile(inputArchive), sourceBefore);
             QTRY_VERIFY(row(*target, moved) < 0);
