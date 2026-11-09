@@ -101,6 +101,10 @@ void QtAppPresentation::RestoreWidgetFocus(QWidget *widget) {
         widget->setFocus(Qt::OtherFocusReason);
 }
 
+bool QtAppPresentation::IsCopyDestinationAvailable(unsigned index) const {
+    return !window_.panelUi_[index].locationUnavailable;
+}
+
 CPanelCallback *QtAppPresentation::PanelCallback(unsigned) {
     // Source callbacks, including folder synchronization, belong to
     // CApp::m_PanelCallbackImp. This service supplies Qt presentation only.

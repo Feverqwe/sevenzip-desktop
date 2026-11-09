@@ -3,6 +3,7 @@
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "support/delete_reply.h"
@@ -13,6 +14,7 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QProcess>
 #include <QScopeGuard>
 #include <QStandardPaths>
@@ -127,6 +129,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::addColumn<QString>("state");
         QTest::newRow("read-only") << QString("read-only");
         QTest::newRow("replaced-by-file") << QString("file");
+        QTest::newRow("unavailable-favorite") << QString("favorite");
 #ifdef Q_OS_UNIX
         QTest::newRow("replaced-by-link") << QString("link");
 #endif
@@ -156,9 +159,32 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         action(window, "twoPanelsAction")->trigger();
         auto *target = openPanel(window, 1, peer);
         QTRY_VERIFY(target->isEnabled() && row(*target, "peer.txt") >= 0);
+        if (state == "favorite") {
+            QtFavoriteStore *store = nullptr;
+            for (auto *object : qApp->children())
+                if (auto *candidate = dynamic_cast<QtFavoriteStore *>(object);
+                    candidate && candidate->property("settingsPath").toString() ==
+                                     qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"))
+                    store = candidate;
+            QVERIFY(store);
+            const QString missing = fixture.filePath("missing favorite");
+            store->Add(missing, QStringLiteral("Missing copy destination"), {}, {}, true);
+            auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+            QVERIFY(menu);
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            QTRY_VERIFY(menu->isVisible());
+            QAction *entry = nullptr;
+            for (auto *item : menu->actions())
+                if (item->toolTip() == missing)
+                    entry = item;
+            QVERIFY(entry);
+            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                              menu->actionGeometry(entry).center());
+            QTRY_VERIFY(!target->isEnabled());
+        }
         auto *files = openPanel(window, 0, source);
         QTRY_VERIFY(files->isEnabled() && row(*files, "file.txt") >= 0);
-        if (state != "read-only") {
+        if (state == "file" || state == "link") {
             target->sourcePanel->Set_AutoRefresh_Mode(false);
             const QString parked = fixture.filePath("parked peer");
             QVERIFY(QDir().rename(peer, parked));
@@ -174,7 +200,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
 
         const QString output = fixture.filePath("manual output");
         QVERIFY(QDir().mkpath(output));
-        const QString destination = state == "file" ? peer : output + '/';
+        const QString destination =
+            state == "file" ? peer : (state == "favorite" ? peer : output) + '/';
         bool shown = false;
         int overwritePrompts = 0;
         QTimer overwrite;
@@ -210,12 +237,12 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         });
         action(window, "copyAction")->trigger();
         QVERIFY(shown);
-        QTRY_COMPARE(read(state == "file" ? peer : output + "/file.txt"),
+        QTRY_COMPARE(read(state == "file" ? peer : destination + "file.txt"),
                      QByteArray("source bytes"));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QCOMPARE(overwritePrompts, state == "file" ? 1 : 0);
         QCOMPARE(read(source + "/file.txt"), QByteArray("source bytes"));
-        QVERIFY(!QFileInfo::exists(peer + "/file.txt"));
+        QCOMPARE(QFileInfo::exists(peer + "/file.txt"), state == "favorite");
     }
     void sourceReloadPublishesNamespace() {
         ArchiveBackend backend;

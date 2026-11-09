@@ -123,16 +123,19 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     FOR_VECTOR(i, indices)
     sourcePaths << ToQString(srcPanel.GetItemFullPath(indices[i]));
     const bool renameSource = srcPanel.IsFSFolder() || srcPanel.IsAltStreamsFolder();
-    const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
+    const bool peerAvailable =
+        NumPanels == 2 && _presentation->IsCopyDestinationAvailable(destPanelIndex);
+    const UString peerPath = peerAvailable ? destPanel.GetFsPath() : UString();
     QtCopyDestinationContext destinationContext;
     if (NumPanels == 2)
-        destinationContext.PeerDestination = ToQString(peerPath);
+        destinationContext.PeerDestination =
+            peerAvailable ? ToQString(peerPath) : QStringLiteral("");
     destinationContext.PeerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
     destinationContext.LocalFileTransfer = srcPanel.IsFSFolder();
-    destinationContext.PeerSupportsWriting =
-        NumPanels == 2 && destPanel.DoesItSupportOperations() &&
-        !destPanel.IsThereReadOnlyFolder() && !destPanel.IsRootFolder() &&
-        !destPanel.IsFSDrivesFolder();
+    destinationContext.PeerSupportsWriting = peerAvailable && destPanel.DoesItSupportOperations() &&
+                                             !destPanel.IsThereReadOnlyFolder() &&
+                                             !destPanel.IsRootFolder() &&
+                                             !destPanel.IsFSDrivesFolder();
     if ((copyToSame && renameSource) ||
         (!copyToSame && NumPanels == 2 && !destinationContext.IsPeerWritable())) {
         destPath = srcPanel.GetFsPath();
@@ -214,7 +217,8 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     if (peerIsArchive && CopyPathMatchesArchivePanel(ToQString(destPath), ToQString(peerPath)))
         destPath = peerPath;
     bool possibleToUseDestPanel = false;
-    if (CompareFileNames(destPath, destPanel.GetFsPath()) == 0) {
+    if ((NumPanels == 1 || _presentation->IsCopyDestinationAvailable(destPanelIndex)) &&
+        CompareFileNames(destPath, destPanel.GetFsPath()) == 0) {
         if (NumPanels == 1 || CompareFileNames(destPath, srcPanel.GetFsPath()) == 0) {
             srcPanel.MessageBox_Error(QtDiagnosticText(
                 QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot copy files onto itself")));
