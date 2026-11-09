@@ -36,6 +36,7 @@ class FolderSizeOperation final : public CProgressThreadVirt {
     HRESULT ProcessVirt() override {
         CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
         HRESULT firstError = S_OK;
+        unsigned reportedErrors = 0;
         FOR_VECTOR(i, indices_) {
             RINOK(Sync.CheckStop())
             Sync.Set_FilePath(paths_[i], true);
@@ -45,7 +46,12 @@ class FolderSizeOperation final : public CProgressThreadVirt {
             if (result != S_OK) {
                 if (firstError == S_OK)
                     firstError = result;
-                AddErrorPath(us2fs(paths_[i]));
+                // Keep item diagnostics separate from the terminal result so
+                // cancelling after an unreadable folder still reports Cancel.
+                if (reportedErrors < 32) {
+                    Sync.AddError_Code_Name(result, paths_[i]);
+                    ++reportedErrors;
+                }
             }
         }
         return firstError;
