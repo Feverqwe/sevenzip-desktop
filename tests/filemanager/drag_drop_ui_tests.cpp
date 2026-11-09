@@ -13,6 +13,7 @@
 #include "support/scoped_environment.h"
 #include "support/window_activation.h"
 #include "support/panel_keys.h"
+#include <QMessageBox>
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QContextMenuEvent>
@@ -575,6 +576,86 @@ class DragDropUiTests final : public QObject {
         QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(first)), "first");
         QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(second)), "second");
         QTRY_VERIFY(Row(*destination, first) >= 0 && Row(*destination, second) >= 0);
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+    }
+
+    void archiveDragCopiesIntoTheHighlightedPeerFolder() {
+#ifdef Q_OS_WIN
+        if (QGuiApplication::platformName() != QStringLiteral("windows"))
+            QSKIP("Requires the native Windows platform plugin");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("source.zip");
+        const QString name = QStringLiteral("данные #.txt");
+        const QString folder = QStringLiteral("target folder");
+        const QString destination = fixture.filePath(folder + '/' + name);
+        QVERIFY(QDir().mkpath(fixture.filePath(folder)));
+        QVERIFY(NativeArchiveFixture::Write(archive, {{name, "archive drag bytes"}}, "zip"));
+        const QByteArray original = SourceExtractFixture::readFile(archive);
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        QStringList errors;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *message = qobject_cast<QMessageBox *>(modal)) {
+                errors.append(message->text());
+                message->accept();
+            } else {
+                TestProgressDialog::DismissVisibleResult(modal);
+            }
+        });
+        dismiss.start(5);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *two = window.findChild<QAction *>("twoPanelsAction");
+        QTRY_VERIFY(two->isEnabled());
+        if (!two->isChecked())
+            two->trigger();
+        auto *left = window.findChild<QWidget *>("filePanel0");
+        auto *right = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(left && right);
+        auto *source = left->findChild<FileTable *>("archiveTable");
+        auto *target = right->findChild<FileTable *>("archiveTable");
+        QVERIFY(source && target);
+        Navigate(*right, fixture.path());
+        QTRY_VERIFY(target->isEnabled() && Row(*target, folder) >= 0);
+        Navigate(*left, archive);
+        QTRY_VERIFY(source->isEnabled() && Row(*source, name) >= 0);
+        source->setCurrentCell(Row(*source, name), 0);
+        source->selectRow(source->currentRow());
+        QVERIFY(source->dragStarter && source->sourcePanel);
+        bool cancel = true;
+        bool accepted = false;
+        QtPanelDragTransport transport(source, [&](QDrag &drag, Qt::DropActions actions) {
+            const auto index = target->model()->index(Row(*target, folder), 0);
+            const QPoint point = target->visualRect(index).center();
+            QDragEnterEvent enter(DragEventPosition(point), actions, drag.mimeData(),
+                                  Qt::LeftButton, Qt::ControlModifier);
+            QCoreApplication::sendEvent(target->viewport(), &enter);
+            if (!enter.isAccepted())
+                return Qt::IgnoreAction;
+            if (cancel) {
+                QDragLeaveEvent leave;
+                QCoreApplication::sendEvent(target->viewport(), &leave);
+                return Qt::IgnoreAction;
+            }
+            QDropEvent drop(point, actions, drag.mimeData(), Qt::LeftButton, Qt::ControlModifier);
+            QCoreApplication::sendEvent(target->viewport(), &drop);
+            accepted = drop.isAccepted();
+            return accepted ? drop.dropAction() : Qt::IgnoreAction;
+        });
+        source->sourcePanel->AttachDragServices(&transport);
+        const auto detach = qScopeGuard([&] { source->sourcePanel->AttachDragServices(nullptr); });
+        source->dragStarter();
+        QVERIFY(!QFileInfo::exists(destination));
+        cancel = false;
+        source->dragStarter();
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join(u'\n')));
+        QVERIFY(accepted);
+        QCOMPARE(SourceExtractFixture::readFile(destination), QByteArray("archive drag bytes"));
+        QVERIFY(!QFileInfo::exists(fixture.filePath(name)));
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }
 
