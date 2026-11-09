@@ -258,6 +258,7 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
     if (request->destination >= 0) {
         locationState.cursor = request->destination;
         const auto target = locationState.visits[locationState.cursor];
+        window_.clearStatusMessage();
         window_.restoreListSelection(target.selection);
         if (target.selection.KeepViewport && target.viewMode == request->source->GetListViewMode())
             if (auto *view = qobject_cast<QAbstractItemView *>(

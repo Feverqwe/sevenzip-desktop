@@ -87,6 +87,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QDir().rename(parked, missing));
         travel->trigger();
         QTRY_COMPARE(location(window), missing);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
     void keyboardAndNavigationGeometry_data() {
