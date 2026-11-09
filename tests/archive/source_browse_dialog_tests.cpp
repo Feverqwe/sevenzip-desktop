@@ -747,6 +747,35 @@ class SourceBrowseDialogTests final : public QObject {
         QCOMPARE(file.readAll(), QByteArray("unchanged"));
     }
 
+    void keyboardChoosesNewNestedFolder() {
+        QTemporaryDir fixture;
+        const QString directory = LongDirectory(fixture);
+        QVERIFY(QDir().mkpath(directory));
+        const QString relative = QStringLiteral("new folder/child 空");
+        const QString destination = QDir(directory).filePath(relative);
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *list = dialog->findChild<QTreeWidget *>("browseList");
+            list->setFocus();
+            QTest::keyClick(list, Qt::Key_F7);
+            auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
+            QVERIFY(name && name->isVisible());
+            name->setText(relative);
+            QTest::keyClick(name, Qt::Key_Return);
+            QVERIFY(QFileInfo(destination).isDir());
+            QVERIFY(dialog->focusWidget());
+            QTest::keyClick(dialog->focusWidget(), Qt::Key_Return);
+        });
+        UString selected;
+        QVERIFY(MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), selected));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(selected))), destination);
+    }
+
     void geometry_data() {
         QTest::addColumn<bool>("folder");
         QTest::addColumn<int>("width");

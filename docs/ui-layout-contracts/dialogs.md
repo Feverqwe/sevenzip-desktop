@@ -74,6 +74,8 @@ source browser opens it with the same archive filters. Cancel leaves the pane
 at its current location. The source browser keeps its path field and actions
 visible while its file list scrolls. New Folder opens an inline field. An error
 keeps the name available for correction, and Escape returns focus to New Folder.
+In the source folder picker, creating a folder fills the path field and focuses
+it so Enter can confirm the new destination.
 
 ## Hash results
 

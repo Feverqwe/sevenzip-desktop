@@ -400,9 +400,11 @@ void CBrowseDialog::CreateDirFromDraft() {
     _folderDraft->hide();
     Reload(DirPrefix, name);
     SetPathEditText();
-    if (FolderMode)
+    if (FolderMode) {
         _pathEdit->setText(ToQString(fs2us(destPath)));
-    _list->setFocus();
+        _pathEdit->setFocus();
+    } else
+        _list->setFocus();
 }
 
 void CBrowseDialog::OnItemEnter() {
