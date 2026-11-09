@@ -241,6 +241,12 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (!panel.ShouldProcessNotifications())
         return true;
     if (QAction *action = panelShortcut(*key)) {
+        if (action == up_) {
+            // The View menu keeps its source pane until its selected action
+            // is delivered. Keyboard navigation belongs to the focused list.
+            app_.ExecuteCommand(IDM_OPEN_PARENT_FOLDER);
+            return true;
+        }
         // Destination permissions can change between file list updates.
         if (clipboard_ && action == clipboard_->paste && !action->isEnabled())
             clipboard_->Refresh();

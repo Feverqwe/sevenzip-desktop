@@ -522,6 +522,19 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
                      second);
         auto *leftView = window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>();
         QCOMPARE(QDir::cleanPath(ToQString(leftView->sourcePanel->GetCurrentFolderPrefix())), left);
+        leftView->setFocus();
+        QTRY_VERIFY(leftView->hasFocus());
+        menu->popup(window.mapToGlobal(QPoint(20, 20)));
+        QVERIFY(menu->isVisible());
+        menu->hide();
+        right->setFocus();
+        QVERIFY(right->hasFocus());
+        const auto shortcut = action(window, "upAction")->shortcut()[0];
+        QKeyEvent up(QEvent::KeyPress, shortcut.key(), shortcut.keyboardModifiers());
+        QCoreApplication::sendEvent(right, &up);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(right->sourcePanel->GetCurrentFolderPrefix())),
+                     fixture.path());
+        QCOMPARE(QDir::cleanPath(ToQString(leftView->sourcePanel->GetCurrentFolderPrefix())), left);
     }
 
     void canceledEncryptedBackKeepsItsCursorAndDoesNotPromptTwice() {
