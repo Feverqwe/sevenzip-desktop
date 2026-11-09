@@ -330,6 +330,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(view->hasFocus());
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(backend.listCalls, 1);
     }
     void completedAddressNavigationFocusesLargeList_data() {
