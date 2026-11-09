@@ -410,6 +410,28 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(QDir::fromNativeSeparators(history->itemText(1)), upper);
     }
 
+    void enteringAnExistingHistoryPathKeepsTheSelectedFormat() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath("previous.zip");
+        NCompression::CInfo registry;
+        registry.ArcPaths.Add(target);
+        registry.Save(settings_);
+        CreateArchiveDialog dialog(dir_.path(), {source_});
+        dialog.show();
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        auto *format = dialog.findChild<QComboBox *>("archiveFormat");
+        format->setCurrentText("7z");
+        QCOMPARE(format->currentText(), QString("7z"));
+        name->setFocus();
+        name->selectAll();
+        QTest::keyClicks(name, target);
+        QTest::keyClick(name, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), target);
+        QCOMPARE(dialog.compressionOptions().format, QString("7z"));
+    }
+
     void historySelectionAndCancel() {
         NCompression::CInfo registry;
         QTemporaryDir fixture;
