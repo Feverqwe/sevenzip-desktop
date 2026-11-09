@@ -1,8 +1,10 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 
@@ -83,14 +85,29 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
 #endif
         QVERIFY(writeFile(QDir(hidden).filePath("child.txt")));
         QVERIFY(writeFile(fixture.filePath("visible.txt")));
+        QtWorkspaceApplication application(*qApp);
+        struct BusyBackend final : ArchiveBackend {
+            bool held = false;
+            bool busy() const override { return held || ArchiveBackend::busy(); }
+        } backend;
+        MainWindow observer(&backend);
+        observer.show();
+        observer.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(observer, ".private") >= 0);
         MainWindow window;
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openPath(fixture.path());
         QTRY_VERIFY(filesystemRow(window, ".private") >= 0);
         auto *settings = action(window, "settingsAction");
+        backend.held = true;
         QVERIFY(setListOptions(window, settings, false, "showHiddenFoldersOption"));
         QTRY_COMPARE(filesystemRow(window, ".private"), -1);
+        QVERIFY(filesystemRow(observer, ".private") >= 0);
+        QVERIFY(WindowActivation::waitForActive(window));
+        backend.held = false;
+        QTRY_COMPARE(filesystemRow(observer, ".private"), -1);
+        QVERIFY(window.isActiveWindow());
         QVERIFY(filesystemRow(window, "visible.txt") >= 0);
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled());
@@ -109,6 +126,7 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QCOMPARE(filesystemRow(window, ".private"), -1);
         QVERIFY(setListOptions(window, settings, true, "showHiddenFoldersOption"));
         QTRY_VERIFY(filesystemRow(window, ".private") >= 0);
+        QTRY_VERIFY(filesystemRow(observer, ".private") >= 0);
     }
 
     void optionsParentRowAndContextMenu() {

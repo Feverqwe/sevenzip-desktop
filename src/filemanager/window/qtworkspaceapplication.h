@@ -30,6 +30,7 @@ class QtWorkspaceApplication final : public QObject {
     void Save();
     void ArchivePublished(const QString &archive, const CPanel *updated = nullptr);
     void FilesystemPublished(const QStringList &directories, const MainWindow *exclude = nullptr);
+    void FileListSettingsChanged(const MainWindow &source);
     void Quit();
 
   private:

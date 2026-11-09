@@ -21,6 +21,16 @@ void QtWorkspaceApplication::FilesystemPublished(const QStringList &directories,
             window->guiOutputRefresh_->Enqueue(directories, {});
 }
 
+void QtWorkspaceApplication::FileListSettingsChanged(const MainWindow &source) {
+    for (const auto &window : windows_) {
+        if (window && window != &source && !window->app_.QtOperations().closed())
+            window->workspace_->WhenReady([window] {
+                if (window)
+                    window->applyFileListSettings();
+            });
+    }
+}
+
 QtWorkspaceApplication::QtWorkspaceApplication(QApplication &application) : QObject(&application) {
     setObjectName(QStringLiteral("sevenzipWorkspaceApplication"));
     connect(&application, &QCoreApplication::aboutToQuit, this, [this] { Save(); });

@@ -4,6 +4,7 @@
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlanguageservices.h"
 #include <QScopedValueRollback>
@@ -33,7 +34,14 @@ QString MainWindow::toolbarSettingsPath() { return FmSettingsPath(); }
 
 void MainWindow::showSettings() {
     SettingsDialog dialog(toolbarSettingsPath(), this, folderManager_);
-    connect(&dialog, &SettingsDialog::Applied, this, &MainWindow::applyFileListSettings);
+    connect(&dialog, &SettingsDialog::Applied, this, [this] {
+        const auto previous = fileListSettings_;
+        applyFileListSettings();
+        if (previous.ShowDots != fileListSettings_.ShowDots ||
+            previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->FileListSettingsChanged(*this);
+    });
     dialog.exec();
     refreshActions();
 }
