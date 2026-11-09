@@ -158,17 +158,26 @@ class ArchiveVolumeCreationTests final : public QObject {
     }
     void occupiedVolumeCanBeCorrected_data() {
         QTest::addColumn<QString>("suffix");
-        QTest::newRow("first") << QString(".001");
-        QTest::newRow("later") << QString(".002");
+        QTest::addColumn<bool>("link");
+        QTest::newRow("first") << QString(".001") << false;
+        QTest::newRow("later") << QString(".002") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("dangling-later") << QString(".002") << true;
+#endif
     }
     void occupiedVolumeCanBeCorrected() {
         QFETCH(QString, suffix);
+        QFETCH(bool, link);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.bin");
         const QString occupied = fixture.filePath("archive.7z" + suffix);
+        const QString missing = fixture.filePath("missing.bin");
         QVERIFY(writeFile(source, "source"));
-        QVERIFY(writeFile(occupied, "keep this volume"));
+        if (link)
+            QVERIFY(QFile::link(missing, occupied));
+        else
+            QVERIFY(writeFile(occupied, "keep this volume"));
         CreateArchiveDialog dialog(fixture.path(), {source});
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
         name->setText("archive.7z");
@@ -190,7 +199,13 @@ class ArchiveVolumeCreationTests final : public QObject {
             return refused;
         };
         QVERIFY(submitAndDismissWarning() && dialog.isVisible());
-        QCOMPARE(readFile(occupied), QByteArray("keep this volume"));
+        QCOMPARE(name->selectedText(), QString("archive.7z"));
+        if (link) {
+            QVERIFY(QFileInfo(occupied).isSymLink());
+            QVERIFY(!QFileInfo::exists(missing));
+        } else {
+            QCOMPARE(readFile(occupied), QByteArray("keep this volume"));
+        }
         const QString baseArchive = fixture.filePath("existing.7z");
         QVERIFY(writeFile(baseArchive, "keep this archive"));
         name->setText("existing.7z");
@@ -202,7 +217,11 @@ class ArchiveVolumeCreationTests final : public QObject {
         volume->setEditText("128K");
         QVERIFY(submitAndDismissWarning() && dialog.isVisible());
         QCOMPARE(readFile(baseArchive), QByteArray("keep this archive"));
-        name->setText("different.7z");
+        QCOMPARE(name->selectedText(), QString("existing.7z"));
+        QVERIFY(dialog.focusWidget());
+        QTest::keyClicks(dialog.focusWidget(), "different.7z");
+        QCOMPARE(name->text(), QString("different.7z"));
+        QCOMPARE(volume->currentText(), QString("128K"));
         QVERIFY(writeFile(fixture.filePath("different.7z.0002"), "not a volume"));
         ok->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
