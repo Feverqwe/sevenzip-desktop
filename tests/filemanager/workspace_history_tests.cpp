@@ -617,8 +617,10 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         action(window, "backAction")->trigger();
         QTRY_VERIFY(table(window)->isEnabled() && table(window)->sourcePanel->IsArcFolder());
         QVERIFY(address->text() != draft);
+        QTRY_COMPARE(window.focusWidget(), table(window));
         action(window, "forwardAction")->trigger();
         QTRY_COMPARE(location(window), folder);
+        QTRY_COMPARE(window.focusWidget(), table(window));
     }
 
     void historyRemainsIndependentAcrossWindows() {

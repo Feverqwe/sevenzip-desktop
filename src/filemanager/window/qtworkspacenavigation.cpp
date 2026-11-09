@@ -301,6 +301,7 @@ void QtWindowWorkspace::Travel(int direction) {
     auto &ui = window_.panelUi_[panel];
     const auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
     const auto revision = address->UserEditRevision();
+    const auto interaction = interactionRevision_;
     const auto draft =
         ui.path->isModified() ? std::optional(QtAddressDraft(*ui.path)) : std::nullopt;
     const auto openTarget = [&] {
@@ -346,9 +347,13 @@ void QtWindowWorkspace::Travel(int direction) {
         }
         return window_.navigateTo(path, true);
     };
-    Navigate(openTarget, [this, panel, revision, draft](HRESULT result) {
-        if (result == S_OK || window_.app_.QtOperations().closed())
+    Navigate(openTarget, [this, panel, revision, interaction, draft](HRESULT result) {
+        if (window_.app_.QtOperations().closed())
             return;
+        if (result == S_OK) {
+            FocusListAfterLocationOpen(panel, interaction);
+            return;
+        }
         auto &owner = window_.panelUi_[panel];
         const auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
         const auto restored =
