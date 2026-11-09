@@ -783,6 +783,7 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("relative-destination") << QString("relative-destination");
         QTest::newRow("missing-folder") << QString("missing");
         QTest::newRow("invalid-folder") << QString("invalid");
+        QTest::newRow("invalid-name") << QString("invalid-name");
         QTest::newRow("directory-with-separator") << QString("directory-separator");
         QTest::newRow("directory-with-dot") << QString("directory-dot");
     }
@@ -791,6 +792,7 @@ class CompressionPathTests final : public QObject {
         const bool directoryDraft = form.startsWith("directory-");
         const bool relativeDestination = form == "relative-destination";
         const bool zip = form == "relative-zip";
+        const bool invalidName = form == "invalid-name";
         const QString selectedFormat = zip ? "zip" : "7z";
         QTemporaryDir destination;
         QTemporaryDir original;
@@ -806,6 +808,7 @@ class CompressionPathTests final : public QObject {
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         format->setCurrentText(selectedFormat);
         const QString draft = QStringLiteral("имя with spaces 空.") + selectedFormat;
+        const QString invalidLeaf = draft.left(3) + QChar::Null + draft.mid(3);
         QVERIFY(QDir(original.path()).mkdir("nested"));
         folder->setText(relativeDestination ? QStringLiteral("nested")
                         : form == "missing" ? original.filePath("nested/not created/deeper")
@@ -814,6 +817,7 @@ class CompressionPathTests final : public QObject {
         const QString entered = directoryDraft ? (form == "directory-dot" ? "nested/." : "nested/")
                                 : form == "absolute"
                                     ? QDir::toNativeSeparators(original.filePath(draft))
+                                : invalidName ? "nested/" + invalidLeaf
                                 : form == "relative" || zip || form == "invalid" ? "nested/" + draft
                                                                                  : draft;
         name->setText(entered);
@@ -835,7 +839,7 @@ class CompressionPathTests final : public QObject {
                             picker->reject();
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
-                    const QString initial = form == "invalid" ? dir_.path()
+                    const QString initial = form == "invalid" || invalidName ? dir_.path()
                                             : form == "relative" || zip || form == "missing" ||
                                                     directoryDraft || relativeDestination
                                                 ? original.filePath("nested")
@@ -858,13 +862,26 @@ class CompressionPathTests final : public QObject {
             browse->click();
             answer.stop();
             QVERIFY(observed);
-            QCOMPARE(name->text(), accept ? (directoryDraft ? QString() : draft) : entered);
+            QCOMPARE(name->text(), accept ? (directoryDraft ? QString()
+                                             : invalidName  ? invalidLeaf
+                                                            : draft)
+                                          : entered);
             QCOMPARE(format->currentText(), selectedFormat);
             if (accept)
                 QCOMPARE(QFileInfo(folder->text()).canonicalFilePath(),
                          QFileInfo(destination.path()).canonicalFilePath());
             else
                 QCOMPARE(folder->text(), previousFolder);
+        }
+        if (invalidName) {
+            QTimer::singleShot(0, &dialog, [] {
+                if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                    message->accept();
+            });
+            submit(dialog);
+            QCOMPARE(dialog.result(), 0);
+            QCOMPARE(name->text(), invalidLeaf);
+            name->setText(draft);
         }
         const QString expectedName = directoryDraft ? QStringLiteral("archive.7z") : draft;
         if (directoryDraft) {

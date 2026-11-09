@@ -194,10 +194,10 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
                 name_->clear();
                 name_->setFocus();
             } else if (nameIncludesPath) {
-                const QString filename =
-                    resolved.isEmpty()
-                        ? QFileInfo(QDir::fromNativeSeparators(ToQString(draft))).fileName()
-                        : target.fileName();
+                const QString enteredName = QDir::fromNativeSeparators(name_->text().trimmed());
+                const QString filename = resolved.isEmpty()
+                                             ? enteredName.mid(enteredName.lastIndexOf(u'/') + 1)
+                                             : target.fileName();
                 if (!filename.isEmpty())
                     name_->setText(filename);
             }
