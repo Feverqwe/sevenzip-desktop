@@ -357,6 +357,17 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(selectedNames(), marked);
         QVERIFY(!view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(view->viewport()->rect().contains(view->visualRect(view->currentIndex())));
+        view->setColumnWidth(0, view->viewport()->width() * 2);
+        auto *horizontal = view->horizontalScrollBar();
+        QTRY_VERIFY(horizontal->maximum() > 0);
+        horizontal->setValue(horizontal->maximum());
+        const int horizontalPosition = horizontal->value();
+        action(window, "sort3Action")->trigger();
+        QCOMPARE(horizontal->value(), horizontalPosition);
+        const QRect focusedAfterSort = view->visualRect(view->currentIndex());
+        QVERIFY(focusedAfterSort.top() >= 0);
+        QVERIFY(focusedAfterSort.bottom() < view->viewport()->height());
+        QCOMPARE(selectedNames(), marked);
     }
 };
 

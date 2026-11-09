@@ -147,7 +147,7 @@ void CPanel::SortItemsWithPropID(PROPID propID) {
     }
     SetSortRawStatus();
     _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
-    _selectionList.EnsureVisible(_selectionList.GetFocusedItem());
+    _selectionList.EnsureVisible(_selectionList.GetFocusedItem(), true);
 }
 
 void CPanel::OnColumnClick(PROPID propID) {

@@ -1,6 +1,7 @@
 #include "filemanager/panels/qtpanellist.h"
 #include <QItemSelectionModel>
 #include <QListView>
+#include <QScrollBar>
 #include <QTableView>
 
 int QtPanelList::GetItemCount() const { return IsBound() ? view_->model()->rowCount() : 0; }
@@ -81,14 +82,17 @@ void QtPanelList::SetFocusedItem(int row) {
     view_->selectionModel()->setCurrentIndex(view_->model()->index(row, 0),
                                              QItemSelectionModel::NoUpdate);
 }
-void QtPanelList::EnsureVisible(int row) {
+void QtPanelList::EnsureVisible(int row, bool preserveHorizontal) {
     if (!IsBound() || row < 0 || row >= GetItemCount())
         return;
     auto *view = presentationView_ && presentationView_->model() == view_->model()
                      ? presentationView_.data()
                      : view_.data();
     const auto *list = qobject_cast<QListView *>(view);
+    const int horizontalPosition = view->horizontalScrollBar()->value();
     view->scrollTo(view->model()->index(row, list ? list->modelColumn() : 0));
+    if (preserveHorizontal && !list)
+        view->horizontalScrollBar()->setValue(horizontalPosition);
 }
 
 void QtPanelList::SortItems(PROPID property, bool ascending, Int32 raw) {
