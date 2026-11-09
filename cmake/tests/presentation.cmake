@@ -32,7 +32,8 @@ if(BUILD_TESTING)
             fileExportCanBeCopiedByRecipient:archive-clipboard
             fileExportCanBeCopiedByRecipient:explorer-clipboard)
         add_test(NAME native_file_drag COMMAND drag_drop_ui_tests -silent
-            archiveDragReachesNativeDropReceiver archiveDragCopiesIntoTheHighlightedPeerFolder)
+            archiveDragReachesNativeDropReceiver archiveDragCopiesIntoTheHighlightedPeerFolder
+            nativeSourceUsesActualTargetView:right-table-move)
         set(sevenzip_clipboard_qpa windows)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_program(SEVENZIP_XVFB_RUN xvfb-run)

@@ -1517,6 +1517,7 @@ class DragDropUiTests final : public QObject {
         Navigate(*sourcePanel, source);
         QTRY_VERIFY(sourceTable->isEnabled() && Row(*sourceTable, name) >= 0);
         QVERIFY(sourceTable->sourcePanel);
+        sourceTable->sourcePanel->Set_AutoRefresh_Mode(false);
         const int sourceRow = Row(*sourceTable, name);
         sourceTable->selectRow(sourceRow);
         sourceTable->setCurrentCell(sourceRow, 0);
@@ -1663,6 +1664,8 @@ class DragDropUiTests final : public QObject {
         if (flat)
             QVERIFY(!QFileInfo::exists(QDir(target).filePath(subfolder)));
         QCOMPARE(QFileInfo::exists(input.fileName()), !move);
+        if (move)
+            QTRY_COMPARE(Row(*sourceTable, name), -1);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QCoreApplication::processEvents();
