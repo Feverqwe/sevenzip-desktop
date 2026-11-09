@@ -468,11 +468,18 @@ bool CopyFolder(CCopyState &state, const QString &srcPath, const QString &destPa
         return ReportError(
             state,
             QCoreApplication::translate("FSFolderCopy", "Source unavailable: %1").arg(srcPath));
-    const bool destinationExisted = QFileInfo::exists(destPath);
+    const QFileInfo destination(destPath);
+    const bool destinationExisted = destination.exists();
     if (state.MoveMode && state.MoveFile_Sys(srcPath, destPath, source.permissions()))
         return true;
-    if (QFileInfo(destPath).isSymLink() ||
-        !(state.Callback ? QDir().mkpath(destPath) : QDir().mkdir(destPath)))
+    if (QtIsFileSystemLink(destPath))
+        return ReportError(state, QCoreApplication::translate("qtfiletransfertransaction",
+                                                              "Destination is a symbolic link: %1")
+                                      .arg(destPath));
+    if (destinationExisted && !destination.isDir())
+        return ReportError(
+            state, QCoreApplication::translate("CopyRedesign", "Not a folder: %1").arg(destPath));
+    if (!(state.Callback ? QDir().mkpath(destPath) : QDir().mkdir(destPath)))
         return ReportError(
             state,
             QCoreApplication::translate("FSFolderCopy", "Cannot create folder: %1").arg(destPath));

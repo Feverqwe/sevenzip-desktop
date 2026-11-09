@@ -1414,6 +1414,7 @@ class FileTransferTests : public QObject {
         QTest::newRow("folder") << QString("folder");
         QTest::newRow("dangling-link") << QString("link");
         QTest::newRow("file-blocks-source-folder") << QString("file");
+        QTest::newRow("dangling-link-blocks-source-folder") << QString("folder-link");
     }
 
     void directoryMergeReportsTheConflictingDestination() {
@@ -1426,8 +1427,9 @@ class FileTransferTests : public QObject {
         QVERIFY(QDir().mkpath(source));
         QVERIFY(QDir().mkpath(QFileInfo(target).absolutePath()));
         const QString missing = fixture.filePath("missing.txt");
-        const bool link = obstruction == "link";
+        const bool link = obstruction == "link" || obstruction == "folder-link";
         const bool fileBlocksFolder = obstruction == "file";
+        const bool incomingFolder = fileBlocksFolder || obstruction == "folder-link";
         if (link) {
             if (!CreateNativeSymbolicLink(target, missing))
                 QSKIP("Native symbolic links are unavailable");
@@ -1439,9 +1441,9 @@ class FileTransferTests : public QObject {
             QVERIFY(QDir().mkdir(target));
         }
         const QString incomingPath = QDir(source).filePath("conflict.txt");
-        if (fileBlocksFolder)
+        if (incomingFolder)
             QVERIFY(QDir().mkdir(incomingPath));
-        QFile incoming(fileBlocksFolder ? QDir(incomingPath).filePath("child.txt") : incomingPath);
+        QFile incoming(incomingFolder ? QDir(incomingPath).filePath("child.txt") : incomingPath);
         QVERIFY(incoming.open(QIODevice::WriteOnly));
         QCOMPARE(incoming.write("source bytes"), qint64(12));
         incoming.close();
@@ -1454,6 +1456,10 @@ class FileTransferTests : public QObject {
         const QString message = result.first().at(1).toString();
         QVERIFY2(QDir::fromNativeSeparators(message).contains(target), qPrintable(message));
         QVERIFY(!message.contains(".sevenzip-"));
+        if (link)
+            QVERIFY2(message.contains("Destination is a symbolic link"), qPrintable(message));
+        else if (fileBlocksFolder)
+            QVERIFY2(message.contains("Not a folder"), qPrintable(message));
         QVERIFY(incoming.open(QIODevice::ReadOnly));
         QCOMPARE(incoming.readAll(), QByteArray("source bytes"));
         if (link) {
