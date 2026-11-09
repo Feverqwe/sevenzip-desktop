@@ -25,9 +25,11 @@ QStringList LocalFilePaths(const QList<QUrl> &urls) {
     for (const auto &url : urls) {
         if (!url.isValid() || !url.isLocalFile())
             return {};
-        const QString path = url.toLocalFile();
+        QString path = QDir::fromNativeSeparators(url.toLocalFile());
         if (!QDir::isAbsolutePath(path) || path.contains(QChar::Null))
             return {};
+        while (path.endsWith(u'/') && !QDir(path).isRoot())
+            path.chop(1);
         paths.append(path);
     }
     paths.removeDuplicates();

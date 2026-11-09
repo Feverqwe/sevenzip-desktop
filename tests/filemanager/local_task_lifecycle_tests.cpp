@@ -379,7 +379,13 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         }
     }
 
+    void partialFolderCutRefreshesSourceContents_data() {
+        QTest::addColumn<bool>("trailingSeparator");
+        QTest::newRow("plain-url") << false;
+        QTest::newRow("directory-url") << true;
+    }
     void partialFolderCutRefreshesSourceContents() {
+        QFETCH(bool, trailingSeparator);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
@@ -400,7 +406,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         destinationWindow.openPath(destination);
         QTRY_VERIFY(filesystemRow(sourceWindow, "moved.txt") >= 0);
         table(sourceWindow)->sourcePanel->Set_AutoRefresh_Mode(false);
-        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        const QList<QUrl> urls{QUrl::fromLocalFile(trailingSeparator ? source + '/' : source)};
         auto *mime = new QMimeData;
         mime->setUrls(urls);
         mime->setData("application/x-kde-cutselection", "1");
@@ -437,7 +443,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         auto *destinationList = table(destinationWindow);
         destinationList->setFocus();
         QTRY_VERIFY(destinationList->hasFocus() && paste->isEnabled());
-        QTest::keySequence(destinationList, QKeySequence::Paste);
+        PanelKeys::command(destinationList, Qt::Key_V, Qt::ControlModifier);
         QTRY_VERIFY(overwritePrompts == 2 && QtLocalFileTask::Active().isEmpty());
         QVERIFY(!QFileInfo::exists(source));
         QCOMPARE(read(target + "/moved.txt"), QByteArray("moved bytes"));
