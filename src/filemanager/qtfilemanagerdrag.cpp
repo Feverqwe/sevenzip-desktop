@@ -125,9 +125,10 @@ int QtFileManagerDrag::FolderAtPoint(unsigned i, int x, int y, UString &name) co
     if (!index.isValid())
         return -1;
     const UInt32 real = index.data(QtPanelList::SourceIndexRole).toUInt();
-    if (real == UInt32(-1) || !window_.app_.Panels[i].IsItem_Folder(real))
+    const auto &panel = window_.app_.Panels[i];
+    if (real == UInt32(-1) || !panel.IsItem_Folder(real))
         return -1;
-    name = window_.app_.Panels[i].GetItemName(real);
+    name = panel.IsFSFolder() ? panel.GetItemRelPath(real) : panel.GetItemName(real);
     return index.row();
 }
 void QtFileManagerDrag::Highlight(unsigned i, int item, bool enabled) {

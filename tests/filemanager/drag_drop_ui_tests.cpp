@@ -1265,19 +1265,30 @@ class DragDropUiTests final : public QObject {
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<Qt::DropActions>("actions");
         QTest::addColumn<bool>("refreshTarget");
+        QTest::addColumn<bool>("flat");
         const auto both = Qt::CopyAction | Qt::MoveAction;
-        QTest::newRow("left-table-copy") << false << false << 0 << false << false << both << false;
-        QTest::newRow("right-table-move") << false << true << 1 << false << false << both << false;
-        QTest::newRow("left-icons-move") << true << true << 0 << false << false << both << false;
-        QTest::newRow("right-icons-copy") << true << false << 1 << false << false << both << false;
-        QTest::newRow("right-button-copy") << false << false << 0 << true << false << both << false;
+        QTest::newRow("left-table-copy")
+            << false << false << 0 << false << false << both << false << false;
+        QTest::newRow("right-table-move")
+            << false << true << 1 << false << false << both << false << false;
+        QTest::newRow("left-icons-move")
+            << true << true << 0 << false << false << both << false << false;
+        QTest::newRow("right-icons-copy")
+            << true << false << 1 << false << false << both << false << false;
+        QTest::newRow("right-button-copy")
+            << false << false << 0 << true << false << both << false << false;
         QTest::newRow("right-button-copy-only")
-            << false << false << 0 << true << false << Qt::DropActions(Qt::CopyAction) << false;
+            << false << false << 0 << true << false << Qt::DropActions(Qt::CopyAction) << false
+            << false;
         QTest::newRow("right-button-move-only")
-            << true << true << 1 << true << false << Qt::DropActions(Qt::MoveAction) << false;
-        QTest::newRow("right-button-cancel") << true << false << 1 << true << true << both << false;
+            << true << true << 1 << true << false << Qt::DropActions(Qt::MoveAction) << false
+            << false;
+        QTest::newRow("right-button-cancel")
+            << true << false << 1 << true << true << both << false << false;
         QTest::newRow("copy-after-target-refresh")
-            << false << false << 0 << false << false << both << true;
+            << false << false << 0 << false << false << both << true << false;
+        QTest::newRow("flat-folder-copy")
+            << false << false << 0 << false << false << both << false << true;
     }
     void nativeSourceUsesActualTargetView() {
         QFETCH(bool, icons);
@@ -1287,13 +1298,15 @@ class DragDropUiTests final : public QObject {
         QFETCH(bool, cancel);
         QFETCH(Qt::DropActions, actions);
         QFETCH(bool, refreshTarget);
+        QFETCH(bool, flat);
         QTemporaryDir root;
         const QString name = QStringLiteral("перенос с пробелом.txt");
         const QString source = root.filePath("source");
         const QString target = root.filePath("target");
         const QString subfolder = QStringLiteral("назначение с пробелом");
+        const QString destination = QDir(target).filePath(flat ? "nested/" + subfolder : subfolder);
         QVERIFY(QDir().mkpath(source));
-        QVERIFY(QDir().mkpath(QDir(target).filePath(subfolder)));
+        QVERIFY(QDir().mkpath(destination));
         QFile input(QDir(source).filePath(name));
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("UI drag bytes"), qint64(13));
@@ -1319,6 +1332,10 @@ class DragDropUiTests final : public QObject {
         auto *targetTable = targetPanel->findChild<FileTable *>("archiveTable");
         QVERIFY(sourceTable && sourceTable->dragStarter && targetTable);
         Navigate(*targetPanel, target);
+        if (flat) {
+            QTRY_VERIFY(targetTable->isEnabled() && Row(*targetTable, "nested") >= 0);
+            targetTable->sourcePanel->ChangeFlatMode();
+        }
         QTRY_VERIFY(targetTable->isEnabled() && Row(*targetTable, subfolder) >= 0);
         if (icons)
             window.findChild<QAction *>("viewMode0Action")->trigger();
@@ -1462,12 +1479,14 @@ class DragDropUiTests final : public QObject {
             QTRY_COMPARE(window.focusWidget(), sourceTable);
             QVERIFY(PanelIndexSelected(sourceTable->model()->index(sourceRow, 0)));
             QVERIFY(QFileInfo::exists(input.fileName()));
-            QVERIFY(!QFileInfo::exists(QDir(QDir(target).filePath(subfolder)).filePath(name)));
+            QVERIFY(!QFileInfo::exists(QDir(destination).filePath(name)));
             return;
         }
-        QFile result(QDir(QDir(target).filePath(subfolder)).filePath(name));
+        QFile result(QDir(destination).filePath(name));
         QVERIFY(result.open(QIODevice::ReadOnly));
         QCOMPARE(result.readAll(), QByteArray("UI drag bytes"));
+        if (flat)
+            QVERIFY(!QFileInfo::exists(QDir(target).filePath(subfolder)));
         QCOMPARE(QFileInfo::exists(input.fileName()), !move);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
