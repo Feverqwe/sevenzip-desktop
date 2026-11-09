@@ -297,12 +297,15 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(read(QDir(files).filePath(target + "/child δ.txt")), QByteArray("untouched"));
     }
     void missingDiskFileCanBeOpenedAfterRestoration_data() {
-        QTest::addColumn<bool>("mouse");
-        QTest::newRow("keyboard") << false;
-        QTest::newRow("double-click") << true;
+        QTest::addColumn<QString>("gesture");
+        QTest::newRow("keyboard") << QString("enter");
+        QTest::newRow("double-click") << QString("mouse");
+        QTest::newRow("view") << QString("view");
+        QTest::newRow("open-outside") << QString("outside");
     }
     void missingDiskFileCanBeOpenedAfterRestoration() {
-        QFETCH(bool, mouse);
+        QFETCH(QString, gesture);
+        const bool mouse = gesture == "mouse";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("документ 空.txt");
@@ -333,6 +336,10 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
             if (mouse)
                 QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier,
                                    view.visualRect(clicked).center());
+            else if (gesture == "view")
+                QTest::keyClick(&view, Qt::Key_F3);
+            else if (gesture == "outside")
+                QTest::keyClick(&view, Qt::Key_Return, Qt::ShiftModifier);
             else
                 activateWithKeyboard(window, &view);
         };
