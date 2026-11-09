@@ -67,6 +67,21 @@ bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
            !HasEmptyWindowsPathComponent(path, fs2us(resolved));
 }
 
+void SplitExtractionDestination(const QString &destination, QString &parent, QString &name) {
+    UString prefix = ToUString(QDir::toNativeSeparators(destination));
+    NWindows::NFile::NName::NormalizeDirPathPrefix(prefix);
+    if (NWindows::NFile::NName::GetRootPrefixSize(prefix) == prefix.Len()) {
+        parent = destination;
+        name.clear();
+        return;
+    }
+    SplitPathToParts_Smart(destination, parent, name);
+    if (parent.isEmpty()) {
+        parent = destination;
+        name.clear();
+    }
+}
+
 static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> modes, int curVal) {
     for (const auto &mode : modes) {
         QString s = QtLangText(mode.LangID);
@@ -171,11 +186,8 @@ void CExtractDialog::OnInit(const QStringList &history) {
     if (_info.SplitDest.Val) {
         _nameEnable->setChecked(true);
         QString pathName;
-        SplitPathToParts_Smart(DirPath, pathPrefix, pathName);
-        if (pathPrefix.isEmpty())
-            pathPrefix = pathName;
-        else
-            _pathName->setText(pathName);
+        SplitExtractionDestination(DirPath, pathPrefix, pathName);
+        _pathName->setText(pathName);
     } else
         _pathName->setEnabled(false);
     _path->setEditText(pathPrefix);
@@ -191,9 +203,9 @@ void CExtractDialog::OnInit(const QStringList &history) {
         }
         QString parent, name;
         const QString destination = DestinationDraft(_path->itemText(index));
-        SplitPathToParts_Smart(destination, parent, name);
-        _path->setEditText(parent.isEmpty() ? destination : parent);
-        _pathName->setText(parent.isEmpty() ? QString() : name);
+        SplitExtractionDestination(destination, parent, name);
+        _path->setEditText(parent);
+        _pathName->setText(name);
     });
     AddComboItems(*_pathMode, kPathModes, PathMode);
     AddComboItems(*_overwriteMode, kOverwriteModes, OverwriteMode);

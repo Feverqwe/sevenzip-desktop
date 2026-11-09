@@ -404,6 +404,22 @@ class SplitDestinationTests final : public QObject {
                      QDir::cleanPath(QDir::current().absoluteFilePath(initial)));
         }
     }
+#ifdef Q_OS_WIN
+    void networkShareRootStaysInTheDestinationField() {
+        const QString share = QStringLiteral("//server.invalid/share");
+        CExtractDialog dialog(share, {share + '/', share});
+        QVERIFY(enabled(dialog)->isChecked());
+        QCOMPARE(path(dialog)->currentText(), share);
+        QVERIFY(name(dialog)->text().isEmpty());
+        for (int index : {0, 1}) {
+            name(dialog)->setText("old subfolder");
+            path(dialog)->setCurrentIndex(index);
+            QVERIFY(QMetaObject::invokeMethod(path(dialog), "activated", Q_ARG(int, index)));
+            QCOMPARE(path(dialog)->currentText(), index == 0 ? share + '/' : share);
+            QVERIFY(name(dialog)->text().isEmpty());
+        }
+    }
+#endif
     void extractionSuccessFailureAndCancel() {
         QTemporaryDir fixture;
         const QString source = fixture.filePath(QStringLiteral("данные с пробелом.txt"));
