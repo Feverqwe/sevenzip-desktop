@@ -162,21 +162,21 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
             if (list->model()->index(row, 0).data().toString() == selectedName)
                 selectedRow = row;
         QVERIFY(selectedRow >= 0);
-        list->setCurrentCell(selectedRow, 0);
-        list->selectRow(selectedRow);
+        action(window, "selectAllAction")->trigger();
+        const auto focused = list->model()->index(selectedRow, 0);
+        list->selectionModel()->setCurrentIndex(focused, QItemSelectionModel::NoUpdate);
+        list->selectionModel()->select(focused,
+                                       QItemSelectionModel::Deselect | QItemSelectionModel::Rows);
+        QCOMPARE(list->selectionModel()->selectedRows().size(), count - 1);
         const int calls = backend.listCalls;
         QSignalSpy publication(list->model(), &QAbstractItemModel::rowsRemoved);
         action(window, "refreshAction")->trigger();
         QCOMPARE(backend.listCalls, calls);
         QTRY_VERIFY(!publication.isEmpty());
         QTRY_VERIFY_WITH_TIMEOUT(list->isEnabled() && list->rowCount() >= count, 15000);
-        QCOMPARE(list->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(list->selectionModel()->selectedRows().size(), count - 1);
         QCOMPARE(list->currentIndex().data().toString(), selectedName);
-        QCOMPARE(list->model()
-                     ->index(list->selectionModel()->selectedRows().first().row(), 0)
-                     .data()
-                     .toString(),
-                 selectedName);
+        QVERIFY(!list->selectionModel()->isRowSelected(list->currentIndex().row(), {}));
     }
     void enteringLargeArchiveFolderRestoresCommands() {
         QTemporaryDir fixture;

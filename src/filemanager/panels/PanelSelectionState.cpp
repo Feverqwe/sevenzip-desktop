@@ -185,8 +185,6 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealF
                 selected = true;
         }
         _selectedStatusVector[realIndex] = selected;
-        if (selected)
-            _selectionList.SelectItem((int)i);
     }
     disableNotify.SetMemMode_Enable();
     disableNotify.Restore();
