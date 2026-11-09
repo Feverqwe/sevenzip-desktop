@@ -332,6 +332,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *source = openPanel(window, 0, input);
         QTRY_COMPARE(source->rowCount(), 2);
+        source->sourcePanel->Set_AutoRefresh_Mode(false);
         source->selectAll();
         source->setFocus();
         QStringList errors, successes;
@@ -340,7 +341,20 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                                   [&] { dismissResults(dialogs_, errors, successes); });
         driver.start(1);
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
+        const QString parkedDamaged = fixture.filePath("parked damaged.zip");
+        const QString parkedHealthy = fixture.filePath("parked healthy.zip");
+        QVERIFY(QFile::rename(damaged, parkedDamaged));
+        QVERIFY(QFile::rename(healthy, parkedHealthy));
         action(window, "testArchiveAction")->trigger();
+        QVERIFY(backend.Selections.isEmpty());
+        QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(damaged).fileName()) ||
+                window.statusBar()->currentMessage().contains(QFileInfo(healthy).fileName()));
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 2);
+        QTRY_VERIFY(source->hasFocus());
+        QVERIFY(QFile::rename(parkedDamaged, damaged));
+        QVERIFY(QFile::rename(parkedHealthy, healthy));
+        action(window, "testArchiveAction")->trigger();
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.first().Status, QtOperationResult::Outcome::Failure);
         QCOMPARE(backend.Selections.size(), 1);
