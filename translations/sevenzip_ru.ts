@@ -7344,6 +7344,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <name>QtWindowWorkspace</name>
     <message><source>No recent places yet.</source><translation>Недавних мест пока нет.</translation></message>
     <message><source>The archive changed. Reopen it to see the saved changes. The previous view is available for copying.</source><translation>Архив изменился. Откройте его заново, чтобы увидеть сохранённые изменения. Из прежнего представления можно копировать файлы.</translation></message>
+    <message><source>Archive unavailable: %1. You can still copy from the previous view.</source><translation>Архив недоступен: %1. Из открытого списка по-прежнему можно копировать файлы.</translation></message>
     <message><source>The original panel is closed.</source><translation>Исходная панель закрыта.</translation></message>
     <message><source>The original panel is busy.</source><translation>Исходная панель занята.</translation></message>
     <message><source>Opening canceled.</source><translation>Открытие отменено.</translation></message>

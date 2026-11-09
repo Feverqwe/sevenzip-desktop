@@ -70,10 +70,21 @@ void QtWindowWorkspace::InvalidateArchive(const QString &path, int skipPanel) {
 
 void QtWindowWorkspace::ShowArchiveChangeNotice(unsigned panel) {
     auto &ui = window_.panelUi_[panel];
-    QtBindLocalText(ui.navigationError, "QtWindowWorkspace",
-                    QT_TRANSLATE_NOOP("QtWindowWorkspace",
-                                      "The archive changed. Reopen it to see the saved changes. "
-                                      "The previous view is available for copying."));
+    const auto &parents = window_.app_.Panels[panel].GetParentFolders();
+    const QString path = parents.IsEmpty() ? QString() : ToQString(parents.Front().VirtualPath);
+    if (!path.isEmpty() && !QFileInfo::exists(path)) {
+        QtBindLocalText(ui.navigationError, "QtWindowWorkspace",
+                        QT_TRANSLATE_NOOP("QtWindowWorkspace",
+                                          "Archive unavailable: %1. You can still copy from the "
+                                          "previous view."),
+                        false, {QDir::toNativeSeparators(path)});
+    } else {
+        QtBindLocalText(
+            ui.navigationError, "QtWindowWorkspace",
+            QT_TRANSLATE_NOOP("QtWindowWorkspace",
+                              "The archive changed. Reopen it to see the saved changes. "
+                              "The previous view is available for copying."));
+    }
     ui.navigationNotice->show();
 }
 

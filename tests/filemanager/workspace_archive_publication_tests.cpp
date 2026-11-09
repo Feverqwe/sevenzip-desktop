@@ -167,6 +167,11 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QVERIFY(QFile::rename(outer, renamed));
         application.FilesystemPublished({fixture.path()});
         QTRY_VERIFY(notice(window));
+        const auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        const auto labels = retry->parentWidget()->findChildren<QLabel *>();
+        QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [&](const QLabel *label) {
+            return label->isVisible() && QDir::fromNativeSeparators(label->text()).contains(outer);
+        }));
         QCOMPARE(names(window), QStringList{"original.txt"});
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
         if (leave) {
