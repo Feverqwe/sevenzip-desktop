@@ -158,7 +158,9 @@ bool QtFileTransferTransaction::removeMergedSource(const QString &source,
             *error = sourceRemovalCanceled();
             return false;
         }
-        directories << iterator.next();
+        const QString path = iterator.next();
+        if (!QtIsFileSystemLink(path))
+            directories << path;
     }
     std::sort(directories.begin(), directories.end(),
               [](const QString &a, const QString &b) { return a.size() > b.size(); });

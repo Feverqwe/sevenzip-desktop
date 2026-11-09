@@ -1282,15 +1282,28 @@ class FileTransferTests : public QObject {
         }
     }
 
+    void directoryMoveMergeKeepsSkippedSourceFile_data() {
+        QTest::addColumn<bool>("directoryLink");
+        QTest::newRow("file") << false;
+        QTest::newRow("directory-link") << true;
+    }
     void directoryMoveMergeKeepsSkippedSourceFile() {
+        QFETCH(bool, directoryLink);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         QVERIFY(QDir().mkpath(temp.filePath("incoming/folder/sub")));
         QVERIFY(QDir().mkpath(temp.filePath("destination/folder/sub")));
-        QFile sourceConflict(temp.filePath("incoming/folder/sub/same"));
-        QVERIFY(sourceConflict.open(QIODevice::WriteOnly));
-        QCOMPARE(sourceConflict.write("incoming"), qint64(8));
-        sourceConflict.close();
+        const QString sourceConflict = temp.filePath("incoming/folder/sub/same");
+        const QString linkedDirectory = temp.filePath("linked folder");
+        if (directoryLink) {
+            QVERIFY(QDir().mkdir(linkedDirectory));
+            if (!CreateNativeSymbolicLink(sourceConflict, linkedDirectory))
+                QSKIP("Cannot create a directory link on this filesystem");
+        } else {
+            QFile file(sourceConflict);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("incoming"), qint64(8));
+        }
         QFile sourceNew(temp.filePath("incoming/folder/sub/new"));
         QVERIFY(sourceNew.open(QIODevice::WriteOnly));
         QCOMPARE(sourceNew.write("new"), qint64(3));
@@ -1316,7 +1329,11 @@ class FileTransferTests : public QObject {
         QVERIFY(destinationOld.open(QIODevice::ReadOnly));
         QCOMPARE(destinationOld.readAll(), QByteArray("existing"));
         QVERIFY(!QFileInfo::exists(sourceNew.fileName()));
-        QVERIFY(QFileInfo::exists(sourceConflict.fileName()));
+        QVERIFY(QFileInfo::exists(sourceConflict));
+        if (directoryLink) {
+            QVERIFY(QFileInfo(sourceConflict).isSymLink());
+            QVERIFY(QFileInfo(linkedDirectory).isDir());
+        }
     }
 
     void caseVariantsCannotOverwriteAnEarlierBatchResult_data() {
