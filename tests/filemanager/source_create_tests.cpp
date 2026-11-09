@@ -174,6 +174,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::newRow("relative") << QString("relative");
         QTest::newRow("absolute") << QString("absolute");
         QTest::newRow("outside") << QString("outside");
+        QTest::newRow("nested-outside") << QString("nested-outside");
     }
     void createdPathSelectsVisibleFolder() {
         QFETCH(QString, pathForm);
@@ -185,11 +186,13 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::WriteOnly));
         keep.close();
         const QString folder = QStringLiteral("created δ");
-        const bool outside = pathForm == "outside";
+        const bool nested = pathForm == "nested-outside";
+        const bool outside = pathForm == "outside" || nested;
         const QString target = outside ? fixture.filePath("other") : source;
         if (outside)
             QVERIFY(QDir().mkdir(target));
-        const QString destination = QDir(target).filePath(folder);
+        const QString destination =
+            QDir(target).filePath(nested ? folder + QStringLiteral("/child 空") : folder);
         const QString entered = pathForm == "relative" ? "./" + folder : destination;
 
         QtWorkspaceApplication application(*qApp);
