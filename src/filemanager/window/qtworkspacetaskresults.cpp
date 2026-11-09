@@ -36,11 +36,13 @@ void QtWorkspaceApplication::ShowTaskReview(const QUuid &id, bool activate) {
     if (!activate && taskResults_.value(id))
         return;
     if (!activate && !QtTaskPresentation::CanPresent()) {
-        if (auto *modal = QApplication::activeModalWidget()) {
-            if (reviewModal_ != modal) {
-                reviewModal_ = modal;
-                modal->installEventFilter(this);
-                connect(modal, &QObject::destroyed, this, [this] {
+        if (auto *blocker = QtTaskPresentation::BlockingWindow()) {
+            if (reviewModal_ != blocker) {
+                if (reviewModal_)
+                    reviewModal_->removeEventFilter(this);
+                reviewModal_ = blocker;
+                blocker->installEventFilter(this);
+                connect(blocker, &QObject::destroyed, this, [this] {
                     QTimer::singleShot(0, this, &QtWorkspaceApplication::PresentTaskReviews);
                 });
             }

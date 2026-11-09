@@ -34,6 +34,7 @@ class QtTaskPresentation final : public QObject {
     bool workStarted() const { return workStarted_; }
     bool resultReviewed() const { return resultReviewed_; }
     static void ResultReviewed();
+    static QWidget *BlockingWindow(const QWidget *owner = nullptr);
     static bool CanPresent(const QWidget *owner = nullptr);
     void Show();
   signals:
