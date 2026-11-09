@@ -618,7 +618,13 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
     }
 
+    void folderPickerKeepsExtractionDraftAndOptions_data() {
+        QTest::addColumn<bool>("invalidDestination");
+        QTest::newRow("valid") << false;
+        QTest::newRow("invalid") << true;
+    }
     void folderPickerKeepsExtractionDraftAndOptions() {
+        QFETCH(bool, invalidDestination);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString selected = fixture.filePath("selected folder");
@@ -634,6 +640,8 @@ class ExtractDialogTests final : public QObject {
             overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
         QVERIFY(overwriteIndex >= 0);
         overwrite(dialog)->setCurrentIndex(overwriteIndex);
+        if (invalidDestination)
+            destination->setEditText(QStringLiteral("invalid") + QChar::Null + "/path");
         const QString draft = edit->text();
         edit->setFocus();
         edit->setSelection(5, -4);
@@ -649,6 +657,7 @@ class ExtractDialogTests final : public QObject {
                     if (picker->isVisible())
                         picker->reject();
                 });
+                QCOMPARE(picker->directory().canonicalPath(), QDir(fixture.path()).canonicalPath());
                 if (choose) {
                     picker->setDirectory(selected);
                     picker->selectFile(selected);

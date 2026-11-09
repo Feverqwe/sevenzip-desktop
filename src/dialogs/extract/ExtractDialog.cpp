@@ -233,7 +233,7 @@ void CExtractDialog::changeEvent(QEvent *event) {
 void CExtractDialog::OnButtonSetPath() {
     const QString draft = DestinationDraft(_path->currentText());
     FString initial;
-    if (!ResolveOutputDirectory(draft, initial))
+    if (!ResolveOutputDirectory(draft, initial) && !ResolveOutputDirectory(DirPath, initial))
         initial.Empty();
     UString path;
     if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), fs2us(initial),
