@@ -122,8 +122,8 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
             peer->setFocus();
             QVERIFY(peer->hasFocus());
             QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
-            QVERIFY(!peer->isEnabled());
-            view->setFocus();
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
+            QTest::keyClick(peer, Qt::Key_Tab);
             QVERIFY(view->hasFocus());
             QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), plainArchive);
             QVERIFY(view->selectionModel()->isRowSelected(other, {}));

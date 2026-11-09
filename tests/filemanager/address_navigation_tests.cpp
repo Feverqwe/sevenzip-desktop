@@ -51,7 +51,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         address->setText(".");
         QTest::keyClick(address, Qt::Key_Return);
         if (repeatDuringRefresh) {
-            QVERIFY(!view->isEnabled());
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
             PanelKeys::focusAddress(address);
             QVERIFY(address->hasFocus());
             address->setText(fixture.path());
@@ -262,7 +262,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
             scroll = view->verticalScrollBar()->value();
             QVERIFY(scroll > 0);
             action(window, "refreshAction")->trigger();
-            QVERIFY(!view->isEnabled());
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
         }
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
@@ -303,10 +303,9 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         if (virtualPath && result == E_ABORT)
             QVERIFY(window.statusBar()->currentMessage().isEmpty());
         action(window, "refreshAction")->trigger();
-        QTRY_VERIFY(view->isEnabled());
+        QTRY_VERIFY(action(window, "twoPanelsAction")->isEnabled());
         QCOMPARE(address->text(), draft);
         QCOMPARE(address->selectedText(), QStringLiteral("архив"));
-        QVERIFY(action(window, "twoPanelsAction")->isEnabled());
         QFile source(path);
         QVERIFY(source.open(QIODevice::ReadOnly));
         QCOMPARE(source.readAll(), bytes);

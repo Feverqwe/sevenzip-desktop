@@ -73,8 +73,9 @@ class WorkspaceNavigationTests final : public QObject {
             QFile file(fixture.filePath(QString("item-%1.txt").arg(i)));
             QVERIFY(file.open(QIODevice::WriteOnly));
         }
-        window.findChild<QAction *>("refreshAction")->trigger();
-        QVERIFY(!view->isEnabled());
+        auto *refresh = window.findChild<QAction *>("refreshAction");
+        refresh->trigger();
+        QVERIFY(!refresh->isEnabled());
         auto *address = window.findChild<QLineEdit *>("archivePath");
         PanelKeys::focusAddress(address);
         QVERIFY(address->hasFocus());

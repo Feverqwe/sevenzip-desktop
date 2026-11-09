@@ -235,13 +235,24 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
             peer->setFocus();
             QVERIFY(peer->hasFocus());
             QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
-            QVERIFY(!peer->isEnabled());
-            view->setFocus();
+            QVERIFY(peer->hasFocus());
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
+            QTest::keyClick(peer, Qt::Key_Tab);
             QVERIFY(view->hasFocus());
             auto *travel = action(window, forward ? "forwardAction" : "backAction");
             QVERIFY(travel->isEnabled());
+            const QString target = forward ? current : previous;
+            const QString parked = fixture.filePath("temporarily unavailable");
+            QVERIFY(QDir().rename(target, parked));
             QTest::keySequence(view, travel->shortcut());
-            QTRY_COMPARE(panelPath(*view), forward ? current : previous);
+            QVERIFY(window.statusBar()->currentMessage().contains(target));
+            QCOMPARE(panelPath(*view), forward ? previous : current);
+            QVERIFY(view->hasFocus());
+            QVERIFY(travel->isEnabled());
+            QVERIFY(QDir().rename(parked, target));
+            QTest::keySequence(view, travel->shortcut());
+            QTRY_COMPARE(panelPath(*view), target);
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
             QTRY_VERIFY(view->hasFocus());
             QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == count);
             QCOMPARE(panelPath(*peer), peerPath);
@@ -282,7 +293,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(scroll > 0);
         if (count > 256) {
             action(window, "refreshAction")->trigger();
-            QVERIFY(!view->isEnabled());
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
         }
         window.openPath(b);
         window.openPath(c);
@@ -460,7 +471,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         editor->setText(created);
         QTest::keyClick(editor, Qt::Key_Return);
         QVERIFY(QFileInfo(QDir(large).filePath(created)).isDir());
-        QVERIFY(!view->isEnabled());
+        QVERIFY(!action(window, "refreshAction")->isEnabled());
         window.openPath(other);
         QTRY_VERIFY(view->isEnabled() && location(window) == other);
         action(window, "backAction")->trigger();

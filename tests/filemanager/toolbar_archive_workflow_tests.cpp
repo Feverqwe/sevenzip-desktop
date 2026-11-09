@@ -423,8 +423,8 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
         QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
-        QVERIFY(!peer->isEnabled());
-        source->setFocus();
+        QVERIFY(!action(window, "refreshAction")->isEnabled());
+        QTest::keyClick(peer, Qt::Key_Tab);
         QVERIFY(source->hasFocus());
         QVERIFY(action(window, "extractArchiveAction")->isEnabled());
         driver.start(1);

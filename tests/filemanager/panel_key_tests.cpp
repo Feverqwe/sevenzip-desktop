@@ -376,11 +376,11 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         rightTable->setFocus();
         QTRY_VERIFY(rightTable->hasFocus());
         action(window, "refreshAction")->trigger();
-        QVERIFY(!rightTable->isEnabled());
+        QVERIFY(!action(window, "refreshAction")->isEnabled());
         leftTable->setFocus();
         QVERIFY(leftTable->hasFocus());
         QTest::keyClick(leftTable, Qt::Key_Tab);
-        QVERIFY(!rightTable->isEnabled());
+        QVERIFY(leftTable->hasFocus());
         const auto leftCurrent = leftTable->currentIndex();
         QTest::keyClick(leftTable, Qt::Key_Down);
         QCOMPARE(leftTable->currentIndex(), leftCurrent);

@@ -315,7 +315,7 @@ class DragDropUiTests final : public QObject {
             QTRY_VERIFY(table->hasFocus());
             receiver.BeforeDrop = [peer] {
                 QCOMPARE(peer->sourcePanel->RefreshListCtrl(), S_OK);
-                QVERIFY(!peer->isEnabled());
+                QVERIFY(peer->rowCount() < 301);
             };
         }
         const auto sourceReady = [&] {
