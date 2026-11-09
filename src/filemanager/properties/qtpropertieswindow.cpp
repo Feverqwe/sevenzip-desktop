@@ -268,6 +268,11 @@ QString QtPropertiesWindow::Value(unsigned row) const {
     if (source != report_.nativeValues.cend() &&
         source->availability == QtPropertyReport::Availability::Unknown)
         return available({});
+    if (source != report_.nativeValues.cend() &&
+        source->availability == QtPropertyReport::Availability::Partial &&
+        (source->id == kpidNumSubDirs || source->id == kpidNumSubFiles))
+        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "At least %1"))
+            .arg(ToQString(report_.Values[row]));
     if (source != report_.nativeValues.cend() && IsByteSizeProp(source->id)) {
         if (const auto value = QtUnsignedPropertyValue(source->value))
             return QtRegionalFormat::exactBytes(*value);

@@ -161,6 +161,13 @@ class PropertiesRuntimeTests : public QObject, protected MainWindowTestSupport {
         QVERIFY(!properties.values.contains("Размер"));
         QVERIFY(!properties.values.contains("Файлов"));
         QVERIFY(!properties.values.contains("Папок"));
+        table(window)->selectionModel()->select(
+            table(window)->model()->index(diskRow(window, root.filePath(name)), 0),
+            QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        properties = inspect(window, QString("properties-partial-counts-mode%1").arg(mode));
+        QVERIFY(properties.shown && properties.geometry);
+        QCOMPARE(properties.values.value("Файлов"), QString("Не менее 1"));
+        QCOMPARE(properties.values.value("Папок"), QString("Не менее 1"));
 #endif
         ArchiveEntry dated{name, 17, 5};
         dated.modifiedTime.emplace();

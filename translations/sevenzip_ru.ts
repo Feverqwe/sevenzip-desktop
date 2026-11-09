@@ -166,6 +166,7 @@
         <message><source>(stored metadata)</source><translation>(из метаданных)</translation></message>
         <message><source>Reported packed size (may be partial)</source><translation>Сжатый размер по данным источника (может быть неполным)</translation></message>
         <message><source>Reported size (may be partial)</source><translation>Размер по данным источника (может быть неполным)</translation></message>
+        <message><source>At least %1</source><translation>Не менее %1</translation></message>
     </context>
     <context>
         <name>AboutDialog</name>
