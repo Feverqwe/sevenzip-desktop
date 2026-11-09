@@ -115,8 +115,10 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
         view->setFocus();
         const int source = filesystemRow(window, "first.txt");
         QVERIFY(source >= 0);
-        view->setCurrentCell(source, 0);
         view->selectRow(source);
+        const int column = view->columnForProperty(kpidSize);
+        QVERIFY(column >= 0 && !view->isColumnHidden(column));
+        view->setCurrentCell(source, column, QItemSelectionModel::NoUpdate);
         const auto topName = [&] {
             return view->model()->index(view->rowAt(0), 0).data().toString();
         };
@@ -143,6 +145,7 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
         QCOMPARE(read(output + "/first.txt"), QByteArray("moved bytes"));
         QVERIFY(!QFileInfo::exists(input + "/first.txt"));
         QCOMPARE(topName(), anchor);
+        QCOMPARE(view->currentIndex().column(), column);
     }
 
     void destinationRefreshKeepsNewInput_data() {

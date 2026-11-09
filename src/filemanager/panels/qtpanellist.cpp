@@ -78,8 +78,14 @@ void QtPanelList::SetItemState_DropHighlighted(QAbstractItemView *view, int row,
     for (int column = 0; column < view->model()->columnCount(); ++column)
         view->model()->setData(view->model()->index(row, column), highlighted, DropHighlightedRole);
 }
-void QtPanelList::SetFocusedItem(int row) {
-    view_->selectionModel()->setCurrentIndex(view_->model()->index(row, 0),
+void QtPanelList::SetFocusedItem(int row, bool keepColumn) {
+    int column = 0;
+    if (const auto *table = qobject_cast<QTableView *>(view_.data()); keepColumn && table) {
+        const int current = table->currentIndex().column();
+        if (current >= 0 && !table->isColumnHidden(current))
+            column = current;
+    }
+    view_->selectionModel()->setCurrentIndex(view_->model()->index(row, column),
                                              QItemSelectionModel::NoUpdate);
 }
 void QtPanelList::EnsureVisible(int row, bool preserveHorizontal) {

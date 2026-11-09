@@ -48,7 +48,7 @@ class QtPanelList {
     void SetItemState_DropHighlighted(int row, bool highlighted) {
         SetItemState_DropHighlighted(view_.data(), row, highlighted);
     }
-    void SetFocusedItem(int row);
+    void SetFocusedItem(int row, bool keepColumn = false);
     void EnsureVisible(int row, bool preserveHorizontal = false);
     void SortItems(PROPID property, bool ascending, Int32 raw);
     void Invalidate() {

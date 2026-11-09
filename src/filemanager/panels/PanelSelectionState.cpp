@@ -87,8 +87,8 @@ void CPanel::SaveSelectedState(CSelectedState &s) {
     GetSelectedNames(s.SelectedNames);
 }
 
-void CPanel::SetFocusedSelectedItem(int index, bool select) {
-    _selectionList.SetFocusedItem(index);
+void CPanel::SetFocusedSelectedItem(int index, bool select, bool keepColumn) {
+    _selectionList.SetFocusedItem(index, keepColumn);
     if (select) {
         _selectionList.SelectItem(index);
         const unsigned realIndex = GetRealItemIndex(index);
@@ -188,15 +188,16 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealF
     }
     disableNotify.SetMemMode_Enable();
     disableNotify.Restore();
+    const bool keepColumn = state.KeepViewport && !revealFocused;
     if (_selectionList.GetItemCount() > 0 && cursorIndex >= 0)
-        SetFocusedSelectedItem(cursorIndex, state.SelectFocused);
+        SetFocusedSelectedItem(cursorIndex, state.SelectFocused, keepColumn);
     SetSortRawStatus();
     _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
     if (cursorIndex < 0 && _selectionList.GetItemCount() > 0) {
         if (focusedPos >= _selectionList.GetItemCount())
             focusedPos = _selectionList.GetItemCount() - 1;
         // Select the initial parent row only in the original showDots mode.
-        SetFocusedSelectedItem(focusedPos, showDots && (focusedPos == 0));
+        SetFocusedSelectedItem(focusedPos, showDots && (focusedPos == 0), keepColumn);
     }
     if (revealFocused)
         _selectionList.EnsureVisible(_selectionList.GetFocusedItem());

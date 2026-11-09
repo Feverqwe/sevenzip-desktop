@@ -813,7 +813,7 @@ class CPanel : public QObject {
     UInt32 GetFocusedFileIndex() const;
     UInt32 GetFolderItemCount() const;
     void EnsureSelectionVectorSize();
-    void SetFocusedSelectedItem(int index, bool select);
+    void SetFocusedSelectedItem(int index, bool select, bool keepColumn = false);
     UInt64 GetItemSize(UInt32 index) const;
     UInt64 GetItem_UInt64Prop(UInt32 index, UInt32 propID) const;
 };
