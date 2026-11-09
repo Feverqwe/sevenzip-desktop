@@ -648,13 +648,14 @@ class ExtractDialogTests final : public QObject {
         QVERIFY(fixture.isValid());
         const QString selected = fixture.filePath("selected folder");
         QVERIFY(QDir().mkpath(selected));
-        CExtractDialog dialog(fixture.path(), {});
+        const QString subfolderName = QStringLiteral("выход 空");
+        CExtractDialog dialog(fixture.filePath(subfolderName), {});
         dialog.show();
         auto *destination = path(dialog);
         auto *edit = destination->lineEdit();
         dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(true);
         auto *subfolder = dialog.findChild<QLineEdit *>("extractPathName");
-        subfolder->setText(QStringLiteral("выход 空"));
+        QCOMPARE(subfolder->text(), subfolderName);
         const int overwriteIndex =
             overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
         QVERIFY(overwriteIndex >= 0);
@@ -685,7 +686,7 @@ class ExtractDialogTests final : public QObject {
             });
             QTest::mouseClick(browse, Qt::LeftButton);
             QVERIFY(found);
-            QCOMPARE(subfolder->text(), QStringLiteral("выход 空"));
+            QCOMPARE(subfolder->text(), subfolderName);
             QCOMPARE(overwrite(dialog)->currentIndex(), overwriteIndex);
             if (choose)
                 QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(edit->text())), selected);

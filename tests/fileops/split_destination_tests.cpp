@@ -203,13 +203,16 @@ class SplitDestinationTests final : public QObject {
     void browsingUsesTheSameDestinationAsExtraction_data() {
         QTest::addColumn<bool>("invalidDraft");
         QTest::addColumn<bool>("missingDirectory");
-        QTest::newRow("resolved-path") << false << false;
-        QTest::newRow("replace-invalid-path") << true << false;
-        QTest::newRow("nearest-existing-directory") << false << true;
+        QTest::addColumn<bool>("initiallySplit");
+        QTest::newRow("resolved-path") << false << false << false;
+        QTest::newRow("replace-invalid-path") << true << false << false;
+        QTest::newRow("replace-invalid-split-base") << true << false << true;
+        QTest::newRow("nearest-existing-directory") << false << true << false;
     }
     void browsingUsesTheSameDestinationAsExtraction() {
         QFETCH(bool, invalidDraft);
         QFETCH(bool, missingDirectory);
+        QFETCH(bool, initiallySplit);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString start = fixture.filePath(QStringLiteral("папка с пробелом"));
@@ -220,7 +223,17 @@ class SplitDestinationTests final : public QObject {
         QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
         const auto restore = qScopeGuard(
             [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled); });
-        CExtractDialog dialog(start, {start});
+        const QString subfolder = QStringLiteral("подпапка");
+        const QString original = initiallySplit ? QDir(start).filePath(subfolder) : start;
+        if (initiallySplit)
+            QVERIFY(QDir().mkpath(original));
+        NExtract::CInfo settings;
+        settings.Load(settings_);
+        settings.SplitDest.Def = true;
+        settings.SplitDest.Val = initiallySplit;
+        settings.Save(settings_);
+        CExtractDialog dialog(original, {start});
+        QCOMPARE(enabled(dialog)->isChecked(), initiallySplit);
         auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
         QVERIFY(browse);
         const QString requested = missingDirectory ? start + "/not created/deeper" : start;
@@ -228,7 +241,8 @@ class SplitDestinationTests final : public QObject {
         path(dialog)->setCurrentIndex(0);
         path(dialog)->setEditText(draft);
         enabled(dialog)->setChecked(true);
-        name(dialog)->setText(QStringLiteral("подпапка"));
+        if (!initiallySplit)
+            name(dialog)->setText(subfolder);
         auto *overwrite = dialog.findChild<QComboBox *>("extractOverwriteMode");
         QVERIFY(overwrite);
         const auto overwriteMode = NExtract::NOverwriteMode::kSkip;
@@ -259,9 +273,8 @@ class SplitDestinationTests final : public QObject {
             answer.start(1);
             QTest::mouseClick(browse, Qt::LeftButton);
             QVERIFY(!openedDirectory.isEmpty());
-            if (!invalidDraft)
-                QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
-            QCOMPARE(name(dialog)->text(), QStringLiteral("подпапка"));
+            QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
+            QCOMPARE(name(dialog)->text(), subfolder);
             QCOMPARE(overwrite->currentData().toInt(), int(overwriteMode));
             if (accept) {
                 QCOMPARE(QFileInfo(path(dialog)->currentText()).canonicalFilePath(),
@@ -274,7 +287,7 @@ class SplitDestinationTests final : public QObject {
                 QCOMPARE(field->cursorPosition(), 2);
             }
         }
-        const QString destination = QDir(selected).filePath(QStringLiteral("подпапка"));
+        const QString destination = QDir(selected).filePath(subfolder);
         QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), destination);
         QTest::keyClick(field, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
