@@ -34,6 +34,8 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<bool>("unchanged");
         QTest::newRow("same-folder")
             << QString("./renamed δ.txt") << QString("renamed δ.txt") << false << false;
+        QTest::newRow("case-only")
+            << QString("Original.txt") << QString("Original.txt") << false << false;
         QTest::newRow("subfolder")
             << QString("target folder/renamed δ.txt") << QString("target folder") << false << false;
         QTest::newRow("same-name-in-subfolder")
@@ -103,7 +105,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QCoreApplication::processEvents();
         QTRY_VERIFY(QFileInfo::exists(output));
         QTRY_VERIFY(filesystemRow(observer, QFileInfo(output).fileName()) >= 0);
-        QCOMPARE(QFileInfo::exists(source), unchanged);
+        QCOMPARE(QDir(fixture.path()).entryList(QDir::Files).contains("original.txt"), unchanged);
+        QVERIFY(QDir(QFileInfo(output).absolutePath())
+                    .entryList(QDir::Files)
+                    .contains(QFileInfo(output).fileName()));
         QVERIFY(!errorShown);
         QTRY_COMPARE(view->currentIndex().data().toString(), visible);
         QCOMPARE(filesystemRow(window, "original.txt") >= 0, unchanged);
