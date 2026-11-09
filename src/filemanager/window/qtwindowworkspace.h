@@ -153,7 +153,7 @@ class QtWindowWorkspace final : public QObject {
                                 const std::vector<ReopenLayer> *layers = nullptr,
                                 bool interactive = true, QString *failure = nullptr);
     HRESULT OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location);
-    HRESULT OpenPanelLocation(unsigned panel);
+    HRESULT OpenPanelLocation(unsigned panel, QString *failure = nullptr);
     HRESULT OpenRecordedLocation(unsigned panel, const QString &path, const QString &nativeIdentity,
                                  const QtArchiveLocation &archive, QString *failure = nullptr);
     bool LocationMatches(unsigned panel, const QString &path);
@@ -164,7 +164,8 @@ class QtWindowWorkspace final : public QObject {
     void OpenRecentPlace(unsigned panel, const QtRecentPlace &place);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
                       std::function<void()> canceled, const QtArchiveLocation &archive = {});
-    void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);
+    void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result,
+                              const QString &failure = {});
     void RetryLocation(unsigned panel, bool parent);
     MainWindow &window_;
     std::array<Panel, 2> panels_;

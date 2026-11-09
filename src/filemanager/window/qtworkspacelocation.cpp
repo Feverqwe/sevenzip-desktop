@@ -198,7 +198,7 @@ HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &p
     return LocationMatches(panel, target) ? S_OK : S_FALSE;
 }
 
-HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
+HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel, QString *failure) {
     auto &locationState = panels_[panel].location;
     if (locationState.diskFolder && !QFileInfo(QDir::cleanPath(locationState.path)).isDir())
         return S_FALSE;
@@ -206,7 +206,7 @@ HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
     const bool recorded =
         !identity.isEmpty() || !locationState.archiveLocation.physicalPath.isEmpty();
     const HRESULT result = recorded ? OpenRecordedLocation(panel, locationState.path, identity,
-                                                           locationState.archiveLocation)
+                                                           locationState.archiveLocation, failure)
                                     : window_.navigateTo(locationState.path, true);
     if (!identity.isEmpty() && result == S_OK) {
         auto &source = window_.app_.Panels[panel];
@@ -264,7 +264,8 @@ bool QtWindowWorkspace::LocationMatches(unsigned panel, const QString &path) {
     return matched;
 }
 
-void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result) {
+void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result,
+                                             const QString &failure) {
     auto &ui = window_.panelUi_[panel];
     auto &locationState = panels_[panel].location;
     locationState.unavailable = result != S_OK || !LocationMatches(panel, path);
@@ -279,8 +280,9 @@ void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path
     window_.showPanelStatus(panel, {});
     ui.path->setText(path);
     ui.navigation->SetLocation(path);
-    const QString message = result == E_ABORT ? tr("Opening canceled: %1").arg(path)
-                                              : tr("Location unavailable: %1").arg(path);
+    const QString message = result == E_ABORT   ? tr("Opening canceled: %1").arg(path)
+                            : failure.isEmpty() ? tr("Location unavailable: %1").arg(path)
+                                                : failure;
     ui.navigationError->setText(message);
     ui.navigationNotice->show();
     window_.showStatusMessage(message);
@@ -315,11 +317,12 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
     const QString requested = locationState.path;
     const auto interaction = interactionRevision_;
     window_.withPanelProjection(panel, [this, panel, &requested, interaction] {
+        QString failure;
         const HRESULT result = Navigate(
-            [this, panel]() -> HRESULT {
+            [this, panel, &failure]() -> HRESULT {
                 ProtectNavigation();
                 const QScopedValueRollback<bool> changing(changing_, true);
-                return OpenPanelLocation(panel);
+                return OpenPanelLocation(panel, &failure);
             },
             [this, panel, interaction](HRESULT result) {
                 if (result == S_OK) {
@@ -328,7 +331,7 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
                 }
             });
         if (result != S_OK)
-            CompleteLocationOpen(panel, requested, result);
+            CompleteLocationOpen(panel, requested, result, failure);
     });
     window_.refreshActions();
 }

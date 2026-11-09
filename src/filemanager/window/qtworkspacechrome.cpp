@@ -192,6 +192,7 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
         return;
     const unsigned panel = window_.projectedPanel_;
     const auto interaction = interactionRevision_;
+    const auto failure = std::make_shared<QString>();
     const auto previous =
         !window_.projectedUi().locationUnavailable && window_.app_.Panels[panel].GetFolder()
             ? std::optional(CaptureVisit(panel))
@@ -201,9 +202,9 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
             if (favorite.diskFolder && !QFileInfo(QDir::cleanPath(favorite.path)).isDir())
                 return S_FALSE;
             return OpenRecordedLocation(panel, favorite.path, favorite.nativeIdentity,
-                                        favorite.archive);
+                                        favorite.archive, failure.get());
         },
-        [this, panel, favorite, previous, interaction](HRESULT result) {
+        [this, panel, favorite, previous, interaction, failure](HRESULT result) {
             if (result == E_ABORT || window_.app_.QtOperations().closed())
                 return;
             if (result == S_OK) {
@@ -221,7 +222,7 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
             location.nativePlaceIdentity = favorite.nativeIdentity;
             location.archiveLocation = favorite.archive;
             location.diskFolder = favorite.diskFolder;
-            CompleteLocationOpen(panel, favorite.path, result);
+            CompleteLocationOpen(panel, favorite.path, result, *failure);
             window_.refreshActions();
             FocusListAfterLocationOpen(panel, interaction);
         });
