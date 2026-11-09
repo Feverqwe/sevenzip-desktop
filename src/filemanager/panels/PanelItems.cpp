@@ -30,19 +30,22 @@ class FolderSizeCheckpoint final : public IProgress, public CMyUnknownImp {
 class FolderSizeOperation final : public CProgressThreadVirt {
     IFolderCalcItemFullSize &folder_;
     const CRecordVector<UInt32> &indices_;
+    const UStringVector &paths_;
 
     HRESULT ProcessVirt() override {
         CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
         FOR_VECTOR(i, indices_) {
             RINOK(Sync.CheckStop())
+            Sync.Set_FilePath(paths_[i], true);
             RINOK(folder_.CalcItemFullSize(indices_[i], progress))
         }
         return S_OK;
     }
 
   public:
-    FolderSizeOperation(IFolderCalcItemFullSize &folder, const CRecordVector<UInt32> &indices)
-        : folder_(folder), indices_(indices) {
+    FolderSizeOperation(IFolderCalcItemFullSize &folder, const CRecordVector<UInt32> &indices,
+                        const UStringVector &paths)
+        : folder_(folder), indices_(indices), paths_(paths) {
         ShowCompressionInfo = false;
         WaitMode = true;
     }
@@ -73,7 +76,9 @@ void CPanel::EditItem(bool useEditor) {
             }
             if (!folders.IsEmpty()) {
                 CDisableTimerProcessing timer(*this);
-                FolderSizeOperation operation(*calcItemFullSize.Interface(), folders);
+                UStringVector paths;
+                GetFilePaths(folders, paths);
+                FolderSizeOperation operation(*calcItemFullSize.Interface(), folders, paths);
                 const auto title =
                     QCoreApplication::translate("ArchiveDirectory", "Calculating folder size…");
                 {
