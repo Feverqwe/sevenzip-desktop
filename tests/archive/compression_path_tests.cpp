@@ -410,6 +410,30 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(QDir::fromNativeSeparators(history->itemText(1)), upper);
     }
 
+    void historyRestoresTheArchiveWithItsInferredExtension() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("report.zip");
+        {
+            CreateArchiveDialog dialog(fixture.path(), {source_});
+            dialog.findChild<QComboBox *>("archiveFormat")->setCurrentText("zip");
+            dialog.findChild<QLineEdit *>("archiveName")->setText("report");
+            submit(dialog);
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        }
+
+        CreateArchiveDialog reopened(dir_.path(), {source_});
+        auto *format = reopened.findChild<QComboBox *>("archiveFormat");
+        format->setCurrentText("7z");
+        auto *history = reopened.findChild<QComboBox *>("archivePath");
+        history->setCurrentIndex(0);
+        QVERIFY(QMetaObject::invokeMethod(history, "activated", Q_ARG(int, 0)));
+        QCOMPARE(format->currentText(), QString("zip"));
+        submit(reopened);
+        QCOMPARE(reopened.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(reopened.target()), archive);
+    }
+
     void enteringAnExistingHistoryPathKeepsTheSelectedFormat() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

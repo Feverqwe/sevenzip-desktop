@@ -260,7 +260,8 @@ void CreateArchiveDialog::validateAndAccept() {
     // just as for the original form. The dialog must not reject update intent.
     auto request = readRequest(resolved);
     CCompressDialog path;
-    path.m_ArchivePath = resolved;
+    path.m_ArchivePath =
+        archive.BaseExtension.IsEmpty() ? resolved : ToQString(archive.GetFinalPath());
     path.Format = format_->currentText();
     path.ShowPassword = showPassword_ && showPassword_->isChecked();
     path.EncryptHeaders = encryptHeaders_ && encryptHeaders_->isChecked();
