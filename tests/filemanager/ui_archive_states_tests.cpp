@@ -77,12 +77,16 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY2(error->text().endsWith(conflict), qPrintable(error->text()));
         QCOMPARE(editor->selectedText(), blocked);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
-        editor->setText("docs/new");
+        editor->setText("new parent/new");
         QTest::keyClick(editor, Qt::Key_Return);
         QTRY_VERIFY(view->isEnabled() && window.focusWidget() == view);
-        openRow(window, rowWithPath(window, "docs"));
-        QTRY_VERIFY(rowWithPath(window, "docs/new") >= 0);
-        QVERIFY(rowWithPath(window, "docs/reports") >= 0);
+        QVERIFY(rowWithPath(window, "docs") >= 0);
+        const int created = rowWithPath(window, "new parent");
+        QVERIFY(created >= 0);
+        QCOMPARE(view->currentRow(), created);
+        QVERIFY(view->selectionModel()->isRowSelected(created, {}));
+        PanelKeys::openSelection(view);
+        QTRY_VERIFY(rowWithPath(window, "new parent/new") >= 0);
     }
 
     void openAsArchiveReportsUnrecognizedFile_data() {

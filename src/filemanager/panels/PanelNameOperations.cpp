@@ -46,11 +46,8 @@ static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelec
                                         QFileInfo(folder, ToQString(newName)).canonicalFilePath());
         if (newName.IsEmpty())
             return;
-    } else {
-        const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
-        if (pos >= 0)
-            newName.DeleteFrom((unsigned)pos);
-    }
+    } else
+        newName = FirstPathPart(newName);
     state.SelectedNames.Clear();
     state.FocusedName = newName;
     state.FocusedName_Defined = true;
