@@ -223,6 +223,7 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         CPanelCopyThread extracter;
         extracter.DisableUserQuestions |= options.DisableUserQuestions;
+        extracter.CancellationMayLeaveChanges = options.CancellationMayLeaveChanges;
         extracter.DeferResultReview = report && report->Purpose != QtArchiveExtractPurpose::Copy;
 
         extracter.ExtractCallback.SetFromCls(new CExtractCallbackImp);

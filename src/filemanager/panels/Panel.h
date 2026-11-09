@@ -104,6 +104,7 @@ struct CCopyToOptions {
     bool replaceAltStreamChars;
     bool showErrorMessages;
     bool DisableUserQuestions = false;
+    bool CancellationMayLeaveChanges = true;
     bool NeedRegistryZone;
     NExtract::NZoneIdMode::EEnum ZoneIdMode;
     CByteBuffer ZoneBuf;

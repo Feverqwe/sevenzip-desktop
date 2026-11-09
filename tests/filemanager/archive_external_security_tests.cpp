@@ -3,7 +3,9 @@
 #include "platform/support/external_editor_fixture.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QLabel>
 #include <QScopeGuard>
 
 using namespace ExternalEditorFixture;
@@ -37,13 +39,15 @@ class ArchiveExternalSecurityTests final : public QObject, protected MainWindowT
         MainWindow window(&backend, {}, nullptr, nullptr, DeviceSelectionServices::system(),
                           opener(control));
         bool extracting = false, asked = false;
+        bool cancelNextPassword = cancelPassword;
+        QString cancellationSummary;
         int passwordPrompts = 0;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
             auto *modal = widgetDialogs_.activeDialog();
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
                 ++passwordPrompts;
-                if (cancelPassword && extracting)
+                if (cancelNextPassword && extracting)
                     dialog->reject();
                 else {
                     dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
@@ -56,20 +60,35 @@ class ArchiveExternalSecurityTests final : public QObject, protected MainWindowT
                 box->accept();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
                 auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (TestProgressDialog::IsCloseButton(close))
+                if (TestProgressDialog::IsCloseButton(close)) {
+                    if (cancelNextPassword && extracting)
+                        cancellationSummary =
+                            progress->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
                     close->click();
+                }
             }
         });
         responder.start(1);
         window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
         window.openArchive(archive);
         QTRY_COMPARE(table(window)->rowCount(), 1);
-        table(window)->selectRow(0);
+        auto *view = table(window);
+        view->selectRow(0);
+        view->setFocus();
         extracting = true;
         action(window, "openOutsideAction")->trigger();
         if (cancelPassword) {
             QVERIFY(passwordPrompts > 0);
+            QCOMPARE(cancellationSummary, QStringLiteral("The operation was cancelled."));
             QVERIFY(!QFileInfo(control + ".ready").exists());
+            QCOMPARE(read(archive), original);
+            cancelNextPassword = false;
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(view->hasFocus());
+            QTest::keyClick(view, Qt::Key_Return, Qt::ShiftModifier);
+            QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);
+            QCOMPARE(read(QString::fromUtf8(read(control + ".ready"))), QByteArray("original"));
             QCOMPARE(read(archive), original);
         } else {
             QTRY_VERIFY(QFileInfo(control + ".ready").size() > 0);

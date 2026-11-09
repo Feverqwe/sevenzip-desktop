@@ -232,8 +232,11 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
     options.folder = fs2us(tempDirNorm);
     options.showErrorMessages = _archiveOpenDialogs;
     options.DisableUserQuestions = !_archiveOpenDialogs;
+    options.CancellationMayLeaveChanges = false;
 
-    const HRESULT result = CopyTo(options, indices, &messages, usePassword, password);
+    QtArchiveExtractReport report;
+    const HRESULT result =
+        CopyTo(options, indices, &messages, usePassword, password, nullptr, &report);
 
     if (!_parentFolders.IsEmpty()) {
         CFolderLink &fl = _parentFolders.Back();
@@ -244,7 +247,7 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
     if (!messages.IsEmpty())
         return result == S_OK ? E_FAIL : result;
     if (result != S_OK) {
-        if (result != E_ABORT)
+        if (result != E_ABORT && !report.ResultPresented)
             MessageBox_Error_HRESULT(result);
         return result;
     }
