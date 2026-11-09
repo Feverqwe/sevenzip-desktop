@@ -248,6 +248,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::newRow("relative-copy") << 0u << false << QString("relative-copy");
         QTest::newRow("relative-move") << 1u << false << QString("relative-move");
         QTest::newRow("new-batch-folder") << 0u << false << QString("new-batch-folder");
+        QTest::newRow("dialog-cancel-move") << 1u << true << QString("dialog-cancel-move");
         QTest::newRow("overwrite-cancel-copy") << 1u << false << QString("overwrite-cancel-copy");
         QTest::newRow("overwrite-cancel-move") << 0u << false << QString("overwrite-cancel-move");
         QTest::newRow("overwrite-skip-move") << 0u << false << QString("overwrite-skip-move");
@@ -260,7 +261,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(unsigned, sourceIndex);
         QFETCH(bool, large);
         QFETCH(QString, outcome);
-        const bool cancel = outcome == "dialog-cancel";
+        const bool cancel = outcome.startsWith("dialog-cancel");
         const bool skip = outcome.startsWith("overwrite-skip-");
         const bool cancelBatch = outcome.startsWith("overwrite-cancel-");
         const bool missing = outcome.startsWith("missing-");
@@ -407,8 +408,9 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QCOMPARE(read(QDir(output).filePath(name)), cancel || missing ? QByteArray()
                                                     : overwrite ? QByteArray("existing control")
                                                                 : QByteArray("control bytes"));
-        QCOMPARE(read(QDir(input).filePath(name)),
-                 move && !overwrite && !missing ? QByteArray() : QByteArray("control bytes"));
+        QCOMPARE(read(QDir(input).filePath(name)), move && !cancel && !overwrite && !missing
+                                                       ? QByteArray()
+                                                       : QByteArray("control bytes"));
         if (missing) {
             QVERIFY(removed && reviewed);
             QVERIFY(!QFileInfo::exists(QDir(output).filePath(other)));
@@ -463,6 +465,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 if (!move)
                     QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
                 QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            } else if (move) {
+                QVERIFY(!QFileInfo::exists(QDir(input).filePath(name)));
             } else {
                 QCOMPARE(read(QDir(input).filePath(name)), QByteArray("control bytes"));
             }
