@@ -17,6 +17,7 @@
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QCoreApplication>
 #include <QScopeGuard>
+#include <cerrno>
 
 using namespace NWindows;
 using namespace NFile;
@@ -427,12 +428,14 @@ Z7_COM7F_IMF(CAgentFolder::CreateFolder(const wchar_t *name, IProgress *progress
         return E_FAIL;
     if (_isAltStreamFolder)
         return E_NOTIMPL;
-    if (_proxy2) {
-        if (_proxy2->IsThere_SubDir(_proxyDirIndex, name))
-            return ERROR_ALREADY_EXISTS;
-    } else {
-        if (_proxy->FindSubDir(_proxyDirIndex, name) != -1)
-            return ERROR_ALREADY_EXISTS;
+    const bool exists = _proxy2 ? _proxy2->IsThere_SubDir(_proxyDirIndex, name)
+                                : _proxy->FindSubDir(_proxyDirIndex, name) != -1;
+    if (exists) {
+#ifdef _WIN32
+        return HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS);
+#else
+        return HRESULT_FROM_WIN32(EEXIST);
+#endif
     }
     return CommonUpdateOperation(AGENT_OP_CreateFolder, false, name, NULL, NULL, 0, progress);
     COM_TRY_END
