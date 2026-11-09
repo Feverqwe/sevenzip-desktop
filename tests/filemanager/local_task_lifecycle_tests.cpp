@@ -1037,6 +1037,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         task->Start();
         QTRY_COMPARE(finished.size(), 1);
         QVERIFY(!finished.constFirst().constFirst().toBool());
+        QVERIFY(finished.constFirst().at(1).toBool());
         QCOMPARE(output.size(), 1);
         QVERIFY(output.constFirst().constFirst().toStringList().isEmpty());
         QCOMPARE(QDir(source).entryList(QDir::Files).size(), 1);

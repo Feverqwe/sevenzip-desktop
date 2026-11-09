@@ -52,6 +52,7 @@ class QtFileTransferTransaction final {
     void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);
     void removeSources(QList<TransferEntry> &completed, QString &error);
+    QString sourceRemovalCanceled();
     bool removeStagedSource(TransferEntry &entry, QString &error);
     bool copyEntry(const QString &source, const QString &target, QString *error,
                    bool reportProgress = true);

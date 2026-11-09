@@ -459,8 +459,11 @@ class FileTransferTests : public QObject {
         QVERIFY(move.wait(30000));
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(!result.first().first().toBool());
-        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QCOMPARE(move.resultKind(), cancelAfterRemoval
+                                        ? FileTransferOperation::ResultKind::Canceled
+                                        : FileTransferOperation::ResultKind::Failure);
         QCOMPARE(removed, QStringList{QFileInfo(sources[1]).fileName()});
+        QVERIFY(move.hasRetainedOutput());
         for (int i = 0; i < sources.size(); ++i) {
             const bool untouched = i == 2;
             QCOMPARE(QFileInfo::exists(sources[i]), untouched);

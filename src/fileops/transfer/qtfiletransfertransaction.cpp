@@ -310,6 +310,11 @@ void QtFileTransferTransaction::rollback(const QList<TransferEntry> &completed, 
         rollbackEntry(completed[i - 1], mode);
 }
 
+QString QtFileTransferTransaction::sourceRemovalCanceled() {
+    failureKind_ = FileTransferOperation::ResultKind::Canceled;
+    return QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+}
+
 void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, QString &error) {
     for (TransferEntry &entry : completed) {
         if (entry.sourceState != SourceState::Intact)
@@ -319,7 +324,7 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
             return;
         }
         if (worker_.canceled_) {
-            error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+            error = sourceRemovalCanceled();
             return;
         }
         if (!entry.sourceMatches(entry.source, false)) {
@@ -363,7 +368,7 @@ bool QtFileTransferTransaction::removeStagedSource(TransferEntry &entry, QString
         return false;
     }
     if (worker_.canceled_) {
-        error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+        error = sourceRemovalCanceled();
         return false;
     }
     // Recursive deletion can fail after consuming some entries. Keep the
@@ -436,8 +441,11 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
                                                      " Some items may have been moved.");
             if (!rollbackErrors_.isEmpty())
                 error += '\n' + rollbackErrors_.join('\n');
-            return {FileTransferOperation::ResultKind::Failure, error, movedSources(completed),
-                    changesRemain};
+            const auto kind =
+                rollbackErrors_.isEmpty()
+                    ? failureKind_.value_or(FileTransferOperation::ResultKind::Failure)
+                    : FileTransferOperation::ResultKind::Failure;
+            return {kind, error, movedSources(completed), changesRemain};
         }
     }
     for (const TransferEntry &entry : completed)
