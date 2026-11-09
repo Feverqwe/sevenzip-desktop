@@ -168,7 +168,13 @@ class WorkspacePlacesTests final : public QObject {
         QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
                      missing);
     }
+    void favoriteKeepsRetryTargetAfterBackgroundReadFailure_data() {
+        QTest::addColumn<bool>("editPeer");
+        QTest::newRow("retry-with-keyboard") << false;
+        QTest::newRow("keep-peer-address-draft") << true;
+    }
     void favoriteKeepsRetryTargetAfterBackgroundReadFailure() {
+        QFETCH(bool, editPeer);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString origin = fixture.filePath("Original");
@@ -196,11 +202,31 @@ class WorkspacePlacesTests final : public QObject {
         QVERIFY(store);
         store->Add(target, QStringLiteral("Large favorite"));
 
+        QLineEdit *peerAddress = nullptr;
+        const QString draft = QStringLiteral("unfinished peer path");
+        if (editPeer) {
+            window.findChild<QAction *>("twoPanelsAction")->trigger();
+            auto *peer = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(peer);
+            peerAddress = peer->findChild<QLineEdit *>("archivePath");
+            QVERIFY(peerAddress);
+            files->setFocus();
+            QTRY_COMPARE(window.focusWidget(), files);
+        }
+
         // Replace the pending scan at its public progress boundary with a
         // real read failure. This avoids timing and filesystem permissions.
         const auto restart = connect(
             scanner, &FilesystemScanner::advanced, &window,
-            [&] { scanner->start(fixture.filePath("Missing"), false); }, Qt::SingleShotConnection);
+            [&] {
+                if (peerAddress) {
+                    PanelKeys::focusAddress(peerAddress);
+                    peerAddress->selectAll();
+                    QTest::keyClicks(peerAddress, draft);
+                }
+                scanner->start(fixture.filePath("Missing"), false);
+            },
+            Qt::SingleShotConnection);
         QSignalSpy failed(scanner, &FilesystemScanner::failed);
         QTimer dismiss;
         connect(&dismiss, &QTimer::timeout, &window, [] {
@@ -225,8 +251,16 @@ class WorkspacePlacesTests final : public QObject {
         QCOMPARE(files->rowCount(), 0);
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
         disconnect(restart);
-        QTRY_COMPARE(window.focusWidget(), retry);
-        QTest::keyClick(window.focusWidget(), Qt::Key_Space);
+        if (editPeer) {
+            QCOMPARE(peerAddress->text(), draft);
+            QVERIFY(window.focusWidget());
+            QTest::keyClick(window.focusWidget(), Qt::Key_X);
+            QCOMPARE(peerAddress->text(), draft + "x");
+            QTest::mouseClick(retry, Qt::LeftButton);
+        } else {
+            QTRY_COMPARE(window.focusWidget(), retry);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Space);
+        }
         QTRY_VERIFY(files->isEnabled() && !retry->isVisible());
         QTRY_COMPARE(window.focusWidget(), files);
         QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), target);
