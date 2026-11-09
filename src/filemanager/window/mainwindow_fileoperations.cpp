@@ -42,6 +42,7 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
     auto *task =
         new QtLocalFileTask(*operation, QtLangText(move ? IDS_MOVING : IDS_COPYING), destination);
     const unsigned owner = projectedPanel_;
+    statusStrip_->SetMessage(&app_.Panels[owner], {});
     fileTask_ = task;
     task->SetLocations(sources.join('\n'), destination);
     task->BindOwner(app_.Panels[owner], *this);

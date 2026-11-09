@@ -326,15 +326,37 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         window.openPath(destination);
         QTRY_VERIFY(view->isEnabled() && view->hasFocus() && filesystemRow(window, name) >= 0);
 
+        const QString parked = fixture.filePath("temporarily unavailable");
+        QVERIFY(QFile::rename(source, parked));
+        QTest::keySequence(view, QKeySequence::Paste);
+        const QString rejected = window.statusBar()->currentMessage();
+        QVERIFY(rejected.contains(name));
+        QVERIFY(QFile::rename(parked, source));
+
         int prompts = 0;
+        bool cancel = true;
         QTimer drive;
         dialogs_.connectResponder(drive, &window, [&] {
-            if (auto *question = dynamic_cast<COverwriteDialog *>(dialogs_.activeDialog())) {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
                 ++prompts;
-                question->findChild<QPushButton *>("overwriteRename")->click();
-            }
+                question->findChild<QPushButton *>(cancel ? "overwriteCancel" : "overwriteRename")
+                    ->click();
+            } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
+                TestProgressDialog::CloseResult(*report);
         });
         drive.start(5);
+        QTest::keySequence(view, QKeySequence::Paste);
+        QTRY_VERIFY_WITH_TIMEOUT(prompts == 1 && QtLocalFileTask::Active().isEmpty(), 3000);
+        QVERIFY(window.statusBar()->currentMessage() != rejected);
+        QCOMPARE(read(source), QByteArray("incoming bytes"));
+        QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
+        QCOMPARE(clipboard->mimeData()->urls(), original);
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->setFocus();
+        QVERIFY(view->hasFocus());
+        cancel = false;
+        prompts = 0;
         for (int attempt = 1; attempt <= (move ? 1 : 2); ++attempt) {
             QTest::keySequence(view, QKeySequence::Paste);
             const QString renamed = QStringLiteral("файл 空_%1.txt").arg(attempt);
