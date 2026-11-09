@@ -255,6 +255,15 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         if (state == "favorite") {
             QCOMPARE(read(peer + "/peer.txt"), QByteArray("peer bytes"));
             QVERIFY(!target->isEnabled());
+            QTRY_COMPARE(window.focusWidget(), files);
+            PanelKeys::command(window.focusWidget(), Qt::Key_Up,
+                               Qt::AltModifier | Qt::ShiftModifier);
+            QTRY_VERIFY(target->isEnabled());
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
+                         ToQString(target->sourcePanel->GetCurrentFolderPrefix()))),
+                     QFileInfo(source).canonicalFilePath());
+            QCOMPARE(window.focusWidget(), files);
+            QCOMPARE(row(*target, "file.txt") >= 0, !move);
         }
     }
     void sourceReloadPublishesNamespace() {

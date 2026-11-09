@@ -872,10 +872,6 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         else
             control->setFocus();
         QTRY_VERIFY(control->hasFocus());
-        // Editable QComboBox uses a focus proxy for its line editor. Preserve
-        // the actual public focus owner, rather than assuming the child owns it.
-        QWidget *const expected = window.focusWidget();
-        QVERIFY(expected);
         if (addressFocus)
             action(window, "parentFolderAction")->trigger();
         else
@@ -884,26 +880,23 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(table->isEnabled());
         QTRY_VERIFY(table->currentRow() >= 0);
         QTRY_COMPARE(table->model()->index(table->currentRow(), 0).data().toString(), childName);
-        QTRY_COMPARE(window.focusWidget(), expected);
+        QTRY_COMPARE(window.focusWidget(), view);
         QCOMPARE(peerAddress->text(), draft);
         QCOMPARE(peer->findChild<FileTable *>("archiveTable")->rowCount(), 1);
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();
-            QTRY_COMPARE(window.focusWidget(), expected);
+            QTRY_COMPARE(window.focusWidget(), view);
             QVERIFY(UiInspection::fullyVisible(*view, window));
-            QVERIFY(UiInspection::fullyVisible(
-                *(addressFocus ? address : PanelKeys::navigationFor(address)), window));
+            QVERIFY(UiInspection::fullyVisible(*PanelKeys::navigationFor(address), window));
             QVERIFY(UiInspection::writeReport(
                 window,
                 QString("parent-focus-%1-%2").arg(QTest::currentDataTag()).arg(size.width())));
         }
-        if (!addressFocus) {
-            PanelKeys::openSelection(window.focusWidget());
-            QTRY_COMPARE(address->text(), QFileInfo(child).canonicalFilePath());
-            QTRY_COMPARE(window.focusWidget(), expected);
-            QCOMPARE(peerAddress->text(), draft);
-        }
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(address->text(), QFileInfo(child).canonicalFilePath());
+        QTRY_COMPARE(window.focusWidget(), view);
+        QCOMPARE(peerAddress->text(), draft);
         QVERIFY(payload.open(QIODevice::ReadOnly));
         QCOMPARE(payload.readAll(), bytes);
         QCOMPARE(backend.extractCalls, 0);
