@@ -450,6 +450,10 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         const auto leftCurrent = leftTable->currentIndex();
         QTest::keyClick(leftTable, Qt::Key_Down);
         QCOMPARE(leftTable->currentIndex(), leftCurrent);
+        const auto leftSelection = leftTable->selectionModel()->selectedRows();
+        QTest::keyClick(leftTable, Qt::Key_Home, Qt::ShiftModifier);
+        QCOMPARE(leftTable->currentIndex(), leftCurrent);
+        QCOMPARE(leftTable->selectionModel()->selectedRows(), leftSelection);
         QTest::keyClick(leftTable, Qt::Key_F2);
         QVERIFY(!leftTable->findChild<QLineEdit *>());
         const auto leftSort = leftTable->sourcePanel->GetSortID();

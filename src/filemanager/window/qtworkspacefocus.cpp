@@ -101,11 +101,11 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
                 return true;
             }
         }
-        // Plain list navigation does not change the pending target, including
+        // Row navigation and range selection do not change the pending target, including
         // after Tab leaves input in the old list until the peer is ready.
         if (pendingListFocus_ && key && widget &&
             (widget == window_.panelUi_[*pendingListFocus_].container || waitingForPeer)) {
-            if (key->modifiers() == Qt::NoModifier &&
+            if (!(key->modifiers() & (Qt::AltModifier | Qt::MetaModifier)) &&
                 (key->key() == Qt::Key_Up || key->key() == Qt::Key_Down ||
                  key->key() == Qt::Key_Left || key->key() == Qt::Key_Right ||
                  key->key() == Qt::Key_PageUp || key->key() == Qt::Key_PageDown ||
