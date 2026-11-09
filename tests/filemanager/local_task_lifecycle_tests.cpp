@@ -294,6 +294,69 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTRY_VERIFY(files->hasFocus());
     }
 
+    void pasteKeepsBothFiles_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy-twice") << false;
+        QTest::newRow("cut") << true;
+    }
+    void pasteKeepsBothFiles() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString name = QStringLiteral("файл 空.txt");
+        const QString source = fixture.filePath(name);
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(destination));
+        QVERIFY(write(source, "incoming bytes"));
+        QVERIFY(write(QDir(destination).filePath(name), "existing bytes"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, name) >= 0);
+        view->selectRow(filesystemRow(window, name));
+        QTest::keySequence(view, move ? QKeySequence::Cut : QKeySequence::Copy);
+        auto *clipboard = QApplication::clipboard();
+        QVERIFY(clipboard->mimeData());
+        const QList<QUrl> original{QUrl::fromLocalFile(source)};
+        QCOMPARE(clipboard->mimeData()->urls(), original);
+        window.openPath(destination);
+        QTRY_VERIFY(view->isEnabled() && view->hasFocus() && filesystemRow(window, name) >= 0);
+
+        int prompts = 0;
+        QTimer drive;
+        dialogs_.connectResponder(drive, &window, [&] {
+            if (auto *question = dynamic_cast<COverwriteDialog *>(dialogs_.activeDialog())) {
+                ++prompts;
+                question->findChild<QPushButton *>("overwriteRename")->click();
+            }
+        });
+        drive.start(5);
+        for (int attempt = 1; attempt <= (move ? 1 : 2); ++attempt) {
+            QTest::keySequence(view, QKeySequence::Paste);
+            const QString renamed = QStringLiteral("файл 空_%1.txt").arg(attempt);
+            QTRY_VERIFY(filesystemRow(window, renamed) >= 0 && view->isEnabled());
+            QCOMPARE(prompts, attempt);
+            QCOMPARE(read(QDir(destination).filePath(renamed)), QByteArray("incoming bytes"));
+            QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
+            if (!move) {
+                QVERIFY(clipboard->mimeData());
+                QCOMPARE(clipboard->mimeData()->urls(), original);
+                QCOMPARE(read(source), QByteArray("incoming bytes"));
+            }
+        }
+        if (move) {
+            QVERIFY(!QFileInfo::exists(source));
+            QVERIFY(!clipboard->mimeData() || !clipboard->mimeData()->hasUrls());
+        } else {
+            QCOMPARE(read(QDir(destination).filePath(QStringLiteral("файл 空_1.txt"))),
+                     QByteArray("incoming bytes"));
+        }
+    }
+
     void partialFolderCutRefreshesSourceContents() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
