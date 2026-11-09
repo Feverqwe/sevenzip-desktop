@@ -203,6 +203,48 @@ class OperationsMenuTests final : public QObject {
         QVERIFY(UiInspection::writeReport(*menu, "operations-extraction-warning"));
         menu->hide();
     }
+    void compressionWarningNamesTheWrittenArchive() {
+        using namespace SourceExtractFixture;
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("input.txt");
+        QVERIFY(writeFile(source, "payload"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QtOperationJob job;
+        job.Operation = QtOperationJob::Command::Compress;
+        job.Paths = {source, fixture.filePath("missing.txt")};
+        job.ArchivePath = fixture.filePath("result archive");
+        job.ArchiveType = "zip";
+        job.AddExtension = true;
+        job.ShowDialog = false;
+        QString error;
+        QPointer<QtOperationLauncher> operation =
+            QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
+        QVERIFY2(operation, qPrintable(error));
+        const auto cleanup = qScopeGuard([&] {
+            if (operation && operation->active())
+                KillOperationProbe(operation->processId());
+        });
+        const auto id = QtOperationRegistry::Application().Registration(*operation);
+        QSignalSpy finished(operation, &QtOperationLauncher::finished);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
+        QCOMPARE(qvariant_cast<QtOperationResult>(finished[0][0]).Status,
+                 QtOperationResult::Outcome::Warning);
+        QVERIFY(QFileInfo(fixture.filePath("result archive.zip")).isFile());
+        auto *button = window.findChild<QToolButton *>("operationsButton");
+        QVERIFY(button && button->isVisible());
+        auto *menu = button->menu();
+        menu->popup(button->mapToGlobal(QPoint(0, button->height())));
+        QTRY_VERIFY(menu->isVisible());
+        const auto *warning = Entry(*menu, id);
+        QVERIFY(warning);
+        QVERIFY(warning->text().contains("result archive.zip"));
+        QVERIFY(warning->toolTip().contains("result archive.zip"));
+        menu->hide();
+    }
+
     void reopensSamePendingResultAfterLanguageSwitch() {
         QTemporaryDir fixture;
         const auto archive = SourceExtractFixture::makeArchive(fixture.path(), "retained bytes");

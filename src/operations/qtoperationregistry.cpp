@@ -8,8 +8,11 @@ namespace {
 QtOperationListing Listing(const QUuid &id, const QtOperationJob &job,
                            const QtOperationPresentation &presentation,
                            std::optional<QtOperationResult::Outcome> result) {
-    return {id, job.Operation, job.Paths.isEmpty() ? job.ArchivePath : job.Paths.first(),
-            presentation, result};
+    const bool archiveLabel =
+        job.Operation == QtOperationJob::Command::Compress && !job.ArchivePath.isEmpty();
+    return {id, job.Operation,
+            archiveLabel || job.Paths.isEmpty() ? job.ArchivePath : job.Paths.first(), presentation,
+            result};
 }
 } // namespace
 
@@ -51,7 +54,11 @@ void QtOperationRegistry::Register(QtOperationLauncher &operation, const QtOpera
                 using Outcome = QtOperationResult::Outcome;
                 if (result.Status == Outcome::Success || result.Status == Outcome::Warning) {
                     // Recent display values have no keep-alive hold or full job.
-                    completed_.prepend(Listing(id, job, {}, result.Status));
+                    auto listing = Listing(id, job, {}, result.Status);
+                    if (job.Operation == QtOperationJob::Command::Compress &&
+                        !result.ChangedArchives.isEmpty())
+                        listing.Source = result.ChangedArchives.first();
+                    completed_.prepend(std::move(listing));
                     constexpr qsizetype recentResultLimit = 20;
                     if (completed_.size() > recentResultLimit)
                         completed_.removeLast();
