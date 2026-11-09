@@ -94,6 +94,8 @@ void CPanel::EditItem(bool useEditor) {
                     CDisableNotify notify(*this);
                     operation.Create(ToUString(title), GetParent());
                 }
+                if (_sortID == kpidSize)
+                    _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
                 InvalidateList();
                 return;
             }

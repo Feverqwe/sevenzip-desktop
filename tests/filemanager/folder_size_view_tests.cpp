@@ -144,7 +144,7 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QFETCH(bool, compact);
         QFETCH(bool, useMenu);
         QTemporaryDir fixture;
-        const QString folder = QStringLiteral("папка й space");
+        const QString folder = QStringLiteral("aaa папка й space");
         QVERIFY(QDir().mkpath(fixture.filePath(folder + "/child")));
         QVERIFY(QDir().mkpath(fixture.filePath("empty")));
         QVERIFY(writeFile(fixture.filePath(folder + "/one.txt"), "123"));
@@ -169,6 +169,10 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
             return value;
         };
         QCOMPARE(property(folder, kpidSize).vt, VARTYPE(VT_EMPTY));
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        view->sortItems(sizeColumn, Qt::AscendingOrder);
+        QVERIFY(filesystemRow(window, folder) < filesystemRow(window, "empty"));
         const int filesColumn = view->columnForProperty(kpidNumSubFiles);
         QVERIFY(filesColumn >= 0);
         view->setColumnHidden(filesColumn, true);
@@ -201,8 +205,7 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(property(folder, kpidNumSubDirs).uhVal.QuadPart, UInt64(1));
         QCOMPARE(property("empty", kpidSize).vt, VARTYPE(VT_UI8));
         QCOMPARE(property("empty", kpidSize).uhVal.QuadPart, UInt64(0));
-        const int sizeColumn = view->columnForProperty(kpidSize);
-        QVERIFY(sizeColumn >= 0);
+        QVERIFY(filesystemRow(window, "empty") < filesystemRow(window, folder));
         QCOMPARE(view->model()->index(filesystemRow(window, folder), sizeColumn).data().toString(),
                  QtRegionalFormat::bytes(8));
         QCOMPARE(view->model()->index(filesystemRow(window, "empty"), sizeColumn).data().toString(),

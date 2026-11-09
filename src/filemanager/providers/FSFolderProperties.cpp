@@ -201,8 +201,10 @@ Z7_COM7F_IMF(CFSFolder::CalcItemFullSize(UInt32 index, IProgress *progress)) {
     CFsFolderStat stat(_path + GetRelPath(fi), progress);
     const HRESULT result = stat.Enumerate();
     if (result != S_OK) {
-        if (result != E_ABORT)
+        if (result != E_ABORT) {
             fi.FolderStat_Defined = false;
+            fi.Size = 0;
+        }
         return result;
     }
     fi.Size = stat.Size;
