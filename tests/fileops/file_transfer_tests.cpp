@@ -1159,6 +1159,54 @@ class FileTransferTests : public QObject {
         QVERIFY(QFileInfo::exists(sourceConflict.fileName()));
     }
 
+    void caseVariantsCannotOverwriteAnEarlierBatchResult_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("move") << true;
+    }
+
+    void caseVariantsCannotOverwriteAnEarlierBatchResult() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir(fixture.path()).mkdir("destination"));
+        const QString destination = fixture.filePath("destination");
+        const QString first = fixture.filePath("first/report.txt");
+        const QString second = fixture.filePath("second/REPORT.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return QDir().mkpath(QFileInfo(path).absolutePath()) &&
+                   file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        QVERIFY(write(first, "first"));
+        QVERIFY(write(second, "second"));
+        const QString probe = QDir(destination).filePath("case-probe");
+        QVERIFY(write(probe, "probe"));
+        const bool sameName = QFileInfo::exists(QDir(destination).filePath("CASE-PROBE"));
+        QVERIFY(QFile::remove(probe));
+        FileTransferOperation operation({first, second}, destination, move);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        QSignalSpy prompts(&operation, &FileTransferOperation::overwriteRequested);
+        connect(&operation, &FileTransferOperation::overwriteRequested, &operation,
+                [&] { operation.submitOverwriteAnswer(NOverwriteAnswer::kYes); });
+        operation.start();
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(operation.wait(30000));
+        QCOMPARE(prompts.size(), 0);
+        QCOMPARE(result.first().first().toBool(), !sameName);
+        if (sameName)
+            QVERIFY(result.first().at(1).toString().contains("same destination"));
+        for (const auto &[source, expected] :
+             {qMakePair(first, "first"), qMakePair(second, "second")}) {
+            const QString output = QDir(destination).filePath(QFileInfo(source).fileName());
+            QCOMPARE(QFileInfo::exists(output), !sameName);
+            QCOMPARE(QFileInfo::exists(source), sameName || !move);
+            QFile file(sameName ? source : output);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), QByteArray(expected));
+        }
+    }
+
     void keepBothReservesTheNamesOfLaterFiles_data() {
         QTest::addColumn<bool>("move");
         QTest::addColumn<QString>("laterName");

@@ -497,6 +497,16 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     const QFileInfo existingInfo(target);
     const QString existingIdentity =
         existingInfo.exists() ? QtOwnedTempIdentity(target) : QString();
+    if (!existingIdentity.isEmpty() &&
+        std::any_of(completed.cbegin(), completed.cend(), [&](const TransferEntry &entry) {
+            return entry.target.compare(target, Qt::CaseInsensitive) == 0 &&
+                   QtOwnedTempIdentity(entry.target) == existingIdentity;
+        })) {
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Multiple items would use the same destination: %1")
+                    .arg(target);
+        return false;
+    }
     const auto existingModified = existingInfo.lastModified();
     const qint64 existingSize = existingInfo.size();
     const auto matchesExisting = [existingIdentity, existingModified,
