@@ -318,10 +318,17 @@ class NativeDragProtocolTests final : public QObject {
         QCOMPARE(data->GetData(&unsupported, &medium), DV_E_FORMATETC);
         QCOMPARE(model->Copy_HRESULT, S_OK);
         QCOMPARE(medium.tymed, DWORD(TYMED_NULL));
+        const auto receiver = ReadPanelDragDataObject(data);
+        QVERIFY(receiver);
+        UInt32 flags = 0;
+        QVERIFY(receiver->ReadTransferFlags(flags));
+        QVERIFY(!(flags & k_SourceFlags_Copy_WasCalled));
+        QCOMPARE(model->Copy_HRESULT, S_OK);
         auto format = Format(CF_HDROP);
         QCOMPARE(data->GetData(&format, &medium), E_ABORT);
         QCOMPARE(medium.tymed, DWORD(TYMED_NULL));
         QCOMPARE(model->Copy_HRESULT, E_ABORT);
+        QVERIFY(receiver->ReadTransferFlags(flags));
         QVERIFY(!model->Copy_WasCalled);
     }
 };
