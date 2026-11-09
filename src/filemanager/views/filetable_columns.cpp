@@ -206,6 +206,14 @@ void FileTable::removeSourceColumn(unsigned index) {
         else if (binding.visibleIndex > int(index))
             --binding.visibleIndex;
     }
+    restoreVisibleCurrentColumn();
+}
+
+void FileTable::restoreVisibleCurrentColumn() {
+    const QModelIndex current = currentIndex();
+    if (current.isValid() && isColumnHidden(current.column()))
+        selectionModel()->setCurrentIndex(current.siblingAtColumn(0),
+                                          QItemSelectionModel::NoUpdate);
 }
 
 void FileTable::appendSourceColumn(unsigned catalogIndex) {

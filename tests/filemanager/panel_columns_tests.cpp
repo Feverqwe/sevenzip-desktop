@@ -207,6 +207,57 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(provider->rawRequests, 3u);
     }
 
+    void hidingCurrentColumnKeepsTheFileSelected_data() {
+        QTest::addColumn<bool>("typeColumn");
+        QTest::newRow("size") << false;
+        QTest::newRow("type") << true;
+    }
+
+    void hidingCurrentColumnKeepsTheFileSelected() {
+        QFETCH(bool, typeColumn);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        QFile file(temp.filePath("payload.txt"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        MainWindow window;
+        window.show();
+        window.openPath(temp.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && filesystemRow(window, "payload.txt") >= 0);
+        const int row = filesystemRow(window, "payload.txt");
+        int column = files->columnForProperty(kpidSize);
+        if (typeColumn) {
+            column = -1;
+            const QString title = QCoreApplication::translate("QtWorkspaceFileTable", "Type");
+            for (int candidate = 0; candidate < files->columnCount(); ++candidate)
+                if (!files->isColumnHidden(candidate) &&
+                    files->model()->headerData(candidate, Qt::Horizontal).toString() == title) {
+                    column = candidate;
+                    break;
+                }
+        }
+        QVERIFY(column > 0 && !files->isColumnHidden(column));
+        files->selectRow(row);
+        files->setCurrentCell(row, column, QItemSelectionModel::NoUpdate);
+        const QString label = files->model()->headerData(column, Qt::Horizontal).toString();
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            for (QAction *option : menu->actions())
+                if (option->isChecked() && option->text() == label) {
+                    option->trigger();
+                    break;
+                }
+            menu->close();
+        });
+        QVERIFY(QMetaObject::invokeMethod(files->horizontalHeader(), "customContextMenuRequested",
+                                          Qt::DirectConnection, Q_ARG(QPoint, QPoint(10, 5))));
+        QVERIFY(files->isColumnHidden(column));
+        QCOMPARE(files->currentIndex().data().toString(), QString("payload.txt"));
+        QVERIFY(files->selectionModel()->isRowSelected(row, {}));
+    }
+
     void sourceCatalogAndHeaderSettingsPersist() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
