@@ -666,7 +666,14 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(!QFile::exists(ToQString(browse.FilePath)));
     }
 
+    void saveNameFollowsNavigationIntoNewFolder_data() {
+        QTest::addColumn<QString>("folder");
+        QTest::newRow("direct") << QString("new folder");
+        QTest::newRow("nested") << QString("new folder/child");
+    }
+
     void saveNameFollowsNavigationIntoNewFolder() {
+        QFETCH(QString, folder);
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);
         QVERIFY(QDir().mkpath(directory));
@@ -693,10 +700,16 @@ class SourceBrowseDialogTests final : public QObject {
             QTest::keyClick(list, Qt::Key_F7);
             auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
             QVERIFY(name && name->isVisible());
-            QTest::keyClicks(name, "new folder");
+            QTest::keyClicks(name, folder);
             QTest::keyClick(name, Qt::Key_Return);
             QCOMPARE(dialog->focusWidget(), list);
             QTest::keyClick(list, Qt::Key_Return);
+            if (folder.contains('/')) {
+                const auto child = list->findItems("child", Qt::MatchExactly);
+                QCOMPARE(child.size(), 1);
+                list->setCurrentItem(child.front());
+                QTest::keyClick(list, Qt::Key_Return);
+            }
             QCOMPARE(path->text(), draft);
             path->setFocus();
             QTest::keyClick(path, Qt::Key_Return);
@@ -707,7 +720,7 @@ class SourceBrowseDialogTests final : public QObject {
         browse.FilterIndex = 0;
         QVERIFY(browse.BrowseForFile(Filters()));
         QCOMPARE(QDir::fromNativeSeparators(ToQString(browse.FilePath)),
-                 directory + "/new folder/" + draft);
+                 directory + '/' + folder + '/' + draft);
         QCOMPARE(browse.FilterIndex, 0);
     }
 

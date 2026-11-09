@@ -187,6 +187,10 @@ browser the inline draft stays with its current directory. A failed navigation
 keeps the draft available, and a successful move to a different directory
 closes it.
 
+After creating a nested folder, the Qt browser selects its first visible
+ancestor in the current list. This lets Enter open the new path while keeping
+the entered archive name available for saving.
+
 ## Failed list refresh — 2026-11-07
 
 The original filter, column and Ctrl+R handlers reread the current directory.

@@ -334,14 +334,11 @@ void CBrowseDialog::ShowReloadError(HRESULT result) {
 }
 
 void CBrowseDialog::NavigateFolder(const UString &path, const UString &selectedName) {
-    const UString previousFolder = DirPrefix;
     const HRESULT result = Reload(path, selectedName);
     if (result != S_OK) {
         MessageBox_HResError(this, result, path);
         return;
     }
-    if (DirPrefix != previousFolder)
-        _folderDraft->hide();
     SetPathEditText();
 }
 
@@ -405,7 +402,15 @@ void CBrowseDialog::CreateDirFromDraft() {
         return;
     }
     _folderDraft->hide();
-    Reload(DirPrefix, name);
+    UString visibleName;
+    if (!DirPrefix.IsEmpty()) {
+        const QDir current(QDir::fromNativeSeparators(ToQString(DirPrefix)));
+        const QString relative =
+            current.relativeFilePath(QDir::fromNativeSeparators(ToQString(fs2us(destPath))));
+        if (!QDir::isAbsolutePath(relative) && relative != ".." && !relative.startsWith("../"))
+            visibleName = ToUString(relative.section('/', 0, 0));
+    }
+    Reload(DirPrefix, visibleName);
     SetPathEditText();
     if (FolderMode) {
         _pathEdit->setText(ToQString(fs2us(destPath)));
