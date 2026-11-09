@@ -335,14 +335,13 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(QFile::rename(parked, source));
 
         int prompts = 0;
-        bool cancel = true;
+        const char *answer = "overwriteCancel";
         QTimer drive;
         dialogs_.connectResponder(drive, &window, [&] {
             auto *dialog = dialogs_.activeDialog();
             if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
                 ++prompts;
-                question->findChild<QPushButton *>(cancel ? "overwriteCancel" : "overwriteRename")
-                    ->click();
+                question->findChild<QPushButton *>(answer)->click();
             } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
                 TestProgressDialog::CloseResult(*report);
         });
@@ -355,7 +354,16 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(clipboard->mimeData()->urls(), original);
         QVERIFY(WindowActivation::waitForActive(window));
         QTRY_COMPARE(window.focusWidget(), view);
-        cancel = false;
+        answer = "overwriteNo";
+        QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
+        QTRY_VERIFY_WITH_TIMEOUT(prompts == 2 && QtLocalFileTask::Active().isEmpty(), 3000);
+        QCOMPARE(read(source), QByteArray("incoming bytes"));
+        QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
+        QVERIFY(clipboard->mimeData());
+        QCOMPARE(clipboard->mimeData()->urls(), original);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_COMPARE(window.focusWidget(), view);
+        answer = "overwriteRename";
         prompts = 0;
         for (int attempt = 1; attempt <= (move ? 1 : 2); ++attempt) {
             QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
