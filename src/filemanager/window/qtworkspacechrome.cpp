@@ -223,5 +223,6 @@ void QtWindowWorkspace::OpenFavorite(const QtFavorite &favorite) {
             location.diskFolder = favorite.diskFolder;
             CompleteLocationOpen(panel, favorite.path, result);
             window_.refreshActions();
+            FocusListAfterLocationOpen(panel, interaction);
         });
 }
