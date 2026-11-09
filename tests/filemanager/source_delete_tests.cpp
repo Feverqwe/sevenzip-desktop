@@ -116,6 +116,16 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             indices.Add(1);
         const QString first = ToQString(panel.GetItemRelPath2(indices[0]));
         const QString second = ToQString(panel.GetItemRelPath2(1));
+        const int focused = filesystemRow(window, first);
+        QVERIFY(focused >= 0);
+        view->setCurrentCell(focused, 0);
+        view->selectRow(focused);
+        if (!lastItem) {
+            const int selected = filesystemRow(window, second);
+            QVERIFY(selected >= 0);
+            view->selectionModel()->select(view->model()->index(selected, 0),
+                                           QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        }
         bool stopped = false;
         QSemaphore firstMoved, resume;
         trash.during = [&] {
@@ -165,6 +175,9 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(remaining.open(QIODevice::ReadOnly));
         QCOMPARE(remaining.readAll(), QByteArray("protected"));
         QTRY_COMPARE(view->rowCount(), 1);
+        QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), second);
+        if (!lastItem)
+            QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(panel.ShouldProcessNotifications());
     }
     void folderAndLinkConsequences_data() {
