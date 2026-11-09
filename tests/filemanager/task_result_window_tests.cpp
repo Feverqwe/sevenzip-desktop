@@ -6,6 +6,7 @@
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "support/operation_kill.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
@@ -211,11 +212,14 @@ class TaskResultWindowTests final : public QObject {
     }
     void lateFailurePreservesAnotherQuestion_data() {
         QTest::addColumn<bool>("modal");
-        QTest::newRow("modal-question") << true;
-        QTest::newRow("modeless-edit") << false;
+        QTest::addColumn<bool>("address");
+        QTest::newRow("modal-question") << true << false;
+        QTest::newRow("modeless-edit") << false << false;
+        QTest::newRow("file-panel-address") << false << true;
     }
     void lateFailurePreservesAnotherQuestion() {
         QFETCH(bool, modal);
+        QFETCH(bool, address);
         language("-");
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -249,17 +253,24 @@ class TaskResultWindowTests final : public QObject {
         QTRY_COMPARE_WITH_TIMEOUT(accepted.size(), 1, 10000);
         QDialog question(&peer);
         question.setWindowModality(modal ? Qt::WindowModal : Qt::NonModal);
-        QLineEdit input(&question);
-        input.setText("unfinished input");
-        question.show();
-        QVERIFY(WindowActivation::waitForActive(question));
-        input.setFocus();
+        QLineEdit questionInput(&question);
+        auto *input = address ? peer.findChild<QLineEdit *>("archivePath") : &questionInput;
+        QVERIFY(input);
+        if (address) {
+            QVERIFY(WindowActivation::waitForActive(peer));
+            PanelKeys::focusAddress(input);
+        } else {
+            question.show();
+            QVERIFY(WindowActivation::waitForActive(question));
+            input->setFocus();
+        }
+        input->setText("unfinished input");
         QTRY_COMPARE(QApplication::activeModalWidget(), modal ? &question : nullptr);
-        QTRY_VERIFY(input.hasFocus());
-        QTest::keyClick(&input, Qt::Key_End);
-        QTest::keyClicks(&input, "-draft");
+        QTRY_VERIFY(input->hasFocus());
+        QTest::keyClick(input, Qt::Key_End);
+        QTest::keyClicks(input, "-draft");
         int commits = 0;
-        connect(&input, &QLineEdit::editingFinished, &question, [&] { ++commits; });
+        connect(input, &QLineEdit::editingFinished, &question, [&] { ++commits; });
         QVERIFY(SourceExtractFixture::writeFile(barrier, "crash child"));
         QTRY_VERIFY_WITH_TIMEOUT(!QtOperationRegistry::Application().Reviews().isEmpty(), 10000);
         const auto pending = QtOperationRegistry::Application().Reviews();
@@ -267,21 +278,25 @@ class TaskResultWindowTests final : public QObject {
         QVERIFY(!pending.constFirst().Result.Error.isEmpty());
         QVERIFY(!reportWindow());
         QCOMPARE(QApplication::activeModalWidget(), modal ? &question : nullptr);
-        QVERIFY(input.hasFocus());
+        QVERIFY(input->hasFocus());
         QCOMPARE(commits, 0);
-        QTest::keyClick(&input, Qt::Key_End);
-        QTest::keyClicks(&input, " retained");
+        QTest::keyClick(input, Qt::Key_End);
+        QTest::keyClicks(input, " retained");
         ShowTasksOnQuit(application);
         QCOMPARE(QApplication::activeModalWidget(), modal ? &question : nullptr);
-        QCOMPARE(input.text(), QString("unfinished input-draft retained"));
-        question.reject();
+        const QString draft = input->text();
+        QCOMPARE(draft, QString("unfinished input-draft retained"));
+        if (address)
+            QTest::keyClick(input, Qt::Key_Escape);
+        else
+            question.reject();
         QTRY_VERIFY(!QApplication::activeModalWidget());
         QTRY_VERIFY(reportWindow());
         const auto report =
             reportWindow()->findChild<QPlainTextEdit *>("taskResultReport")->toPlainText();
         QVERIFY(report.contains(archive));
         QVERIFY(report.contains(pending.constFirst().Result.Error));
-        QVERIFY(!report.contains(input.text()));
+        QVERIFY(!report.contains(draft));
         reportWindow()->reject();
         QVERIFY(QtOperationRegistry::Application().Reviews().isEmpty());
     }

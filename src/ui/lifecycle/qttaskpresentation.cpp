@@ -1,5 +1,6 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QApplication>
+#include <QComboBox>
 #include <QEvent>
 #include <QLineEdit>
 #include <QTimer>
@@ -58,8 +59,12 @@ void QtTaskPresentation::ResultReviewed() { Application().resultReviewed_ = true
 
 bool QtTaskPresentation::CanPresent(const QWidget *owner) {
     const auto *modal = QApplication::activeModalWidget();
+    const auto *focus = QApplication::focusWidget();
+    const auto *combo = qobject_cast<const QComboBox *>(focus);
+    const auto *editor = combo ? combo->lineEdit() : nullptr;
     return !Application().questionDepth_ && (!modal || modal == owner) &&
-           !qobject_cast<QLineEdit *>(QApplication::focusWidget());
+           !qobject_cast<const QLineEdit *>(focus) &&
+           !(editor && editor->isVisible() && !editor->isReadOnly());
 }
 
 const QtTaskPresentation::Entry *QtTaskPresentation::currentEntry() const {
