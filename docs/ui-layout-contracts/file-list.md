@@ -27,7 +27,8 @@
 
 The file panel offers the table and Large Icons. Older preferences for Small
 Icons or List open the table. Switching views preserves the shared selection
-and brings the current file into view.
+and brings the current file into view. Returning to the table preserves its
+horizontal scroll position.
 Large Icons centers wrapped labels below the icons. Cell geometry accommodates
 the platform icon and two lines of the active font; longer names remain available
 through the full-path tooltip. Font/style changes recalculate geometry, and

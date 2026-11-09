@@ -4,10 +4,11 @@
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtworkspaceapplication.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlanguageservices.h"
 #include <QScopedValueRollback>
+#include <QScrollBar>
 #include <QSignalBlocker>
 
 void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos) {
@@ -67,6 +68,8 @@ void MainWindow::setViewMode(int mode) {
     auto *stack = projectedUi().viewStack;
     auto *address = projectedUi().pathCombo;
     auto *icons = static_cast<FileIconList *>(projectedUi().iconList);
+    auto *horizontal = projectedUi().table->horizontalScrollBar();
+    const int tablePosition = horizontal->value();
     const QWidget *focused = QApplication::focusWidget();
     const QWidget *previousView = stack->currentWidget();
     const bool restoreFocus =
@@ -96,6 +99,8 @@ void MainWindow::setViewMode(int mode) {
         view->setFocus();
     else if (restoreAfterScan)
         workspace_->RequestListFocus(projectedPanel_);
+    if (mode == 3 && view != previousView)
+        horizontal->setValue(tablePosition);
     CListMode modes;
     for (unsigned i = 0; i < kNumPanelsMax; ++i)
         modes.Panels[i] = app_.Panels[i].GetListViewMode();
