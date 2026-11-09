@@ -193,13 +193,16 @@ class OperationsMenuTests final : public QObject {
         QCOMPARE(readFile(existing), QByteArray("retained bytes"));
         auto *button = window.findChild<QToolButton *>("operationsButton");
         QVERIFY(button && button->isVisible());
+        const QString warningStatus =
+            QCoreApplication::translate("QtOperationsButton", "Done with warnings");
+        QVERIFY(button->accessibleName().contains(warningStatus));
+        QVERIFY(button->toolTip().contains(warningStatus));
         auto *menu = button->menu();
         menu->popup(button->mapToGlobal(QPoint(0, button->height())));
         QTRY_VERIFY(menu->isVisible());
         const auto *warning = Entry(*menu, id);
         QVERIFY(warning && !warning->isEnabled());
-        QVERIFY(warning->text().contains(
-            QCoreApplication::translate("QtOperationsButton", "Done with warnings")));
+        QVERIFY(warning->text().contains(warningStatus));
         QVERIFY(UiInspection::writeReport(*menu, "operations-extraction-warning"));
         menu->hide();
     }

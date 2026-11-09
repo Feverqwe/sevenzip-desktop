@@ -85,12 +85,15 @@ void QtOperationsButton::Refresh() {
     }
     const QString suffix = needsReview ? Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Results"))
                            : active    ? QString::number(active)
-                                       : Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Done"));
+                           : entries.isEmpty()
+                               ? Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Done"))
+                               : Status(entries.first());
     setText(Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Operations · %1")).arg(suffix));
     setAccessibleName(text());
-    setToolTip(Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Operations")));
-    menu_->setTitle(toolTip());
-    menu_->setAccessibleName(toolTip());
+    setToolTip(text());
+    const QString menuName = Text(QT_TRANSLATE_NOOP("QtOperationsButton", "Operations"));
+    menu_->setTitle(menuName);
+    menu_->setAccessibleName(menuName);
     setVisible(!entries.isEmpty());
     if (menu_->isVisible())
         Populate();
