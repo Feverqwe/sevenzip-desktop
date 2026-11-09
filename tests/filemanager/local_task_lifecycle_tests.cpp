@@ -670,6 +670,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
     void completionRetiresItsOwnStopQuestionBeforeReview() {
+        QtWorkspaceApplication application(*qApp);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -686,6 +687,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                 task->StopAndWait();
         });
         QSignalSpy completed(task, &QtLocalFileTask::finished);
+        connect(task, &QtLocalFileTask::finished, &window, [&] { application.Quit(); });
         task->Start();
         QTRY_VERIFY(started.available() > 0);
         started.acquire();
@@ -716,6 +718,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(opened && reviewed);
         QVERIFY(!completed[0][0].toBool());
         QVERIFY(!completed[0][1].toBool());
+        QVERIFY(!window.isVisible());
     }
     void overwriteKeepsOwnerUntilAnswered_data() {
         QTest::addColumn<QString>("choice");

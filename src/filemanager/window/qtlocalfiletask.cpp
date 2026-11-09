@@ -151,7 +151,7 @@ void QtLocalFileTask::SetLocations(const QString &source, const QString &destina
 }
 
 void QtLocalFileTask::StopForSource(CPanel &source) {
-    for (auto *task : Active())
+    for (auto *task : qApp->findChildren<QtLocalFileTask *>(Qt::FindDirectChildrenOnly))
         if (task->source_ == &source)
             task->StopAndWait();
 }
@@ -276,7 +276,9 @@ void QtLocalFileTask::PresentFinish(bool success, bool cancelled, const QString 
 }
 
 QList<QtLocalFileTask *> QtLocalFileTask::Active() {
-    return qApp->findChildren<QtLocalFileTask *>(Qt::FindDirectChildrenOnly);
+    auto tasks = qApp->findChildren<QtLocalFileTask *>(Qt::FindDirectChildrenOnly);
+    tasks.removeIf([](const QtLocalFileTask *task) { return task->progressClosed_; });
+    return tasks;
 }
 
 void QtLocalFileTask::Show() {
