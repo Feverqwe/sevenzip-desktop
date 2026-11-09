@@ -78,10 +78,14 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString hidden = fixture.filePath(".private");
+        const QString hiddenFile = fixture.filePath(".notes.txt");
         QVERIFY(QDir().mkdir(hidden));
+        QVERIFY(writeFile(hiddenFile));
 #ifdef Q_OS_WIN
         QVERIFY(
             SetFileAttributesW(reinterpret_cast<LPCWSTR>(hidden.utf16()), FILE_ATTRIBUTE_HIDDEN));
+        QVERIFY(SetFileAttributesW(reinterpret_cast<LPCWSTR>(hiddenFile.utf16()),
+                                   FILE_ATTRIBUTE_HIDDEN));
 #endif
         QVERIFY(writeFile(QDir(hidden).filePath("child.txt")));
         QVERIFY(writeFile(fixture.filePath("visible.txt")));
@@ -108,7 +112,7 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
         window.openPath(fixture.path());
-        QTRY_COMPARE(peer->rowCount(), 2);
+        QTRY_COMPARE(peer->rowCount(), 3);
         auto *left =
             window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
         left->setFocus();
@@ -116,45 +120,50 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         twoPanels->trigger();
         QTRY_VERIFY(!peer->isVisible());
         action(window, "selectAllAction")->trigger();
-        QCOMPARE(left->selectionModel()->selectedRows().size(), 2);
+        QCOMPARE(left->selectionModel()->selectedRows().size(), 3);
+        left->setCurrentCell(filesystemRow(window, ".private"), 0, QItemSelectionModel::NoUpdate);
         auto *settings = action(window, "settingsAction");
         backend.held = true;
         QVERIFY(setListOptions(window, settings, false, "showHiddenFoldersOption"));
-        QTRY_COMPARE(left->rowCount(), 1);
+        QTRY_COMPARE(left->rowCount(), 2);
         QVERIFY(filesystemRow(observer, ".private") >= 0);
         QVERIFY(WindowActivation::waitForActive(window));
         backend.held = false;
         QTRY_COMPARE(filesystemRow(observer, ".private"), -1);
         QVERIFY(window.isActiveWindow());
-        QCOMPARE(left->model()->index(0, 0).data().toString(), QString("visible.txt"));
+        QVERIFY(filesystemRow(window, "visible.txt") >= 0);
+        QVERIFY(filesystemRow(window, ".notes.txt") >= 0);
+        QVERIFY(left->currentIndex().isValid());
+        QVERIFY(!left->currentIndex().data(QtPanelList::DirectoryRole).toBool());
         QTRY_VERIFY(left->isEnabled());
         left->setFocus();
         QTRY_VERIFY(left->hasFocus());
         auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
         QVERIFY(summary);
-        QTRY_COMPARE(summary->text(), QString("Selected: 1 / 1"));
+        QTRY_COMPARE(summary->text(), QString("Selected: 2 / 2"));
         auto *copy = action(window, "copyFilesAction");
         QVERIFY(copy->isEnabled());
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
-        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
-                 QList<QUrl>{QUrl::fromLocalFile(fixture.filePath("visible.txt"))});
+        const auto copied = QApplication::clipboard()->mimeData()->urls();
+        QCOMPARE(copied.size(), 2);
+        QVERIFY(copied.contains(QUrl::fromLocalFile(hiddenFile)));
+        QVERIFY(copied.contains(QUrl::fromLocalFile(fixture.filePath("visible.txt"))));
         QApplication::clipboard()->clear();
         QTRY_VERIFY(twoPanels->isEnabled());
         twoPanels->trigger();
         QTRY_VERIFY(peer->isVisible() && peer->isEnabled());
-        QCOMPARE(peer->rowCount(), 1);
-        QCOMPARE(peer->model()->index(0, 0).data().toString(), QString("visible.txt"));
+        QCOMPARE(peer->rowCount(), 2);
         left->setFocus();
         QTRY_VERIFY(left->hasFocus());
         window.openPath(hidden);
         QTRY_COMPARE(left->model()->index(0, 0).data().toString(), QString("child.txt"));
         window.openPath(fixture.path());
-        QTRY_COMPARE(left->model()->index(0, 0).data().toString(), QString("visible.txt"));
-        QCOMPARE(left->rowCount(), 1);
+        QTRY_VERIFY(filesystemRow(window, "visible.txt") >= 0);
+        QCOMPARE(left->rowCount(), 2);
         QVERIFY(setListOptions(window, settings, true, "showHiddenFoldersOption"));
-        QTRY_COMPARE(left->rowCount(), 2);
+        QTRY_COMPARE(left->rowCount(), 3);
         QTRY_VERIFY(filesystemRow(observer, ".private") >= 0);
-        QTRY_COMPARE(peer->rowCount(), 2);
+        QTRY_COMPARE(peer->rowCount(), 3);
     }
 
     void parentRowPreferenceAppliesAfterInFlightListing() {
