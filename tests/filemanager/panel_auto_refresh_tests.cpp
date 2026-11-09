@@ -467,17 +467,20 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<unsigned>("owner");
         QTest::addColumn<bool>("published");
         QTest::addColumn<bool>("peerUpdate");
-        QTest::newRow("left") << 0u << false << false;
-        QTest::newRow("right") << 1u << false << false;
-        QTest::newRow("published-left") << 0u << true << false;
-        QTest::newRow("published-right") << 1u << true << false;
-        QTest::newRow("published-peer") << 1u << true << true;
-        QTest::newRow("automatic-peer") << 1u << false << true;
+        QTest::addColumn<int>("addedFiles");
+        QTest::newRow("left") << 0u << false << false << 0;
+        QTest::newRow("right") << 1u << false << false << 0;
+        QTest::newRow("published-left") << 0u << true << false << 1;
+        QTest::newRow("published-right") << 1u << true << false << 1;
+        QTest::newRow("published-peer") << 1u << true << true << 1;
+        QTest::newRow("automatic-peer") << 1u << false << true << 1;
+        QTest::newRow("automatic-peer-background-scan") << 0u << false << true << 300;
     }
     void idleTicksKeepActiveTitleAndAddressDraft() {
         QFETCH(unsigned, owner);
         QFETCH(bool, published);
         QFETCH(bool, peerUpdate);
+        QFETCH(int, addedFiles);
         const unsigned updated = peerUpdate ? 1 - owner : owner;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -519,12 +522,14 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QSignalSpy renameAvailability(rename, &QAction::enabledChanged);
         QSignalSpy removeAvailability(remove, &QAction::enabledChanged);
         QSignalSpy copyAvailability(copy, &QAction::enabledChanged);
-        if (published || peerUpdate) {
+        if (addedFiles) {
             views[updated]->sourcePanel->Set_AutoRefresh_Mode(!published);
-            QVERIFY(writeFile(QDir(folders[updated]).filePath("published.txt")));
+            for (int i = 0; i < addedFiles; ++i)
+                QVERIFY(writeFile(QDir(folders[updated]).filePath(QString("added-%1.txt").arg(i))));
             if (published)
                 application.FilesystemPublished({folders[updated]});
-            QTRY_COMPARE(views[updated]->rowCount(), 2);
+            QTRY_VERIFY(views[updated]->isEnabled() &&
+                        views[updated]->rowCount() == 1 + addedFiles);
         } else
             QTest::qWait(1250); // Cross the actual application timer interval while idle.
         for (const auto &event : titles)
@@ -535,7 +540,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(addresses[owner]->cursorPosition(), 0);
         QVERIFY(addresses[owner]->hasFocus());
         for (unsigned pane = 0; pane < 2; ++pane) {
-            QCOMPARE(views[pane]->rowCount(), (published || peerUpdate) && pane == updated ? 2 : 1);
+            QCOMPARE(views[pane]->rowCount(), pane == updated ? 1 + addedFiles : 1);
             QCOMPARE(views[pane]->selectionModel()->selectedRows().size(), 1);
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
                          ToQString(views[pane]->sourcePanel->GetCurrentFolderPrefix()))),
