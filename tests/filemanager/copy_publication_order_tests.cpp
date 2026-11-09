@@ -142,7 +142,7 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
         bool scheduled = false;
         bool edited = existingDraft;
         connect(peer->model(), &QAbstractItemModel::rowsInserted, &window, [&] {
-            if (existingDraft || scheduled || peer->isEnabled())
+            if (existingDraft || scheduled)
                 return;
             scheduled = true;
             QTimer::singleShot(0, &window, [&] {

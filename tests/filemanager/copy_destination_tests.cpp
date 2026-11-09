@@ -61,6 +61,10 @@ class CopyDestinationTests final : public QObject {
 #ifdef Q_OS_WIN
         name->setText(" ... ");
         QVERIFY(!ok->isEnabled());
+        name->setText("copy?.txt");
+        QVERIFY(!ok->isEnabled());
+        QTest::keyClick(name, Qt::Key_Return);
+        QVERIFY(dialog.isVisible());
 #endif
         auto *destination = dialog.findChild<QLineEdit *>("copyDestination");
         destination->setText(source);
@@ -87,7 +91,8 @@ class CopyDestinationTests final : public QObject {
 #ifdef Q_OS_WIN
         auto *ok =
             dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
-        for (const auto *invalid : {" ... ", " ... /", " ... /copy.txt", " ... /../copy.txt"}) {
+        for (const auto *invalid : {" ... ", " ... /", " ... /copy.txt", " ... /../copy.txt",
+                                    "wrong?/copy.txt", "copy*.txt"}) {
             path->setText(fixture.filePath(invalid));
             QVERIFY(!ok->isEnabled());
             dialog.accept();

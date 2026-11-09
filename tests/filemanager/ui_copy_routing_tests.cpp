@@ -345,6 +345,14 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                             ++refusedDestinations;
                     }
                 }
+#ifdef Q_OS_WIN
+                if (relative) {
+                    path->setText("../wrong?/output/");
+                    dialog->accept();
+                    if (dialog->isVisible())
+                        ++refusedDestinations;
+                }
+#endif
                 if (relative)
                     path->setText(move ? "../unneeded/../output/" : "../unneeded/../output");
                 else
@@ -382,6 +390,10 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QVERIFY(seen);
         if (linked)
             QCOMPARE(refusedDestinations, 3);
+#ifdef Q_OS_WIN
+        if (relative)
+            QCOMPARE(refusedDestinations, 1);
+#endif
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         if (cancel || overwrite || missing) {
             QTRY_COMPARE(window.focusWidget(), sourceView);

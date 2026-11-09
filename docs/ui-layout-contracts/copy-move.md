@@ -423,7 +423,8 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   location disable acceptance with an inline explanation. Native operation checks
   remain authoritative. Cancel preserves the original value; accepted
   input preserves significant spaces and Unicode. Relative paths keep the caller's
-  existing base directory.
+  existing base directory. On Windows, relative navigation components such
+  as `..` resolve the same way in the dialog and in the file operation.
 - A link or a file/folder conflict at the final name keeps the filesystem
   transfer dialog open. For multiple items, the dialog checks on confirmation.
   After resolving a batch conflict, the user can confirm the same destination again.

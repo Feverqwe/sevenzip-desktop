@@ -37,6 +37,12 @@ bool SameExistingPath(const QFileInfo &first, const QFileInfo &second) {
     return !canonical.isEmpty() && canonical == second.canonicalFilePath();
 }
 
+bool IsValidWindowsPath(const QString &path, const QString &resolved) {
+    const UString native = ToUString(QDir::toNativeSeparators(path));
+    return FindInvalidWindowsPathCharacter(native) < 0 &&
+           !HasEmptyWindowsPathComponent(native, ToUString(QDir::toNativeSeparators(resolved)));
+}
+
 bool IsName(const QString &name, const QString &directory) {
     if (name.isEmpty() || name == "." || name == ".." || name.contains(QChar::Null) ||
         name.contains('/'))
@@ -45,8 +51,7 @@ bool IsName(const QString &name, const QString &directory) {
     if (name.contains('\\'))
         return false;
 #endif
-    return !HasEmptyWindowsPathComponent(ToUString(name),
-                                         ToUString(QDir::toNativeSeparators(directory)));
+    return IsValidWindowsPath(name, directory);
 }
 
 QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory) {
@@ -208,9 +213,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
     else if (path.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Choose a destination."));
     else if (path.contains(QChar::Null) ||
-             (filesystemDestination &&
-              HasEmptyWindowsPathComponent(ToUString(QDir::toNativeSeparators(path)),
-                                           ToUString(QDir::toNativeSeparators(preview)))))
+             (filesystemDestination && !IsValidWindowsPath(path, preview)))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (nameAvailable && !IsName(_name->text(), preview))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));

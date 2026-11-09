@@ -907,7 +907,7 @@ bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result
             } else
                 checkExist = false;
         }
-        if (!checkExist)
+        if (!checkExist && !cur.IsEqualTo(".") && !cur.IsEqualTo(".."))
             RemoveDotsAndSpaces(cur);
         result += cur;
         if (slashPos < 0)
