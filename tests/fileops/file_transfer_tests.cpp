@@ -18,6 +18,61 @@ class FileTransferTests : public QObject {
     Q_OBJECT
 
   private slots:
+    void directoryLinkCannotReplaceARealDirectory_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("move") << true;
+    }
+
+    void directoryLinkCannotReplaceARealDirectory() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString referent = fixture.filePath("original folder");
+        const QString source = fixture.filePath("linked folder");
+        const QString destination = fixture.filePath("destination");
+        const QString target = QDir(destination).filePath("linked folder");
+        const QString retry = fixture.filePath("retry");
+        QVERIFY(QDir().mkpath(referent));
+        QVERIFY(QDir().mkpath(target));
+        QVERIFY(QDir().mkpath(retry));
+        const QString marker = QDir(target).filePath("keep.txt");
+        QFile file(marker);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("keep"), 4);
+        file.close();
+        if (!CreateNativeSymbolicLink(source, referent))
+            QSKIP("Native symbolic links are unavailable");
+
+        FileTransferOperation operation({source}, destination, move);
+        QSignalSpy prompts(&operation, &FileTransferOperation::overwriteRequested);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
+            [&] { operation.submitOverwriteAnswer(NOverwriteAnswer::kYes); }, Qt::DirectConnection);
+        operation.start();
+        QVERIFY(operation.wait(30000));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("keep"));
+        file.close();
+        QVERIFY(!QFileInfo(target).isSymLink());
+        QVERIFY(QFileInfo(source).isSymLink());
+        QCOMPARE(prompts.size(), 0);
+        QCOMPARE(result.size(), 1);
+        QVERIFY(!result.first().first().toBool());
+        QVERIFY(result.first().at(1).toString().contains(target));
+        QVERIFY(FileTransferOperation::checkDirectoryPaths({source}, destination).contains(target));
+
+        FileTransferOperation retryOperation({source}, retry, move);
+        retryOperation.start();
+        QVERIFY(retryOperation.wait(30000));
+        const QFileInfo transferred(QDir(retry).filePath("linked folder"));
+        QVERIFY(transferred.isSymLink());
+        QCOMPARE(QFileInfo(transferred.symLinkTarget()).canonicalFilePath(),
+                 QFileInfo(referent).canonicalFilePath());
+        QCOMPARE(QFileInfo(source).isSymLink(), !move);
+    }
+
     void invalidBatchDoesNotAskToOverwrite_data() {
         QTest::addColumn<bool>("move");
         QTest::addColumn<bool>("duplicateName");

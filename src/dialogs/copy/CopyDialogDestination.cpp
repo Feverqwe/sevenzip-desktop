@@ -274,11 +274,8 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
                 error = QCoreApplication::translate("qtfiletransfertransaction",
                                                     "Destination is a symbolic link: %1")
                             .arg(target.filePath());
-            else if (target.exists() && target.isDir() != source.isDir())
-                error = QCoreApplication::translate(
-                            "qtfiletransfertransaction",
-                            "Cannot replace a file with a folder or a folder with a file: %1")
-                            .arg(target.filePath());
+            else
+                error = QtTransferTargetTypeError(source, target);
             if (!error.isEmpty()) {
                 batchConflict = _sources.size() > 1;
                 nameError = _useName;

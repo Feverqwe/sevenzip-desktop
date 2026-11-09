@@ -25,15 +25,6 @@
 namespace {
 using NWindows::NFile::NFind::CFileInfo;
 
-QString TargetTypeError(const QFileInfo &source, const QFileInfo &target) {
-    if (!target.exists() || target.isDir() == source.isDir())
-        return {};
-    return QCoreApplication::translate(
-               "qtfiletransfertransaction",
-               "Cannot replace a file with a folder or a folder with a file: %1")
-        .arg(target.filePath());
-}
-
 QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
                         const QSet<QString> &targets, const QString &canonicalDestination,
                         bool sourceLink) {
@@ -190,7 +181,8 @@ QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
                                                   canonicalDestination, QtIsFileSystemLink(path));
             !error.isEmpty())
             return error;
-        if (const QString error = TargetTypeError(source, QFileInfo(target)); !error.isEmpty())
+        if (const QString error = QtTransferTargetTypeError(source, QFileInfo(target));
+            !error.isEmpty())
             return error;
         targets.insert(QtTransferTargetKey(target));
     }
@@ -535,7 +527,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     };
     const bool merge = existingInfo.isDir() && sourceInfo.isDir() && !QtIsFileSystemLink(source);
     if (existingInfo.exists()) {
-        if (error = TargetTypeError(sourceInfo, existingInfo); !error.isEmpty())
+        if (error = QtTransferTargetTypeError(sourceInfo, existingInfo); !error.isEmpty())
             return false;
         if (merge) {
             mayReplace = true;
