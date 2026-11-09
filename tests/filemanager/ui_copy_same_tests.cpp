@@ -251,9 +251,16 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         QTRY_VERIFY(view->hasFocus());
         const QString corrected = fixture.filePath("corrected.txt");
         bool submitted = false;
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
-            QVERIFY(dialog);
+        QTimer driver;
+        dialogs_.connectResponder(driver, &window, [&] {
+            auto *active = dialogs_.activeDialog();
+            if (auto *warning = qobject_cast<QMessageBox *>(active)) {
+                warning->accept();
+                QFAIL("Unexpected warning during copy confirmation");
+            }
+            auto *dialog = qobject_cast<CopyDialog *>(active);
+            if (!dialog)
+                return;
             const auto close = qScopeGuard([&] {
                 if (dialog->isVisible())
                     dialog->reject();
@@ -270,12 +277,16 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
             auto *ok = buttons->button(QDialogButtonBox::Ok);
             QVERIFY(ok->isEnabled());
-            ok->click();
+            name->setFocus();
+            QTRY_COMPARE(QApplication::focusWidget(), name);
+            QTest::keyClick(QApplication::focusWidget(), Qt::Key_Return);
             submitted = dialog->result() == QDialog::Accepted;
         });
+        driver.start(5);
         QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(submitted);
         QTRY_VERIFY(QFileInfo::exists(corrected));
+        driver.stop();
         QFile result(corrected);
         QVERIFY(result.open(QIODevice::ReadOnly));
         QCOMPARE(result.readAll(), QByteArray("source bytes"));
