@@ -246,6 +246,7 @@ class ShellArchiveServicesTests final : public QObject {
             backend, nullptr, {.Error = [&](HRESULT result, const UString &) { error = result; }});
         bool applyAvailable = false;
         int prompts = 0;
+        bool retry = false;
         QTimer answer;
         connect(&answer, &QTimer::timeout, this, [&] {
             for (auto *widget : QApplication::topLevelWidgets())
@@ -256,7 +257,9 @@ class ShellArchiveServicesTests final : public QObject {
                     applyAvailable = apply && apply->isVisible() && apply->isEnabled();
                     if (applyAvailable)
                         apply->setChecked(true);
-                    if (keep && prompts == 1)
+                    if (retry && prompts == 1)
+                        dialog->findChild<QPushButton *>("overwriteYes")->click();
+                    else if (keep && prompts == 1)
                         dialog->findChild<QPushButton *>("overwriteRename")->click();
                     else if (decision == "escape")
                         QTest::keyClick(dialog, Qt::Key_Escape);
@@ -286,6 +289,20 @@ class ShellArchiveServicesTests final : public QObject {
         QCOMPARE(contents, keep ? (QList<QByteArray>{"archive bytes", "second archive bytes"})
                                 : QList<QByteArray>());
         QVERIFY(!backend.busy());
+        if (!keep) {
+            retry = true;
+            prompts = 0;
+            applyAvailable = false;
+            QCOMPARE(::ExtractArchives(paths, us(output.path()), false, false, UInt32(-1), service),
+                     S_OK);
+            QCOMPARE(prompts, 1);
+            QVERIFY(applyAvailable);
+            QCOMPARE(error, S_OK);
+            QCOMPARE(readFile(output.filePath(name)), QByteArray("archive bytes"));
+            QCOMPARE(readFile(output.filePath(other)), QByteArray("second archive bytes"));
+            QCOMPARE(readFile(archive), original);
+            QVERIFY(!backend.busy());
+        }
     }
 };
 QTEST_MAIN(ShellArchiveServicesTests)
