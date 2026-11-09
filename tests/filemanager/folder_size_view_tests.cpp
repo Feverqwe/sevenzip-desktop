@@ -226,6 +226,13 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
                                           QString("folder-size-%1").arg(QTest::currentDataTag())));
 #ifndef Q_OS_WIN
         if (useMenu) {
+            action(window, "selectedPropertiesAction")->trigger();
+            QPointer<QtPropertiesWindow> selection = window.findChild<QtPropertiesWindow *>();
+            QVERIFY(selection);
+            QCOMPARE(selection->findChild<QLabel *>("propertiesSize")->text(),
+                     QtRegionalFormat::bytes(9));
+            selection->close();
+            QTRY_VERIFY(!selection);
             for (const auto &[name, bytes] :
                  {std::pair{folder, quint64(8)}, std::pair{QString("empty"), quint64(0)}}) {
                 view->setCurrentCell(filesystemRow(window, name), 0);

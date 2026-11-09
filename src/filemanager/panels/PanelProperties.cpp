@@ -214,7 +214,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         UInt64 unpackSize = 0;
         UInt64 numFiles = 0;
         UInt64 numDirs = 0;
-        bool completeFileSize = true;
+        bool completeSize = true;
         bool hasReportedSize = false;
         bool hasPackedSize = false;
         FOR_VECTOR(i, operatedIndices) {
@@ -226,7 +226,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                 hasReportedSize = true;
                 AddReportedTotal(unpackSize, bytes, kpidSize, message);
             } else {
-                completeFileSize = false;
+                completeSize = false;
                 const UInt64 fallback = GetItemSize(index);
                 hasReportedSize |= fallback != 0;
                 AddReportedTotal(unpackSize, fallback, kpidSize, message);
@@ -238,7 +238,8 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                 AddReportedTotal(packSize, bytes, kpidPackSize, message);
             }
             if (IsItem_Folder(index)) {
-                completeFileSize = false;
+                if (!IsFSFolder())
+                    completeSize = false;
                 AddReportedTotal(numDirs, 1, kpidNumSubDirs, message);
                 AddReportedTotal(numDirs, GetItem_UInt64Prop(index, kpidNumSubDirs), kpidNumSubDirs,
                                  message);
@@ -262,7 +263,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         if (size != message.nativeValues.end() && size->id == kpidSize) {
             if (!hasReportedSize)
                 size->availability = QtPropertyReport::Availability::Unknown;
-            else if (completeFileSize && !message.overflowedTotals.contains(kpidSize))
+            else if (completeSize && !message.overflowedTotals.contains(kpidSize))
                 size->availability = QtPropertyReport::Availability::Known;
         }
         AddPropertyString(kpidPackSize, packSize, message);
