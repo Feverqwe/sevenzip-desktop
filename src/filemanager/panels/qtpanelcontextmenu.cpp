@@ -93,7 +93,7 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
     menu.exec(QPoint(x, y));
 }
 bool QtPanelContextMenu::GetItemRect(int index, QRect &rect) const {
-    const QModelIndex item = impl_->view.model()->index(index, 0);
+    const QModelIndex item = impl_->view.currentIndex().siblingAtRow(index);
     if (!item.isValid())
         return false;
     rect = impl_->view.visualRect(item);

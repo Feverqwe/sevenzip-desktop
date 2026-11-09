@@ -80,10 +80,14 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         auto *stack = window.findChild<QStackedWidget *>("fileViewStack");
         auto *view = qobject_cast<QAbstractItemView *>(stack->currentWidget());
         QVERIFY(view);
+        const int column = icons && keyboard ? files->columnForProperty(kpidSize) : 0;
+        QVERIFY(column >= 0);
+        if (icons && keyboard)
+            qobject_cast<QListView *>(view)->setModelColumn(column);
         view->setFocus();
         auto *selection = view->selectionModel();
         const auto index = [&](const char *name) {
-            return view->model()->index(row(*files, name), 0);
+            return view->model()->index(row(*files, name), column);
         };
         const QModelIndex focused = index("a.txt");
         selection->setCurrentIndex(focused,
