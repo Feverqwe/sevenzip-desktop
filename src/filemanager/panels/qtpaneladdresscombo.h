@@ -54,6 +54,7 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
                         QWidget *parent, std::function<void()> focusList = {});
     ~QtPanelAddressCombo() override;
     void showPopup() override;
+    void hidePopup() override;
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
     void ResetContent() override;
@@ -88,6 +89,7 @@ class QtPanelAddressCombo final : public QComboBox, public IQtPanelAddressCombo 
     bool listFocusPending_ = false;
     quint64 userEditRevision_ = 0;
     std::optional<QtAddressDraft> lastUserDraft_;
+    std::optional<QtAddressDraft> popupDraft_;
     UString segmentsPath_;
     UInt64 segmentsRevision_ = UInt64(-1);
     std::vector<QtAddressSegment> segments_;

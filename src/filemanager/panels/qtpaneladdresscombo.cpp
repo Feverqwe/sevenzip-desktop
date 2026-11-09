@@ -15,6 +15,7 @@
 #include <QStyle>
 #include <QStyledItemDelegate>
 #include <QTimer>
+#include <utility>
 
 namespace {
 constexpr int kIndentRole = Qt::UserRole + 12;
@@ -83,15 +84,23 @@ void QtPanelAddressCombo::showPopup() {
     if (!panel_)
         return;
     CancelPendingListFocus();
-    const QString text = currentText();
+    const QtAddressDraft draft(*lineEdit());
     {
         const QSignalBlocker blocker(this);
         panel_->LoadFullPath();
         panel_->OnComboBoxCommand(QtAddressCommand::DropDown, *this);
         setCurrentIndex(-1);
-        lineEdit()->setText(text);
+        draft.Restore(*lineEdit());
     }
+    popupDraft_ = draft;
     QComboBox::showPopup();
+}
+
+void QtPanelAddressCombo::hidePopup() {
+    const auto draft = std::exchange(popupDraft_, std::nullopt);
+    QComboBox::hidePopup();
+    if (draft && draft->text == lineEdit()->text())
+        draft->Restore(*lineEdit());
 }
 
 QSize QtPanelAddressCombo::sizeHint() const {

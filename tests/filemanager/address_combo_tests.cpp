@@ -490,7 +490,9 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
             auto *address = panels[i]->findChild<QLineEdit *>("archivePath");
             PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
-            PanelKeys::focusAddress(address);
+            address->selectAll();
+            QTest::keyClicks(address, "uncommitted address");
+            address->setSelection(11, -4);
             AddressPopupSupport::show(*combo);
             QApplication::processEvents();
             QStringList rows;
@@ -503,9 +505,12 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(combo->findText(i == 0 ? QStringLiteral("右") : QStringLiteral("левый")) < 0);
             combo->hidePopup();
             QVERIFY(WindowActivation::waitForActive(window));
+            QCOMPARE(address->text(), QStringLiteral("uncommitted address"));
+            QCOMPARE(address->selectedText(), QStringLiteral("tted"));
+            QCOMPARE(address->cursorPosition(), 7);
+            QVERIFY(address->isModified());
             PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
-            address->setText(QStringLiteral("uncommitted address"));
             QTest::keyClick(address, Qt::Key_Escape);
             QCOMPARE(QDir::cleanPath(address->text()), QFileInfo(paths[i]).canonicalFilePath());
             QTRY_VERIFY(panels[i]->findChild<FileTable *>("archiveTable")->hasFocus());
