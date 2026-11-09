@@ -275,6 +275,12 @@ void CPanel::OnDrag(bool isRightButton) {
                 QtArchiveExtractReport report;
                 res = CopyTo(options, indices, &dataObjectSpec->Messages, &report);
                 dataObjectSpec->CopyResultPresented = report.ResultPresented;
+                if (_filesystemPublication) {
+                    QStringList changed{ToQString(options.folder)};
+                    if (options.moveMode)
+                        changed.append(ToQString(GetFsPath()));
+                    _filesystemPublication(changed);
+                }
             }
     } else {
         if (res != DRAGDROP_S_CANCEL && res != S_OK && res != HRESULT(0x8000FFFFL))

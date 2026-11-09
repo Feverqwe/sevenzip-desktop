@@ -309,6 +309,9 @@ class CPanel : public QObject {
     void AttachArchivePublication(std::function<void(const QString &, const CPanel *)> publish) {
         _archivePublication = std::move(publish);
     }
+    void AttachFilesystemPublication(std::function<void(const QStringList &)> publish) {
+        _filesystemPublication = std::move(publish);
+    }
     void AttachInvalidationPresentation(std::function<void()> invalidate) {
         _invalidatePresentation = std::move(invalidate);
     }
@@ -711,6 +714,7 @@ class CPanel : public QObject {
     std::function<bool(CPanel &)> _createPresentation;
     std::function<HRESULT(const CSelectedState &)> _reloadPresentation;
     std::function<void(const QString &, const CPanel *)> _archivePublication;
+    std::function<void(const QStringList &)> _filesystemPublication;
     std::function<void(HRESULT)> _reloadCompletion;
     std::function<void()> _invalidatePresentation;
     std::function<void(const CPanelStatus &)> _statusPresentation;

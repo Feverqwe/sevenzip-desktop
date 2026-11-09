@@ -13,6 +13,7 @@
 #include "support/scoped_environment.h"
 #include "support/window_activation.h"
 #include "support/panel_keys.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include <QMessageBox>
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
@@ -593,6 +594,15 @@ class DragDropUiTests final : public QObject {
         QVERIFY(QDir().mkpath(fixture.filePath(folder)));
         QVERIFY(NativeArchiveFixture::Write(archive, {{name, "archive drag bytes"}}, "zip"));
         const QByteArray original = SourceExtractFixture::readFile(archive);
+        QVERIFY(SourceExtractFixture::writeFile(fixture.filePath(folder + "/seed.txt"), "seed"));
+        QtWorkspaceApplication application(*qApp);
+        MainWindow observer;
+        observer.show();
+        observer.openPath(fixture.filePath(folder));
+        auto *observed = observer.findChild<FileTable *>("archiveTable");
+        QVERIFY(observed);
+        QTRY_VERIFY(observed->isEnabled() && Row(*observed, "seed.txt") >= 0);
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
         ArchiveBackend backend;
         MainWindow window(&backend);
         QStringList errors;
@@ -650,11 +660,13 @@ class DragDropUiTests final : public QObject {
         const auto detach = qScopeGuard([&] { source->sourcePanel->AttachDragServices(nullptr); });
         source->dragStarter();
         QVERIFY(!QFileInfo::exists(destination));
+        QCOMPARE(Row(*observed, name), -1);
         cancel = false;
         source->dragStarter();
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join(u'\n')));
         QVERIFY(accepted);
         QCOMPARE(SourceExtractFixture::readFile(destination), QByteArray("archive drag bytes"));
+        QTRY_VERIFY(Row(*observed, name) >= 0);
         QVERIFY(!QFileInfo::exists(fixture.filePath(name)));
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }

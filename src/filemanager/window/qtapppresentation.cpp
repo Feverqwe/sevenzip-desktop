@@ -86,6 +86,13 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
             else if (window)
                 window->ArchivePublished(archive, updated);
         });
+    panel.AttachFilesystemPublication(
+        [window = QPointer<MainWindow>(&window_)](const QStringList &directories) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->FilesystemPublished(directories);
+            else if (window && window->guiOutputRefresh_)
+                window->guiOutputRefresh_->Enqueue(directories, {});
+        });
     if (window_.drag_)
         window_.drag_->AttachPanel(index);
     if (hadPrevious && index != previous) {
