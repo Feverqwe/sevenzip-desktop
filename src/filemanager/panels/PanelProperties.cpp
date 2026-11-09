@@ -8,6 +8,7 @@
 #include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/agent/Agent.h"
 #include "archive/diagnostics/archiveerrormessages.h"
 #include "archive/opening/OpenArchive.h"
 #include "filemanager/FormatUtils.h"
@@ -217,6 +218,8 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         bool completeSize = true;
         bool hasReportedSize = false;
         bool hasPackedSize = false;
+        const bool exactFolderSizes =
+            IsFSFolder() || (!GetFlatMode() && dynamic_cast<CAgentFolder *>(_folder.Interface()));
         FOR_VECTOR(i, operatedIndices) {
             const UInt32 index = operatedIndices[i];
             NWindows::NCOM::CPropVariant size;
@@ -238,7 +241,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                 AddReportedTotal(packSize, bytes, kpidPackSize, message);
             }
             if (IsItem_Folder(index)) {
-                if (!IsFSFolder())
+                if (!exactFolderSizes)
                     completeSize = false;
                 AddReportedTotal(numDirs, 1, kpidNumSubDirs, message);
                 AddReportedTotal(numDirs, GetItem_UInt64Prop(index, kpidNumSubDirs), kpidNumSubDirs,

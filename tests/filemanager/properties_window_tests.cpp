@@ -152,6 +152,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QtPropertiesWindow contents(collect(folder, {*directory}));
         QtPropertiesWindow multiple(collect(folder, {*unknown, *zero, *directory}));
         QtPropertiesWindow knownFiles(collect(folder, {*zero, *known}));
+        QtPropertiesWindow knownFolderAndFile(collect(folder, {*directory, *known}));
         QCOMPARE(shownSize(missing), QString::fromUtf8("—"));
         QVERIFY(missing.findChild<QWidget *>("propertiesIdentity")->toolTip().isEmpty());
         QCOMPARE(shownSize(empty), QtRegionalFormat::bytes(0));
@@ -159,6 +160,9 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(contents.Information().contains("Size: " + QtRegionalFormat::bytes(13)));
         QCOMPARE(shownSize(multiple), QString("Not calculated"));
         QCOMPARE(shownSize(knownFiles), QtRegionalFormat::bytes(11));
+        QCOMPARE(shownSize(knownFolderAndFile), QtRegionalFormat::bytes(24));
+        copy(knownFolderAndFile);
+        QVERIFY(QApplication::clipboard()->text().contains("Size: " + QtRegionalFormat::bytes(24)));
         copy(knownFiles);
         QVERIFY(QApplication::clipboard()->text().contains("Size: " + QtRegionalFormat::bytes(11)));
         QVERIFY(multiple.Information().contains("Files: 2 · Folders: 1"));
