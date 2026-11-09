@@ -127,15 +127,18 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
 
     void unavailablePeerIsNotProposed_data() {
         QTest::addColumn<QString>("state");
-        QTest::newRow("read-only") << QString("read-only");
-        QTest::newRow("replaced-by-file") << QString("file");
-        QTest::newRow("unavailable-favorite") << QString("favorite");
+        QTest::addColumn<bool>("move");
+        QTest::newRow("read-only") << QString("read-only") << false;
+        QTest::newRow("replaced-by-file") << QString("file") << false;
+        QTest::newRow("unavailable-favorite-copy") << QString("favorite") << false;
+        QTest::newRow("unavailable-favorite-move") << QString("favorite") << true;
 #ifdef Q_OS_UNIX
-        QTest::newRow("replaced-by-link") << QString("link");
+        QTest::newRow("replaced-by-link") << QString("link") << false;
 #endif
     }
     void unavailablePeerIsNotProposed() {
         QFETCH(QString, state);
+        QFETCH(bool, move);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source");
@@ -196,7 +199,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         files->setCurrentCell(row(*files, "file.txt"), 0);
         files->selectRow(row(*files, "file.txt"));
         files->setFocus();
-        QVERIFY(action(window, "copyAction")->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), files);
+        QVERIFY(action(window, move ? "moveAction" : "copyAction")->isEnabled());
 
         const QString output = fixture.filePath("manual output");
         QVERIFY(QDir().mkpath(output));
@@ -235,14 +239,23 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             QVERIFY(ok->isEnabled());
             dialog->accept();
         });
-        action(window, "copyAction")->trigger();
+        QTest::keyClick(window.focusWidget(), move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(shown);
         QTRY_COMPARE(read(state == "file" ? peer : destination + "file.txt"),
                      QByteArray("source bytes"));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QCOMPARE(overwritePrompts, state == "file" ? 1 : 0);
-        QCOMPARE(read(source + "/file.txt"), QByteArray("source bytes"));
+        if (move) {
+            QVERIFY(!QFileInfo::exists(source + "/file.txt"));
+            QCOMPARE(row(*files, "file.txt"), -1);
+        } else {
+            QCOMPARE(read(source + "/file.txt"), QByteArray("source bytes"));
+        }
         QCOMPARE(QFileInfo::exists(peer + "/file.txt"), state == "favorite");
+        if (state == "favorite") {
+            QCOMPARE(read(peer + "/peer.txt"), QByteArray("peer bytes"));
+            QVERIFY(!target->isEnabled());
+        }
     }
     void sourceReloadPublishesNamespace() {
         ArchiveBackend backend;
