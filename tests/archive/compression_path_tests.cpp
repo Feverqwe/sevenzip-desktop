@@ -523,6 +523,12 @@ class CompressionPathTests final : public QObject {
             QVERIFY(diagnostic.contains(QDir::toNativeSeparators(blocker)));
         if (wildcard)
             QCOMPARE(archiveName->selectedText(), QString("?"));
+        else if (obstruction != "empty-component") {
+            auto *pathControl = dialog.findChild<QComboBox *>("archivePath");
+            QVERIFY(pathControl);
+            QVERIFY(dialog.focusWidget() == pathControl || dialog.focusWidget() == archiveName);
+            QCOMPARE(archiveName->selectedText(), blocked + QDir::separator());
+        }
         QWidget *nameEditor = dialog.focusWidget();
         QVERIFY(nameEditor);
         if (!wildcard)

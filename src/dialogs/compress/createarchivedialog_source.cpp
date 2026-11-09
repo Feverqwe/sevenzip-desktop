@@ -155,6 +155,8 @@ void CreateArchiveDialog::validateAndAccept() {
         !hasFileName || invalidName || invalidFolder || resolved.isEmpty() || danglingTarget
             ? InvalidArchivePath()
             : ArchiveDirectoryError(target.absolutePath());
+    const bool blockedDirectory = !pathError.isEmpty() && hasFileName && !invalidName &&
+                                  !invalidFolder && !resolved.isEmpty() && !danglingTarget;
     if (pathError.isEmpty() && target.isDir()) {
         occupiedName = true;
         pathError =
@@ -218,10 +220,12 @@ void CreateArchiveDialog::validateAndAccept() {
             archiveFolder_->selectAll();
         else if (invalidNameCharacter >= 0)
             name_->setSelection(invalidNameCharacter, 1);
-        else if (occupiedName || !hasFileName) {
+        else if (occupiedName || !hasFileName || blockedDirectory) {
             const auto text = QDir::fromNativeSeparators(name_->text());
             const int leafStart = int(text.lastIndexOf(u'/') + 1);
-            if (leafStart == text.size())
+            if (blockedDirectory && leafStart > 0)
+                name_->setSelection(0, leafStart);
+            else if (leafStart == text.size())
                 name_->setCursorPosition(leafStart);
             else
                 name_->setSelection(leafStart, int(text.size()) - leafStart);
