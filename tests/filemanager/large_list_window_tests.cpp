@@ -263,7 +263,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         bool switched = false;
         QTimer timer;
         connect(&timer, &QTimer::timeout, &window, [&] {
-            if (list->isEnabled() || list->rowCount() < 2)
+            if (list->rowCount() < 2 || list->rowCount() >= 512)
                 return;
             timer.stop();
             switched = true;
@@ -301,9 +301,12 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         QList<ArchiveEntry> entries;
         for (int i = 0; i < 512; ++i) {
             const QString name = QString("old-%1.txt").arg(i);
-            if (archive)
-                entries.append(ArchiveEntry{name, 1, 1});
-            else {
+            if (archive) {
+                ArchiveEntry entry;
+                entry.path = QStringLiteral("inside/") + name;
+                entry.size = entry.packedSize = 1;
+                entries.append(std::move(entry));
+            } else {
                 QFile file(fixture.filePath(name));
                 QVERIFY(file.open(QIODevice::WriteOnly));
                 file.close();
@@ -318,6 +321,15 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         action(window, "viewMode3Action")->trigger();
 
         auto *list = table(window);
+        int archiveFolderRow = -1;
+        if (archive) {
+            openListedArchive(window, backend, fixture.filePath("fixture.zip"), entries);
+            QTRY_VERIFY(list->isEnabled());
+            const auto matches = list->model()->match(list->model()->index(0, 0), Qt::DisplayRole,
+                                                      "inside", 1, Qt::MatchExactly);
+            QCOMPARE(matches.size(), 1);
+            archiveFolderRow = matches.front().row();
+        }
         bool handled = false;
         QTimer timer;
         connect(&timer, &QTimer::timeout, &window, [&] {
@@ -339,7 +351,7 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
         });
         timer.start(0);
         if (archive)
-            openListedArchive(window, backend, fixture.filePath("fixture.zip"), entries);
+            openRow(window, archiveFolderRow);
         else {
             auto *address = window.findChild<QLineEdit *>("archivePath");
             address->setText(fixture.path());
