@@ -10,6 +10,7 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/native/correctfspath.h"
+#include "fileops/transfer/qttransfertargetname.h"
 #include "settings/ViewSettings.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -247,11 +248,16 @@ void CreateArchiveDialog::validateAndAccept() {
     }
     const auto sourcesAvailable = [&] {
         for (const auto &source : requiredSources_) {
-            if (QFileInfo::exists(source) || QtIsFileSystemLink(source))
+            const QFileInfo entry(source);
+            if (QtIsFileSystemLink(source))
                 continue;
-            const auto message =
-                QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
-                QDir::toNativeSeparators(source);
+            const QString message =
+                entry.exists()
+                    ? QtTransferSourceError(entry, false)
+                    : QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                          QDir::toNativeSeparators(source);
+            if (message.isEmpty())
+                continue;
             ShowErrorMessageQt(this, message.toStdWString().c_str());
             return false;
         }

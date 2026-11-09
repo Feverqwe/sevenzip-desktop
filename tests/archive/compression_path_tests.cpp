@@ -239,7 +239,15 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(archive.readAll(), QByteArray("untouched existing bytes"));
 #endif
     }
+    void sourceCanReturnBeforeRetryingTheDialog_data() {
+        QTest::addColumn<bool>("unreadable");
+        QTest::newRow("missing") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("unreadable") << true;
+#endif
+    }
     void sourceCanReturnBeforeRetryingTheDialog() {
+        QFETCH(bool, unreadable);
 #ifndef SEVENZIP_CODEC_MODULE
         QSKIP("Official codec module unavailable");
 #else
@@ -251,6 +259,16 @@ class CompressionPathTests final : public QObject {
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("payload"), 7);
         file.close();
+        const auto permissions = QFile::permissions(input);
+        const auto restore = qScopeGuard([&] {
+            if (unreadable)
+                QFile::setPermissions(input, permissions);
+        });
+        if (unreadable) {
+            QVERIFY(QFile::setPermissions(input, QFile::WriteOwner));
+            if (QFileInfo(input).isReadable())
+                QSKIP("The current user can still read the input");
+        }
         const auto catalog =
             std::make_shared<ArchiveCodecCatalog>(QString::fromUtf8(SEVENZIP_CODEC_MODULE), 0);
         QCOMPARE(catalog->result(), S_OK);
@@ -280,7 +298,8 @@ class CompressionPathTests final : public QObject {
             auto *volume = dialog->findChild<QComboBox *>("archiveVolumeSize");
             QVERIFY(volume);
             volume->setEditText("64K");
-            QVERIFY(QFile::rename(input, parked));
+            if (!unreadable)
+                QVERIFY(QFile::rename(input, parked));
             QStringList errors;
             int confirmations = 0;
             QTimer dismiss;
@@ -304,7 +323,10 @@ class CompressionPathTests final : public QObject {
             QVERIFY(errors.first().contains("selected file.txt"));
             QCOMPARE(name->text(), target);
             QCOMPARE(volume->currentText(), QString("64K"));
-            QVERIFY(QFile::rename(parked, input));
+            if (unreadable)
+                QVERIFY(QFile::setPermissions(input, permissions));
+            else
+                QVERIFY(QFile::rename(parked, input));
             submit(*dialog);
             QCOMPARE(dialog->result(), int(QDialog::Accepted));
             QCOMPARE(confirmations, 1);
