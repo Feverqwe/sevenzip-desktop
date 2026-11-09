@@ -578,9 +578,9 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     const auto mergeSnapshot = merge ? captureMergeTree(target, worker_.canceled_) : std::nullopt;
     if (merge && !mergeSnapshot)
         return destinationChanged();
-    const QString suffix =
-        QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
-    const QString stage = target + suffix;
+    const QString stage = QDir(destinationDirectory_)
+                              .filePath(QStringLiteral("transfer.sevenzip-%1")
+                                            .arg(QUuid::createUuid().toString(QUuid::Id128)));
     TransferEntry entry{source, target, {}, SourceState::Intact, merge, {}};
     auto rollbackItem = qScopeGuard([&] {
         rememberFailure(error);
@@ -649,7 +649,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
         if (!matchesExisting(target))
             return destinationChanged();
         // Keep the old entry until every source has published successfully.
-        const QString backupPath = target + suffix + QStringLiteral("-backup");
+        const QString backupPath = stage + QStringLiteral("-backup");
         if (!QtRenameFileSystemEntryWithoutReplacing(target, backupPath)) {
             error = QCoreApplication::translate("qtfiletransfertransaction",
                                                 "Could not preserve the previous item: %1")
