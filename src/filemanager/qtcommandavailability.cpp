@@ -61,6 +61,7 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     c.focused = focus.Present;
     c.focusedNonParent = focus.Present && !focus.Parent;
     c.selectedParent = focus.Present && focus.Parent && focus.Selected;
+    c.openOutside = (c.operated || c.selectedParent) && panel.CanOpenItemsOutside(operated);
     c.focusedFile = panel.IsFocusedFile();
     CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;
     if (panel.GetFolder())
@@ -192,7 +193,7 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_OPEN:
         return c.operated || c.selectedParent;
     case IDM_OPEN_OUTSIDE:
-        return (c.operated || c.selectedParent) && !c.root;
+        return c.openOutside && !c.root;
     case IDM_OPEN_INSIDE:
     case IDM_OPEN_INSIDE_ONE:
     case IDM_OPEN_INSIDE_PARSER:

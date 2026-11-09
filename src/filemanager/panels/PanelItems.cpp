@@ -167,9 +167,22 @@ void CPanel::OpenFocusedItemAsInternal(const wchar_t *type) {
         OpenItem(realIndex, true, false, type);
 }
 
+bool CPanel::CanOpenItemsOutside(const CRecordVector<UInt32> &indices) const {
+    if (!IsArcFolder())
+        return true;
+    if (indices.IsEmpty())
+        return false;
+    FOR_VECTOR(i, indices)
+    if (IsItem_Folder(indices[i]))
+        return false;
+    return true;
+}
+
 void CPanel::OpenSelectedItems(bool tryInternal) {
     CRecordVector<UInt32> indices;
     Get_ItemIndices_Operated(indices);
+    if (!tryInternal && !CanOpenItemsOutside(indices))
+        return;
     if (indices.Size() > 20) {
         MessageBox_Error_LangID(IDS_TOO_MANY_ITEMS);
         return;

@@ -497,6 +497,7 @@ class CPanel : public QObject {
     void OpenItem(unsigned index, bool tryInternal, bool tryExternal, const wchar_t *type = NULL);
     void OpenFocusedItemAsInternal(const wchar_t *type);
     void OpenSelectedItems(bool tryInternal);
+    bool CanOpenItemsOutside(const CRecordVector<UInt32> &indices) const;
     void EditItem(unsigned index, bool useEditor);
     void EditItem(bool useEditor);
     bool IsFocusedFile() const { return GetFocusedFileIndex() != (UInt32)-1; }
