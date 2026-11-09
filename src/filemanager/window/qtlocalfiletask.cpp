@@ -71,7 +71,10 @@ QtLocalFileTask::QtLocalFileTask(QThread &worker, const QString &title, const QS
     progress_->ShowCompressionInfo = false;
     transport_ = std::make_unique<QtCallbackProgressTransport>(cancel_);
     progress_->AttachTransport(transport_.get());
-    connect(progress_, &QDialog::finished, this, &QObject::deleteLater);
+    connect(progress_, &QDialog::finished, this, [this] {
+        progressClosed_ = true;
+        deleteLater();
+    });
     connect(qApp, &QApplication::focusChanged, this, [this] {
         if (pending_)
             QTimer::singleShot(0, this, &QtLocalFileTask::TryPresent);
@@ -277,7 +280,7 @@ QList<QtLocalFileTask *> QtLocalFileTask::Active() {
 }
 
 void QtLocalFileTask::Show() {
-    if (stopped_)
+    if (stopped_ || progressClosed_)
         return;
     if (progress_ && progress_->isMinimized())
         progress_->showNormal();

@@ -53,5 +53,6 @@ class QtLocalFileTask final : public QObject {
     QPointer<QWidget> blockedModal_;
     QPointer<CPanel> source_;
     bool stopped_ = false;
+    bool progressClosed_ = false;
     unsigned presentationDepth_ = 0;
 };

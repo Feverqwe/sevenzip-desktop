@@ -1125,7 +1125,11 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             QCOMPARE(commits, 0);
         }
         QTimer answer;
-        bool reviewed = false, restored = false, askedToCancel = false;
+        bool reviewed = false, restored = false, askedToCancel = false, reopened = false;
+        connect(task, &QtLocalFileTask::finished, &peer, [&] {
+            task->Show();
+            reopened = progress && progress->isVisible();
+        });
         connect(&answer, &QTimer::timeout, &peer, [&] {
             if (auto *report = TestProgressDialog::ResultWindow(progress)) {
                 reviewed = true;
@@ -1146,6 +1150,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(reviewed);
         QVERIFY(restored);
         QVERIFY(!askedToCancel);
+        QVERIFY(!reopened);
         QVERIFY(!finished[0][0].toBool());
         QCOMPARE(read(source), QByteArray("unchanged bytes"));
     }
