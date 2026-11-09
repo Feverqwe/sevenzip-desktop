@@ -82,7 +82,7 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
         }
         const QString parent = directory.absolutePath();
         if (parent == path)
-            return {};
+            return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Cannot access folder: %1")).arg(path);
         path = parent;
     }
 }

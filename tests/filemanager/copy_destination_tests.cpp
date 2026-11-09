@@ -206,6 +206,48 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), QString("/destination/"));
     }
 
+#ifdef Q_OS_WIN
+    void unavailableDestinationDriveCanBeCorrected() {
+        QString root;
+        for (char16_t letter = u'Z'; letter >= u'D'; --letter) {
+            const QString candidate = QString(QChar(letter)) + ":/";
+            if (!QDir(candidate).exists()) {
+                root = candidate;
+                break;
+            }
+        }
+        if (root.isEmpty())
+            QSKIP("No unavailable drive letter");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        for (bool move : {false, true}) {
+            const QString suffix = move ? "new folder/" : "new folder/target.txt";
+            const QString blocked = root + suffix;
+            CCopyDialog dialog(move, blocked, {source});
+            configure(dialog, source);
+            dialog.show();
+            auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+            auto *ok =
+                dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+            QVERIFY(!ok->isEnabled());
+            dialog.accept();
+            QVERIFY(dialog.isVisible());
+            QCOMPARE(path->text(), blocked);
+            QVERIFY(dialog.findChild<QLabel *>("copyDestinationMessage")->text().contains(root));
+            const QString corrected = fixture.filePath(suffix);
+            path->setText(corrected);
+            QVERIFY(ok->isEnabled());
+            dialog.accept();
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            QCOMPARE(ToQString(dialog.Value), corrected);
+        }
+    }
+#endif
+
     void destinationBelowAFileCanBeCorrected() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
