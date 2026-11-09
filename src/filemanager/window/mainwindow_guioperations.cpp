@@ -181,8 +181,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
         const auto &parents = panel.GetParentFolders();
         if (!parents.IsEmpty() && !output.directories.isEmpty()) {
             const QString outer = ToQString(parents.Front().VirtualPath);
-            if (!QFileInfo::exists(outer) &&
-                std::any_of(output.directories.cbegin(), output.directories.cend(),
+            if (std::any_of(output.directories.cbegin(), output.directories.cend(),
                             [&](const QString &directory) {
                                 return ContainsDirectory(NormalPath(directory), NormalPath(outer));
                             }) &&

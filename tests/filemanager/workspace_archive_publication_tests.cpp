@@ -192,14 +192,17 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
     void manualRefreshDetectsExternalArchiveReplacement_data() {
         QTest::addColumn<QString>("encryptedLayer");
         QTest::addColumn<bool>("deferRefresh");
-        QTest::newRow("plain") << QString() << false;
-        QTest::newRow("outer-password-changed") << QStringLiteral("outer") << false;
-        QTest::newRow("nested-password-changed") << QStringLiteral("inner") << false;
-        QTest::newRow("deferred-password-change") << QStringLiteral("outer") << true;
+        QTest::addColumn<bool>("directoryNotification");
+        QTest::newRow("plain") << QString() << false << false;
+        QTest::newRow("directory-notification") << QString() << false << true;
+        QTest::newRow("outer-password-changed") << QStringLiteral("outer") << false << false;
+        QTest::newRow("nested-password-changed") << QStringLiteral("inner") << false << false;
+        QTest::newRow("deferred-password-change") << QStringLiteral("outer") << true << false;
     }
     void manualRefreshDetectsExternalArchiveReplacement() {
         QFETCH(QString, encryptedLayer);
         QFETCH(bool, deferRefresh);
+        QFETCH(bool, directoryNotification);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("shared.7z");
@@ -222,6 +225,7 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             bool paused = false;
             bool busy() const override { return paused || ArchiveBackend::busy(); }
         } backend;
+        QtWorkspaceApplication application(*qApp);
         MainWindow window(&backend);
         bool cancelPassword = false;
         int prompts = 0;
@@ -256,7 +260,10 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         prompts = 0;
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         backend.paused = deferRefresh;
-        action(window, "refreshAction")->trigger();
+        if (directoryNotification)
+            application.FilesystemPublished({fixture.path()});
+        else
+            action(window, "refreshAction")->trigger();
         if (deferRefresh) {
             QCOMPARE(prompts, 0);
             backend.paused = false;

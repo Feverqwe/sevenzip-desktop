@@ -59,9 +59,8 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                 else if (!refreshesLocally)
                     guiOutputRefresh_->Enqueue(changed, {});
                 // The copy continuation reloads the peer's current provider.
-                // An archive provider also needs to check whether its file moved.
-                if (refreshesLocally && move && app_.NumPanels == 2 &&
-                    app_.Panels[1 - owner].IsArcFolder())
+                // An archive provider also needs to check whether its file changed.
+                if (refreshesLocally && app_.NumPanels == 2 && app_.Panels[1 - owner].IsArcFolder())
                     guiOutputRefresh_->Enqueue(changed, {}, int(owner));
             });
     if (transferOutput)
