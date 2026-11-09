@@ -144,9 +144,16 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                                  path == ToQString(panel.GetCurrentFolderPrefix());
             const auto &ui = projectedUi();
             const QString target = QDir::cleanPath(path);
-            const bool immediateParent = !ui.locationUnavailable && ui.state == State::Filesystem &&
-                                         target != ui.directory &&
-                                         target == QFileInfo(ui.directory).absolutePath();
+            bool immediateParent = !ui.locationUnavailable && ui.state == State::Filesystem &&
+                                   target != ui.directory &&
+                                   target == QFileInfo(ui.directory).absolutePath();
+            if (!ui.locationUnavailable && ui.state == State::Viewing &&
+                !ui.archiveFolder.isEmpty()) {
+                const auto &segments =
+                    static_cast<QtPanelAddressCombo *>(ui.pathCombo)->LocationSegments();
+                immediateParent =
+                    segments.size() > 1 && path == ToQString(segments[segments.size() - 2].target);
+            }
             if (current ||
                 (immediateParent ? workspace_->Navigate([this] { return goParentImpl(); })
                                  : navigateTo(path, true)) == S_OK)
