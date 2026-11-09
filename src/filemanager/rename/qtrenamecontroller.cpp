@@ -72,6 +72,9 @@ void QtRenameController::Attach(QAbstractItemView &view, unsigned panel) {
 }
 
 void QtRenameController::Begin(int row) {
+    if (request_ && request_->phase == Request::Phase::Cancelled && !request_->refresh &&
+        (!request_->editor || !request_->editor->isVisible()))
+        Stop();
     if (request_ || window_.app_.QtOperations().closed())
         return;
     auto &panel = window_.app_.GetFocusedPanel();

@@ -195,7 +195,14 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(view, Qt::Key_F2);
         auto *editor = view->findChild<QLineEdit *>();
         QVERIFY(editor && editor->hasFocus());
-        editor->selectAll();
+        QTest::keyClicks(editor, "discarded.txt");
+        QTest::keyClick(editor, Qt::Key_Escape);
+        QTRY_COMPARE(window.focusWidget(), view);
+        QVERIFY(QFileInfo::exists(original));
+        QVERIFY(!QFileInfo::exists(fixture.filePath("discarded.txt")));
+        QTest::keyClick(window.focusWidget(), Qt::Key_F2);
+        QTRY_VERIFY(qobject_cast<QLineEdit *>(window.focusWidget()));
+        editor = qobject_cast<QLineEdit *>(window.focusWidget());
         QTest::keySequence(editor, QKeySequence::Copy);
         QCOMPARE(clipboard->text(), QString("original.txt"));
         QVERIFY(!clipboard->mimeData()->hasUrls());
