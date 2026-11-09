@@ -536,11 +536,15 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("dangling-link") << QString("link");
         QTest::newRow("read-only") << QString("permissions");
 #endif
+#ifdef Q_OS_UNIX
+        QTest::newRow("no-directory-search") << QString("search-denied");
+#endif
     }
     void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName() {
         QFETCH(QString, obstruction);
         const bool danglingLink = obstruction == "link";
         const bool readOnly = obstruction == "permissions";
+        const bool searchDenied = obstruction == "search-denied";
         const bool wildcard = obstruction == "wildcard";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -557,6 +561,7 @@ class CompressionPathTests final : public QObject {
                                 : wildcard                       ? fixture.filePath("wrong?")
                                 : danglingLink                   ? fixture.filePath("old shortcut")
                                 : readOnly                       ? fixture.filePath("read only")
+                                : searchDenied                   ? fixture.filePath("no access")
                                                                  : occupied.fileName();
         if (danglingLink)
             QVERIFY(QFile::link(missing, blocker));
@@ -568,11 +573,13 @@ class CompressionPathTests final : public QObject {
             if (originalPermissions)
                 QFile::setPermissions(blocker, originalPermissions);
         });
-        if (readOnly) {
+        if (readOnly || searchDenied) {
             QVERIFY(QDir().mkpath(blocker + "/writable"));
             originalPermissions = QFile::permissions(blocker);
-            if (!QFile::setPermissions(blocker, QFile::ReadOwner | QFile::ExeOwner) ||
-                QFileInfo(blocker).isWritable())
+            QVERIFY(QFile::setPermissions(
+                blocker, QFile::ReadOwner | (readOnly ? QFile::ExeOwner : QFile::WriteOwner)));
+            const QFileInfo entry(blocker);
+            if (readOnly ? entry.isWritable() : (!entry.isWritable() || entry.isExecutable()))
                 QSKIP("The test filesystem does not enforce this directory permission");
         }
         CreateArchiveDialog dialog(fixture.path(), {source_});

@@ -30,6 +30,11 @@ QString ArchiveDirectoryError(QString path) {
             if (!entry.isDir())
                 return QCoreApplication::translate("CopyRedesign", "Not a folder: %1")
                     .arg(QDir::toNativeSeparators(path));
+#ifdef Q_OS_UNIX
+            if (!entry.isExecutable())
+                return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                    .arg(QDir::toNativeSeparators(path));
+#endif
             if (!entry.isWritable())
                 return QCoreApplication::translate("CopyRedesign", "The folder is read-only: %1")
                     .arg(QDir::toNativeSeparators(path));
