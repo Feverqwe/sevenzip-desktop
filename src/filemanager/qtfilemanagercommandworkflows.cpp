@@ -16,7 +16,6 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
-#include <QScrollBar>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <utility>
@@ -346,17 +345,7 @@ void QtFileManagerCommands::RefreshView() {
     if (panel.IsArcFolder() &&
         window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true))
         return;
-    auto &ui = window_.projectedUi();
-    const QPointer<QAbstractItemView> view =
-        panel.IsArcFolder() ? qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget())
-                            : nullptr;
-    const QPoint position =
-        view ? QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value())
-             : QPoint();
-    const auto binding = panel.FolderBindingRevision();
-    panel.OnReload(ui.path->isModified());
-    if (view && panel.FolderBindingRevision() == binding)
-        window_.workspace_->RestoreViewPosition(panel, *view, position);
+    panel.OnReload(window_.projectedUi().path->isModified());
 }
 void QtFileManagerCommands::OptionsDialog() { window_.showSettings(); }
 void QtFileManagerCommands::OpenBookmark(unsigned index) { window_.openBookmark(index); }

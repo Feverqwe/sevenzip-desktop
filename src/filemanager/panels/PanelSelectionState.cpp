@@ -84,7 +84,7 @@ void CPanel::SetFocusedSelectedItem(int index, bool select) {
     }
 }
 
-HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state) {
+HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealFocused) {
     _selectionList.SetItemState_DropHighlighted(m_DropHighlighted_SelectionIndex, false);
     m_DropHighlighted_SelectionIndex = -1;
     m_DropHighlighted_SubFolderName.Empty();
@@ -187,7 +187,8 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state) {
         // Select the initial parent row only in the original showDots mode.
         SetFocusedSelectedItem(focusedPos, showDots && (focusedPos == 0));
     }
-    _selectionList.EnsureVisible(_selectionList.GetFocusedItem());
+    if (revealFocused)
+        _selectionList.EnsureVisible(_selectionList.GetFocusedItem());
     UpdateSelection();
     Refresh_StatusBar();
     return S_OK;

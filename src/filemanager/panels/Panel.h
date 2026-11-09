@@ -683,7 +683,7 @@ class CPanel : public QObject {
     HRESULT RefreshListCtrl(const CSelectedState &state);
     HRESULT RefreshListCtrl();
     // Qt publication completes the load stage before this source selection tail.
-    HRESULT RestoreLoadedSelection(const CSelectedState &state);
+    HRESULT RestoreLoadedSelection(const CSelectedState &state, bool revealFocused = true);
     // Qt loads rows after synchronous source navigation. Transfer its requested
     // selection to that presentation stage instead of deriving it again there.
     std::optional<CSelectedState> TakeRefreshSelection() {

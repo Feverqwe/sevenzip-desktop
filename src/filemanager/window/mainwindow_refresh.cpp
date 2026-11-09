@@ -1,5 +1,6 @@
 #include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchivereopen.h"
+#include "filemanager/panels/qtpanellist.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
@@ -45,11 +46,20 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
     const QString &displayedPath = projectedUi().directory;
     if (!filesystem ||
         (boundPath != displayedPath && QFileInfo(boundPath).canonicalFilePath() != displayedPath)) {
+        const auto viewport =
+            archive && selection.KeepViewport ? std::optional(captureListViewport()) : std::nullopt;
         const bool updateAddress = !selection.PreserveAddress;
         const HRESULT loaded =
             root ? renderRootFolder(updateAddress) : renderBoundFolder(updateAddress);
-        if (loaded == S_OK)
+        if (loaded == S_OK) {
             restoreListSelection(selection);
+            if (viewport) {
+                if (projectedUi().scanningArchive)
+                    projectedUi().pendingViewport = viewport;
+                else
+                    restoreListViewport(*viewport);
+            }
+        }
         return loaded;
     }
     if (!selection.KeepViewport)
@@ -79,7 +89,8 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
             }
         }
     }
-    const QString topPath = view->model()->index(topRow, 1).data().toString();
+    const QString topPath =
+        view->model()->index(topRow, 0).data(QtPanelList::OperationPathRole).toString();
     return {view, projectedUi().directory, topPath,
             QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
             topOffset};
@@ -108,7 +119,7 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
     panelUi_[projectedPanel_].pendingViewport = std::move(viewport);
     restoreListSelection(selection);
     if (!projectedUi().scanningDisk) {
-        restoreAutoRefreshViewport();
+        completeListViewport();
         refreshActions();
     }
     return S_OK;
@@ -215,7 +226,7 @@ void MainWindow::pollAutoRefresh() {
     }
 }
 
-void MainWindow::restoreAutoRefreshViewport() {
+void MainWindow::completeListViewport() {
     const auto viewport = std::exchange(panelUi_[projectedPanel_].pendingViewport, std::nullopt);
     if (!viewport || viewport->directory != projectedUi().directory)
         return;
@@ -230,7 +241,8 @@ void MainWindow::restoreListViewport(const ListViewport &viewport) {
     int row = -1;
     if (!viewport.topPath.isEmpty()) {
         for (int i = 0; i < view->model()->rowCount(); ++i) {
-            if (view->model()->index(i, 1).data().toString() == viewport.topPath) {
+            if (view->model()->index(i, 0).data(QtPanelList::OperationPathRole).toString() ==
+                viewport.topPath) {
                 row = i;
                 break;
             }

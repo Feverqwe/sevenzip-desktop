@@ -1,4 +1,5 @@
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/copy/alias.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/panels/qtpanellist.h"
 #include "filemanager/support/window_state_support.h"
@@ -647,6 +648,71 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(scroll->value(), position);
         QCOMPARE(list->currentRow(), 0);
         QVERIFY(view->selectionModel()->isRowSelected(0, {}));
+    }
+    void addingToPeerArchiveKeepsItsVisibleEntry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("input");
+        QVERIFY(QDir().mkpath(input));
+        QFile added(QDir(input).filePath("a added.txt"));
+        QVERIFY(added.open(QIODevice::WriteOnly));
+        QCOMPARE(added.write("new payload"), 11);
+        added.close();
+        const QString archive = fixture.filePath("target.zip");
+        QList<NativeArchiveFixture::Item> items;
+        for (int index = 0; index < 270; ++index)
+            items.append({QString("file-%1.txt").arg(index, 3, 10, QChar('0')), "payload"});
+        QVERIFY(NativeArchiveFixture::Write(archive, items, "zip"));
+        MainWindow window;
+        window.resize(800, 440);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        openFilesystemPanel(window, 0, input);
+        auto *peer = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peer);
+        auto *address = peer->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(archive);
+        QTest::keyClick(address, Qt::Key_Return);
+        auto *target = peer->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(target->isEnabled());
+        QTRY_COMPARE(target->rowCount(), items.size());
+        target->setCurrentCell(0, 0);
+        target->selectRow(0);
+        auto *source =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        QVERIFY(WindowActivation::waitForActive(window));
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        source->setCurrentCell(0, 0);
+        source->selectRow(0);
+        target->scrollTo(target->model()->index(100, 0), QAbstractItemView::PositionAtTop);
+        const int top = target->rowAt(0);
+        QVERIFY(top > 0);
+        const auto anchor = target->model()->index(top, 0).data();
+        const int offset = target->rowViewportPosition(top);
+
+        QTimer respond;
+        connect(&respond, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *copy = dynamic_cast<CopyDialog *>(modal))
+                copy->accept();
+            else if (auto *warning = qobject_cast<QMessageBox *>(modal))
+                warning->reject();
+        });
+        respond.start(5);
+        QTest::keyClick(source, Qt::Key_F5);
+        QTRY_VERIFY(target->isEnabled() && target->rowCount() == items.size() + 1);
+        QCOMPARE(target->rowAt(0), top + 1);
+        QCOMPARE(target->model()->index(target->rowAt(0), 0).data(), anchor);
+        QCOMPARE(target->rowViewportPosition(target->rowAt(0)), offset);
+        QCOMPARE(target->currentIndex().data().toString(), QString("file-000.txt"));
+        QVERIFY(target->selectionModel()->isRowSelected(target->currentRow(), {}));
+        QTRY_COMPARE(window.focusWidget(), source);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(source->hasFocus());
     }
     void archiveOpenCompletion_data() {
         QTest::addColumn<int>("origin");

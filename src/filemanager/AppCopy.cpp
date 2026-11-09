@@ -324,7 +324,8 @@ void CApp::CompleteCopy(bool preserveSourceSelection, bool restoreSourceFocus) {
         srcPanel.RestoreLoadedSelection(request->SourceSelection);
     if (!request->CopyToSame) {
         if (sameDestination)
-            destPanel.RestoreLoadedSelection(request->DestinationSelection);
+            destPanel.RestoreLoadedSelection(request->DestinationSelection,
+                                             !request->DestinationSelection.KeepViewport);
         if (sameSource && !preserveSourceSelection)
             srcPanel.KillSelection();
     }

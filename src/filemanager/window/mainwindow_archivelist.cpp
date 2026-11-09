@@ -68,10 +68,12 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                     if (result != S_OK) {
                         projectedUi().table->clearRows();
                         panelUi_[projectedPanel_].pendingSelection.reset();
+                        projectedUi().pendingViewport.reset();
                     }
                     projectedUi().scanningArchive = false;
                     applySortMode(true);
                     completeListSelection();
+                    completeListViewport();
                     setState(State::Viewing);
                     workspace_->NavigationFinished(result);
                     if (completed)

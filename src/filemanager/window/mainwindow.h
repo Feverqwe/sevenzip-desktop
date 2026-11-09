@@ -251,7 +251,7 @@ class MainWindow : public QMainWindow {
     void restoreListSelection(const CSelectedState &selection);
     struct FilesystemSignature;
     void pollAutoRefresh();
-    void restoreAutoRefreshViewport();
+    void completeListViewport();
     FilesystemSignature filesystemSignature(const QString &path) const;
     void SelectAll(bool select);
     HRESULT navigateTo(const QString &path, bool sourceAddress = false);
