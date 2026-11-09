@@ -266,10 +266,16 @@ class SplitDestinationTests final : public QObject {
         if (missingDirectory)
             QVERIFY(!QFileInfo::exists(start + "/not created"));
     }
+    void relativeLongDestinationUsesSourceBrowser_data() {
+        QTest::addColumn<QString>("draft");
+        QTest::newRow("existing") << QString("output/");
+        QTest::newRow("missing-components") << QStringLiteral("output/новая папка/deeper/");
+    }
     void relativeLongDestinationUsesSourceBrowser() {
 #ifdef Q_OS_WIN
         QSKIP("This fixture uses a long working directory without a device prefix");
 #else
+        QFETCH(QString, draft);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString component(95, 'a');
@@ -286,21 +292,28 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(QDir::setCurrent(base));
         CExtractDialog dialog(start, {});
         enabled(dialog)->setChecked(false);
-        path(dialog)->setEditText("output/");
+        path(dialog)->setEditText(draft);
         dialog.show();
         bool sourceBrowser = false;
+        QString openedDirectory;
         QTimer::singleShot(0, &dialog, [&] {
             auto *picker = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (!picker)
                 return;
             sourceBrowser = picker->objectName() == "browseDialog";
+            if (auto *folder = picker->findChild<QLabel *>("browseFolder"))
+                openedDirectory = folder->accessibleName();
             picker->reject();
         });
         dialog.findChild<QPushButton *>("extractBrowseButton")->click();
         QVERIFY(sourceBrowser);
-        QCOMPARE(path(dialog)->currentText(), QString("output/"));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(openedDirectory)), start);
+        QCOMPARE(path(dialog)->currentText(), draft);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())),
+                 QDir::cleanPath(QDir(base).filePath(draft)));
+        QVERIFY(!QFileInfo::exists(QDir(start).filePath(QStringLiteral("новая папка"))));
 #endif
     }
     void cleanupTestCase() {
