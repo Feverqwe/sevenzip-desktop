@@ -184,6 +184,9 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         // Source operated selection can contain directories while focus is a file.
         view->selectionModel()->select(view->model()->index(filesystemRow(window, "empty"), 0),
                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        auto *selectedSize = window.findChild<QLabel *>("selectedSizeStatus");
+        QVERIFY(selectedSize);
+        QTRY_VERIFY(selectedSize->text().isEmpty());
         view->setCurrentCell(filesystemRow(window, "focused.txt"), 0,
                              QItemSelectionModel::NoUpdate);
         window.activateWindow();
@@ -213,6 +216,11 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(view->model()->index(view->currentRow(), 0).data().toString(),
                  QString("focused.txt"));
         QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        QCOMPARE(selectedSize->text(), QtRegionalFormat::bytes(8));
+        view->selectionModel()->select(
+            view->model()->index(filesystemRow(window, "focused.txt"), 0),
+            QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        QTRY_COMPARE(selectedSize->text(), QtRegionalFormat::bytes(9));
         QVERIFY(UiInspection::fullyVisible(*view, window));
         QVERIFY(UiInspection::writeReport(window,
                                           QString("folder-size-%1").arg(QTest::currentDataTag())));
