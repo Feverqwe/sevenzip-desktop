@@ -170,7 +170,14 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
 #ifdef Q_OS_UNIX
         writable = writable && directory.isExecutable();
 #endif
-        if (!writable) {
+        bool sameDirectory = false;
+        if (writable && !target.IsMenuDrop() && data->Panel->IsFSFolder() &&
+            !data->Panel->GetFlatMode()) {
+            const QString destination = directory.canonicalFilePath();
+            const QFileInfo source(QDir::cleanPath(ToQString(data->Panel->GetFsPath())));
+            sameDirectory = !destination.isEmpty() && destination == source.canonicalFilePath();
+        }
+        if (!writable || sameDirectory) {
             target.DragLeave();
             ResetDropTarget();
             drop.ignore();

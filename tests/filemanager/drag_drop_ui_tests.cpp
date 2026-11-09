@@ -1347,6 +1347,7 @@ class DragDropUiTests final : public QObject {
         const QString name = "incoming.txt";
         const QString destination = target.filePath("folder");
         QVERIFY(QDir().mkdir(destination));
+        QVERIFY(QDir().mkdir(source.filePath("folder")));
         QVERIFY(SourceExtractFixture::writeFile(source.filePath(name), "payload"));
         const auto permissions = QFile::permissions(destination);
         const auto restore = qScopeGuard([&] { QFile::setPermissions(destination, permissions); });
@@ -1370,8 +1371,10 @@ class DragDropUiTests final : public QObject {
         const auto folder = [&] { return to->model()->index(Row(*to, "folder"), 0); };
         const auto blockedPermissions = QFile::ReadOwner | QFile::WriteOwner;
         bool accepted = false, dropped = false, blockAtDrop = false, permissionsChanged = false;
+        bool blankTarget = false;
         QtPanelDragTransport transport(from, [&](QDrag &drag, Qt::DropActions actions) {
-            const QPoint point = to->visualRect(folder()).center();
+            const QPoint point = blankTarget ? QPoint(5, to->viewport()->height() - 5)
+                                             : to->visualRect(folder()).center();
             QDragEnterEvent enter(DragEventPosition(point), actions, drag.mimeData(),
                                   Qt::LeftButton, Qt::ControlModifier);
             QCoreApplication::sendEvent(to->viewport(), &enter);
@@ -1418,6 +1421,19 @@ class DragDropUiTests final : public QObject {
         QTRY_COMPARE(SourceExtractFixture::readFile(QDir(destination).filePath(name)),
                      QByteArray("payload"));
         QCOMPARE(SourceExtractFixture::readFile(source.filePath(name)), QByteArray("payload"));
+
+        Navigate(*targetPane, source.path());
+        QTRY_VERIFY(to->isEnabled() && Row(*to, name) >= 0);
+        blankTarget = true;
+        QVERIFY(!to->indexAt(QPoint(5, to->viewport()->height() - 5)).isValid());
+        start();
+        QVERIFY(!accepted);
+        QVERIFY(from->selectionModel()->isRowSelected(Row(*from, name), {}));
+        blankTarget = false;
+        start();
+        QVERIFY(accepted && dropped);
+        QTRY_COMPARE(SourceExtractFixture::readFile(source.filePath("folder/" + name)),
+                     QByteArray("payload"));
     }
 
     void externalFilesUseArchiveConfirmation_data() {
