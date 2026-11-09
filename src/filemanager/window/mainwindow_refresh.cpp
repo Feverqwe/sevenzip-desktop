@@ -173,9 +173,10 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
         }
         if (result == S_OK) {
             panel.SetNewFolder(refreshed);
-            renderBoundFolder();
-            restoreListSelection(GetFolderPath(refreshed) == previousFolderPath ? selection
-                                                                                : CSelectedState());
+            if (GetFolderPath(refreshed) == previousFolderPath)
+                reloadProjectedPanel(selection);
+            else if (renderBoundFolder() == S_OK)
+                restoreListSelection(CSelectedState());
             refreshActions();
         } else {
             // Native ReOpen releases the old proxy; never render stale folders.
