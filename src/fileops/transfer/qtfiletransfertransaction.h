@@ -2,6 +2,7 @@
 #include "fileops/overwrite/overwritequestion.h"
 #include "fileops/transfer/filetransferoperation.h"
 #include <QList>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <optional>
@@ -39,6 +40,7 @@ class QtFileTransferTransaction final {
     FileTransferOperation &worker_;
     QString destinationDirectory_;
     QString destinationIdentity_;
+    QSet<QString> plannedTargets_;
     QList<TransferPath> prepareTargets(QString &error);
     bool destinationMatches() const;
     QString destinationChangedMessage() const;

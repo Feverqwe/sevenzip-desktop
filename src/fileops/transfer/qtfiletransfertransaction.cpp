@@ -183,7 +183,6 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
     destinationIdentity_ = QtOwnedTempIdentity(destinationDirectory_);
     const QString canonicalDestination = destinationInfo.canonicalFilePath();
     QList<TransferPath> targets;
-    QSet<QString> targetPaths;
     if (!destinationInfo.isDir() || destinationIdentity_.isEmpty() || worker_.sources_.isEmpty() ||
         (directPath && worker_.sources_.size() != 1)) {
         error = QCoreApplication::translate("qtfiletransfertransaction",
@@ -204,7 +203,7 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
         const QString target = directPath ? worker_.destination_
                                           : QDir(destinationDirectory_).filePath(info.fileName());
         const QFileInfo targetInfo(target);
-        error = TargetPathError(info, targetInfo, targetPaths, !sourceLink);
+        error = TargetPathError(info, targetInfo, plannedTargets_, !sourceLink);
         if (!error.isEmpty())
             return {};
         if (!sourceLink && info.isDir() &&
@@ -220,7 +219,7 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
                         .arg(target);
             return {};
         }
-        targetPaths.insert(target);
+        plannedTargets_.insert(target);
         targets.append({source, target, std::move(*member)});
     }
     return targets;
@@ -510,13 +509,36 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                 break;
             case OverwriteDecision::Rename: {
                 FString renamed = us2fs(target.toStdWString().c_str());
-                if (!AutoRenamePath(renamed)) {
+                QString candidate;
+                if (AutoRenamePath(renamed)) {
+                    candidate = QString::fromWCharArray(fs2us(renamed));
+                    if (plannedTargets_.contains(candidate)) {
+                        const auto dot = target.lastIndexOf(u'.');
+                        const auto extension =
+                            dot > target.lastIndexOf(u'/') + 1 ? target.mid(dot) : QString();
+                        const auto stem = target.chopped(extension.size()) + u'_';
+                        auto number =
+                            candidate
+                                .mid(stem.size(), candidate.size() - stem.size() - extension.size())
+                                .toUInt();
+                        candidate.clear();
+                        while (++number < (1u << 30)) {
+                            const QString next = stem + QString::number(number) + extension;
+                            if (!plannedTargets_.contains(next) && !QFileInfo::exists(next) &&
+                                !QtIsFileSystemLink(next)) {
+                                candidate = next;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (candidate.isEmpty()) {
                     error = QCoreApplication::translate("qtfiletransfertransaction",
                                                         "Could not find an available name: %1")
                                 .arg(target);
                     break;
                 }
-                target = QString::fromWCharArray(fs2us(renamed));
+                target = candidate;
                 break;
             }
             case OverwriteDecision::Cancel:

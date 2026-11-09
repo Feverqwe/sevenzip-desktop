@@ -1159,6 +1159,51 @@ class FileTransferTests : public QObject {
         QVERIFY(QFileInfo::exists(sourceConflict.fileName()));
     }
 
+    void keepBothReservesTheNamesOfLaterFiles_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("move") << true;
+    }
+
+    void keepBothReservesTheNamesOfLaterFiles() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkdir(destination));
+        const QString first = fixture.filePath("report.txt");
+        const QString second = fixture.filePath("report_1.txt");
+        const QString existing = QDir(destination).filePath("report.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        QVERIFY(write(first, "incoming"));
+        QVERIFY(write(second, "other source"));
+        QVERIFY(write(existing, "existing"));
+        FileTransferOperation operation({first, second}, destination, move);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        int prompts = 0;
+        connect(&operation, &FileTransferOperation::overwriteRequested, &operation, [&] {
+            operation.submitOverwriteAnswer(++prompts == 1 ? NOverwriteAnswer::kAutoRenameOnce
+                                                           : NOverwriteAnswer::kCancel);
+        });
+        operation.start();
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(operation.wait(30000));
+        QCOMPARE(prompts, 1);
+        QVERIFY(result.first().first().toBool());
+        for (const auto &[name, expected] :
+             {qMakePair("report.txt", "existing"), qMakePair("report_1.txt", "other source"),
+              qMakePair("report_2.txt", "incoming")}) {
+            QFile file(QDir(destination).filePath(name));
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), QByteArray(expected));
+        }
+        QCOMPARE(QFileInfo::exists(first), !move);
+        QCOMPARE(QFileInfo::exists(second), !move);
+    }
+
     void directoryMergeAutoRenamesNestedConflict() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
