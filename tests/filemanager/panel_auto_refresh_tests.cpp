@@ -564,13 +564,16 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
     void missingFolderClearsStaleRowsAndRecovers_data() {
         QTest::addColumn<bool>("automatic");
         QTest::addColumn<bool>("publishedRename");
-        QTest::newRow("automatic") << true << false;
-        QTest::newRow("manual") << false << false;
-        QTest::newRow("published-rename") << false << true;
+        QTest::addColumn<bool>("goUp");
+        QTest::newRow("automatic") << true << false << false;
+        QTest::newRow("manual") << false << false << false;
+        QTest::newRow("published-rename") << false << true << false;
+        QTest::newRow("parent-after-rename") << false << true << true;
     }
     void missingFolderClearsStaleRowsAndRecovers() {
         QFETCH(bool, automatic);
         QFETCH(bool, publishedRename);
+        QFETCH(bool, goUp);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QString folder = temp.filePath(QStringLiteral("browse"));
@@ -639,6 +642,19 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             QFile retained(renamed + "/old.txt");
             QVERIFY(retained.open(QIODevice::ReadOnly));
             QCOMPARE(retained.readAll(), QByteArray("control"));
+        }
+        if (goUp) {
+            QVERIFY(writeFile(temp.filePath("surviving.txt")));
+            QTest::keySequence(files, action(window, "upAction")->shortcut());
+            QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                         QFileInfo(temp.path()).canonicalFilePath());
+            QTRY_VERIFY(files->hasFocus());
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
+            QVERIFY(action(window, "createFolderAction")->isEnabled());
+            const auto matches = files->model()->match(files->model()->index(0, 0), Qt::DisplayRole,
+                                                       "surviving.txt", 1, Qt::MatchExactly);
+            QCOMPARE(matches.size(), 1);
+            return;
         }
 
         QVERIFY(QDir().mkpath(folder));
