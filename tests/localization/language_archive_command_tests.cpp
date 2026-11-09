@@ -88,8 +88,15 @@ class LanguageArchiveCommandTests final : public QObject {
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("memory fixture"));
     }
-    void enterRetriesExternalOpenAfterAssociationFailure() {
+    void enterRetriesExternalOpenAfterFailure_data() {
+        QTest::addColumn<bool>("missing");
+        QTest::newRow("association") << false;
+        QTest::newRow("missing-file") << true;
+    }
+    void enterRetriesExternalOpenAfterFailure() {
+        QFETCH(bool, missing);
         const QString path = fixture.filePath(QStringLiteral("open again 文件.txt"));
+        const QString parked = fixture.filePath("temporarily moved.txt");
         const QString other = fixture.filePath("another file.txt");
         for (const auto &name : {path, other}) {
             QFile file(name);
@@ -100,7 +107,7 @@ class LanguageArchiveCommandTests final : public QObject {
         ControlledBackend backend;
         MainWindow window(&backend, [&](const QUrl &url) {
             attempts.append(url);
-            return attempts.size() > 1;
+            return missing || attempts.size() > 1;
         });
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
@@ -114,6 +121,10 @@ class LanguageArchiveCommandTests final : public QObject {
         table->selectRow(matches.front().row());
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
+        if (missing) {
+            table->sourcePanel->Set_AutoRefresh_Mode(false);
+            QVERIFY(QFile::rename(path, parked));
+        }
 
         QString message;
         QTimer dismiss;
@@ -128,14 +139,16 @@ class LanguageArchiveCommandTests final : public QObject {
         PanelKeys::openSelection(window.focusWidget());
         dismiss.stop();
         const QUrl expected = QUrl::fromLocalFile(path);
-        QCOMPARE(attempts, QList{expected});
+        QCOMPARE(attempts, missing ? QList<QUrl>{} : QList{expected});
         QVERIFY(message.contains(path));
+        if (missing)
+            QVERIFY(QFile::rename(parked, path));
         QVERIFY(WindowActivation::waitForActive(window));
         QTRY_VERIFY(table->hasFocus());
         QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
                  QFileInfo(path).fileName());
         PanelKeys::openSelection(window.focusWidget());
-        QCOMPARE(attempts, (QList{expected, expected}));
+        QCOMPARE(attempts, missing ? QList{expected} : (QList{expected, expected}));
     }
 
     void externalAssociationFailureUsesLocalizedMessageAndGeometry() {
