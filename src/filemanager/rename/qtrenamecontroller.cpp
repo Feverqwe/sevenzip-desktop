@@ -224,6 +224,8 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     // publication result and must not add a second rename diagnostic.
     if (result != S_OK && panel.IsFSFolder())
         panel.RefreshListCtrl(*selection);
+    else if (result != S_OK && panel.IsArcFolder())
+        window_.reloadProjectedPanel(*selection);
     else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK)
         window_.restoreListSelection(*selection);
     if (!publishedArchive.isEmpty()) {
