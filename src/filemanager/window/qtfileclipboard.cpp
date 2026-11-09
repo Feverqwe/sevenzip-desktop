@@ -215,8 +215,14 @@ void QtFileClipboard::Copy(bool move) {
         for (const auto &file : QDir(directory).entryInfoList(
                  QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System))
             urls.append(QUrl::fromLocalFile(file.absoluteFilePath()));
-        if (urls.isEmpty() || !temporary.OwnedLease() || !temporary.OwnedLease()->ProtectExternal())
+        if (urls.isEmpty()) {
+            window_.showStatusMessage(tr("No extracted files to copy."));
             return;
+        }
+        if (!temporary.OwnedLease() || !temporary.OwnedLease()->ProtectExternal()) {
+            window_.showStatusMessage(tr("Could not keep temporary files for pasting."));
+            return;
+        }
         // Clipboard consumers may still copy after replacing the clipboard.
         // Retain the existing protected-temp registry's cleanup contract.
         temporary.DisableDeleting();

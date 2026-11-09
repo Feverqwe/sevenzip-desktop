@@ -7310,6 +7310,14 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <source>Complete extraction could not be confirmed. The clipboard was kept unchanged.</source>
         <translation>Не удалось подтвердить полную распаковку. Буфер обмена не изменён.</translation>
     </message>
+    <message>
+        <source>No extracted files to copy.</source>
+        <translation>Нет распакованных файлов для копирования.</translation>
+    </message>
+    <message>
+        <source>Could not keep temporary files for pasting.</source>
+        <translation>Не удалось сохранить временные файлы для вставки.</translation>
+    </message>
 </context>
 <context>
     <name>QtNavigationBar</name>
