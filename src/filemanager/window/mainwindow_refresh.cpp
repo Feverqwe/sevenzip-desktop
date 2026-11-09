@@ -89,10 +89,23 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
             }
         }
     }
-    const QString topPath =
-        view->model()->index(topRow, 0).data(QtPanelList::OperationPathRole).toString();
+    QStringList visiblePaths;
+    const int height = view->viewport()->height();
+    const int column = view == projectedUi().table ? 0 : projectedUi().iconList->modelColumn();
+    for (int row = topRow; row >= 0 && row < view->model()->rowCount(); ++row) {
+        const int offset = view == projectedUi().table
+                               ? projectedUi().table->rowViewportPosition(row)
+                               : view->visualRect(view->model()->index(row, column)).top();
+        if (offset >= height)
+            break;
+        const auto path =
+            view->model()->index(row, 0).data(QtPanelList::OperationPathRole).toString();
+        if (path.isEmpty())
+            break;
+        visiblePaths.append(path);
+    }
     ListViewport viewport{
-        view, projectedUi().directory, topPath,
+        view, projectedUi().directory, visiblePaths,
         QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
         topOffset};
     if (auto *table = qobject_cast<FileTable *>(view)) {
@@ -261,13 +274,21 @@ void MainWindow::restoreListViewport(const ListViewport &viewport) {
     }
     view->doItemsLayout();
     int row = -1;
-    if (!viewport.topPath.isEmpty()) {
+    if (!viewport.visiblePaths.isEmpty()) {
+        QHash<QString, qsizetype> rank;
+        for (qsizetype i = viewport.visiblePaths.size(); i > 0; --i)
+            rank.insert(viewport.visiblePaths[i - 1], i - 1);
+        qsizetype best = viewport.visiblePaths.size();
         for (int i = 0; i < view->model()->rowCount(); ++i) {
-            if (view->model()->index(i, 0).data(QtPanelList::OperationPathRole).toString() ==
-                viewport.topPath) {
-                row = i;
+            const auto path =
+                view->model()->index(i, 0).data(QtPanelList::OperationPathRole).toString();
+            const auto candidate = rank.constFind(path);
+            if (candidate == rank.cend() || candidate.value() >= best)
+                continue;
+            row = i;
+            best = candidate.value();
+            if (best == 0)
                 break;
-            }
         }
     }
     if (row < 0) {

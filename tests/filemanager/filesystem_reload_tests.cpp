@@ -56,6 +56,53 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(survivor)});
     }
 
+    void refreshKeepsTheFirstSurvivingVisibleFile() {
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (int i = 0; i < 90; ++i)
+            QVERIFY(
+                writeControl(fixture.filePath(QString("file-%1.txt").arg(i, 3, 10, QChar('0')))));
+        MainWindow window;
+        window.resize(720, 450);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "file-089.txt") >= 0);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        const int current = filesystemRow(window, "file-040.txt");
+        QVERIFY(current >= 0);
+        view->setCurrentCell(current, 0);
+        view->selectRow(current);
+        view->setFocus();
+        view->scrollTo(view->model()->index(current, 0), QAbstractItemView::PositionAtTop);
+        const int top = view->rowAt(0);
+        QVERIFY(top >= 0 && view->rowViewportPosition(top + 2) < view->viewport()->height());
+        const auto nameAt = [view](int row) {
+            return view->model()->index(row, 0).data().toString();
+        };
+        const QString survivor = nameAt(top + 2);
+        const QString first = nameAt(top);
+        const QString second = nameAt(top + 1);
+        QVERIFY(QFile::remove(fixture.filePath(first)));
+        QVERIFY(QFile::remove(fixture.filePath(second)));
+        QVERIFY(writeControl(fixture.filePath("added-a.txt")));
+        QVERIFY(writeControl(fixture.filePath("added-b.txt")));
+        QVERIFY(writeControl(fixture.filePath("added-c.txt")));
+        QTest::keySequence(view, action(window, "refreshAction")->shortcut());
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "added-c.txt") >= 0);
+        QTRY_COMPARE(nameAt(view->rowAt(0)), survivor);
+        QTRY_COMPARE(window.focusWidget(), view);
+        view->scrollToTop();
+        QCOMPARE(nameAt(view->rowAt(0)), QString(".."));
+        QTest::keySequence(view, action(window, "refreshAction")->shortcut());
+        QTRY_VERIFY(view->isEnabled());
+        QCOMPARE(nameAt(view->rowAt(0)), QString(".."));
+    }
+
     void unreadableOpenFolderCanBeRefreshed_data() {
         QTest::addColumn<bool>("automatic");
         QTest::newRow("manual") << false;

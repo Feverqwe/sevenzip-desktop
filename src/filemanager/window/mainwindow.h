@@ -234,13 +234,13 @@ class MainWindow : public QMainWindow {
     HRESULT finishSynchronousFilesystemListing(HRESULT result);
     HRESULT startFilesystemScan(IFolderFolder *folder);
     struct ListViewport {
-        ListViewport(QAbstractItemView *source, const QString &folder, const QString &top,
+        ListViewport(QAbstractItemView *source, const QString &folder, const QStringList &visible,
                      const QPoint &position, int offset)
-            : view(source), directory(folder), topPath(top), scrollPosition(position),
+            : view(source), directory(folder), visiblePaths(visible), scrollPosition(position),
               topOffset(offset) {}
         QPointer<QAbstractItemView> view;
         QString directory;
-        QString topPath;
+        QStringList visiblePaths;
         QPoint scrollPosition;
         int topOffset;
         int cursorColumn = -1;
