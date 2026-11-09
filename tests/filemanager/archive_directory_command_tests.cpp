@@ -212,6 +212,11 @@ class ArchiveDirectoryCommandTests final : public QObject {
         QCOMPARE(peerAddress->text(), peerDraft);
         QVERIFY(peerView->selectionModel()->isRowSelected(
             Row(*peerView, QFileInfo(input).fileName()), {}));
+        QTRY_VERIFY(peerAddress->hasFocus());
+        peerAddress->setCursorPosition(peerAddress->text().size());
+        QTest::keyClick(window.focusWidget(), Qt::Key_X);
+        QCOMPARE(peerAddress->text(), peerDraft + 'x');
+        QCOMPARE(address->text(), draft);
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         QCOMPARE(calculate->isEnabled(), cancel);
