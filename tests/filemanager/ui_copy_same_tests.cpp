@@ -4,8 +4,10 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QLineEdit>
@@ -67,7 +69,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         auto *source = left->findChild<FileTable *>("archiveTable");
         auto *peer = right->findChild<FileTable *>("archiveTable");
         QVERIFY(address && source && peer);
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(source->rowCount(), 1);
@@ -304,36 +306,60 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("ordinary bytes"), qint64(14));
         input.close();
+        QTemporaryDir hiddenPeer;
+        QVERIFY(hiddenPeer.isValid());
         ControlledBackend backend;
         MainWindow window(&backend);
-        auto *address = window.findChild<QLineEdit *>("archivePath");
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *peer = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peer && peer->isVisible());
+        auto *peerAddress = peer->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(peerAddress);
+        peerAddress->setText(hiddenPeer.path());
+        QTest::keyClick(peerAddress, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(peerAddress->text()), hiddenPeer.path());
+        auto *sourcePane = window.findChild<QWidget *>("filePanel0");
+        QVERIFY(sourcePane);
+        auto *address = sourcePane->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
-        window.show();
-        QCoreApplication::processEvents();
-        auto *view = table(window);
-        const int row = filesystemRow(window, QStringLiteral("source file.txt"));
-        QVERIFY(row >= 0);
+        auto *view = sourcePane->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(view && view->hasFocus());
+        action(window, "twoPanelsAction")->trigger();
+        QVERIFY(!peer->isVisible());
+        const auto rows = view->model()->match(view->model()->index(0, 0), QtPanelList::NameRole,
+                                               QFileInfo(source).fileName(), 1, Qt::MatchExactly);
+        QCOMPARE(rows.size(), 1);
+        const int row = rows.front().row();
         view->selectRow(row);
         view->setCurrentCell(row, 0);
         view->setFocus();
         const QString target = fixture.filePath(QStringLiteral("nested/new file.txt"));
         bool dialogSeen = false;
+        QString proposed;
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             if (!dialog)
                 return;
             dialogSeen = true;
-            dialog->findChild<QLineEdit *>("copyDestination")->setText(target);
+            auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
+            proposed = destination->text();
+            destination->setText(target);
             dialog->accept();
         });
-        QTest::keyClick(view, Qt::Key_F5);
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_F5);
         QVERIFY(dialogSeen);
+        QCOMPARE(QDir::cleanPath(proposed), QDir(fixture.path()).canonicalPath());
         QTRY_VERIFY(QFileInfo::exists(target));
         QFile copied(target);
         QVERIFY(copied.open(QIODevice::ReadOnly));
         QCOMPARE(copied.readAll(), QByteArray("ordinary bytes"));
         QVERIFY(QFileInfo::exists(source));
+        QVERIFY(QDir(hiddenPeer.path()).isEmpty());
     }
 
     void shiftF5CopiesFocusedArchiveItemToAbsoluteFolder() {
