@@ -624,6 +624,11 @@ class CompressionPathTests final : public QObject {
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
         const auto draft = QDir::toNativeSeparators("./old.7z");
         name->setText(draft);
+        auto *level = dialog.findChild<QComboBox *>("compressionLevel");
+        QVERIFY(level);
+        const int store = level->findData(0);
+        QVERIFY(store >= 0);
+        level->setCurrentIndex(store);
         dialog.show();
         QString diagnostic;
         QTimer::singleShot(0, &dialog, [&] {
@@ -645,7 +650,11 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(name->text(), QDir::toNativeSeparators("./new.7z"));
         QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources()), S_OK);
+        const auto options = dialog.compressionOptions();
+        QCOMPARE(options.Level, 0);
+        QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources(), {},
+                                               false, options),
+                 S_OK);
         QVERIFY(QFileInfo(fixture.filePath("new.7z")).isFile());
         if (folder) {
             QVERIFY(QFileInfo(occupied).isDir());
