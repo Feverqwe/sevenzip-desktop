@@ -101,7 +101,7 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
     }
 
-    void cutFolderCanBePastedAfterRejectingItsOwnSubfolder() {
+    void cutFolderCanBePastedAfterRejectingItsOwnLocation() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source folder");
@@ -122,6 +122,17 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QTest::keySequence(files, QKeySequence::Cut);
         const QList<QUrl> urls{QUrl::fromLocalFile(source)};
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Source and destination are the same: %1")
+                     .arg(QFileInfo(source).canonicalFilePath()));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QVERIFY(cut(*files, "source folder"));
+        QVERIFY(files->selectionModel()->isRowSelected(rowFor(*files, "source folder"), {}));
 
         window.openPath(child);
         QTRY_VERIFY(files->isEnabled() && files->hasFocus());
