@@ -120,6 +120,7 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
                            {},
                            UInt32(locationState.viewMode),
                            locationState.diskFolder};
+        const auto failure = std::make_shared<QString>();
         Navigate(
             [&] {
                 const QScopedValueRollback<bool> changing(changing_, true);
@@ -129,16 +130,16 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
                     source._sortID = locationState.sort;
                     source._ascending = locationState.ascending;
                 }
-                return OpenPanelLocation(panel);
+                return OpenPanelLocation(panel, failure.get());
             },
-            [this, panel, target](HRESULT result) {
+            [this, panel, target, failure](HRESULT result) {
                 if (result == S_OK || window_.app_.QtOperations().closed())
                     return;
                 auto &location = panels_[panel].location;
                 location.nativePlaceIdentity = target.nativePlaceIdentity;
                 location.archiveLocation = target.archiveLocation;
                 location.diskFolder = target.diskFolder;
-                CompleteLocationOpen(panel, target.path, result);
+                CompleteLocationOpen(panel, target.path, result, *failure);
                 window_.refreshActions();
             },
             NavigationHistory::Skip);

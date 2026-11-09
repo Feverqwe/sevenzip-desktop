@@ -1,4 +1,5 @@
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
@@ -259,6 +260,58 @@ class WorkspaceSessionTests final : public QObject {
         const QString canonical = QFileInfo(path).canonicalFilePath();
         QCOMPARE(location(*copy), archive ? canonical + "/folder" : canonical);
         QCOMPARE(active(*copy)->sourcePanel->IsArcFolder(), archive);
+    }
+
+    void newWindowExplainsWrongArchivePasswordAndAllowsRetry() {
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SaveRegLang(L"-", settings);
+        ReloadLang(settings);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("protected.7z");
+        const QString password = QStringLiteral("fixture password");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "7z", password));
+        QtWorkspaceApplication application(*qApp);
+        MainWindow source;
+        source.show();
+        QString suppliedPassword = password;
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &source, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget())) {
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(suppliedPassword);
+                dialog->accept();
+            }
+        });
+        answer.start(5);
+        source.openArchive(archive);
+        QTRY_VERIFY(active(source)->sourcePanel->IsArcFolder());
+
+        suppliedPassword = QStringLiteral("incorrect");
+        source.findChild<QAction *>("newWindowAction")->trigger();
+        QPointer<MainWindow> copy;
+        const auto close = qScopeGuard([&] {
+            if (copy)
+                copy->close();
+        });
+        QTRY_COMPARE(windows().size(), 2);
+        for (auto *window : windows())
+            if (window != &source)
+                copy = window;
+        QVERIFY(copy);
+        auto *retry = copy->findChild<QPushButton *>("navigationRetry0");
+        QVERIFY(retry);
+        QTRY_VERIFY(retry->isVisible());
+        const QString message = copy->statusBar()->currentMessage();
+        QVERIFY(QDir::fromNativeSeparators(message).contains(archive));
+        QVERIFY(message.contains("password", Qt::CaseInsensitive));
+        QVERIFY(active(source)->sourcePanel->IsArcFolder());
+        QCOMPARE(location(source), archive);
+
+        suppliedPassword = password;
+        retry->click();
+        QTRY_VERIFY(active(*copy)->sourcePanel->IsArcFolder() && !retry->isVisible());
+        QTRY_VERIFY(copy->statusBar()->currentMessage().isEmpty());
+        QCOMPARE(active(*copy)->model()->index(0, 0).data().toString(), QString("entry.txt"));
     }
 
     void newWindowKeepsNativeRootAcrossDeferredLanguageChange() {
