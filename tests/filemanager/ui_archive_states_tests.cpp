@@ -331,9 +331,14 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(file.write("input"), qint64(5));
         file.close();
         struct RefusingBackend : ControlledBackend {
-            QtOperationLauncher *startGuiCompress(const QString &, const QString &, bool,
-                                                  const QStringList &, bool, bool,
+            bool refuse = true;
+            QtOperationLauncher *startGuiCompress(const QString &output, const QString &type,
+                                                  bool addExtension, const QStringList &paths,
+                                                  bool email, bool showDialog,
                                                   QString &error) override {
+                if (!refuse)
+                    return ControlledBackend::startGuiCompress(output, type, addExtension, paths,
+                                                               email, showDialog, error);
                 error = QStringLiteral("Could not start the archive operation");
                 return nullptr;
             }
@@ -364,6 +369,15 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(WindowActivation::waitForActive(window));
         QTRY_VERIFY(view->hasFocus());
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        backend.refuse = false;
+        PanelKeys::command(window.focusWidget(), Qt::Key_A,
+                           Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_COMPARE(backend.GuiRequests.size(), 1);
+        const auto &request = backend.GuiRequests.constFirst();
+        QVERIFY(request.ShowDialog);
+        QCOMPARE(request.Paths.size(), 1);
+        QCOMPARE(QFileInfo(request.Paths.constFirst()).canonicalFilePath(),
+                 QFileInfo(source).canonicalFilePath());
         QCOMPARE(QDir(folder).entryList(QDir::Files), QStringList{QStringLiteral("input.txt")});
     }
 
