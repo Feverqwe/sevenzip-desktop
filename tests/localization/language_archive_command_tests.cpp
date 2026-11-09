@@ -88,6 +88,56 @@ class LanguageArchiveCommandTests final : public QObject {
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("memory fixture"));
     }
+    void enterRetriesExternalOpenAfterAssociationFailure() {
+        const QString path = fixture.filePath(QStringLiteral("open again 文件.txt"));
+        const QString other = fixture.filePath("another file.txt");
+        for (const auto &name : {path, other}) {
+            QFile file(name);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("source bytes"), qint64(12));
+        }
+        QList<QUrl> attempts;
+        ControlledBackend backend;
+        MainWindow window(&backend, [&](const QUrl &url) {
+            attempts.append(url);
+            return attempts.size() > 1;
+        });
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *table = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(table->isEnabled() && table->rowCount() >= 2);
+        const auto matches = table->model()->match(table->model()->index(0, 0), Qt::DisplayRole,
+                                                   QFileInfo(path).fileName(), 1, Qt::MatchExactly);
+        QCOMPARE(matches.size(), 1);
+        table->setCurrentIndex(matches.front());
+        table->selectRow(matches.front().row());
+        table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
+
+        QString message;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            if (box) {
+                message = box->text();
+                box->accept();
+            }
+        });
+        dismiss.start(5);
+        PanelKeys::openSelection(window.focusWidget());
+        dismiss.stop();
+        const QUrl expected = QUrl::fromLocalFile(path);
+        QCOMPARE(attempts, QList{expected});
+        QVERIFY(message.contains(path));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(table->hasFocus());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QFileInfo(path).fileName());
+        PanelKeys::openSelection(window.focusWidget());
+        QCOMPARE(attempts, (QList{expected, expected}));
+    }
+
     void externalAssociationFailureUsesLocalizedMessageAndGeometry() {
         const QString path = fixture.filePath(QStringLiteral("large file 密碼.txt"));
         QFile file(path);
