@@ -9,6 +9,7 @@
 #include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QEventLoop>
 #include <QFile>
 #include <QFocusFrame>
@@ -270,6 +271,17 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(untouched.open(QIODevice::ReadOnly));
             QCOMPARE(untouched.readAll(), QByteArray("focus bytes"));
         }
+        auto *clipboard = QApplication::clipboard();
+        clipboard->clear();
+        const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
+        QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(active));
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
+        const auto copied = clipboard->mimeData()->urls();
+        const QDir listed(QFileInfo(fixture.path()).canonicalFilePath());
+        QCOMPARE(copied.size(), 2);
+        QVERIFY(copied.contains(QUrl::fromLocalFile(listed.filePath(renamed))));
+        QVERIFY(copied.contains(QUrl::fromLocalFile(listed.filePath(peer))));
     }
     void tabFinishesOneRename_data() {
         QTest::addColumn<bool>("reverse");
