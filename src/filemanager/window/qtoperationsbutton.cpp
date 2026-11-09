@@ -118,10 +118,19 @@ void QtOperationsButton::Populate() {
         if (!source.isEmpty())
             title += " — " +
                      fontMetrics().elidedText(QFileInfo(source).fileName(), Qt::ElideMiddle, 240);
+        if (!entry.OutputFolders.isEmpty()) {
+            const QString &path = entry.OutputFolders.first();
+            const QString name = QFileInfo(path).fileName();
+            title += " → " +
+                     fontMetrics().elidedText(name.isEmpty() ? path : name, Qt::ElideMiddle, 240);
+        }
         auto *action =
             menu_->addAction(QtLiteralMenuText(title) + " · " + QtLiteralMenuText(Status(entry)));
         action->setData(entry.Id);
-        action->setToolTip("<qt>" + source.toHtmlEscaped().replace('\n', "<br>") + "</qt>");
+        QStringList paths{source};
+        paths.append(entry.OutputFolders);
+        action->setToolTip("<qt>" + paths.join('\n').toHtmlEscaped().replace('\n', "<br>") +
+                           "</qt>");
         action->setEnabled(!entry.Result || NeedsReview(entry));
         connect(action, &QAction::triggered, this,
                 [id = entry.Id] { QtOperationRegistry::Application().Show(id); });

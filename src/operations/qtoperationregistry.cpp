@@ -10,9 +10,12 @@ QtOperationListing Listing(const QUuid &id, const QtOperationJob &job,
                            std::optional<QtOperationResult::Outcome> result) {
     const bool archiveLabel =
         job.Operation == QtOperationJob::Command::Compress && !job.ArchivePath.isEmpty();
-    return {id, job.Operation,
-            archiveLabel || job.Paths.isEmpty() ? job.ArchivePath : job.Paths.first(), presentation,
-            result};
+    return {id,
+            job.Operation,
+            archiveLabel || job.Paths.isEmpty() ? job.ArchivePath : job.Paths.first(),
+            presentation,
+            result,
+            {}};
 }
 } // namespace
 
@@ -58,6 +61,8 @@ void QtOperationRegistry::Register(QtOperationLauncher &operation, const QtOpera
                     if (job.Operation == QtOperationJob::Command::Compress &&
                         !result.ChangedArchives.isEmpty())
                         listing.Source = result.ChangedArchives.first();
+                    if (job.Operation == QtOperationJob::Command::Extract)
+                        listing.OutputFolders = result.ChangedDirectories;
                     completed_.prepend(std::move(listing));
                     constexpr qsizetype recentResultLimit = 20;
                     if (completed_.size() > recentResultLimit)

@@ -21,6 +21,7 @@ struct QtOperationListing {
     QString Source;
     QtOperationPresentation Presentation;
     std::optional<QtOperationResult::Outcome> Result;
+    QStringList OutputFolders;
 };
 
 // Application lifetime for independent observations and results whose child

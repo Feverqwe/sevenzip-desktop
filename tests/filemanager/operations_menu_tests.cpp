@@ -164,18 +164,20 @@ class OperationsMenuTests final : public QObject {
         QTemporaryDir fixture;
         const auto archive = makeArchive(fixture.path(), "incoming bytes");
         QVERIFY(!archive.isEmpty());
-        const auto output = fixture.filePath("output");
+        const auto output = fixture.filePath("edited output");
         const auto existing = QDir(output).filePath(kName);
         QVERIFY(writeFile(existing, "retained bytes"));
         const ScopedTestEnvironment answer("SEVENZIP_OPERATION_OVERWRITE", "overwriteNo");
+        const ScopedTestEnvironment accept("SEVENZIP_OPERATION_EXTRACT_DECISION", "accept");
+        const ScopedTestEnvironment destination("SEVENZIP_OPERATION_DESTINATION", output);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         QtOperationJob job;
         job.Operation = QtOperationJob::Command::Extract;
         job.Paths = {archive};
-        job.Destination = output;
-        job.ShowDialog = false;
+        job.Destination = fixture.filePath("initial output");
+        job.ShowDialog = true;
         QString error;
         QPointer<QtOperationLauncher> operation =
             QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
@@ -203,6 +205,9 @@ class OperationsMenuTests final : public QObject {
         const auto *warning = Entry(*menu, id);
         QVERIFY(warning && !warning->isEnabled());
         QVERIFY(warning->text().contains(warningStatus));
+        QVERIFY(warning->text().contains("edited output"));
+        QVERIFY(warning->toolTip().contains("edited output"));
+        QVERIFY(!warning->toolTip().contains("initial output"));
         QVERIFY(UiInspection::writeReport(*menu, "operations-extraction-warning"));
         menu->hide();
     }
