@@ -1312,6 +1312,51 @@ class FileTransferTests : public QObject {
         }
     }
 
+    void directoryMergeReportsTheConflictingDestination_data() {
+        QTest::addColumn<bool>("link");
+        QTest::newRow("folder") << false;
+        QTest::newRow("dangling-link") << true;
+    }
+
+    void directoryMergeReportsTheConflictingDestination() {
+        QFETCH(bool, link);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("incoming/folder");
+        const QString destination = fixture.filePath("destination");
+        const QString target = QDir(destination).filePath("folder/conflict.txt");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(QFileInfo(target).absolutePath()));
+        const QString missing = fixture.filePath("missing.txt");
+        if (link) {
+            if (!CreateNativeSymbolicLink(target, missing))
+                QSKIP("Native symbolic links are unavailable");
+        } else {
+            QVERIFY(QDir().mkdir(target));
+        }
+        QFile incoming(QDir(source).filePath("conflict.txt"));
+        QVERIFY(incoming.open(QIODevice::WriteOnly));
+        QCOMPARE(incoming.write("source bytes"), qint64(12));
+        incoming.close();
+        FileTransferOperation move({source}, destination, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        const QString message = result.first().at(1).toString();
+        QVERIFY2(message.contains(target), qPrintable(message));
+        QVERIFY(!message.contains(".sevenzip-"));
+        QVERIFY(incoming.open(QIODevice::ReadOnly));
+        QCOMPARE(incoming.readAll(), QByteArray("source bytes"));
+        if (link) {
+            QVERIFY(QFileInfo(target).isSymLink());
+            QVERIFY(!QFileInfo::exists(missing));
+        } else {
+            QVERIFY(QFileInfo(target).isDir());
+        }
+    }
+
     void directoryMergeCancelRestoresOriginalTree() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

@@ -61,18 +61,28 @@ bool QtFileTransferTransaction::copyEntry(const QString &source, const QString &
 bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString &stage,
                                            const QString &target, QStringList *writtenSources,
                                            QString *error) {
+    QString conflict;
     CFileTransferCopyCallback callback(
-        [this, &source, &stage,
+        [this, &source, &stage, &conflict,
          &target](const OverwriteQuestion::File &incoming,
                   const QString &requested) -> CFileTransferCopyCallback::WriteDecision {
             if (worker_.canceled_)
                 return std::unexpected(E_ABORT);
             const QFileInfo existing(requested);
-            if (existing.isSymLink() || (existing.exists() && !existing.isFile()))
-                return std::unexpected(E_ABORT);
+            const QString visible = target + requested.mid(stage.size());
+            if (QtIsFileSystemLink(requested))
+                conflict = QCoreApplication::translate("qtfiletransfertransaction",
+                                                       "Destination is a symbolic link: %1")
+                               .arg(visible);
+            else if (existing.exists() && !existing.isFile())
+                conflict = QCoreApplication::translate(
+                               "qtfiletransfertransaction",
+                               "Cannot replace a file with a folder or a folder with a file: %1")
+                               .arg(visible);
+            if (!conflict.isEmpty())
+                return std::unexpected(E_FAIL);
             QString effective = requested;
             if (existing.exists()) {
-                const QString visible = target + requested.mid(stage.size());
                 switch (decideOverwrite({requested, visible, incoming})) {
                 case OverwriteDecision::Skip:
                     return std::nullopt;
@@ -105,7 +115,9 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
     state.Callback = &callback;
     const bool merged = NFsFolder::CopyFolder(state, source, stage);
     *writtenSources = callback.writtenSources;
-    *error = !state.ErrorMessage.isEmpty() ? state.ErrorMessage : callback.errorMessage;
+    *error = !conflict.isEmpty()             ? conflict
+             : !state.ErrorMessage.isEmpty() ? state.ErrorMessage
+                                             : callback.errorMessage;
     if (!merged && error->isEmpty()) {
         if (worker_.canceled_)
             *error =
