@@ -337,7 +337,8 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
         view->selectRow(row);
         view->setCurrentCell(row, 0);
         view->setFocus();
-        const QString target = fixture.filePath(QStringLiteral("nested/new file.txt"));
+        const QString relativeTarget = QStringLiteral("nested\u00a0/new file.txt\u00a0");
+        const QString target = fixture.filePath(relativeTarget);
         bool dialogSeen = false;
         QString proposed;
         QTimer::singleShot(0, &window, [&] {
@@ -347,7 +348,7 @@ class UiCopySameTests final : public QObject, protected MainWindowTestSupport {
             dialogSeen = true;
             auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
             proposed = destination->text();
-            destination->setText(target);
+            destination->setText(relativeTarget);
             dialog->accept();
         });
         QTRY_VERIFY(view->hasFocus());
