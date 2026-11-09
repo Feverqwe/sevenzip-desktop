@@ -341,7 +341,8 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         const QString second = fixture.filePath(QStringLiteral("second папка"));
         const QString target = forward ? second : first;
         const QString origin = forward ? first : second;
-        createDirectory(origin, background ? 257 : 1);
+        const int originCount = background ? 257 : 2;
+        createDirectory(origin, originCount);
         createDirectory(target);
 
         ControlledBackend backend;
@@ -369,9 +370,12 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(row >= 0);
         view->setCurrentCell(row, 0);
         view->selectRow(row);
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
 
         QVERIFY(QDir(target).removeRecursively());
-        travel->trigger();
+        QTest::keySequence(window.focusWidget(), travel->shortcut());
         QTRY_VERIFY_WITH_TIMEOUT(travel->isEnabled(), 3000);
         QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(target).fileName()));
         QCOMPARE(address->text(), displayedOrigin);
@@ -379,10 +383,14 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(view->currentRow(), filesystemRow(window, "item-0000.txt"));
         if (!forward)
             QVERIFY(!action(window, "forwardAction")->isEnabled());
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), originCount);
 
         createDirectory(target);
-        travel->trigger();
+        QTest::keySequence(window.focusWidget(), travel->shortcut());
         QTRY_COMPARE(address->text(), QFileInfo(target).canonicalFilePath());
+        QTRY_VERIFY(view->hasFocus());
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QVERIFY(filesystemRow(window, "item-0000.txt") >= 0);
     }
