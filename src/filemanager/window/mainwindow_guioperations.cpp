@@ -90,6 +90,8 @@ HRESULT MainWindow::launchGuiArchiveExtract(const UStringVector &paths, const US
     QString error;
     auto *operation = backend_->startGuiExtract(archives, QString::fromWCharArray(folder),
                                                 showDialog, elimDup, writeZone, error);
+    if (operation)
+        clearStatusMessage();
     return observeGuiArchiveOperation(operation, error);
 }
 

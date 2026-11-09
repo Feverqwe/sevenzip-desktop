@@ -686,6 +686,8 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         backend.CancelExtract = true;
         source->setFocus();
         PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+        if (!multiple)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Cancelled);
         QVERIFY(QDir(output).isEmpty());
