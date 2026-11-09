@@ -160,7 +160,9 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             QTRY_COMPARE(names(window), QStringList{"inner.zip"});
             view->setCurrentCell(0, 0);
             view->selectRow(0);
-            action(window, "openItemAction")->trigger();
+            auto *openInside = action(window, "openInsideAction");
+            QTRY_VERIFY(openInside->isEnabled());
+            openInside->trigger();
         }
         QTRY_COMPARE(names(window), QStringList{"original.txt"});
         view->sourcePanel->Set_AutoRefresh_Mode(false);
