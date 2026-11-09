@@ -185,11 +185,14 @@ class SplitDestinationTests final : public QObject {
 
     void browsingUsesTheSameDestinationAsExtraction_data() {
         QTest::addColumn<bool>("invalidDraft");
-        QTest::newRow("resolved-path") << false;
-        QTest::newRow("replace-invalid-path") << true;
+        QTest::addColumn<bool>("missingDirectory");
+        QTest::newRow("resolved-path") << false << false;
+        QTest::newRow("replace-invalid-path") << true << false;
+        QTest::newRow("nearest-existing-directory") << false << true;
     }
     void browsingUsesTheSameDestinationAsExtraction() {
         QFETCH(bool, invalidDraft);
+        QFETCH(bool, missingDirectory);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString start = fixture.filePath(QStringLiteral("папка с пробелом"));
@@ -203,7 +206,8 @@ class SplitDestinationTests final : public QObject {
         CExtractDialog dialog(start, {start});
         auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
         QVERIFY(browse);
-        const QString draft = invalidDraft ? start + QChar::Null : "  " + start + "  ";
+        const QString requested = missingDirectory ? start + "/not created/deeper" : start;
+        const QString draft = invalidDraft ? requested + QChar::Null : "  " + requested + "  ";
         path(dialog)->setCurrentIndex(0);
         path(dialog)->setEditText(draft);
         enabled(dialog)->setChecked(true);
@@ -259,6 +263,8 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(dialog.OverwriteMode, overwriteMode);
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.DirPath)), destination);
+        if (missingDirectory)
+            QVERIFY(!QFileInfo::exists(start + "/not created"));
     }
     void relativeLongDestinationUsesSourceBrowser() {
 #ifdef Q_OS_WIN
