@@ -1,7 +1,6 @@
 #include "dialogs/delete/qtdeleteconfirmation.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtsourcesummary.h"
-#include "ui/controls/qtstatuslabel.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
@@ -10,11 +9,24 @@
 #include <QEvent>
 #include <QFileInfo>
 #include <QLabel>
+#include <QListView>
 #include <QPushButton>
 #include <QShowEvent>
+#include <QStringListModel>
 #include <QStyle>
 #include <QVBoxLayout>
 #include <utility>
+
+namespace {
+class DeleteNamesModel final : public QStringListModel {
+  public:
+    using QStringListModel::QStringListModel;
+
+    QVariant data(const QModelIndex &index, int role) const override {
+        return QStringListModel::data(index, role == Qt::ToolTipRole ? Qt::DisplayRole : role);
+    }
+};
+} // namespace
 
 QtDeleteConfirmation::QtDeleteConfirmation(Request request, QWidget *parent)
     : QDialog(parent), request_(std::move(request)) {
@@ -74,19 +86,17 @@ void QtDeleteConfirmation::buildPresentation() {
     restriction_ = label("deleteRestriction");
     restriction_->setVisible(request_.readOnly);
     if (request_.names.size() > 1) {
-        auto *names = new QWidget(this);
+        auto *names = new QListView(this);
         names->setObjectName("deleteSelectedNames");
-        auto *rows = new QVBoxLayout(names);
-        rows->setContentsMargins(0, 0, 0, 0);
-        rows->setSpacing(4);
-        for (const auto &name : request_.names) {
-            auto *row = new QtStatusLabel(names, Qt::ElideMiddle);
-            row->setTextFormat(Qt::PlainText);
-            row->setText(name);
-            row->setToolTip(name);
-            row->setAccessibleName(name);
-            rows->addWidget(row);
-        }
+        names->setModel(new DeleteNamesModel(request_.names, names));
+        names->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        names->setSelectionMode(QAbstractItemView::NoSelection);
+        names->setUniformItemSizes(true);
+        names->setTextElideMode(Qt::ElideMiddle);
+        names->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        names->setFixedHeight(names->sizeHintForRow(0) *
+                                  int(qMin<qsizetype>(8, request_.names.size())) +
+                              2 * names->frameWidth());
         body->addWidget(names);
     }
 }

@@ -426,9 +426,9 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             cancelDefault = box->findChild<QPushButton *>("deleteCancel")->isDefault();
             title = box->windowTitle();
             message = box->findChild<QWidget *>("deleteSourceSummary")->accessibleName();
-            if (auto *names = box->findChild<QWidget *>("deleteSelectedNames"))
-                for (auto *label : names->findChildren<QLabel *>())
-                    listedNames.append(label->accessibleName());
+            if (auto *names = box->findChild<QListView *>("deleteSelectedNames"))
+                for (int row = 0; row < names->model()->rowCount(); ++row)
+                    listedNames.append(names->model()->index(row, 0).data().toString());
             for (const QSize size : {QSize(400, 200), QSize(300, 180)}) {
                 box->resize(size);
                 QApplication::processEvents();

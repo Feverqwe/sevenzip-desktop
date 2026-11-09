@@ -6,6 +6,7 @@
 #include <QDialogButtonBox>
 #include <QHelpEvent>
 #include <QLabel>
+#include <QListView>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -51,7 +52,7 @@ class DeleteConfirmationTests final : public QObject {
         auto *source = dialog.findChild<QWidget *>("deleteSourceSummary");
         auto *folders = dialog.findChild<QLabel *>("deleteFolders");
         auto *consequence = dialog.findChild<QLabel *>("deleteConsequence");
-        auto *names = dialog.findChild<QWidget *>("deleteSelectedNames");
+        auto *names = dialog.findChild<QListView *>("deleteSelectedNames");
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
         QVERIFY(cancel && confirm && source && folders && consequence && names && scroll);
         QVERIFY(cancel->hasFocus() && cancel->isDefault());
@@ -73,10 +74,10 @@ class DeleteConfirmationTests final : public QObject {
                 QVERIFY(!label->isVisible() || label->text() != request.location);
         QVERIFY(names->isVisible());
         QStringList listedNames;
-        for (auto *name : names->findChildren<QLabel *>()) {
-            listedNames.append(name->text());
-            QCOMPARE(name->toolTip(), name->text());
-            QVERIFY(name->height() < name->fontMetrics().lineSpacing() * 2);
+        for (int row = 0; row < names->model()->rowCount(); ++row) {
+            const auto item = names->model()->index(row, 0);
+            listedNames.append(item.data().toString());
+            QCOMPARE(item.data(Qt::ToolTipRole), item.data());
         }
         QCOMPARE(listedNames, request.names);
         const char *actions[] = {"Move to Trash", "Delete from archive"};
@@ -129,7 +130,7 @@ class DeleteConfirmationTests final : public QObject {
         QtDeleteConfirmation::Request request;
         request.location = "/source";
         request.includesFolders = true;
-        for (int index = 0; index < 62; ++index)
+        for (int index = 0; index < 5000; ++index)
             request.names.append(QString("item-%1.txt").arg(index));
         QtDeleteConfirmation dialog(request);
         dialog.show();
@@ -139,15 +140,15 @@ class DeleteConfirmationTests final : public QObject {
         auto *cancel = dialog.findChild<QPushButton *>("deleteCancel");
         auto *confirm = dialog.findChild<QPushButton *>("deleteConfirm");
         QVERIFY(scroll && cancel && confirm);
-        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
         QVERIFY(UiInspection::fullyVisible(*cancel, dialog));
         QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
-        scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
-        auto *names = dialog.findChild<QWidget *>("deleteSelectedNames");
+        auto *names = dialog.findChild<QListView *>("deleteSelectedNames");
         QVERIFY(names);
-        auto *last = names->findChildren<QLabel *>().last();
-        QCOMPARE(last->text(), request.names.last());
-        QTRY_VERIFY(UiInspection::fullyVisible(*last, dialog));
+        scroll->ensureWidgetVisible(names, 0, 0);
+        const auto last = names->model()->index(names->model()->rowCount() - 1, 0);
+        QCOMPARE(last.data().toString(), request.names.last());
+        names->scrollTo(last);
+        QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(last)));
         QVERIFY(UiInspection::writeReport(dialog, "delete-large-selection"));
         QTest::keyClick(&dialog, Qt::Key_Escape);
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
