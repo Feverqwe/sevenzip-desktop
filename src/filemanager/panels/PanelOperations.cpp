@@ -40,9 +40,10 @@ static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> 
     }
     FOR_VECTOR(i, indices) {
         request.names.append(ToQString(panel.GetItemRelPath2(indices[i])));
-        const bool filesystemLink =
-            panel.IsFSFolder() && QtIsFileSystemLink(ToQString(panel.GetItemFullPath(indices[i])));
-        request.includesFolders |= panel.IsItem_Folder(indices[i]) && !filesystemLink;
+        if (!request.includesFolders && panel.IsItem_Folder(indices[i]))
+            request.includesFolders =
+                !panel.IsFSFolder() ||
+                !QtIsFileSystemLink(ToQString(panel.GetItemFullPath(indices[i])));
     }
     QtDeleteConfirmation dialog(std::move(request), panel.GetParent());
     return dialog.exec() == QDialog::Accepted;
