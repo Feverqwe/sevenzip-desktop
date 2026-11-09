@@ -2,6 +2,7 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QHeaderView>
 #include <QScrollBar>
@@ -72,6 +73,58 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(view->horizontalHeader()->sortIndicatorOrder(), Qt::DescendingOrder);
         QCOMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                  selected);
+    }
+    void headerSortWaitsForTheRefreshedList() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto write = [&](const QString &name, const QByteArray &bytes) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(bytes), bytes.size());
+        };
+        const QString selected = QStringLiteral("a selected.txt");
+        write(selected, "a");
+        write("z largest.txt", QByteArray(128, 'z'));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 2);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        const int row = filesystemRow(window, selected);
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        for (int i = 0; i < 257; ++i)
+            write(QString("item-%1.txt").arg(i), "item");
+
+        auto *header = view->horizontalHeader();
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        const auto clickSize = [&] {
+            QTest::mouseClick(
+                header->viewport(), Qt::LeftButton, Qt::NoModifier,
+                QPoint(header->sectionViewportPosition(sizeColumn) + 10, header->height() / 2));
+        };
+        const int initialSort = header->sortIndicatorSection();
+        auto *refresh = action(window, "refreshAction");
+        QTest::keySequence(view, refresh->shortcut());
+        QVERIFY(!refresh->isEnabled());
+        QVERIFY(view->hasFocus());
+        clickSize();
+        QTRY_VERIFY(refresh->isEnabled() && view->rowCount() == 259);
+        QCOMPARE(header->sortIndicatorSection(), initialSort);
+        QVERIFY(view->hasFocus());
+        clickSize();
+        QTRY_COMPARE(view->model()->index(0, 0).data(QtPanelList::NameRole).toString(),
+                     QString("z largest.txt"));
+        QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
     }
     void rawCommandUsesSourceColumnFlag() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));

@@ -76,6 +76,7 @@ void MainWindow::refreshActions() {
             ui.iconList->setUpdatesEnabled(!projecting);
             ui.table->setEnabled(panelIdle || keepListFocus);
             ui.iconList->setEnabled(panelIdle || keepListFocus);
+            ui.table->horizontalHeader()->setEnabled(panelIdle);
             // Native archive progress is modal to the file manager. Qt disables
             // its lists during the operation; disable the address controls too so
             // focus cannot move to an inactive pane while its source guards block
