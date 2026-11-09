@@ -414,11 +414,17 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         ControlledBackend backend;
         MainWindow window(&backend);
         openListedArchive(window, backend, "archive.zip",
-                          {ArchiveEntry{QStringLiteral("папка/δ space.txt"), 3, 3}});
+                          {ArchiveEntry{QStringLiteral("папка/δ space.txt"), 3, 3},
+                           ArchiveEntry{QStringLiteral("следующий файл.txt"), 4, 4}});
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
         QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
         QVERIFY(action(window, "copyAction")->isEnabled());
         QCOMPARE(backend.extractCalls, 0);
-        table(window)->setCurrentCell(0, 0);
+        auto *view = table(window);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
         bool dialogSeen = false;
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = dynamic_cast<CopyDialog *>(QApplication::activeModalWidget());
@@ -427,12 +433,17 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
             auto *destination = dialog->findChild<QLineEdit *>("copyDestination");
             QVERIFY(destination);
             destination->setText("/temporary/selected output");
-            dialog->reject();
+            QTest::keyClick(dialog, Qt::Key_Escape);
         });
         action(window, "extractArchiveAction")->trigger();
         QVERIFY(dialogSeen);
         QCOMPARE(backend.extractCalls, 0);
         QVERIFY(action(window, "extractArchiveAction")->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(view->currentRow(), 0);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+        QCOMPARE(view->currentRow(), 1);
         ExtractionOptions options;
         options.pathMode = ExtractionOptions::PathMode::NoPaths;
         options.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
