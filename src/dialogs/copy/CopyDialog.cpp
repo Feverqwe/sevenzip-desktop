@@ -50,7 +50,8 @@ CCopyDialog::CCopyDialog(bool move, const QString &initialPath, const QStringLis
                          QWidget *parent, const QString &info)
     : QDialog(parent), Title(ToUString(QtLangText(move ? IDS_MOVE : IDS_COPY))),
       Static(ToUString(QtLangText(move ? IDS_MOVE_TO : IDS_COPY_TO))),
-      Value(ToUString(initialPath)), Info(ToUString(info)), _sources(sources), _copyMove(true) {
+      Value(ToUString(initialPath)), Info(ToUString(info)), _sources(sources), _copyMove(true),
+      _move(move) {
     // The Qt caller supplies filenames, rather than IFolder property indices.
     if (info.isNull())
         for (const QString &source : sources) {

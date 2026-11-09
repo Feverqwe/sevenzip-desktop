@@ -66,6 +66,7 @@ class CCopyDialog : public QDialog {
     QString _sourceLocation;
     std::optional<quint64> _knownSize;
     bool _copyMove = false;
+    bool _move = false;
     bool _acceptedNamedDestination = false;
     std::optional<QtCopyDestinationContext> _destinationContext;
     QLineEdit *_name = nullptr;

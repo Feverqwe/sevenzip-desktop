@@ -274,7 +274,14 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
         _destinationContext->LocalFileTransfer) {
         for (const QString &path : _sources) {
             const QFileInfo source(path);
-            if (!source.exists() && !source.isSymLink() && !source.isJunction()) {
+            if (source.isSymLink() || source.isJunction())
+                continue;
+            bool unavailable = !source.exists();
+#ifdef Q_OS_UNIX
+            if (!_move && (!source.isReadable() || (source.isDir() && !CanSearchDirectory(source))))
+                unavailable = true;
+#endif
+            if (unavailable) {
                 error = QCoreApplication::translate("qtfiletransfertransaction",
                                                     "Source unavailable: %1")
                             .arg(path);

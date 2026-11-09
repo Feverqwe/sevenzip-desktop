@@ -383,6 +383,48 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(!QFileInfo::exists(destination));
     }
 
+    void copyBatchCanBeRetriedAfterReadAccessReturns() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX file permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("first.txt");
+        const QString blocked = fixture.filePath(QStringLiteral("закрытый файл.txt"));
+        for (const auto &path : {first, blocked}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        const QString destination = fixture.filePath("output") + '/';
+        QVERIFY(QDir().mkpath(destination));
+        const auto permissions = QFile::permissions(blocked);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
+        QVERIFY(QFile::setPermissions(blocked, QFile::WriteOwner));
+        if (QFileInfo(blocked).isReadable())
+            QSKIP("The current user can still read the file");
+        QtCopyDestinationContext context;
+        context.SourceDirectory = fixture.path();
+        context.LocalFileTransfer = true;
+        CCopyDialog copy(false, destination, {first, blocked});
+        copy.ConfigureDestination(context);
+        copy.show();
+        copy.accept();
+        QVERIFY(copy.isVisible());
+        auto *message = copy.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message && message->isVisible() && message->text().contains(blocked));
+
+        CCopyDialog move(true, destination, {first, blocked});
+        move.ConfigureDestination(context);
+        move.accept();
+        QCOMPARE(move.result(), int(QDialog::Accepted));
+
+        QVERIFY(QFile::setPermissions(blocked, permissions));
+        auto *path = copy.findChild<QLineEdit *>("copyDestination");
+        QCOMPARE(path->text(), destination);
+        QTest::keyClick(path, Qt::Key_Return);
+        QCOMPARE(copy.result(), int(QDialog::Accepted));
+    }
+
     void batchDestinationConflictCanBeCorrected_data() {
         QTest::addColumn<bool>("replacePath");
         QTest::newRow("same-destination") << false;
