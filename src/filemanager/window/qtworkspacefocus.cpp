@@ -71,13 +71,21 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         // the panel track it, and arbitrate the actual shortcut separately.
         if (key && (key->key() == Qt::Key_Control || key->key() == Qt::Key_Shift))
             return QObject::eventFilter(object, event);
+        const bool waitingForPeer = pendingListFocus_ &&
+                                    *pendingListFocus_ != window_.projectedPanel_ &&
+                                    window_.panelInputTarget(object, window_.projectedPanel_) ==
+                                        MainWindow::PanelInputTarget::List;
+        if (waitingForPeer && key) {
+            const auto *command = window_.panelShortcut(*key);
+            if (command && command->shortcutContext() == Qt::WidgetShortcut) {
+                event->accept();
+                return true;
+            }
+        }
         // Plain list navigation does not change the pending target, including
         // after Tab leaves input in the old list until the peer is ready.
         if (pendingListFocus_ && key && widget &&
-            (widget == window_.panelUi_[*pendingListFocus_].container ||
-             (*pendingListFocus_ != window_.projectedPanel_ &&
-              window_.panelInputTarget(object, window_.projectedPanel_) ==
-                  MainWindow::PanelInputTarget::List))) {
+            (widget == window_.panelUi_[*pendingListFocus_].container || waitingForPeer)) {
             if (key->modifiers() == Qt::NoModifier &&
                 (key->key() == Qt::Key_Up || key->key() == Qt::Key_Down ||
                  key->key() == Qt::Key_Left || key->key() == Qt::Key_Right ||

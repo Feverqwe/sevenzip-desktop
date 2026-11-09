@@ -384,6 +384,8 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         const auto leftCurrent = leftTable->currentIndex();
         QTest::keyClick(leftTable, Qt::Key_Down);
         QCOMPARE(leftTable->currentIndex(), leftCurrent);
+        QTest::keyClick(leftTable, Qt::Key_F2);
+        QVERIFY(!leftTable->findChild<QLineEdit *>());
         QTRY_VERIFY(rightTable->isEnabled() && rightTable->hasFocus());
         QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 1);
         leftTable->setFocus();
