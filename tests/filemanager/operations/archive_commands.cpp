@@ -63,6 +63,20 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
     action(window, "createFolderAction")->trigger();
     auto *folderName = window.findChild<QLineEdit *>("inlineFolderName");
     QVERIFY(folderName && folderName->isVisible());
+    QFile archiveFile(archive);
+    QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+    const QByteArray originalArchive = archiveFile.readAll();
+    archiveFile.close();
+    for (const QString &invalid : {QStringLiteral("../outside"), QStringLiteral("/absolute")}) {
+        folderName->setText(invalid);
+        QTest::keyClick(folderName, Qt::Key_Return);
+        const auto *error = window.findChild<QLabel *>("inlineFolderError");
+        QVERIFY(error && error->isVisible());
+        QCOMPARE(folderName->selectedText(), invalid);
+        QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+        QCOMPARE(archiveFile.readAll(), originalArchive);
+        archiveFile.close();
+    }
     folderName->setText(QStringLiteral("новая папка"));
     QTest::keyClick(folderName, Qt::Key_Return);
     const auto archiveRow = [&window](const QString &name) {
@@ -79,7 +93,6 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
     view->setCurrentCell(selected, 0);
     view->selectRow(selected);
     QTRY_VERIFY(view->hasFocus());
-    QFile archiveFile(archive);
     QVERIFY(archiveFile.open(QIODevice::ReadOnly));
     const QByteArray beforeDelete = archiveFile.readAll();
     archiveFile.close();

@@ -195,7 +195,8 @@ void QtFileManagerCommands::CreateFolder() {
         QString destinationDirectory;
         QString publishedArchive;
         HRESULT result = E_INVALIDARG;
-        if (!value.isEmpty() && !value.contains(QChar::Null)) {
+        if (!value.isEmpty() && !value.contains(QChar::Null) &&
+            (!panel.IsArcFolder() || ArchiveBackend::safePath(value))) {
             const QPointer<QWidget> alive(editor);
             editor->setEnabled(false);
             {
