@@ -30,17 +30,29 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
     void invalidDraftCanBeCorrected_data() {
         QTest::addColumn<QString>("draft");
         QTest::addColumn<QString>("unexpected");
+        QTest::addColumn<bool>("occupied");
         QTest::newRow("nul") << (QStringLiteral("truncated") + QChar::Null + "suffix")
-                             << QString("truncated");
+                             << QString("truncated") << false;
+        QTest::newRow("existing-file")
+            << QString("occupied.txt") << QString("occupied.txt") << true;
 #ifdef Q_OS_WIN
-        QTest::newRow("empty-path-component") << QString("nested/.../suffix") << QString("nested");
+        QTest::newRow("empty-path-component")
+            << QString("nested/.../suffix") << QString("nested") << false;
 #endif
     }
     void invalidDraftCanBeCorrected() {
         QFETCH(QString, draft);
         QFETCH(QString, unexpected);
+        QFETCH(bool, occupied);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+        QFile existing(fixture.filePath(unexpected));
+        const QByteArray original("existing file contents");
+        if (occupied) {
+            QVERIFY(existing.open(QIODevice::WriteOnly));
+            QCOMPARE(existing.write(original), qint64(original.size()));
+            existing.close();
+        }
         QtWorkspaceApplication application(*qApp);
         ControlledBackend backend, observerBackend;
         MainWindow window(&backend), observer(&observerBackend);
@@ -51,7 +63,9 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         observed->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
         auto *view = openPanel(window, 0, fixture.path());
-        QTRY_COMPARE(view->rowCount(), 0);
+        const int initialRows = occupied ? 1 : 0;
+        QTRY_COMPARE(view->rowCount(), initialRows);
+        QTRY_COMPARE(observed->rowCount(), initialRows);
         view->setFocus();
 #ifdef Q_OS_WIN
         const QString finalName = QStringLiteral("corrected folder");
@@ -65,18 +79,22 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(name, Qt::Key_Return);
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
-        QVERIFY(!QFileInfo::exists(fixture.filePath(unexpected)));
-        QCOMPARE(view->rowCount(), 0);
-        QCOMPARE(observed->rowCount(), 0);
+        QCOMPARE(QFileInfo::exists(existing.fileName()), occupied);
+        QCOMPARE(view->rowCount(), initialRows);
+        QCOMPARE(observed->rowCount(), initialRows);
         QCOMPARE(name->selectedText(), name->text());
         QTest::keyClicks(name, finalName);
         QCOMPARE(name->text(), finalName);
         QTest::keyClick(name, Qt::Key_Return);
         const QFileInfo created(fixture.filePath(finalName));
         QVERIFY(created.isDir());
-        QVERIFY(!QFileInfo::exists(fixture.filePath(unexpected)));
-        QTRY_COMPARE(view->rowCount(), 1);
-        QTRY_COMPARE(row(observed, finalName), 0);
+        QCOMPARE(QFileInfo::exists(existing.fileName()), occupied);
+        if (occupied) {
+            QVERIFY(existing.open(QIODevice::ReadOnly));
+            QCOMPARE(existing.readAll(), original);
+        }
+        QTRY_COMPARE(view->rowCount(), initialRows + 1);
+        QTRY_VERIFY(row(observed, finalName) >= 0);
         QCOMPARE(view->currentRow(), row(view, finalName));
     }
 
