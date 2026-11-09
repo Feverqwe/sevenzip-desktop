@@ -21,6 +21,19 @@ QString InvalidArchivePath() {
     return QCoreApplication::translate("CreateArchiveDialog", "Incorrect archive path");
 }
 
+qsizetype InvalidWindowsPathCharacter(const QString &path) {
+#ifdef Q_OS_WIN
+    const UString native = ToUString(QDir::toNativeSeparators(path));
+    const auto root = NWindows::NFile::NName::GetRootPrefixSize(native);
+    for (qsizetype i = root; i < path.size(); ++i)
+        if (QStringView(u"<>\"|?*").contains(path[i]))
+            return i;
+#else
+    Q_UNUSED(path);
+#endif
+    return -1;
+}
+
 QString ArchiveDirectoryError(QString path) {
     for (;;) {
         const QFileInfo entry(path);
@@ -139,12 +152,16 @@ void CreateArchiveDialog::validateAndAccept() {
     const QString resolved = archivePath();
     const UString nativeResolved = ToUString(QDir::toNativeSeparators(resolved));
     const bool relativeName = NWindows::NFile::NName::GetRootPrefixSize(draftName) == 0;
-    const bool invalidName = HasEmptyWindowsPathComponent(
-        ToUString(QDir::toNativeSeparators(name_->text())), nativeResolved);
+    const auto invalidNameCharacter = InvalidWindowsPathCharacter(name_->text());
+    const bool invalidName =
+        invalidNameCharacter >= 0 ||
+        HasEmptyWindowsPathComponent(ToUString(QDir::toNativeSeparators(name_->text())),
+                                     nativeResolved);
     const bool invalidFolder =
         relativeName &&
-        HasEmptyWindowsPathComponent(ToUString(QDir::toNativeSeparators(archiveFolder_->text())),
-                                     nativeResolved);
+        (InvalidWindowsPathCharacter(archiveFolder_->text()) >= 0 ||
+         HasEmptyWindowsPathComponent(ToUString(QDir::toNativeSeparators(archiveFolder_->text())),
+                                      nativeResolved));
     const QFileInfo target(resolved);
     const bool singleVolume = volumeInfo.VolumeSizes.IsEmpty();
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
@@ -214,6 +231,8 @@ void CreateArchiveDialog::validateAndAccept() {
         field->setFocus();
         if (field == archiveFolder_)
             archiveFolder_->selectAll();
+        else if (invalidNameCharacter >= 0)
+            name_->setSelection(int(invalidNameCharacter), 1);
         else if (occupiedName || !hasFileName) {
             const auto text = QDir::fromNativeSeparators(name_->text());
             const int leafStart = int(text.lastIndexOf(u'/') + 1);

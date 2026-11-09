@@ -433,6 +433,7 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("file") << QString("file");
 #ifdef Q_OS_WIN
         QTest::newRow("empty-windows-component") << QString("empty-component");
+        QTest::newRow("windows-wildcard") << QString("wildcard");
 #endif
 #ifndef Q_OS_WIN
         QTest::newRow("dangling-link") << QString("link");
@@ -443,6 +444,7 @@ class CompressionPathTests final : public QObject {
         QFETCH(QString, obstruction);
         const bool danglingLink = obstruction == "link";
         const bool readOnly = obstruction == "permissions";
+        const bool wildcard = obstruction == "wildcard";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
 #ifdef Q_OS_WIN
@@ -455,6 +457,7 @@ class CompressionPathTests final : public QObject {
         occupied.close();
         const QString missing = fixture.filePath("missing folder");
         const QString blocker = obstruction == "empty-component" ? fixture.filePath(" ... ")
+                                : wildcard                       ? fixture.filePath("wrong?")
                                 : danglingLink                   ? fixture.filePath("old shortcut")
                                 : readOnly                       ? fixture.filePath("read only")
                                                                  : occupied.fileName();
@@ -499,7 +502,7 @@ class CompressionPathTests final : public QObject {
         submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
-        if (obstruction != "empty-component")
+        if (obstruction != "empty-component" && !wildcard)
             QVERIFY(diagnostic.contains(QDir::toNativeSeparators(blocker)));
         QCOMPARE(diagnosticFormat, Qt::PlainText);
         QCOMPARE(dialog.focusWidget(), folder);
@@ -516,13 +519,21 @@ class CompressionPathTests final : public QObject {
         submitAndDismissError();
         QVERIFY(dialog.isVisible());
         QVERIFY(!diagnostic.isEmpty());
-        if (obstruction != "empty-component")
+        if (obstruction != "empty-component" && !wildcard)
             QVERIFY(diagnostic.contains(QDir::toNativeSeparators(blocker)));
+        if (wildcard)
+            QCOMPARE(archiveName->selectedText(), QString("?"));
         QWidget *nameEditor = dialog.focusWidget();
         QVERIFY(nameEditor);
-        QTest::keyClick(nameEditor, Qt::Key_End);
+        if (!wildcard)
+            QTest::keyClick(nameEditor, Qt::Key_End);
         QTest::keyClicks(nameEditor, "x");
-        QCOMPARE(archiveName->text(), blockedName + 'x');
+        QString editedName = blockedName;
+        if (wildcard)
+            editedName.replace(u'?', u'x');
+        else
+            editedName += u'x';
+        QCOMPARE(archiveName->text(), editedName);
         archiveName->setText("  ");
         submitAndDismissError();
         QVERIFY(dialog.isVisible());

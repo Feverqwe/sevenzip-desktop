@@ -23,6 +23,8 @@ If a file, dangling link or known lack of write access blocks the destination
 folder, the form stays open and focuses the field that needs correction while
 retaining the archive options. The archive name must end with a file name,
 even when the destination folder has yet to be created.
+A wildcard in a Windows archive path keeps the form open and focuses the
+field containing it.
 A dangling link or read-only file at a single-file archive destination also
 keeps the form open.
 For a multi-volume archive, an occupied base path or volume keeps the form open so
