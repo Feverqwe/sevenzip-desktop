@@ -685,6 +685,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
                  parent);
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(window.windowTitle())), parent);
         QTRY_VERIFY(view->hasFocus());
+        QTRY_VERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("missing 文件")));
         QVERIFY(view->sourcePanel->ShouldProcessNotifications());
         QCOMPARE(peerView->rowCount(), 1);
         QCOMPARE(peerView->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
@@ -696,6 +697,12 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
             QCOMPARE(file.readAll(), pair.second);
         }
         QVERIFY(!QFileInfo::exists(QDir(parent).filePath(QStringLiteral("missing 文件"))));
+        PanelKeys::focusAddress(address);
+        address->setText(child);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), child);
+        QTRY_VERIFY(view->hasFocus());
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(backend.listCalls, 0);
     }
 };
