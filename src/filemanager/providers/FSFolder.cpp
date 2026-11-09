@@ -80,7 +80,10 @@ HRESULT CFSFolder::LoadSubItems(int dirItem, const FString &relPrefix) {
             if (CheckBreak && !CheckBreak(QtPath(_path + relPrefix)))
                 return E_ABORT;
 #ifdef _WIN32
-            if (!enumerator.Next(fi))
+            bool found;
+            if (!enumerator.Next(fi, found))
+                return GetLastError_noZero_HRESULT();
+            if (!found)
                 break;
 #else
             bool found;

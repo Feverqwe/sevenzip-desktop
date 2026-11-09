@@ -12,6 +12,11 @@
 #include "ui/controls/qtwindowstatusbar.h"
 #include <QScopeGuard>
 
+static QString FilesystemReadError(const QString &path) {
+    return QCoreApplication::translate("FSFolderCopy", "Could not read folder: %1")
+        .arg(QDir::toNativeSeparators(path));
+}
+
 HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateAddress) {
     COpenResult opened;
     auto &panel = app_.GetFocusedPanel();
@@ -60,17 +65,15 @@ HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
     applySortMode(true);
     setState(State::Filesystem);
     if (result != S_OK)
-        workspace_->ReportNavigationFailure(
-            QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
+        workspace_->ReportNavigationFailure(FilesystemReadError(projectedUi().directory));
     else
         clearFilesystemReadError();
     return result;
 }
 
 void MainWindow::clearFilesystemReadError() {
-    statusStrip_->ClearMessageIf(
-        &app_.GetFocusedPanel(),
-        QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
+    statusStrip_->ClearMessageIf(&app_.GetFocusedPanel(),
+                                 FilesystemReadError(projectedUi().directory));
 }
 
 HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder) {
@@ -132,6 +135,6 @@ void MainWindow::failFilesystemListing(HRESULT result) {
         return;
     projectedUi().scanningDisk = false;
     setState(State::Filesystem);
-    showStatusMessage(QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
+    showStatusMessage(FilesystemReadError(projectedUi().directory));
     workspace_->NavigationFinished(result);
 }

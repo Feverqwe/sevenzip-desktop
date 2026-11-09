@@ -620,6 +620,39 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(address->selectedText(), QStringLiteral("finis"));
     }
 
+    void unreadableFolderClearsStaleRowsAndRecovers() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = QFileInfo(fixture.path()).canonicalFilePath();
+        QVERIFY(writeFile(fixture.filePath("keep.txt"), "payload"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(folder);
+        auto *files = table(window);
+        QTRY_COMPARE(files->rowCount(), 1);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        const auto permissions = QFile::permissions(folder);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(folder, permissions); });
+        QVERIFY(QFile::setPermissions(folder, QFile::ExeOwner));
+        if (QFileInfo(folder).isReadable())
+            QSKIP("Fixture requires denied directory read permission");
+        auto *refresh = action(window, "refreshAction");
+        refresh->trigger();
+        QTRY_COMPARE(files->rowCount(), 0);
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("FSFolderCopy", "Could not read folder: %1")
+                     .arg(QDir::toNativeSeparators(folder)));
+        QVERIFY(QFile::setPermissions(folder, permissions));
+        refresh->trigger();
+        QTRY_COMPARE(files->rowCount(), 1);
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString("keep.txt"));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
     void missingFolderClearsStaleRowsAndRecovers_data() {
         QTest::addColumn<bool>("automatic");
         QTest::addColumn<bool>("publishedRename");
