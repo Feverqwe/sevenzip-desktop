@@ -16,7 +16,6 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QScopeGuard>
 #include <QScopedValueRollback>
-#include <QScrollBar>
 
 bool MainWindow::canHandleExternalUpdate() const {
     return !app_.QtOperations().active() && !app_.QtOperations().closed() &&
@@ -81,7 +80,12 @@ HRESULT MainWindow::openArchiveAsImpl(const QFileInfo &file, const QString &type
     });
     QtAppOperationState::CallScope call(app_.QtOperations());
     const auto pendingSelection = projectedUi().pendingSelection;
-    const auto pendingViewport = projectedUi().pendingViewport;
+    const auto &pendingViewport = projectedUi().pendingViewport;
+    const auto previousViewport =
+        pendingViewport && pendingViewport->view == projectedUi().viewStack->currentWidget() &&
+                pendingViewport->directory == projectedUi().directory
+            ? *pendingViewport
+            : captureListViewport();
     const auto addressDraft = projectedUi().path->isModified()
                                   ? std::optional(QtAddressDraft(*projectedUi().path))
                                   : std::nullopt;
@@ -94,15 +98,6 @@ HRESULT MainWindow::openArchiveAsImpl(const QFileInfo &file, const QString &type
         previousSelection = *pendingSelection;
     else
         panel.SaveSelectedState(previousSelection);
-    const QPointer<QAbstractItemView> previousView =
-        qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
-    QPoint previousScroll;
-    if (pendingViewport && pendingViewport->view == previousView &&
-        pendingViewport->directory == projectedUi().directory)
-        previousScroll = pendingViewport->scrollPosition;
-    else if (previousView)
-        previousScroll = {previousView->horizontalScrollBar()->value(),
-                          previousView->verticalScrollBar()->value()};
     QString message;
     HRESULT result;
     const PROPID previousSort = panel.GetSortID();
@@ -135,8 +130,12 @@ HRESULT MainWindow::openArchiveAsImpl(const QFileInfo &file, const QString &type
     }
     // Acknowledging the error is part of this transition. Only later input
     // should supersede the restored source's scroll position.
-    if (result != S_OK && previousView)
-        workspace_->RestoreViewPosition(panel, *previousView, previousScroll);
+    if (result != S_OK) {
+        if (projectedUi().scanningDisk || projectedUi().scanningArchive)
+            projectedUi().pendingViewport = previousViewport;
+        else
+            restoreListViewport(previousViewport);
+    }
     return panel.IsArcFolder() ? result : result == S_OK ? S_FALSE : result;
 }
 
