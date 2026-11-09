@@ -68,6 +68,7 @@ class QtWindowWorkspace final : public QObject {
                      std::function<void(HRESULT)> finished = {},
                      NavigationHistory history = NavigationHistory::Record);
     void ShowRecentPlaces(unsigned panel, QWidget &anchor);
+    void NavigateBreadcrumb(unsigned panel, const QString &path);
     void RecordVisit(const QString &path);
     void SetBookmark(unsigned index);
     void OpenBookmark(unsigned index);

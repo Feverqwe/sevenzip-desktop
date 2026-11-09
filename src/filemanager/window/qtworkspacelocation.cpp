@@ -8,6 +8,72 @@
 #include <QScrollBar>
 #include <utility>
 
+void QtWindowWorkspace::NavigateBreadcrumb(unsigned index, const QString &path) {
+    CancelListFocus();
+    window_.activatePanelUi(index);
+    if (window_.projectedPanel_ != index)
+        return;
+    const auto &panel = window_.app_.GetFocusedPanel();
+    const bool current = !window_.projectedUi().locationUnavailable && panel.GetFolder() &&
+                         path == ToQString(panel.GetCurrentFolderPrefix());
+    const auto &ui = window_.projectedUi();
+    const QString target = QDir::cleanPath(path);
+    bool immediateParent = !ui.locationUnavailable && ui.state == MainWindow::State::Filesystem &&
+                           target != ui.directory &&
+                           target == QFileInfo(ui.directory).absolutePath();
+    QString branch;
+    if (!ui.locationUnavailable && ui.state == MainWindow::State::Viewing) {
+        if (!ui.archiveFolder.isEmpty()) {
+            const auto &segments =
+                static_cast<QtPanelAddressCombo *>(ui.pathCombo)->LocationSegments();
+            for (size_t i = segments.size(); i > 1; --i) {
+                if (segments[i - 1].kind == QtAddressSegmentKind::Archive)
+                    break;
+                const auto &ancestor = segments[i - 2];
+                if (path != ToQString(ancestor.target))
+                    continue;
+                immediateParent = i == segments.size();
+                if (!immediateParent)
+                    branch = ToQString(segments[i - 1].label);
+                break;
+            }
+        } else {
+            const auto &archives = panel.GetParentFolders();
+            immediateParent =
+                archives.Size() == 1 &&
+                target == QDir::cleanPath(ToQString(archives.Front().ParentFolderPath));
+            if (archives.Size() > 1) {
+                UString nestedRoot = ToUString(path);
+                nestedRoot += archives.Back().RelPath;
+                nestedRoot.Add_PathSepar();
+                immediateParent = nestedRoot == panel.GetCurrentFolderPrefix();
+            }
+        }
+    }
+    if (!current && !immediateParent && !ui.locationUnavailable &&
+        ui.state == MainWindow::State::Filesystem && QDir::isAbsolutePath(target)) {
+        const QString prefix = target.endsWith(u'/') ? target : target + u'/';
+        if (ui.directory.startsWith(prefix))
+            branch = ui.directory.mid(prefix.size()).section(u'/', 0, 0);
+    }
+    const HRESULT result = current           ? S_OK
+                           : immediateParent ? Navigate([this] { return window_.goParentImpl(); })
+                                             : window_.navigateTo(path, true);
+    if (result == S_OK) {
+        const bool reachedTarget =
+            (ui.state == MainWindow::State::Filesystem && ui.directory == target) ||
+            (ui.state == MainWindow::State::Viewing &&
+             path == ToQString(panel.GetCurrentFolderPrefix()));
+        if (!branch.isEmpty() && reachedTarget) {
+            CSelectedState selection;
+            selection.FocusedName = ToUString(branch);
+            selection.FocusedName_Defined = true;
+            window_.restoreListSelection(selection);
+        }
+        RequestListFocus(index);
+    }
+}
+
 HRESULT QtWindowWorkspace::OpenFolderInPeer(unsigned source, std::optional<UInt32> item) {
     const auto &ui = window_.panelUi_[source];
     const auto &operations = window_.app_.QtOperations();
