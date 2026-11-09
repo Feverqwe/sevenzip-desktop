@@ -13,7 +13,6 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/progress/ProgressDialog2.h"
-#include <QScopeGuard>
 #include <QScopedValueRollback>
 
 namespace {
@@ -38,15 +37,9 @@ QString PrepareExtractionDestination(ArchiveBackend &backend, QtArchiveFileResou
 HRESULT ExtractPanelItems(CPanel &panel, CAgentFolder &folder, const QString &output,
                           const QString &password, const ExtractionOptions &options,
                           const CRecordVector<UInt32> &indices, bool explicitIndices,
-                          UStringVector &messages, std::optional<QtArchiveExtractStatus> &status,
-                          bool &callbackOK) {
+                          UStringVector &messages, QtArchiveExtractReport &report) {
     CCopyToOptions sourceOptions;
-    QtArchiveExtractReport report;
     report.Purpose = options.Purpose;
-    const auto captureStatus = qScopeGuard([&] {
-        status = std::move(report.Status);
-        callbackOK = !report.HadErrors;
-    });
     const auto &parents = panel.GetParentFolders();
     CQtExtractPathPolicy pathPolicy(
         output,
@@ -198,11 +191,12 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
             diagnostics = result.Diagnostics;
         } else {
             UStringVector messages;
+            QtArchiveExtractReport report;
             result.Result = ExtractPanelItems(panel, *folder, output, password, options, indices,
-                                              explicitIndices != nullptr, messages,
-                                              result.ExtractStatus, result.CallbackOK);
-            result.MessageWasDisplayed =
-                options.Purpose == QtArchiveExtractPurpose::Copy && !messages.IsEmpty();
+                                              explicitIndices != nullptr, messages, report);
+            result.ExtractStatus = std::move(report.Status);
+            result.CallbackOK = !report.HadErrors;
+            result.MessageWasDisplayed = report.ResultPresented;
             FOR_VECTOR(i, messages)
             diagnostics.append(ToQString(messages[i]));
             if (!messages.IsEmpty())
@@ -210,7 +204,7 @@ bool MainWindow::extractWithSource(const QString &destination, bool onlySelected
         }
     }
     const bool ok = result.Result == S_OK && result.CallbackOK;
-    if (!scoped || !result.MessageWasDisplayed)
+    if (!scoped || !result.MessageWasDisplayed || message.isEmpty())
         message =
             ok ? QCoreApplication::translate("mainwindow_archivecommands", "Extraction completed.")
             : result.Result == E_ABORT
