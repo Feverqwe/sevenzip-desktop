@@ -73,9 +73,40 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
         return -1;
     };
     QTRY_VERIFY(archiveRow(QStringLiteral("новая папка")) >= 0);
-    table(window)->selectRow(archiveRow(QStringLiteral("исходный файл.txt")));
+    auto *view = table(window);
+    const int selected = archiveRow(QStringLiteral("исходный файл.txt"));
+    QVERIFY(selected >= 0);
+    view->setCurrentCell(selected, 0);
+    view->selectRow(selected);
+    QTRY_VERIFY(view->hasFocus());
+    QFile archiveFile(archive);
+    QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+    const QByteArray beforeDelete = archiveFile.readAll();
+    archiveFile.close();
+    auto *remove = action(window, "deleteAction");
+    QVERIFY(!remove->isEnabled());
+    QVERIFY(!remove->shortcut().isEmpty());
+    bool prompted = false;
+    QTimer dismissDelete;
+    connect(&dismissDelete, &QTimer::timeout, &window, [&] {
+        if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+            prompted = true;
+            dialog->reject();
+        }
+    });
+    dismissDelete.start(1);
+    QTest::keySequence(window.focusWidget(), remove->shortcut());
+    QCoreApplication::processEvents();
+    dismissDelete.stop();
+    QVERIFY(!prompted);
+    QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+    QCOMPARE(archiveFile.readAll(), beforeDelete);
+    archiveFile.close();
+    QCOMPARE(view->currentRow(), selected);
+    QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
+    QVERIFY(view->hasFocus());
     QTRY_VERIFY(action(window, "renameAction")->isEnabled());
-    action(window, "renameAction")->trigger();
+    QTest::keyClick(window.focusWidget(), Qt::Key_F2);
     auto *editor = table(window)->findChild<QLineEdit *>();
     QVERIFY(editor);
     editor->setFocus();
