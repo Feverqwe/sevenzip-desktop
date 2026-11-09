@@ -40,7 +40,15 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void creatingExistingNestedArchiveFolderAllowsRetry_data() {
+        QTest::addColumn<QString>("blocked");
+        QTest::newRow("existing-folder") << QString("docs/reports");
+        QTest::newRow("existing-file") << QString("docs/reports/payload.txt");
+        QTest::newRow("file-in-parent-path") << QString("docs/reports/payload.txt/child");
+    }
+
     void creatingExistingNestedArchiveFolderAllowsRetry() {
+        QFETCH(QString, blocked);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("folders.zip");
@@ -58,11 +66,11 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         auto *editor = window.findChild<QLineEdit *>("inlineFolderName");
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(editor && error);
-        editor->setText("docs/reports");
+        editor->setText(blocked);
         QTest::keyClick(editor, Qt::Key_Return);
         QVERIFY(editor->isVisible());
         QVERIFY(error->isVisible());
-        QCOMPARE(editor->selectedText(), QString("docs/reports"));
+        QCOMPARE(editor->selectedText(), blocked);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
         editor->setText("docs/new");
         QTest::keyClick(editor, Qt::Key_Return);

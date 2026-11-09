@@ -14,6 +14,7 @@
 #include "archive/resources/qtarchiveupdatepublication.h"
 #include "archive/resources/qtarchivewritelease.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/patterns/Wildcard.h"
 #include "platform/temp/WorkDir.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QCoreApplication>
@@ -437,8 +438,21 @@ Z7_COM7F_IMF(CAgentFolder::CreateFolder(const wchar_t *name, IProgress *progress
         const UString part = separator < 0 ? remaining : remaining.Left(unsigned(separator));
         CMyComPtr<IFolderFolder> child;
         const HRESULT result = parent->BindToFolder(part, &child);
-        if (result == E_INVALIDARG)
+        if (result == E_INVALIDARG) {
+            const auto *folder = static_cast<CAgentFolder *>(parent.Interface());
+            const unsigned directory = folder->_proxyDirIndex;
+            if (_proxy2)
+                exists = _proxy2->FindItem(directory, part, false) >= 0;
+            else {
+                const auto &files = _proxy->Dirs[directory].SubFiles;
+                FOR_VECTOR(i, files)
+                if (CompareFileNames(_proxy->Files[files[i]].Name, part) == 0) {
+                    exists = true;
+                    break;
+                }
+            }
             break;
+        }
         RINOK(result)
         if (!child)
             break;
