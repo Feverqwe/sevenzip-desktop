@@ -79,10 +79,17 @@ HRESULT MainWindow::launchGuiArchiveCompress(const UString &folder, const UStrin
 
 HRESULT MainWindow::launchGuiArchiveExtract(const UStringVector &paths, const UString &folder,
                                             bool showDialog, bool elimDup, UInt32 writeZone) {
+    const QStringList archives = ArchivePaths(paths);
+    for (const auto &path : archives)
+        if (!QFileInfo::exists(path)) {
+            showStatusMessage(
+                QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                QDir::toNativeSeparators(path));
+            return E_FAIL;
+        }
     QString error;
-    auto *operation =
-        backend_->startGuiExtract(ArchivePaths(paths), QString::fromWCharArray(folder), showDialog,
-                                  elimDup, writeZone, error);
+    auto *operation = backend_->startGuiExtract(archives, QString::fromWCharArray(folder),
+                                                showDialog, elimDup, writeZone, error);
     return observeGuiArchiveOperation(operation, error);
 }
 

@@ -670,6 +670,15 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             QTRY_VERIFY(action(window, "extractArchiveAction")->isEnabled());
             backend.Results.clear();
             backend.Selections.clear();
+        } else {
+            const QString parked = fixture.filePath("parked.zip");
+            QVERIFY(QFile::rename(first, parked));
+            PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+            QVERIFY(backend.ExtractJobs.isEmpty());
+            QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(first).fileName()));
+            QTRY_COMPARE(window.focusWidget(), source);
+            QVERIFY(source->selectionModel()->isRowSelected(firstRow, {}));
+            QVERIFY(QFile::rename(parked, first));
         }
         backend.ExtractDestination = output;
         backend.ExtractDialogReport = fixture.filePath("extract-dialog.json");
