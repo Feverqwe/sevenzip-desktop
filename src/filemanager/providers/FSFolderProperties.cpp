@@ -199,7 +199,12 @@ Z7_COM7F_IMF(CFSFolder::CalcItemFullSize(UInt32 index, IProgress *progress)) {
     if (!fi.IsDir() || fi.IsOsSymLink())
         return S_OK;
     CFsFolderStat stat(_path + GetRelPath(fi), progress);
-    RINOK(stat.Enumerate())
+    const HRESULT result = stat.Enumerate();
+    if (result != S_OK) {
+        if (result != E_ABORT)
+            fi.FolderStat_Defined = false;
+        return result;
+    }
     fi.Size = stat.Size;
     fi.NumFolders = stat.NumFolders;
     fi.NumFiles = stat.NumFiles;

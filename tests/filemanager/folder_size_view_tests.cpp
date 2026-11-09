@@ -63,6 +63,11 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
         QCOMPARE(size.vt, VARTYPE(VT_UI8));
         QCOMPARE(size.uhVal.QuadPart, UInt64(960));
+        cancel = new CancelDuringWalk;
+        QCOMPARE(sizes->CalcItemFullSize(index, cancel), E_ABORT);
+        QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
+        QCOMPARE(size.vt, VARTYPE(VT_UI8));
+        QCOMPARE(size.uhVal.QuadPart, UInt64(960));
     }
 
     void unavailableFolderDoesNotPublishAZeroSize() {
@@ -92,11 +97,12 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         const UInt32 otherIndex = sourceIndex(1 - row);
         const QString name = view->model()->index(row, 0).data().toString();
         const QString folder = fixture.filePath(name);
-        QVERIFY(QDir().rename(folder, parked));
-        QVERIFY(sizes->CalcItemFullSize(index, nullptr) != S_OK);
+        QCOMPARE(sizes->CalcItemFullSize(index, nullptr), S_OK);
         NWindows::NCOM::CPropVariant size;
         QCOMPARE(provider->GetProperty(index, kpidSize, &size), S_OK);
-        QCOMPARE(size.vt, VARTYPE(VT_EMPTY));
+        QCOMPARE(size.vt, VARTYPE(VT_UI8));
+        QCOMPARE(size.uhVal.QuadPart, UInt64(7));
+        QVERIFY(QDir().rename(folder, parked));
         view->selectAll();
         QString report;
         QTimer responder;
