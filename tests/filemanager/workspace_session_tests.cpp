@@ -11,8 +11,10 @@
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QJsonDocument>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QScopeGuard>
 #include <QSplitterHandle>
 
@@ -549,6 +551,15 @@ class WorkspaceSessionTests final : public QObject {
         QTRY_VERIFY(files->isEnabled() && !retry->isVisible());
         QVERIFY(files->rowCount() > 0);
         QTRY_VERIFY(files->hasFocus());
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        QTest::keySequence(restored.focusWidget(), QKeySequence::SelectAll);
+        QTRY_COMPARE(files->selectionModel()->selectedRows().size(), 1);
+        QTRY_VERIFY(restored.findChild<QAction *>("copyFilesAction")->isEnabled());
+        QTest::keySequence(restored.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData());
+        QCOMPARE(clipboard->mimeData()->urls(),
+                 QList{QUrl::fromLocalFile(QDir(folder).filePath(payload))});
     }
 
     void sessionSavedDuringFolderScanRestoresTheFolder_data() {
