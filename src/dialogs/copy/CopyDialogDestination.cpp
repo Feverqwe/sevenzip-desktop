@@ -291,12 +291,16 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Destination is inside the source folder: %1")
                     .arg(draft);
+    const auto targetPath = [&](const QFileInfo &source) {
+        return needsDirectory && !_useName ? QDir(preview).filePath(source.fileName()) : draft;
+    };
     if (error.isEmpty() && checkBatch && _destinationContext &&
         _destinationContext->LocalFileTransfer) {
         for (const QString &path : _sources) {
             const QFileInfo source(path);
             error = QtTransferSourceError(source, false);
             if (!error.isEmpty() && _move && filesystemDestination &&
+                !(source.isDir() && QFileInfo(targetPath(source)).isDir()) &&
                 !MoveCrossesFilesystems(source, existingDirectory))
                 error = QtTransferSourceError(source, true);
             if (!error.isEmpty()) {
@@ -307,12 +311,10 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
     }
     if (error.isEmpty() && localTransfer && (_sources.size() == 1 || checkBatch)) {
         // Check a batch on submit so editing the path does not stat every item.
-        const QDir targetDirectory(preview);
         QSet<QString> targets;
         for (const auto &sourcePath : _sources) {
             const QFileInfo source(sourcePath);
-            const QFileInfo target(
-                needsDirectory && !_useName ? targetDirectory.filePath(source.fileName()) : draft);
+            const QFileInfo target(targetPath(source));
             if (targets.contains(QtTransferTargetKey(target.filePath())))
                 error =
                     QCoreApplication::translate("qtfiletransfertransaction",

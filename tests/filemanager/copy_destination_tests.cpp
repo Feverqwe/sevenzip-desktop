@@ -459,6 +459,38 @@ class CopyDestinationTests final : public QObject {
     }
 #endif
 
+    void mergingMoveWaitsForDirectoryReadAccess() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination") + '/';
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(destination + "source"));
+        const auto permissions = QFile::permissions(source);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(source, permissions); });
+        QVERIFY(QFile::setPermissions(source, QFile::WriteOwner | QFile::ExeOwner));
+        if (QFileInfo(source).isReadable())
+            QSKIP("The current user can still read the directory");
+
+        CCopyDialog move(true, destination, {source});
+        QtCopyDestinationContext context;
+        context.LocalFileTransfer = true;
+        move.ConfigureDestination(context);
+        move.show();
+        move.accept();
+        QVERIFY(move.isVisible());
+        auto *message = move.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message && message->isVisible() && message->text().contains(source));
+        QVERIFY(QDir().rmdir(destination + "source"));
+        auto *path = move.findChild<QLineEdit *>("copyDestination");
+        QCOMPARE(path->text(), destination);
+        QTest::keyClick(path, Qt::Key_Return);
+        QCOMPARE(move.result(), int(QDialog::Accepted));
+    }
+
     void copyBatchCanBeRetriedAfterReadAccessReturns() {
 #ifndef Q_OS_UNIX
         QSKIP("Requires POSIX file permissions");
