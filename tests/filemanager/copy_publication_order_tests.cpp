@@ -95,6 +95,56 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void moveKeepsTheScrolledSourcePosition() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("source");
+        const QString output = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(input) && QDir().mkpath(output));
+        write(input + "/first.txt", "moved bytes");
+        for (int i = 0; i < 80; ++i)
+            write(QDir(input).filePath(QString("row-%1.txt").arg(i, 3, 10, u'0')), "keep");
+
+        MainWindow window;
+        window.resize(640, 400);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(input);
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 81);
+        view->setFocus();
+        const int source = filesystemRow(window, "first.txt");
+        QVERIFY(source >= 0);
+        view->setCurrentCell(source, 0);
+        view->selectRow(source);
+        const auto topName = [&] {
+            return view->model()->index(view->rowAt(0), 0).data().toString();
+        };
+        view->scrollTo(view->model()->index(40, 0), QAbstractItemView::PositionAtTop);
+        const QString anchor = topName();
+        QVERIFY(anchor.startsWith("row-"));
+
+        QTimer driver;
+        dialogs_.connectResponder(driver, &window, [&] {
+            if (auto *dialog = dynamic_cast<CopyDialog *>(dialogs_.activeDialog())) {
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
+                dialog->accept();
+                if (dialog->isVisible())
+                    dialog->reject();
+            } else {
+                TestProgressDialog::DismissVisibleResult(dialogs_.activeDialog());
+            }
+        });
+        driver.start(5);
+        auto *move = action(window, "moveAction");
+        QVERIFY(move->isEnabled());
+        move->trigger();
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == 80);
+        QCOMPARE(read(output + "/first.txt"), QByteArray("moved bytes"));
+        QVERIFY(!QFileInfo::exists(input + "/first.txt"));
+        QCOMPARE(topName(), anchor);
+    }
+
     void destinationRefreshKeepsNewInput_data() {
         QTest::addColumn<bool>("navigate");
         QTest::addColumn<bool>("existingDraft");
