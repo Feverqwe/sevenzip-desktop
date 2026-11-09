@@ -107,9 +107,14 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             const auto interaction = workspace_->InteractionRevision();
             return workspace_->Navigate(
                 [&] { return navigateToImpl(path, sourcePath); },
-                [this, index, draft, editRevision, interaction](HRESULT result) {
-                    if (result == S_OK || app_.QtOperations().closed())
+                [this, index, draft, editRevision, interaction, sourcePath](HRESULT result) {
+                    if (app_.QtOperations().closed())
                         return;
+                    if (result == S_OK) {
+                        if (!sourcePath && panelUi_[index].state == State::Viewing)
+                            workspace_->FocusListAfterLocationOpen(index, interaction);
+                        return;
+                    }
                     auto &owner = panelUi_[index];
                     auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
                     const auto restored = combo->UserEditRevision() == editRevision

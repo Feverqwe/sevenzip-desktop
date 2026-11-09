@@ -575,7 +575,6 @@ class DragDropUiTests final : public QObject {
         QTRY_VERIFY(source->isEnabled());
         enterPath(*left, archive);
         QTRY_VERIFY(source->isEnabled() && Row(*source, first) >= 0 && Row(*source, second) >= 0);
-        source->setFocus();
         QTRY_COMPARE(window.focusWidget(), source);
         QTest::keySequence(source, QKeySequence::SelectAll);
         QTRY_COMPARE(source->selectionModel()->selectedRows().size(), 2);

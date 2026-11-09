@@ -56,6 +56,7 @@ class QtWindowWorkspace final : public QObject {
     void RetainListFocus(unsigned panel);
     quint64 InteractionRevision() const { return interactionRevision_; }
     HRESULT NavigateToList(const std::function<HRESULT()> &body);
+    void FocusListAfterLocationOpen(unsigned panel, quint64 interaction);
     void RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft);
     void ExitExternalWorkers(bool hardExit);
     void Dispose();
@@ -160,7 +161,6 @@ class QtWindowWorkspace final : public QObject {
     void AddFavorite();
     void OpenFavorite(const QtFavorite &favorite);
     void OpenRecentPlace(unsigned panel, const QtRecentPlace &place);
-    void FocusListAfterLocationOpen(unsigned panel, quint64 interaction);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
                       std::function<void()> canceled, const QtArchiveLocation &archive = {});
     void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);
