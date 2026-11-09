@@ -128,6 +128,10 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), current);
         QTest::keyClick(window.focusWidget(), Qt::Key_B);
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("bravo"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Home);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("alpha"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Z);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
     }
     void typingStartsFreshAfterSwitchingPanels() {
         const int oldInterval = QApplication::keyboardInputInterval();
