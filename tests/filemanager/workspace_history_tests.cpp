@@ -196,6 +196,19 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, cell);
         QTRY_COMPARE(location(window), nested);
         QTRY_VERIFY(view->hasFocus());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->selectAll();
+        QTest::keyClicks(address, "unfinished address");
+        QTest::keyClick(address, Qt::Key_Tab);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(address->text(), QString("unfinished address"));
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QTRY_COMPARE(location(window), child);
+        QTRY_COMPARE(QDir::cleanPath(address->text()), child);
+        QTRY_VERIFY(view->hasFocus() && view->isEnabled());
+        QTRY_COMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), QString("nested"));
     }
 
     void keyboardHistoryWorksWhileThePeerRefreshes() {
