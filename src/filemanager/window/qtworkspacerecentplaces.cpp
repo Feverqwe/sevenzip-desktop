@@ -73,6 +73,7 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
             if (window_.app_.QtOperations().closed())
                 return;
             if (result == S_OK) {
+                window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], {});
                 FocusListAfterLocationOpen(panel, interaction);
                 return;
             }

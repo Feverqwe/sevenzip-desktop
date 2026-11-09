@@ -202,6 +202,16 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(active(window)->sourcePanel->GetFolder(), provider);
         QVERIFY(store().IndexOf(missing) >= 0);
         QVERIFY(!action(window, "forwardAction")->isEnabled());
+        action(window, "foldersHistoryAction")->trigger();
+        QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+        popup = RecentPlacesMenu::Visible(window);
+        entry = RecentPlacesMenu::Find(*popup, a);
+        QVERIFY(entry);
+        RecentPlacesMenu::Choose(*popup, *entry);
+        QTRY_VERIFY_WITH_TIMEOUT(window.statusBar()->currentMessage().isEmpty(), 1000);
+        QCOMPARE(location(window), a);
+        QVERIFY(!action(window, "forwardAction")->isEnabled());
+
         directory(missing);
         action(window, "foldersHistoryAction")->trigger();
         QTRY_VERIFY(RecentPlacesMenu::Visible(window));
