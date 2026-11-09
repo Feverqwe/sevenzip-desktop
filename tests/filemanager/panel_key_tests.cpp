@@ -21,22 +21,29 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
     void typingAndEnterOpenTheMatchingFolder_data() {
         QTest::addColumn<int>("mode");
         QTest::addColumn<bool>("switchView");
-        QTest::newRow("details") << 3 << false;
-        QTest::newRow("icons") << 0 << false;
-        QTest::newRow("details-to-icons") << 3 << true;
-        QTest::newRow("icons-to-details") << 0 << true;
+        QTest::addColumn<bool>("decomposed");
+        QTest::newRow("details") << 3 << false << false;
+        QTest::newRow("icons") << 0 << false << false;
+        QTest::newRow("details-to-icons") << 3 << true << false;
+        QTest::newRow("icons-to-details") << 0 << true << false;
+        QTest::newRow("decomposed-details") << 3 << false << true;
+        QTest::newRow("decomposed-icons") << 0 << false << true;
     }
     void typingAndEnterOpenTheMatchingFolder() {
         QFETCH(int, mode);
         QFETCH(bool, switchView);
+        QFETCH(bool, decomposed);
         const int searchInterval = QApplication::keyboardInputInterval();
         const auto restoreInterval = qScopeGuard(
             [searchInterval] { QApplication::setKeyboardInputInterval(searchInterval); });
         QApplication::setKeyboardInputInterval(5000);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString expected = fixture.filePath(QStringLiteral("Журнал"));
+        const QString folder = decomposed ? QStringLiteral("Café") : QStringLiteral("Журнал");
+        const QString expected = fixture.filePath(folder);
         QVERIFY(QDir().mkdir(fixture.filePath("alpha")));
+        if (decomposed)
+            QVERIFY(QDir().mkdir(fixture.filePath("Cafe plain")));
         QVERIFY(QDir().mkdir(expected));
         QVERIFY(QDir(expected).mkdir("alpha"));
         QVERIFY(QDir(expected).mkdir("zebra"));
@@ -60,19 +67,29 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
             QVERIFY(sizeColumn > 0);
             view->setCurrentCell(row, sizeColumn, QItemSelectionModel::NoUpdate);
         }
-        QKeyEvent letter(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("ж"));
-        QApplication::sendEvent(active, &letter);
+        const QString prefix = decomposed ? QStringLiteral("Cafe\u0301") : QStringLiteral("ж");
+        for (QChar character : prefix) {
+            if (character == u'\u0301')
+                QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                         QString("Cafe plain"));
+            QKeyEvent letter(QEvent::KeyPress, 0, Qt::NoModifier, QString(character));
+            QApplication::sendEvent(active, &letter);
+        }
         if (switchView) {
             action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
             active = mode == 3 ? window.findChild<QAbstractItemView *>("iconList") : view;
             QVERIFY(active);
             QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(active));
         }
-        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
-                 QStringLiteral("Журнал"));
+        QCOMPARE(active->currentIndex()
+                     .data(QtPanelList::NameRole)
+                     .toString()
+                     .normalized(QString::NormalizationForm_C),
+                 folder);
         PanelKeys::openSelection(window.focusWidget());
-        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())),
-                     expected);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix()))
+                         .normalized(QString::NormalizationForm_C),
+                     expected.normalized(QString::NormalizationForm_C));
         QTRY_VERIFY(active->hasFocus());
         QTest::keyClick(window.focusWidget(), Qt::Key_Z);
         QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));

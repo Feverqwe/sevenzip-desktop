@@ -255,9 +255,13 @@ void FilePanelModel::setColumns(const QStringList &labels) {
 QModelIndexList FilePanelModel::match(const QModelIndex &start, int role, const QVariant &value,
                                       int hits, Qt::MatchFlags flags) const {
     // Qt clears its keyboard prefix with an empty search. Do not select a row.
-    if (role == Qt::DisplayRole && flags == (Qt::MatchStartsWith | Qt::MatchWrap) &&
-        value.toString().isEmpty())
-        return {};
+    if (role == Qt::DisplayRole && flags == (Qt::MatchStartsWith | Qt::MatchWrap)) {
+        const QString prefix = value.toString();
+        if (prefix.isEmpty())
+            return {};
+        return QAbstractTableModel::match(
+            start, role, prefix.normalized(QString::NormalizationForm_C), hits, flags);
+    }
     return QAbstractTableModel::match(start, role, value, hits, flags);
 }
 
