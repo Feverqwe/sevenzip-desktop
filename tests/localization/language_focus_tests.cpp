@@ -2,7 +2,6 @@
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
-#include "support/archive_sections.h"
 #include "support/translation_catalog.h"
 #include <QScrollArea>
 #include <QSignalSpy>
@@ -24,24 +23,16 @@ class LanguageFocusTests : public QObject {
         SaveRegLang(UString("-"), settingsPath());
         ReloadLang(settingsPath());
     }
-    void sourceRussianCollisionRetainsKeyboardReachability() {
+    void russianShowPasswordRetainsKeyboardReachability() {
         QTemporaryDir directory;
         SaveRegLang(UString("ru"), settingsPath());
         ReloadLang(settingsPath());
         CreateArchiveDialog dialog(directory.path());
         auto *show = dialog.findChild<QCheckBox *>("archiveShowPassword");
-        auto *parameters = dialog.findChild<QLineEdit *>("archiveParameters");
         auto *password = dialog.findChild<QLineEdit *>("archivePassword");
-        QLabel *parametersLabel = nullptr;
-        for (auto *label : dialog.findChildren<QLabel *>())
-            if (label->buddy() == parameters)
-                parametersLabel = label;
-        QVERIFY(show && parameters && password && parametersLabel);
-        ExpandArchiveSections(dialog);
+        QVERIFY(show && password);
         QCOMPARE(show->text(), QStringLiteral("&Показать пароль"));
-        QCOMPARE(parametersLabel->text(), QStringLiteral("&Параметры:"));
         password->setText(QStringLiteral("pending secret 密碼"));
-        parameters->setText("mt=2");
         dialog.show();
         dialog.activateWindow();
         QTRY_VERIFY(dialog.isActiveWindow());
@@ -50,32 +41,15 @@ class LanguageFocusTests : public QObject {
         const QKeySequence mnemonic = QKeySequence::mnemonic(show->text());
         QCOMPARE(show->shortcut(), mnemonic);
         if (!mnemonic.isEmpty()) {
-            const auto pressMnemonic = [&] {
-                const auto key = mnemonic[0];
-                // Deliver a complete Unicode key sequence through the window,
-                // including Alt transitions and the shortcut override phase.
-                QTest::sendKeyEvent(QTest::Click, dialog.windowHandle(), key.key(),
-                                    QString(QChar(ushort(key.key()))), key.keyboardModifiers());
-            };
-            pressMnemonic();
-            QWidget *first = dialog.focusWidget();
-            QVERIFY(first == show || first == parameters);
-            pressMnemonic();
-            QWidget *second = dialog.focusWidget();
-            QVERIFY(second == show || second == parameters);
-            QVERIFY(first != second);
-            QCOMPARE(toggles.count(), 0);
+            const auto key = mnemonic[0];
+            QTest::sendKeyEvent(QTest::Click, dialog.windowHandle(), key.key(),
+                                QString(QChar(ushort(key.key()))), key.keyboardModifiers());
+            QTRY_COMPARE(toggles.count(), 1);
         }
-        bool reachedShow = false, reachedParameters = false;
-        for (int i = 0; i < 80 && (!reachedShow || !reachedParameters); ++i) {
+        for (int i = 0; i < 80 && dialog.focusWidget() != show; ++i)
             QTest::keyClick(dialog.focusWidget(), Qt::Key_Tab);
-            reachedShow |= dialog.focusWidget() == show;
-            reachedParameters |= dialog.focusWidget() == parameters;
-        }
-        QVERIFY(reachedShow && reachedParameters);
-        QCOMPARE(toggles.count(), 0);
+        QCOMPARE(dialog.focusWidget(), show);
         QCOMPARE(password->text(), QStringLiteral("pending secret 密碼"));
-        QCOMPARE(parameters->text(), QString("mt=2"));
     }
     void compositeRowLabelsFocusControls() {
         // Composite form rows must direct their label association to the input.

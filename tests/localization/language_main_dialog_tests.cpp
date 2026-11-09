@@ -1,31 +1,15 @@
-#include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resourceGui.h"
-#include "filemanager/PropertyName.h"
+#include "filemanager/properties/qtpropertieswindow.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/support/layout_inspection.h"
-#include <QScopeGuard>
-#include <QTreeWidget>
+#include <QScrollArea>
 
 class LanguageMainDialogTests final : public QObject {
     Q_OBJECT
     QTemporaryDir fixture;
-    static QString sourceValues(const QTreeWidget *list) {
-        QStringList lines;
-        QStringList diagnosticNames;
-        for (PROPID id : {kpidError, kpidWarning, kpidErrorFlags, kpidWarningFlags})
-            diagnosticNames.append(QString::fromWCharArray(GetNameOfProperty(id, nullptr)));
-        for (int i = 0; i < list->topLevelItemCount(); ++i) {
-            const auto *item = list->topLevelItem(i);
-            // Diagnostic prose changes language; filenames, numeric metadata
-            // and unknown property data must remain the original source values.
-            if (!diagnosticNames.contains(item->text(0)))
-                lines.append(item->text(1));
-        }
-        return lines.join('\n');
-    }
     void language(const char *name) {
         const QString path = fixture.filePath("language.ini");
         SaveRegLang(UString(name), path);
@@ -94,36 +78,35 @@ class LanguageMainDialogTests final : public QObject {
         window.openArchive(archive);
         window.findChild<FileTable *>("archiveTable")->selectRow(0);
         const int calls = backend.listCalls;
-        bool inspected = false;
-        QTimer::singleShot(0, &window, [&] {
-            auto *dialog = window.findChild<QDialog *>("selectedPropertiesDialog");
-            QVERIFY(dialog);
-            const auto close = qScopeGuard([&] { dialog->reject(); });
-            auto *list = dialog->findChild<QTreeWidget *>("propertiesList");
-            QVERIFY(list);
-            const QString values = sourceValues(list);
-            QVERIFY(values.contains(QStringLiteral("δ space.txt")));
-            for (const char *name : {"-", "ru", "-"}) {
-                language(name);
-                const bool russian = QString(name) == "ru";
-                QCOMPARE(dialog->windowTitle(),
-                         russian ? QStringLiteral("Свойства") : QString("Properties"));
-                QCOMPARE(sourceValues(list), values);
-                QCOMPARE(backend.listCalls, calls);
-                QCOMPARE(backend.extractCalls, 0);
-                for (QSize size : {QSize(540, 360), QSize(360, 240)}) {
-                    dialog->resize(size);
-                    QApplication::processEvents();
-                    QVERIFY(UiInspection::fullyVisible(*list, *dialog));
-                    QVERIFY(UiInspection::writeReport(
-                        *dialog,
-                        QString("language-toolbar-properties-%1-%2").arg(name).arg(size.width())));
-                }
-            }
-            inspected = true;
-        });
         window.findChild<QAction *>("archiveInfoAction")->trigger();
-        QVERIFY(inspected);
+        auto *dialog = window.findChild<QtPropertiesWindow *>();
+        QVERIFY(dialog && dialog->isVisible());
+        auto *sizeValue = dialog->findChild<QLabel *>("propertiesSize");
+        auto *location = dialog->findChild<QLabel *>("propertiesLocation");
+        auto *scroll = dialog->findChild<QScrollArea *>("dialogContentScroll");
+        QVERIFY(sizeValue && location && scroll);
+        const QString originalSize = sizeValue->text();
+        const QString originalLocation = location->text();
+        for (const char *name : {"-", "ru", "-"}) {
+            language(name);
+            const bool russian = QString(name) == "ru";
+            QCOMPARE(dialog->windowTitle(),
+                     russian ? QStringLiteral("Свойства") : QString("Properties"));
+            QVERIFY(dialog->Information().contains(QStringLiteral("δ space.txt")));
+            QCOMPARE(sizeValue->text(), originalSize);
+            QCOMPARE(location->text(), originalLocation);
+            QCOMPARE(backend.listCalls, calls);
+            QCOMPARE(backend.extractCalls, 0);
+            for (QSize size : {QSize(540, 360), QSize(360, 240)}) {
+                dialog->resize(size);
+                QApplication::processEvents();
+                scroll->ensureWidgetVisible(sizeValue);
+                QVERIFY(UiInspection::fullyVisible(*sizeValue, *dialog));
+                QVERIFY(UiInspection::writeReport(
+                    *dialog,
+                    QString("language-toolbar-properties-%1-%2").arg(name).arg(size.width())));
+            }
+        }
     }
 };
 
