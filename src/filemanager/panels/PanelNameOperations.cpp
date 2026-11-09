@@ -27,14 +27,16 @@ static UString FirstPathPart(UString name) {
     return name;
 }
 
-static UString VisibleFilesystemItem(const QString &base, const QString &destination) {
+static UString VisibleFilesystemItem(const QString &base, const QString &destination,
+                                     bool flat = false) {
     if (base.isEmpty() || destination.isEmpty())
         return {};
     const QString relative = QDir(base).relativeFilePath(destination);
     if (relative == "." || relative == ".." || relative.startsWith("../") ||
         QDir::isAbsolutePath(relative))
         return {};
-    return FirstPathPart(ToUString(relative));
+    const UString path = ToUString(QDir::toNativeSeparators(relative));
+    return flat ? path : FirstPathPart(path);
 }
 
 static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelectedState &state) {
@@ -57,10 +59,10 @@ static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelec
 }
 
 static UString RenamedItemInView(const CPanel &panel, const UString &relative) {
-    if (NWindows::NFile::NName::FindSepar(relative) < 0 || panel.GetFlatMode())
+    if (NWindows::NFile::NName::FindSepar(relative) < 0)
         return relative;
     if (panel.IsArcFolder())
-        return FirstPathPart(relative);
+        return panel.GetFlatMode() ? relative : FirstPathPart(relative);
     if (panel.IsFSFolder()) {
         const UString base = panel.GetFsPath();
         const QFileInfo target(ToQString(base + relative));
@@ -69,7 +71,8 @@ static UString RenamedItemInView(const CPanel &panel, const UString &relative) {
         const QString parent = QDir(target.path()).canonicalPath();
         if (!parent.isEmpty())
             return VisibleFilesystemItem(QDir(ToQString(base)).canonicalPath(),
-                                         QDir(parent).filePath(target.fileName()));
+                                         QDir(parent).filePath(target.fileName()),
+                                         panel.GetFlatMode());
     }
     return relative;
 }

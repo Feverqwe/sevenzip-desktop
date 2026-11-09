@@ -32,19 +32,24 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<QString>("visible");
         QTest::addColumn<bool>("throughLink");
         QTest::addColumn<bool>("unchanged");
+        QTest::addColumn<bool>("flat");
         QTest::newRow("same-folder")
-            << QString("./renamed δ.txt") << QString("renamed δ.txt") << false << false;
+            << QString("./renamed δ.txt") << QString("renamed δ.txt") << false << false << false;
         QTest::newRow("case-only")
-            << QString("Original.txt") << QString("Original.txt") << false << false;
-        QTest::newRow("subfolder")
-            << QString("target folder/renamed δ.txt") << QString("target folder") << false << false;
+            << QString("Original.txt") << QString("Original.txt") << false << false << false;
+        QTest::newRow("subfolder") << QString("target folder/renamed δ.txt")
+                                   << QString("target folder") << false << false << false;
+        QTest::newRow("flat-subfolder") << QString("target folder/./renamed δ.txt")
+                                        << QString("renamed δ.txt") << false << false << true;
         QTest::newRow("same-name-in-subfolder")
-            << QString("target folder/original.txt") << QString("target folder") << false << false;
+            << QString("target folder/original.txt") << QString("target folder") << false << false
+            << false;
         QTest::newRow("unchanged-relative-path")
-            << QString("target folder/../original.txt") << QString("original.txt") << false << true;
+            << QString("target folder/../original.txt") << QString("original.txt") << false << true
+            << false;
 #ifdef Q_OS_UNIX
         QTest::newRow("linked-folder")
-            << QString("./renamed δ.txt") << QString("renamed δ.txt") << true << false;
+            << QString("./renamed δ.txt") << QString("renamed δ.txt") << true << false << false;
 #endif
     }
     void relativeDestinationSelectsVisibleItem() {
@@ -52,6 +57,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QFETCH(QString, visible);
         QFETCH(bool, throughLink);
         QFETCH(bool, unchanged);
+        QFETCH(bool, flat);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         QTemporaryDir aliases;
@@ -84,6 +90,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
                      alias);
         }
         QTRY_COMPARE(view->rowCount(), 3);
+        if (flat) {
+            view->sourcePanel->ChangeFlatMode();
+            QTRY_VERIFY(view->sourcePanel->GetFlatMode());
+        }
         const int row = filesystemRow(window, "original.txt");
         QVERIFY(row >= 0);
         view->setCurrentCell(row, 0);
@@ -111,6 +121,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
                     .contains(QFileInfo(output).fileName()));
         QVERIFY(!errorShown);
         QTRY_COMPARE(view->currentIndex().data().toString(), visible);
+        if (flat)
+            QCOMPARE(QDir::cleanPath(
+                         view->currentIndex().data(QtPanelList::OperationPathRole).toString()),
+                     QDir::cleanPath(output));
         QCOMPARE(filesystemRow(window, "original.txt") >= 0, unchanged);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QFile payload(output);
