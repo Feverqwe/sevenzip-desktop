@@ -1109,11 +1109,22 @@ class DragDropUiTests final : public QObject {
             QFileInfo(root.path()).canonicalFilePath());
     }
 
+    void externalDropCanRetryAnOverwrite_data() {
+        QTest::addColumn<bool>("directory");
+        QTest::newRow("file") << false;
+        QTest::newRow("directory-url") << true;
+    }
     void externalDropCanRetryAnOverwrite() {
+        QFETCH(bool, directory);
         QTemporaryDir source, target;
         QVERIFY(source.isValid() && target.isValid());
-        const QString input = source.filePath("same name.txt");
-        const QString output = target.filePath("same name.txt");
+        const QString entry = directory ? QString("same folder") : QString("same name.txt");
+        const QString inputEntry = source.filePath(entry);
+        const QString outputEntry = target.filePath(entry);
+        if (directory)
+            QVERIFY(QDir().mkpath(inputEntry) && QDir().mkpath(outputEntry));
+        const QString input = directory ? inputEntry + "/item.txt" : inputEntry;
+        const QString output = directory ? outputEntry + "/item.txt" : outputEntry;
         QVERIFY(SourceExtractFixture::writeFile(input, "incoming"));
         QVERIFY(SourceExtractFixture::writeFile(output, "original"));
         ControlledBackend backend;
@@ -1121,9 +1132,9 @@ class DragDropUiTests final : public QObject {
         window.show();
         window.openPath(target.path());
         auto *view = window.findChild<FileTable *>("archiveTable");
-        QTRY_VERIFY(view->isEnabled() && Row(*view, "same name.txt") >= 0);
+        QTRY_VERIFY(view->isEnabled() && Row(*view, entry) >= 0);
         QMimeData mime;
-        mime.setUrls({QUrl::fromLocalFile(input)});
+        mime.setUrls({QUrl::fromLocalFile(directory ? inputEntry + '/' : inputEntry)});
         int prompts = 0;
         QTimer answer;
         connect(&answer, &QTimer::timeout, &window, [&] {

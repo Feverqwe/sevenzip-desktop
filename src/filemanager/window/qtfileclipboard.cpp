@@ -2,6 +2,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "fileops/transfer/qtlocalfileurl.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include <QClipboard>
@@ -23,13 +24,9 @@ QString MissingClipboardSource(const QFileInfo &entry) {
 QStringList LocalFilePaths(const QList<QUrl> &urls) {
     QStringList paths;
     for (const auto &url : urls) {
-        if (!url.isValid() || !url.isLocalFile())
+        const QString path = QtLocalFileUrlPath(url);
+        if (path.isEmpty())
             return {};
-        QString path = QDir::fromNativeSeparators(url.toLocalFile());
-        if (!QDir::isAbsolutePath(path) || path.contains(QChar::Null))
-            return {};
-        while (path.endsWith(u'/') && !QDir(path).isRoot())
-            path.chop(1);
         paths.append(path);
     }
     paths.removeDuplicates();

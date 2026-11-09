@@ -1,5 +1,6 @@
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/window/mainwindow.h"
+#include "fileops/transfer/qtlocalfileurl.h"
 #ifdef Q_OS_MACOS
 #include "filemanager/panels/qtmacfilepromisedrag.h"
 #endif
@@ -38,9 +39,10 @@ CDataObject *QtFileManagerDrag::ReadData(const QMimeData &mime) {
 #endif
     external_.Names.Clear();
     for (const QUrl &url : mime.urls()) {
-        if (!url.isLocalFile())
+        const QString path = QtLocalFileUrlPath(url);
+        if (path.isEmpty())
             return nullptr;
-        external_.Names.Add(ToUString(url.toLocalFile()));
+        external_.Names.Add(ToUString(path));
     }
     return external_.Names.IsEmpty() ? nullptr : &external_;
 }
