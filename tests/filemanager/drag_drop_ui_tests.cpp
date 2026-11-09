@@ -507,6 +507,64 @@ class DragDropUiTests final : public QObject {
     }
 #endif
 
+    void archiveClipboardReportsFailedExtraction() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("повреждённый файл.bin");
+        const QString archive = fixture.filePath("damaged.zip");
+        const QByteArray payload("stored clipboard payload");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{name, payload}}, "zip", {}, true, true));
+        QByteArray image = SourceExtractFixture::readFile(archive);
+        const qsizetype offset = image.indexOf(payload);
+        QVERIFY(offset >= 0);
+        image[offset] = 'X';
+        QVERIFY(SourceExtractFixture::writeFile(archive, image));
+        const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
+                                             fixture.filePath("owned-temp"));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(archive);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *table = window.findChild<FileTable *>("archiveTable");
+        QVERIFY(table);
+        QTRY_VERIFY(table->isEnabled() && Row(*table, name) >= 0);
+        table->setCurrentCell(Row(*table, name), 0);
+        table->selectRow(table->currentRow());
+        table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
+        auto *clipboard = QApplication::clipboard();
+        const auto clear = qScopeGuard([&] { clipboard->clear(); });
+        clipboard->setText("previous clipboard contents");
+        QStringList existingTemps, exportTemps;
+        for (const auto &entry : QtOwnedTempRegistry().Entries())
+            existingTemps.append(entry.path);
+        bool dismissed = false;
+        QTimer closeResult;
+        connect(&closeResult, &QTimer::timeout, &window, [&] {
+            auto *result = TestProgressDialog::ResultWindow(QApplication::activeModalWidget());
+            if (!result || !result->isVisible())
+                return;
+            for (const auto &entry : QtOwnedTempRegistry().Entries())
+                if (!existingTemps.contains(entry.path) && QFileInfo::exists(entry.path))
+                    exportTemps.append(entry.path);
+            dismissed = true;
+            TestProgressDialog::CloseResult(*result);
+        });
+        closeResult.start(5);
+        QTest::keySequence(table, QKeySequence::Copy);
+        QVERIFY(dismissed);
+        QCOMPARE(clipboard->text(), QString("previous clipboard contents"));
+        QCOMPARE(
+            window.statusBar()->currentMessage(),
+            QCoreApplication::translate(
+                "QtFileClipboard",
+                "Complete extraction could not be confirmed. The clipboard was kept unchanged."));
+        QVERIFY(!exportTemps.isEmpty());
+        for (const auto &path : exportTemps)
+            QVERIFY2(!QFileInfo::exists(path), qPrintable(path));
+    }
+
     void fileExportCanBeCopiedByRecipient_data() {
         QTest::addColumn<bool>("archiveSource");
         QTest::addColumn<bool>("drag");

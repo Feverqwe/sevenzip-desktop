@@ -204,9 +204,8 @@ void QtFileClipboard::Copy(bool move) {
                 QCoreApplication::translate("mainwindow_archivecommands", "Operation canceled."));
             return;
         }
-        if (result != S_OK || !messages.IsEmpty())
-            return;
-        if (source.IsArcFolder() && (!report.Status || !report.Status->Complete)) {
+        if (result != S_OK || !messages.IsEmpty() ||
+            (source.IsArcFolder() && (!report.Status || !report.Status->Complete))) {
             window_.showStatusMessage(tr(
                 "Complete extraction could not be confirmed. The clipboard was kept unchanged."));
             return;
