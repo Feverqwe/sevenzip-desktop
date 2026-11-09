@@ -121,6 +121,7 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         return true;
     }
     auto &drop = static_cast<QDropEvent &>(event);
+    auto &target = window_.app_.DropTarget();
     const QPoint position = widget.mapToGlobal(drop.position().toPoint());
     const int panel = PanelAtPoint(position.x(), position.y());
     const bool blocked = revoked_ || window_.app_.QtOperations().closed() ||
@@ -129,12 +130,14 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
                          (panel >= 0 && !PanelEnabled(unsigned(panel)));
     CDataObject *data = blocked ? nullptr : ReadData(*drop.mimeData());
     if (!data) {
+        if (blocked && target.HasDragData())
+            target.DragLeave();
         ResetDropTarget();
         drop.ignore();
         return true;
     }
     const DWORD keys = DropKeys(drop);
-    auto &target = window_.app_.DropTarget();
+    const bool entering = event.type() == QEvent::DragEnter || !target.HasDragData();
     const bool menuDrop = (keys & (MK_RBUTTON | MK_MBUTTON)) ||
                           (event.type() != QEvent::DragEnter && target.IsMenuDrop());
     // A left drop of external URLs opens or archives the source in place.
@@ -152,26 +155,21 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
             window_.refreshActions();
         }
     });
-    if (event.type() == QEvent::DragMove)
-        result = target.DragOver(keys, position.x(), position.y(), &effect);
-    else if (event.type() == QEvent::DragEnter)
+    if (entering)
         result = target.DragEnter(data, keys, position.x(), position.y(), &effect);
-    else {
-        // Qt can deliver a synthetic Drop without an accepted DragEnter, or
-        // after the target became disabled. Revalidate before running a command.
+    else
         result = target.DragOver(keys, position.x(), position.y(), &effect);
-        if (result == S_OK && effect) {
-            if (target.IsMenuDrop())
-                effect = allowedEffects;
-            result = ExecuteDrop(data, keys, position, effect);
-        }
+    if (event.type() == QEvent::Drop && result == S_OK && effect) {
+        if (target.IsMenuDrop())
+            effect = allowedEffects;
+        result = ExecuteDrop(data, keys, position, effect);
     }
     if (result == S_OK && effect) {
         drop.setDropAction(effect == DROPEFFECT_MOVE ? Qt::MoveAction : Qt::CopyAction);
         drop.accept();
     } else {
         drop.ignore();
-        if (event.type() == QEvent::DragEnter) {
+        if (entering && event.type() != QEvent::Drop) {
             // Qt sends subsequent move/leave events only after accepting entry.
             // Balance the native Enter notification before discarding its state.
             target.DragLeave();

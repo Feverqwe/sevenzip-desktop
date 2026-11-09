@@ -164,4 +164,5 @@ class CDropTarget {
     CPanel *TargetPanel() const { return m_Panel; }
     bool IsAppTarget() const { return m_IsAppTarget; }
     bool IsMenuDrop() const { return m_IsRightButton; }
+    bool HasDragData() const { return m_DataObject != nullptr; }
 };
