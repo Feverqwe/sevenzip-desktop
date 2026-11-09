@@ -90,15 +90,21 @@ class LanguageArchiveCommandTests final : public QObject {
     }
     void enterRetriesExternalOpenAfterFailure_data() {
         QTest::addColumn<bool>("missing");
-        QTest::newRow("association") << false;
-        QTest::newRow("missing-file") << true;
+        QTest::addColumn<bool>("folder");
+        QTest::newRow("association") << false << false;
+        QTest::newRow("missing-file") << true << false;
+        QTest::newRow("missing-folder") << true << true;
     }
     void enterRetriesExternalOpenAfterFailure() {
         QFETCH(bool, missing);
-        const QString path = fixture.filePath(QStringLiteral("open again 文件.txt"));
+        QFETCH(bool, folder);
+        const QString path = fixture.filePath(folder ? QStringLiteral("open folder 文件")
+                                                     : QStringLiteral("open again 文件.txt"));
         const QString parked = fixture.filePath("temporarily moved.txt");
         const QString other = fixture.filePath("another file.txt");
-        for (const auto &name : {path, other}) {
+        if (folder)
+            QVERIFY(QDir().mkpath(path));
+        for (const auto &name : folder ? QStringList{other} : QStringList{path, other}) {
             QFile file(name);
             QVERIFY(file.open(QIODevice::WriteOnly));
             QCOMPARE(file.write("source bytes"), qint64(12));
@@ -123,8 +129,14 @@ class LanguageArchiveCommandTests final : public QObject {
         QTRY_VERIFY(table->hasFocus());
         if (missing) {
             table->sourcePanel->Set_AutoRefresh_Mode(false);
-            QVERIFY(QFile::rename(path, parked));
+            QVERIFY(QDir().rename(path, parked));
         }
+        const auto open = [&] {
+            if (folder)
+                window.findChild<QAction *>("openOutsideAction")->trigger();
+            else
+                PanelKeys::openSelection(window.focusWidget());
+        };
 
         QString message;
         QTimer dismiss;
@@ -136,18 +148,18 @@ class LanguageArchiveCommandTests final : public QObject {
             }
         });
         dismiss.start(5);
-        PanelKeys::openSelection(window.focusWidget());
+        open();
         dismiss.stop();
-        const QUrl expected = QUrl::fromLocalFile(path);
+        const QUrl expected = QUrl::fromLocalFile(folder ? path + '/' : path);
         QCOMPARE(attempts, missing ? QList<QUrl>{} : QList{expected});
-        QVERIFY(message.contains(path));
+        QVERIFY(QDir::fromNativeSeparators(message).contains(path));
         if (missing)
-            QVERIFY(QFile::rename(parked, path));
+            QVERIFY(QDir().rename(parked, path));
         QVERIFY(WindowActivation::waitForActive(window));
         QTRY_VERIFY(table->hasFocus());
         QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
                  QFileInfo(path).fileName());
-        PanelKeys::openSelection(window.focusWidget());
+        open();
         QCOMPARE(attempts, missing ? QList{expected} : (QList{expected, expected}));
     }
 

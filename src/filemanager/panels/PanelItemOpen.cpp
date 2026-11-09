@@ -95,6 +95,12 @@ void CPanel::OpenFolderExternal(unsigned index) {
         path += GetItemRelPath(index);
         path.Add_PathSepar();
     }
+    if (IsFSFolder() && !QFileInfo(ToQString(path)).isDir()) {
+        MessageBox_Error(
+            ToUString(QCoreApplication::translate("mainwindow_filelist", "Folder not found: ") +
+                      ToQString(path)));
+        return;
+    }
     // This disk/folder caller closes any returned native handle without waiting.
     if (_externalFileServices)
         _externalFileServices->StartApplication(prefix, path, GetParent());
