@@ -343,15 +343,24 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         PanelKeys::command(source, Qt::Key_Right, Qt::AltModifier | Qt::ShiftModifier);
         QTRY_COMPARE(peer->model()->index(1, 0).data().toString(),
                      flat ? QStringLiteral("nested.txt") : QStringLiteral("child"));
-        QCOMPARE(QDir::cleanPath(address->text()),
-                 QFileInfo(flat ? child : fixture.filePath("parent")).canonicalFilePath());
+        const QString opened =
+            QFileInfo(flat ? child : fixture.filePath("parent")).canonicalFilePath();
+        QCOMPARE(QDir::cleanPath(address->text()), opened);
         QCOMPARE(window.focusWidget(), static_cast<QWidget *>(source));
+        PanelKeys::command(source, Qt::Key_Right, Qt::AltModifier | Qt::ShiftModifier);
+        QTRY_VERIFY(peer->isEnabled());
+        QCOMPARE(QDir::cleanPath(address->text()), opened);
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());
         QTRY_VERIFY(action(window, "backAction")->isEnabled());
         action(window, "backAction")->trigger();
         QTRY_COMPARE(address->text(), originalAddress);
         QTRY_COMPARE(peer->model()->index(1, 0).data().toString(), QStringLiteral("previous.txt"));
+        QTRY_VERIFY(action(window, "forwardAction")->isEnabled());
+        action(window, "forwardAction")->trigger();
+        QTRY_COMPARE(QDir::cleanPath(address->text()), opened);
+        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(),
+                     flat ? QStringLiteral("nested.txt") : QStringLiteral("child"));
     }
     void openArchiveSubfolderInPeerKeepsParentChain() {
         QTemporaryDir fixture;
