@@ -7,7 +7,7 @@ if(CMAKE_HOST_APPLE AND NOT CMAKE_OSX_SYSROOT)
     set(CMAKE_OSX_SYSROOT "${sevenzip_macos_sdk}" CACHE PATH "macOS SDK" FORCE)
 endif()
 
-project(sevenzip_desktop VERSION 0.1.14 LANGUAGES C CXX)
+project(sevenzip_desktop VERSION 0.1.15 LANGUAGES C CXX)
 
 include(cmake/CxxStandard.cmake)
 include(cmake/SourceDependencies.cmake)
