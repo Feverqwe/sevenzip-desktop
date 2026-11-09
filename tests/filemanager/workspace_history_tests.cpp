@@ -652,7 +652,9 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(QDir::cleanPath(ToQString(leftView->sourcePanel->GetCurrentFolderPrefix())), left);
     }
 
-    void canceledEncryptedBackKeepsItsCursorAndDoesNotPromptTwice() {
+    void encryptedBackKeepsItsCursorAfterPasswordCancellationOrFailure() {
+        SaveRegLang(UString("-"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         const QString folder = fixture.filePath("source");
         createDirectory(folder);
@@ -665,6 +667,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         window.show();
         int prompts = 0;
         bool reject = false;
+        QString suppliedPassword = password;
         QTimer answer;
         dialogs_.connectResponder(answer, &window, [&] {
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs_.activeDialog())) {
@@ -672,7 +675,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
                 if (reject)
                     dialog->reject();
                 else {
-                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(suppliedPassword);
                     dialog->accept();
                 }
             }
@@ -703,8 +706,21 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(action(window, "backAction")->isEnabled());
         QVERIFY(!action(window, "forwardAction")->isEnabled());
         reject = false;
+        suppliedPassword = QStringLiteral("incorrect password");
+        action(window, "backAction")->trigger();
+        QTRY_COMPARE(prompts, 2);
+        QCOMPARE(location(window), folder);
+        QCOMPARE(address->text(), draft);
+        QVERIFY(action(window, "backAction")->isEnabled());
+        const QString error = window.statusBar()->currentMessage();
+        QVERIFY(QDir::fromNativeSeparators(error).contains(archive));
+        QVERIFY(error.contains("password", Qt::CaseInsensitive));
+
+        suppliedPassword = password;
         action(window, "backAction")->trigger();
         QTRY_VERIFY(table(window)->isEnabled() && table(window)->sourcePanel->IsArcFolder());
+        QCOMPARE(prompts, 3);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QVERIFY(address->text() != draft);
         QTRY_COMPARE(window.focusWidget(), table(window));
         action(window, "forwardAction")->trigger();

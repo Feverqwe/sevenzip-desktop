@@ -240,11 +240,11 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             location.archiveLocation = origin->archiveLocation;
             location.diskFolder = origin->diskFolder;
             CompleteLocationOpen(panel, origin->path, result);
+        } else if (!request->failureMessage.isEmpty() && result != E_ABORT) {
+            window_.showStatusMessage(request->failureMessage);
         } else if (request->destination >= 0 && result != E_ABORT) {
             const auto &target = panels_[panel].location.visits[request->destination];
             window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
-        } else if (!request->failureMessage.isEmpty() && result != E_ABORT) {
-            window_.showStatusMessage(request->failureMessage);
         }
         window_.refreshActions();
         return;
@@ -344,7 +344,7 @@ void QtWindowWorkspace::Travel(int direction) {
         }
         if (!target.archiveLocation.physicalPath.isEmpty())
             return OpenRecordedLocation(panel, target.path, target.nativePlaceIdentity,
-                                        target.archiveLocation);
+                                        target.archiveLocation, &request.failureMessage);
         QString path = target.path;
         if (!target.nativePlaceIdentity.isEmpty()) {
             nativePlaces_->Refresh();
