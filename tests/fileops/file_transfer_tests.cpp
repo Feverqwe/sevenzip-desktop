@@ -5,6 +5,7 @@
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/transfer/filetransferoperation.h"
 #include "platform/support/native_link_fixture.h"
+#include "platform/temp/qtownedtempidentity.h"
 
 #include <QDir>
 #include <QFile>
@@ -1472,6 +1473,53 @@ class FileTransferTests : public QObject {
         } else {
             QVERIFY(QFileInfo(target).isDir());
         }
+    }
+
+    void skippingFolderConflictsPreservesUnchangedDirectories_data() {
+        QTest::addColumn<bool>("move");
+        QTest::addColumn<bool>("emptyFolder");
+        QTest::newRow("copy-skip-all") << false << false;
+        QTest::newRow("move-skip-all") << true << false;
+        QTest::newRow("move-with-new-empty-folder") << true << true;
+    }
+
+    void skippingFolderConflictsPreservesUnchangedDirectories() {
+        QFETCH(bool, move);
+        QFETCH(bool, emptyFolder);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QDir source(fixture.filePath("incoming/folder"));
+        const QString destination = fixture.filePath("destination");
+        const QDir target(QDir(destination).filePath("folder"));
+        QVERIFY(QDir().mkpath(source.path()));
+        QVERIFY(QDir().mkpath(target.path()));
+        if (emptyFolder)
+            QVERIFY(source.mkdir("empty"));
+        QFile incoming(source.filePath("same.txt")), existing(target.filePath("same.txt"));
+        for (auto *file : {&incoming, &existing}) {
+            QVERIFY(file->open(QIODevice::WriteOnly));
+            QCOMPARE(file->write(file == &incoming ? "new" : "old"), qint64(3));
+            file->close();
+        }
+        const QString identity = QtOwnedTempIdentity(target.path());
+        QVERIFY(!identity.isEmpty());
+        FileTransferOperation transfer({source.path()}, destination, move);
+        connect(
+            &transfer, &FileTransferOperation::overwriteRequested, &transfer,
+            [&transfer] { transfer.submitOverwriteAnswer(NOverwriteAnswer::kNoToAll); },
+            Qt::DirectConnection);
+        QSignalSpy done(&transfer, &FileTransferOperation::result);
+        transfer.start();
+        QVERIFY(transfer.wait(30000));
+        QTRY_COMPARE(done.size(), 1);
+        QCOMPARE(transfer.resultKind(), FileTransferOperation::ResultKind::PartialSuccess);
+        QVERIFY(existing.open(QIODevice::ReadOnly));
+        QCOMPARE(existing.readAll(), QByteArray("old"));
+        QVERIFY(incoming.open(QIODevice::ReadOnly));
+        QCOMPARE(incoming.readAll(), QByteArray("new"));
+        QCOMPARE(QFileInfo(target.filePath("empty")).isDir(), emptyFolder);
+        if (!emptyFolder)
+            QCOMPARE(QtOwnedTempIdentity(target.path()), identity);
     }
 
     void directoryMergeCancelRestoresOriginalTree() {

@@ -483,6 +483,7 @@ bool CopyFolder(CCopyState &state, const QString &srcPath, const QString &destPa
         return ReportError(
             state,
             QCoreApplication::translate("FSFolderCopy", "Cannot create folder: %1").arg(destPath));
+    state.CreatedDirectory |= !destinationExisted;
 
     NWindows::NFile::NFind::CEnumerator enumerator;
     const std::wstring sourceWide = QDir::toNativeSeparators(srcPath).toStdWString();

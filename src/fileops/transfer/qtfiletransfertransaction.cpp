@@ -593,9 +593,10 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                    (!tree || captureMergeTree(path, worker_.canceled_) == tree);
         };
     }
+    bool publish = true;
     const bool staged =
         merge ? (copyEntry(target, stage, &error, false) &&
-                 mergeEntry(source, stage, target, &entry.writtenSources, &error))
+                 mergeEntry(source, stage, target, &entry.writtenSources, publish, &error))
               : (entry.sourceState == SourceState::Renamed || copyEntry(source, stage, &error));
     if (!staged || !error.isEmpty()) {
         error.replace(stage, target);
@@ -624,6 +625,8 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                                    : captureMember(source) != sourceMember) {
         return sourceChanged();
     }
+    if (!publish)
+        return true;
     if (mayReplace) {
         if (!matchesExisting(target))
             return destinationChanged();

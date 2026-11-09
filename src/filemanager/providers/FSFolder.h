@@ -150,6 +150,7 @@ struct CCopyState {
     bool MoveMode = false;
     bool UseReadWriteMode = false;
     bool IsAltStreamsDest = false;
+    bool CreatedDirectory = false;
 #ifdef _WIN32
     bool CopyFile_NT(const wchar_t *oldFile, const wchar_t *newFile);
     bool CopyFile_Sys(CFSTR oldFile, CFSTR newFile);

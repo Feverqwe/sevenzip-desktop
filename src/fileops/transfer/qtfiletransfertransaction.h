@@ -56,7 +56,7 @@ class QtFileTransferTransaction final {
     bool copyEntry(const QString &source, const QString &target, QString *error,
                    bool reportProgress = true);
     bool mergeEntry(const QString &source, const QString &stage, const QString &target,
-                    QStringList *writtenSources, QString *error);
+                    QStringList *writtenSources, bool &publish, QString *error);
     bool removeMergedSource(const QString &source, const QStringList &writtenSources,
                             QString *error, bool &rootRemoved);
     static QStringList movedSources(const QList<TransferEntry> &completed);

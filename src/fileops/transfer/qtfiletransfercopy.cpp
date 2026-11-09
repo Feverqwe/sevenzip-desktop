@@ -61,10 +61,11 @@ bool QtFileTransferTransaction::copyEntry(const QString &source, const QString &
 
 bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString &stage,
                                            const QString &target, QStringList *writtenSources,
-                                           QString *error) {
+                                           bool &publish, QString *error) {
     QString conflict;
+    bool skippedConflict = false;
     CFileTransferCopyCallback callback(
-        [this, &source, &stage, &conflict,
+        [this, &source, &stage, &conflict, &skippedConflict,
          &target](const OverwriteQuestion::File &incoming,
                   const QString &requested) -> CFileTransferCopyCallback::WriteDecision {
             if (worker_.canceled_)
@@ -86,6 +87,7 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
             if (existing.exists()) {
                 switch (decideOverwrite({requested, visible, incoming})) {
                 case OverwriteDecision::Skip:
+                    skippedConflict = true;
                     return std::nullopt;
                 case OverwriteDecision::Rename: {
                     effective =
@@ -117,6 +119,7 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
     state.Callback = &callback;
     const bool merged = NFsFolder::CopyFolder(state, source, stage);
     *writtenSources = callback.writtenSources;
+    publish = !skippedConflict || state.CreatedDirectory || !writtenSources->isEmpty();
     *error = !conflict.isEmpty()             ? conflict
              : !state.ErrorMessage.isEmpty() ? state.ErrorMessage
                                              : callback.errorMessage;
