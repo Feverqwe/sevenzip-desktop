@@ -53,17 +53,21 @@ void QtWindowWorkspace::OpenBookmark(unsigned index) {
     const UString stored = CPanel::OpenBookmark(window_.app_.AppState.FastFolders, index);
     const QString path = ToQString(stored);
     const QString identity = fastFolders_->NativeIdentity(index, stored);
-    if (identity.isEmpty()) {
-        window_.navigateTo(window_.sourcePathFromDisplayPath(path), true);
-        return;
-    }
     const unsigned panel = window_.projectedPanel_;
-    Navigate([&] {
-        const HRESULT result = OpenRecordedLocation(panel, path, identity, {});
-        if (result != S_OK && result != E_ABORT)
-            ReportNavigationFailure(tr("Location unavailable: %1").arg(path));
-        return result;
-    });
+    const auto interaction = interactionRevision_;
+    Navigate(
+        [&] {
+            if (identity.isEmpty())
+                return window_.navigateTo(window_.sourcePathFromDisplayPath(path), true);
+            const HRESULT result = OpenRecordedLocation(panel, path, identity, {});
+            if (result != S_OK && result != E_ABORT)
+                ReportNavigationFailure(tr("Location unavailable: %1").arg(path));
+            return result;
+        },
+        [this, panel, interaction](HRESULT result) {
+            if (result == S_OK)
+                FocusListAfterLocationOpen(panel, interaction);
+        });
 }
 
 CFastFolders QtWindowWorkspace::BookmarkDisplayPaths() {

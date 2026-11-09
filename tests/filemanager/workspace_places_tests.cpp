@@ -116,8 +116,10 @@ class WorkspacePlacesTests final : public QObject {
         QVERIFY(errorVisible());
         QCOMPARE(files->rowCount(), 0);
         QVERIFY(bookmark->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(window));
         bookmark->trigger();
         QTRY_VERIFY(!errorVisible() && files->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), files);
         QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
                  QFileInfo(fixture.path()).canonicalFilePath());
         openUnavailable();
