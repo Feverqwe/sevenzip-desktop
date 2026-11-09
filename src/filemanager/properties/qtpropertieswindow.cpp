@@ -18,6 +18,7 @@
 #include <QDir>
 #include <QEvent>
 #include <QFileInfo>
+#include <QPointer>
 #include <QPushButton>
 #include <QShowEvent>
 #include <QStyle>
@@ -53,8 +54,9 @@ QString scopeName(const QtPropertyReport::Group &group) {
 } // namespace
 
 QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
-                                       QWidget *returnFocus)
-    : QDialog(parent, Qt::Window), report_(std::move(report)), returnFocus_(returnFocus) {
+                                       std::function<QWidget *()> returnFocus)
+    : QDialog(parent, Qt::Window), report_(std::move(report)),
+      returnFocus_(std::move(returnFocus)) {
     setObjectName("selectedPropertiesDialog");
     setWindowModality(Qt::NonModal);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
@@ -178,20 +180,28 @@ QString QtPropertiesWindow::SummaryType() const {
     return text(QT_TRANSLATE_NOOP("PropertiesWindow", "File"));
 }
 QString QtPropertiesWindow::SummarySize() const {
-    if (report_.items.size() != 1 || report_.items.first().directory.value_or(false))
-        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Not calculated"));
+    const auto notCalculated = QT_TRANSLATE_NOOP("PropertiesWindow", "Not calculated");
+    const auto scope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
-        if (group.scope == Scope::Selection)
-            return PropertyValue(group, kpidSize);
-    return QtRegionalFormat::bytes(std::nullopt);
+        if (group.scope == scope) {
+            const QString value = PropertyValue(group, kpidSize);
+            if (!value.isEmpty())
+                return value;
+        }
+    const bool folder = report_.items.isEmpty() || report_.items.first().directory.value_or(false);
+    return folder || report_.items.size() > 1 ? text(notCalculated)
+                                              : QtRegionalFormat::bytes(std::nullopt);
 }
 QString QtPropertiesWindow::SummaryModified() const {
     if (report_.items.size() > 1)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Not applicable"));
     const auto scope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
-        if (group.scope == scope)
-            return PropertyValue(group, kpidMTime);
+        if (group.scope == scope) {
+            const QString value = PropertyValue(group, kpidMTime);
+            if (!value.isEmpty())
+                return value;
+        }
     return QString::fromUtf8("—");
 }
 QString QtPropertiesWindow::SummaryLocation() const {
@@ -247,7 +257,9 @@ QString QtPropertiesWindow::Caption(unsigned row, Scope scope, bool compact) con
                text(QT_TRANSLATE_NOOP("PropertiesWindow", "(stored metadata)"));
     if (scope == Scope::Selection && id == kpidPackSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported packed size (may be partial)"));
-    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize)
+    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize &&
+        native != report_.nativeValues.cend() &&
+        native->availability != QtPropertyReport::Availability::Known)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported size (may be partial)"));
     return ToQString(report_.Strings[row]);
 }
@@ -279,7 +291,7 @@ QString QtPropertiesWindow::PropertyValue(const QtPropertyReport::Group &group, 
         if (const auto value = QtUnsignedPropertyValue(source->value))
             return QtRegionalFormat::bytes(*value);
     }
-    return QString::fromUtf8("—");
+    return {};
 }
 void QtPropertiesWindow::Refresh() {
     for (unsigned i = 0; i < report_.Strings.Size(); ++i)
@@ -358,10 +370,14 @@ void QtPropertiesWindow::showEvent(QShowEvent *event) {
 }
 void QtPropertiesWindow::done(int result) {
     const bool restoreFocus = isActiveWindow();
-    const auto focus = returnFocus_;
+    const auto returnFocus = returnFocus_;
     QDialog::done(result);
-    if (restoreFocus && focus && focus->isVisible()) {
+    if (!restoreFocus || !returnFocus)
+        return;
+    const QPointer<QWidget> focus = returnFocus();
+    if (focus && focus->isVisible() && focus->isEnabled()) {
         focus->window()->activateWindow();
-        focus->setFocus(Qt::OtherFocusReason);
+        if (focus)
+            focus->setFocus(Qt::OtherFocusReason);
     }
 }

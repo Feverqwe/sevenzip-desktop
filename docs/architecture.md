@@ -206,7 +206,8 @@ Archive/staging and mount resource owners retain their protected close boundarie
 The independent-operation registry projects live presentation and pending reviews
 to the Operations menu. UI entries carry stable IDs; activation resolves their
 current owner again, so a stale menu cannot restart finished work. Recent successes
-retain only bounded display values and have no event-loop hold or session storage.
+and warnings retain only bounded display values and have no event-loop hold or
+session storage.
 They do not replace pending review ownership or the child's own terminal view.
 
 Selected properties use an owned snapshot from the native panel collector.
@@ -278,7 +279,8 @@ filesystem root remains accessible through its volume or an explicit `/` path.
 The saved places menu resolves bookmark identities when invoked. The splitter
 applies the original ratio policy to the two file areas. Restoring geometry
 precedes restoring the split.
-List publication restores focus within the same pane while the input request
+Refreshing the current filesystem list keeps keyboard focus while item input
+waits for publication. Navigation restores list focus while the input request
 is current. View menus capture their source pane when opened and resolve it at
 dispatch. Checked state and command availability follow that pane. File Manager
 keeps automatic refresh enabled.
@@ -339,13 +341,17 @@ bar above the file list. Its proxies query the existing command projection for
 the owning pane. The editable address retains the original panel navigation owner.
 Breadcrumbs consume typed ancestors from that same owner; editor drafts do not
 define the bound location or navigation targets.
+The workspace coordinates breadcrumb navigation with history and list focus.
 Physical archive navigation retains the live panel source until the candidate's
 native loading and row publication succeed. A refusal restores that source and
 its selection; accepting a candidate closes the old source through the existing
 native archive lifecycle. Navigation inside the current container keeps its
 native binding route.
 `QtFileClipboard` supplies native file URL formats to the existing file-transfer
-operation; exporting a container selection uses CPanel's native CopyTo and checks
+operation, including GNOME file lists provided without a separate URL list.
+After a paste, open panels showing the affected folders refresh even when
+periodic refresh is disabled.
+Exporting a container selection uses CPanel's native CopyTo and checks
 its extraction result before publishing URLs. It does not implement archive I/O.
 Its Cut snapshot is published to the file models across windows. Rows retain the native operation path separately from the display path;
 Cut rendering consumes that presentation state without querying providers or

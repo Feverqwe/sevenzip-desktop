@@ -15,6 +15,7 @@
 #include "Windows/FileName.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/native/correctfspath.h"
+#include <cwchar>
 
 #ifndef _UNICODE
 extern bool g_IsNT;
@@ -823,6 +824,14 @@ bool GetFullPath(CFSTR path, FString &fullPath) { return GetFullPath(NULL, path,
 
 // Adapted from 7-Zip BrowseDialog.cpp (0766b73); same LGPL notice as above.
 #ifdef _WIN32
+int FindInvalidWindowsPathCharacter(const UString &path) {
+    const unsigned root = NWindows::NFile::NName::GetRootPrefixSize(path);
+    for (unsigned i = root; i < path.Len(); ++i)
+        if (std::wcschr(L"<>\"|?*", path[i]))
+            return int(i);
+    return -1;
+}
+
 static void RemoveDotsAndSpaces(UString &path) {
     while (!path.IsEmpty()) {
         wchar_t c = path.Back();
@@ -830,6 +839,25 @@ static void RemoveDotsAndSpaces(UString &path) {
             return;
         path.DeleteBack();
     }
+}
+
+bool HasEmptyWindowsPathComponent(const UString &path, const UString &resolved) {
+    using namespace NWindows::NFile::NName;
+    if (IsSuperOrDevicePath(resolved))
+        return false;
+    for (unsigned start = 0; start < path.Len();) {
+        const int separator = FindSepar(path.Ptr(start));
+        const unsigned length = separator < 0 ? path.Len() - start : unsigned(separator);
+        UString component;
+        component.SetFrom(path.Ptr(start), length);
+        if (!component.IsEmpty() && !component.IsEqualTo(".") && !component.IsEqualTo("..")) {
+            RemoveDotsAndSpaces(component);
+            if (component.IsEmpty())
+                return true;
+        }
+        start += length + 1;
+    }
+    return false;
 }
 
 bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result) {
@@ -879,7 +907,7 @@ bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result
             } else
                 checkExist = false;
         }
-        if (!checkExist)
+        if (!checkExist && !cur.IsEqualTo(".") && !cur.IsEqualTo(".."))
             RemoveDotsAndSpaces(cur);
         result += cur;
         if (slashPos < 0)
@@ -891,6 +919,9 @@ bool CorrectFsPath(const UString &relBase, const UString &path2, UString &result
     return true;
 }
 #else
+bool HasEmptyWindowsPathComponent(const UString &, const UString &) { return false; }
+int FindInvalidWindowsPathCharacter(const UString &) { return -1; }
+
 bool CorrectFsPath(const UString & /* relBase */, const UString &path, UString &result) {
     result = path;
     return true;

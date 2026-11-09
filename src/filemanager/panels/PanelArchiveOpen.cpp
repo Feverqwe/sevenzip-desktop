@@ -48,12 +48,13 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
 }
 
 HRESULT CPanel::OpenItemInArchiveInternal(unsigned index, const wchar_t *type,
-                                          bool materializeStream) {
-    return OpenItemInArchiveImpl(index, true, false, type, materializeStream);
+                                          bool materializeStream, UString *failure) {
+    return OpenItemInArchiveImpl(index, true, false, type, materializeStream, failure);
 }
 
 HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
-                                      const wchar_t *type, bool materializeStream) {
+                                      const wchar_t *type, bool materializeStream,
+                                      UString *failure) {
     std::optional<CDisableTimerProcessing> disableTimerProcessing(std::in_place, *this);
     // we don't want to change hash data here
     if (IsHashFolder())
@@ -121,7 +122,7 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
                 subSeqStream.QueryInterface(IID_IInStream, &subStream);
                 if (subStream) {
                     HRESULT res = OpenAsArc_Msg(subStream, tempFileInfo, fullVirtPath,
-                                                type ? type : L"", materializeStream);
+                                                type ? type : L"", materializeStream, failure);
                     if (res == S_OK) {
                         tempDirectory.DisableDeleting();
                         disableTimerProcessing.reset();
@@ -260,8 +261,8 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
             const CVirtFile &file = virtFileSystem->Files[index_in_Files];
             CMyComPtr2_Create<IInStream, CBufInStream> bufInStream;
             bufInStream->Init(file.Data, file.WrittenSize, virtFileSystem);
-            const HRESULT res =
-                OpenAsArc_Msg(bufInStream, tempFileInfo, fullVirtPath, type ? type : L"", true);
+            const HRESULT res = OpenAsArc_Msg(bufInStream, tempFileInfo, fullVirtPath,
+                                              type ? type : L"", true, failure);
             if (res == S_OK) {
                 if (virtFileSystem->Index_of_ZoneBuf_AltStream_in_Files >= 0 &&
                     !_parentFolders.IsEmpty()) {
@@ -298,10 +299,8 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
     */
 
     if (tryAsArchive) {
-        const HRESULT res = OpenAsArc_Msg(NULL, tempFileInfo, fullVirtPath, type ? type : L""
-                                          // , encrypted
-                                          // , true // showErrorMessage
-        );
+        const HRESULT res =
+            OpenAsArc_Msg(NULL, tempFileInfo, fullVirtPath, type ? type : L"", false, failure);
         if (res == S_OK) {
             tempDirectory.DisableDeleting();
             disableTimerProcessing.reset();

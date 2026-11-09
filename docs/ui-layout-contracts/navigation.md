@@ -43,9 +43,9 @@ Parent keeps the keyboard owner while replacing rows: a focused list returns
 to the same pane's visible table/icon view; an address caller retains its actual
 Qt focus proxy. Preserve the source focused child row, peer address draft and
 peer rows. Deferred publication must yield to newer address input or peer focus.
-`native_navigation_window` covers both panes, four views, EN/RU and list/address
-callers, with64 `parent-focus-*` reports at980×620/640×400 per QPA. Inspect both
-addresses and visible views for enabled state and complete bounds. Focus and
+`native_navigation_window` covers both panes, table and icon views, EN/RU and
+list/address callers at 980×620 and 640×400. Inspect the visible breadcrumbs or
+address editor and the current file view for enabled state and complete bounds. Focus and
 draft contents are public behavioral assertions, deliberately absent from JSON.
 This does not establish physical keyboard delivery or rendered Windows pixels.
 

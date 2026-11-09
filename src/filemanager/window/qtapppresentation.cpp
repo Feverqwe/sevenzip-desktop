@@ -5,6 +5,7 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "fileops/native/Dialog.h"
 #include <QApplication>
 #include <QPointer>
@@ -78,6 +79,20 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
             return E_ABORT;
         return window->reloadPanelPresentation(index, selection);
     });
+    panel.AttachArchivePublication(
+        [window = QPointer<MainWindow>(&window_)](const QString &archive, const CPanel *updated) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->ArchivePublished(archive, updated);
+            else if (window)
+                window->ArchivePublished(archive, updated);
+        });
+    panel.AttachFilesystemPublication(
+        [window = QPointer<MainWindow>(&window_)](const QStringList &directories) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->FilesystemPublished(directories);
+            else if (window && window->guiOutputRefresh_)
+                window->guiOutputRefresh_->Enqueue(directories, {});
+        });
     if (window_.drag_)
         window_.drag_->AttachPanel(index);
     if (hadPrevious && index != previous) {
@@ -87,42 +102,14 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
     return true;
 }
 
-void QtAppPresentation::RequestInitialFocus(unsigned index) {
-    // Source Create has already focused synchronous lists. Defer only when
-    // asynchronous startup publication kept its target disabled.
-    if (index < kNumPanelsMax && (window_.scanningPanelMask() & (1u << index)))
-        RequestListFocus(index);
-}
-
-void QtAppPresentation::RequestListFocus(unsigned index) {
-    if (index >= kNumPanelsMax || window_.app_.QtOperations().closed())
-        return;
-    initialFocus_ = index;
-    CompleteInitialFocusIfReady();
-}
-
 void QtAppPresentation::RestoreWidgetFocus(QWidget *widget) {
     if (!window_.app_.QtOperations().closed() && widget && widget->isVisible() &&
         widget->isEnabled() && !QApplication::activeModalWidget())
         widget->setFocus(Qt::OtherFocusReason);
 }
 
-void QtAppPresentation::CompleteInitialFocusIfReady() {
-    if (!initialFocus_ || !window_.isVisible() || window_.panelProjectionDepth_ ||
-        window_.app_.QtOperations().closed() || window_.app_.QtOperations().active())
-        return;
-    const unsigned index = *initialFocus_;
-    if (window_.scanningPanelMask() & (1u << index))
-        return;
-    initialFocus_.reset();
-    window_.activatePanelUi(index);
-    window_.app_.SetFocusedPanel(index);
-    window_.app_.Panels[index].SetFocusToList();
-    // Address FocusOut can occur while modal progress disables the pane.
-    // Finish its presentation only after the owning list-focus request is delivered.
-    if (window_.panelUi_[index].navigation)
-        window_.panelUi_[index].navigation->FinishEditing();
-    window_.app_.RefreshTitle(true);
+bool QtAppPresentation::IsCopyDestinationAvailable(unsigned index) const {
+    return !window_.panelUi_[index].locationUnavailable;
 }
 
 CPanelCallback *QtAppPresentation::PanelCallback(unsigned) {
@@ -136,11 +123,38 @@ bool QtAppPresentation::AllowPanelFocusChange(unsigned index) const {
     return !window_.panelProjectionDepth_ || window_.projectedPanel_ == index;
 }
 
+bool QtAppPresentation::AllowPanelTitleChange(unsigned index) const {
+    return index == window_.statusPanel_;
+}
+
 void QtAppPresentation::PrepareFolderChange(unsigned index) {
     window_.withPanelProjection(index, [this] {
         window_.cancelListPublication();
         window_.setState(window_.projectedUi().state);
     });
+}
+
+bool QtAppPresentation::OpenFolderInPeer(unsigned index, std::optional<UInt32> item) {
+    window_.workspace_->OpenFolderInPeer(index, item);
+    return true;
+}
+
+bool QtAppPresentation::OpenBoundFolderInPeer(unsigned source, IFolderFolder *folder,
+                                              const UString &fallbackPath) {
+    const unsigned peer = 1 - source;
+    window_.withPanelProjection(peer, [&] {
+        window_.workspace_->Navigate([&] {
+            if (!folder)
+                return window_.navigateTo(ToQString(fallbackPath), true);
+            window_.workspace_->ProtectNavigation();
+            auto &destination = window_.app_.Panels[peer];
+            destination.CloseOpenFolders();
+            destination.SetNewFolder(folder);
+            window_.projectedUi().locationUnavailable = false;
+            return window_.renderBoundFolder();
+        });
+    });
+    return true;
 }
 
 void QtAppPresentation::SetListSettings(unsigned index, const CFmSettings &settings) {

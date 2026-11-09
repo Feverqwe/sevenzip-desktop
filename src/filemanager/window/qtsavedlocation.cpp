@@ -1,4 +1,5 @@
 #include "filemanager/window/qtsavedlocation.h"
+#include "Windows/FileFind.h"
 #include "archive/resources/archiveinputpath.h"
 #include "filemanager/panels/Panel.h"
 #include "settings/ViewSettings.h"
@@ -63,6 +64,36 @@ QJsonObject QtArchiveLocation::Save() const {
             {"nested", links},
             {"folder", folder},
             {"directories", SaveDirectories(directories)}};
+}
+
+QString QtArchiveLocation::MoveToParent() {
+    NWindows::NFile::NFind::CFileInfo source;
+    if ((directories.isEmpty() && nested.isEmpty()) ||
+        !source.Find_FollowLink(us2fs(ToUString(physicalPath)))) {
+        const QString parent = QFileInfo(physicalPath).absolutePath();
+        *this = {};
+        return parent;
+    }
+    if (!directories.isEmpty()) {
+        directories.removeLast();
+        UString prefix = ToUString(folder);
+        if (!prefix.IsEmpty() && IS_PATH_SEPAR(prefix.Back()))
+            prefix.DeleteBack();
+        folder = ToQString(prefix.Left(unsigned(prefix.ReverseFind_PathSepar() + 1)));
+    } else {
+        auto link = nested.takeLast();
+        folder = std::move(link.parentFolder);
+        directories = std::move(link.directories);
+    }
+    UString path = ToUString(physicalPath);
+    path.Add_PathSepar();
+    for (const auto &link : nested) {
+        path += ToUString(link.parentFolder);
+        path += ToUString(link.entry);
+        path.Add_PathSepar();
+    }
+    path += ToUString(folder);
+    return ToQString(path);
 }
 
 QtArchiveLocation QtArchiveLocation::Restore(const QJsonObject &value) {

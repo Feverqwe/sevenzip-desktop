@@ -39,16 +39,19 @@ class PasswordDialogTests final : public QObject {
         QVERIFY(!UiInspection::dump(dialog).contains(password));
     }
     void okEnterAndCancel() {
-        for (bool enter : {false, true}) {
+        for (const auto key : {Qt::Key_unknown, Qt::Key_Return, Qt::Key_Enter}) {
             CPasswordDialog dialog;
-            dialog.ShowPassword = true;
             dialog.OnInit();
             dialog.show();
             auto *edit = dialog.findChild<QLineEdit *>("passwordEdit");
-            QCOMPARE(edit->echoMode(), QLineEdit::Normal);
+            QCOMPARE(edit->echoMode(), QLineEdit::Password);
             edit->setText(QStringLiteral("  密碼  "));
-            if (enter)
-                QTest::keyClick(edit, Qt::Key_Return);
+            dialog.findChild<QCheckBox *>("passwordShow")->click();
+            QCOMPARE(edit->echoMode(), QLineEdit::Normal);
+            edit->setFocus();
+            if (key != Qt::Key_unknown)
+                QTest::keyClick(edit, key,
+                                key == Qt::Key_Enter ? Qt::KeypadModifier : Qt::NoModifier);
             else
                 dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
             QCOMPARE(dialog.result(), int(QDialog::Accepted));
@@ -57,7 +60,12 @@ class PasswordDialogTests final : public QObject {
         CPasswordDialog dialog;
         dialog.Password = "initial";
         dialog.OnInit();
+        dialog.show();
         dialog.findChild<QLineEdit *>("passwordEdit")->setText("discarded");
+        auto *show = dialog.findChild<QCheckBox *>("passwordShow");
+        show->click();
+        QVERIFY(show->isChecked());
+        QCOMPARE(dialog.findChild<QLineEdit *>("passwordEdit")->echoMode(), QLineEdit::Normal);
         dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Cancel)->click();
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QCOMPARE(QString::fromWCharArray(dialog.Password), QString("initial"));

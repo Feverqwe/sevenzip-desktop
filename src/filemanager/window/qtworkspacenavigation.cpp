@@ -1,3 +1,5 @@
+#include "filemanager/panels/qtpaneladdresscombo.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtwindowworkspace.h"
@@ -18,12 +20,29 @@ QtWindowWorkspace::Visit QtWindowWorkspace::CaptureVisit(unsigned panel) {
         return current.visits[current.cursor];
     Capture(panel);
     const auto &locationState = panels_[panel].location;
-    return {locationState.path, locationState.nativePlaceIdentity, locationState.archiveLocation,
-            locationState.selection, locationState.scroll};
+    Visit visit{locationState.path,
+                locationState.nativePlaceIdentity,
+                locationState.archiveLocation,
+                locationState.selection,
+                locationState.scroll,
+                UInt32(locationState.viewMode),
+                locationState.diskFolder};
+    const auto &ui = window_.panelUi_[panel];
+    // A same-folder refresh has already saved the selection and viewport.
+    // Its live model may be empty or only partially published.
+    if (ui.scanningDisk && ui.pendingSelection &&
+        ui.directory == QDir::cleanPath(QDir::fromNativeSeparators(visit.path))) {
+        visit.selection = *ui.pendingSelection;
+        if (ui.pendingViewport && ui.pendingViewport->directory == ui.directory &&
+            ui.pendingViewport->view == ui.viewStack->currentWidget())
+            visit.scroll = ui.pendingViewport->scrollPosition;
+    }
+    return visit;
 }
 
 HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
-                                    std::function<void(HRESULT)> finished) {
+                                    std::function<void(HRESULT)> finished,
+                                    NavigationHistory history) {
     if (window_.app_.QtOperations().closed())
         return E_ABORT;
     const unsigned panel = window_.projectedPanel_;
@@ -34,7 +53,19 @@ HRESULT QtWindowWorkspace::Navigate(const std::function<HRESULT()> &body,
     if (!navigation_[panel]) {
         auto request = std::make_unique<Navigation>();
         request->source = window_.app_.Panels.Share(panel);
-        request->origin = CaptureVisit(panel);
+        request->history = history;
+        if (history == NavigationHistory::Record)
+            request->origin = CaptureVisit(panel);
+        if (history == NavigationHistory::Record && window_.panelUi_[panel].locationUnavailable) {
+            const auto &location = panels_[panel].location;
+            request->unavailableOrigin = Visit{location.path,
+                                               location.nativePlaceIdentity,
+                                               location.archiveLocation,
+                                               {},
+                                               {},
+                                               UInt32(location.viewMode),
+                                               location.diskFolder};
+        }
         request->finished = std::move(finished);
         navigation_[panel] = std::move(request);
     }
@@ -82,10 +113,21 @@ void QtWindowWorkspace::NavigationFinished(HRESULT result) {
     }
 }
 
+void QtWindowWorkspace::ReportNavigationFailure(const QString &message) {
+    if (auto &request = navigation_[window_.projectedPanel_])
+        request->failureMessage = message;
+    else
+        window_.showStatusMessage(message);
+}
+
 void QtWindowWorkspace::ProtectNavigation(const QString &path) {
     auto &request = navigation_[window_.projectedPanel_];
     if (!request || request->transaction || request->previousFolder)
         return;
+    // Release the superseded scan's guards before parking the source folder.
+    // Otherwise the navigation checkpoint retains its disabled notifications.
+    if (window_.scanningPanelMask() & (1u << window_.projectedPanel_))
+        window_.cancelListPublication();
     auto &source = *request->source;
     const auto &parents = source.GetParentFolders();
     if (source.IsArcFolder() && !parents.IsEmpty()) {
@@ -118,8 +160,11 @@ std::optional<HRESULT> QtWindowWorkspace::NavigationPublication() const {
 
 void QtWindowWorkspace::NavigationCanceled() {
     const unsigned panel = window_.projectedPanel_;
-    if (navigation_[panel] && navigation_[panel]->depth == 0)
+    if (navigation_[panel] && navigation_[panel]->depth == 0) {
+        // An abandoned publication must not present its result over a newer request.
+        navigation_[panel]->finished = {};
         FinishNavigation(panel, E_ABORT);
+    }
 }
 
 void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
@@ -131,7 +176,7 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             request->finished(result);
     });
     if (window_.app_.Panels.Share(panel) != request->source) {
-        result = E_ABORT;
+        request->finished = {};
         request->transaction.reset();
         return;
     }
@@ -167,22 +212,43 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
             }
         }
         request->transaction.reset();
-        if (result != S_OK) {
+        if (result != S_OK && !request->unavailableOrigin &&
+            request->history == NavigationHistory::Record) {
             window_.renderBoundFolder();
             window_.restoreListSelection(request->origin.selection);
-            if (auto *view = qobject_cast<QAbstractItemView *>(
-                    window_.panelUi_[panel].viewStack->currentWidget()))
-                RestoreViewPosition(*request->source, *view, request->origin.scroll);
+            if (request->origin.selection.KeepViewport &&
+                request->origin.viewMode == request->source->GetListViewMode())
+                if (auto *view = qobject_cast<QAbstractItemView *>(
+                        window_.panelUi_[panel].viewStack->currentWidget()))
+                    RestoreViewPosition(*request->source, *view, request->origin.scroll);
         }
     }
     if (result != S_OK) {
+        if (const auto &origin = request->unavailableOrigin) {
+            auto &location = panels_[panel].location;
+            location.nativePlaceIdentity = origin->nativePlaceIdentity;
+            location.archiveLocation = origin->archiveLocation;
+            location.diskFolder = origin->diskFolder;
+            CompleteLocationOpen(panel, origin->path, result);
+        } else if (request->destination >= 0 && result != E_ABORT) {
+            const auto &target = panels_[panel].location.visits[request->destination];
+            window_.showStatusMessage(tr("Location unavailable: %1").arg(target.path));
+        } else if (!request->failureMessage.isEmpty() && result != E_ABORT) {
+            window_.showStatusMessage(request->failureMessage);
+        }
+        window_.refreshActions();
+        return;
+    }
+    if (window_.commands_)
+        window_.commands_->DiscardStaleFolderDraft(panel);
+    if (request->history == NavigationHistory::Skip) {
         window_.refreshActions();
         return;
     }
     const Visit accepted = CaptureVisit(panel);
     auto &locationState = panels_[panel].location;
     if (locationState.cursor < 0) {
-        locationState.visits.push_back(request->origin);
+        locationState.visits.push_back(request->unavailableOrigin ? accepted : request->origin);
         locationState.cursor = 0;
     } else if (locationState.visits[locationState.cursor].SameLocation(request->origin))
         locationState.visits[locationState.cursor] = request->origin;
@@ -190,9 +256,10 @@ void QtWindowWorkspace::FinishNavigation(unsigned panel, HRESULT result) {
         locationState.cursor = request->destination;
         const auto target = locationState.visits[locationState.cursor];
         window_.restoreListSelection(target.selection);
-        if (auto *view = qobject_cast<QAbstractItemView *>(
-                window_.panelUi_[panel].viewStack->currentWidget()))
-            RestoreViewPosition(*request->source, *view, target.scroll);
+        if (target.selection.KeepViewport && target.viewMode == request->source->GetListViewMode())
+            if (auto *view = qobject_cast<QAbstractItemView *>(
+                    window_.panelUi_[panel].viewStack->currentWidget()))
+                RestoreViewPosition(*request->source, *view, target.scroll);
     } else if (!locationState.visits[locationState.cursor].SameLocation(accepted)) {
         locationState.visits.resize(locationState.cursor + 1);
         locationState.visits.push_back(accepted);
@@ -212,10 +279,12 @@ bool QtWindowWorkspace::CanTravel(unsigned panel, int direction) const {
         return false;
     const auto &locationState = state.location;
     const auto &ui = window_.panelUi_[panel];
-    const int destination = locationState.cursor + direction;
+    if (ui.locationUnavailable && direction != -1)
+        return false;
+    const int destination = locationState.cursor + (ui.locationUnavailable ? 0 : direction);
     return locationState.cursor >= 0 && destination >= 0 &&
            destination < int(locationState.visits.size()) && !ui.scanningDisk &&
-           !ui.scanningArchive && !ui.locationUnavailable;
+           !ui.scanningArchive;
 }
 
 void QtWindowWorkspace::Travel(int direction) {
@@ -226,11 +295,20 @@ void QtWindowWorkspace::Travel(int direction) {
         QApplication::activeModalWidget() || !CanTravel(panel, direction))
         return;
     const auto &locationState = panels_[panel].location;
-    const int destination = locationState.cursor + direction;
+    const int destination =
+        locationState.cursor + (window_.projectedUi().locationUnavailable ? 0 : direction);
     const Visit target = locationState.visits[destination];
-    Navigate([&] {
+    auto &ui = window_.panelUi_[panel];
+    const auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+    const auto revision = address->UserEditRevision();
+    const auto interaction = interactionRevision_;
+    const auto draft =
+        ui.path->isModified() ? std::optional(QtAddressDraft(*ui.path)) : std::nullopt;
+    const auto openTarget = [&] {
         auto &request = *navigation_[panel];
         request.destination = destination;
+        if (target.diskFolder && !QFileInfo(QDir::cleanPath(target.path)).isDir())
+            return HRESULT(S_FALSE);
         auto &source = *request.source;
         // An existing reader can bind another directory in its own chain.
         // Different chains are probed while the previous native source is parked.
@@ -247,10 +325,15 @@ void QtWindowWorkspace::Travel(int direction) {
             request.previousDepth = source.GetParentFolders().Size();
         } else
             request.transaction = std::make_unique<QtPanelLocationTransaction>(source);
-        if (sameChain)
-            return OpenArchiveDirectory(panel, target.archiveLocation);
-        if (!target.archiveLocation.physicalPath.isEmpty() && !sameChain)
-            return OpenArchiveLocation(panel, target.archiveLocation);
+        if (sameChain) {
+            const HRESULT result = OpenArchiveDirectory(panel, target.archiveLocation);
+            if (result == S_OK)
+                window_.projectedUi().locationUnavailable = false;
+            return result;
+        }
+        if (!target.archiveLocation.physicalPath.isEmpty())
+            return OpenRecordedLocation(panel, target.path, target.nativePlaceIdentity,
+                                        target.archiveLocation);
         QString path = target.path;
         if (!target.nativePlaceIdentity.isEmpty()) {
             nativePlaces_->Refresh();
@@ -263,5 +346,19 @@ void QtWindowWorkspace::Travel(int direction) {
                 return HRESULT(E_FAIL);
         }
         return window_.navigateTo(path, true);
+    };
+    Navigate(openTarget, [this, panel, revision, interaction, draft](HRESULT result) {
+        if (window_.app_.QtOperations().closed())
+            return;
+        if (result == S_OK) {
+            FocusListAfterLocationOpen(panel, interaction);
+            return;
+        }
+        auto &owner = window_.panelUi_[panel];
+        const auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
+        const auto restored =
+            combo->UserEditRevision() == revision ? draft : combo->LastUserDraft();
+        if (restored)
+            restored->Restore(*owner.path);
     });
 }

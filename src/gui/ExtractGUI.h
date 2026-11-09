@@ -33,6 +33,7 @@ HRESULT ExtractGUI(
 #endif
     bool showDialog, bool &messageWasDisplayed, CExtractCallbackImp *extractCallback,
     IQtArchiveOpenService *qtOpenService, IQtProgressServices *progressServices,
-    QWidget *hwndParent = nullptr, const std::function<void()> &outputReady = {});
+    QWidget *hwndParent = nullptr, const std::function<void()> &outputReady = {},
+    const std::function<QString(const QString &)> &destinationError = {});
 
 #endif

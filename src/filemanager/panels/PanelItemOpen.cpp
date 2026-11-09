@@ -10,6 +10,8 @@
 #include "filemanager/panels/Panel.h"
 #include "localization/LangUtils.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QCoreApplication>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QWidget>
 #include <memory>
@@ -93,6 +95,12 @@ void CPanel::OpenFolderExternal(unsigned index) {
         path += GetItemRelPath(index);
         path.Add_PathSepar();
     }
+    if (IsFSFolder() && !QFileInfo(ToQString(path)).isDir()) {
+        MessageBox_Error(
+            ToUString(QCoreApplication::translate("mainwindow_filelist", "Folder not found: ") +
+                      ToQString(path)));
+        return;
+    }
     // This disk/folder caller closes any returned native handle without waiting.
     if (_externalFileServices)
         _externalFileServices->StartApplication(prefix, path, GetParent());
@@ -115,6 +123,14 @@ void CPanel::OpenItem(unsigned index, bool tryInternal, bool tryExternal, const 
     std::optional<CDisableNotify> disableNotify(std::in_place, *this);
     UString prefix = GetFsPath();
     UString fullPath = prefix + name;
+    const QFileInfo entry(ToQString(fullPath));
+    if (IsFSFolder() && (!entry.exists() || (entry.isDir() && !entry.isSymLink() &&
+                                             !entry.isJunction() && !IsItem_Folder(index)))) {
+        MessageBox_Error(
+            ToUString(QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") +
+                      ToQString(fullPath)));
+        return;
+    }
     if (tryInternal)
         if (!tryExternal || !DoItemAlwaysStart(name)) {
             // OpenAsArc_Index guards binding itself; Refresh must retain the

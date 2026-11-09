@@ -60,20 +60,16 @@ void CPanel::Get_ItemIndices_OperSmart(CRecordVector<UInt32> &indices) const {
 }
 
 void CPanel::SaveSelectedState(CSelectedState &s) {
+    s.KeepViewport = true;
     s.FocusedName_Defined = false;
     s.FocusedName.Empty();
     s.SelectFocused = true;
     s.SelectedNames.Clear();
     s.FocusedItem = _selectionList.GetFocusedItem();
-    {
-        if (s.FocusedItem >= 0) {
-            const unsigned realIndex = GetRealItemIndex(s.FocusedItem);
-            if (realIndex != kParentIndex) {
-                s.FocusedName = GetItemRelPath(realIndex);
-                s.FocusedName_Defined = true;
-                s.SelectFocused = _selectionList.IsItemSelected(s.FocusedItem);
-            }
-        }
+    if (s.FocusedItem >= 0) {
+        s.FocusedName = GetItemRelPath(GetRealItemIndex(s.FocusedItem));
+        s.FocusedName_Defined = true;
+        s.SelectFocused = _selectionList.IsItemSelected(s.FocusedItem);
     }
     GetSelectedNames(s.SelectedNames);
 }

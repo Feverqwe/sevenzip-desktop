@@ -22,7 +22,6 @@
 #include <QVBoxLayout>
 
 using namespace NWindows;
-static const unsigned kCurrentFileNameSizeLimit = 72;
 
 void COverwriteDialog::SetQuestion(const OverwriteQuestion &question) {
     _multipleConflictsPossible = question.MultipleConflictsPossible;
@@ -57,13 +56,8 @@ int NOverwriteDialog::MapButtonResult(INT_PTR button) {
     }
 }
 
-void COverwriteDialog::ReduceString(UString &s) {
-    const unsigned size = kCurrentFileNameSizeLimit;
-    if (s.Len() > size) {
-        s.Delete(size / 2, s.Len() - size);
-        s.Insert(size / 2, L" ... ");
-    }
-    if (!s.IsEmpty() && s.Back() == ' ') {
+void COverwriteDialog::FormatPathPart(UString &s) {
+    if (!s.IsEmpty() && (s[0] == ' ' || s.Back() == ' ')) {
         s.InsertAtFront(L'\"');
         s.Add_Char('\"');
     }
@@ -75,19 +69,17 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
         const UString &path = fileInfo.Path;
         const int slashPos = path.ReverseFind_PathSepar();
         UString s = path.Left((unsigned)(slashPos + 1));
-        if (!ShowExtraButtons)
-            ReduceString(s);
+        FormatPathPart(s);
         s.Add_LF();
         {
             UString s2 = path.Ptr((unsigned)(slashPos + 1));
-            if (!ShowExtraButtons)
-                ReduceString(s2);
+            FormatPathPart(s2);
             s += s2;
         }
         s.Add_LF();
         if (fileInfo.Size_IsDefined)
             AddSizeValue(s, fileInfo.Size);
-        else if (ShowExtraButtons)
+        else
             s += UString((QtLangText(IDS_PROP_SIZE) + ": " +
                           QCoreApplication::translate("ConflictRedesign", "Unknown"))
                              .toStdWString()
@@ -99,7 +91,7 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
             char t[64];
             ConvertUtcFileTimeToString(fileInfo.Time, t);
             s += t;
-        } else if (ShowExtraButtons)
+        } else
             s += UString((QtLangText(IDS_PROP_MTIME) + ": " +
                           QCoreApplication::translate("ConflictRedesign", "Unknown"))
                              .toStdWString()
@@ -130,8 +122,15 @@ bool COverwriteDialog::OnInit() {
     SetFileInfoControl(NewFileInfo, IDT_OVERWRITE_NEW_FILE_SIZE_TIME, IDI_OVERWRITE_NEW_FILE,
                        IDI_OVERWRITE_NEW_FILE_2);
     UpdateButtonSizes();
-    const UString &path = NewFileInfo.Path;
-    SetItemText(IDT_OVERWRITE_HEADER, path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1)));
+    UString path = NewFileInfo.Path;
+    if (NewFileInfo.Is_Directory)
+        while (path.Len() > 1 && IS_PATH_SEPAR(path.Back()))
+            path.DeleteBack();
+    UString name = path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1));
+    if (name.IsEmpty())
+        name = path;
+    FormatPathPart(name);
+    SetItemText(IDT_OVERWRITE_HEADER, name);
     auto *button = static_cast<QPushButton *>(
         _controls.value(ShowExtraButtons || DefaultButton_is_NO ? IDNO : IDYES));
     button->setDefault(true);

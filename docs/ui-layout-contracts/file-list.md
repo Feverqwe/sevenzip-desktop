@@ -26,7 +26,8 @@
 ### Icon views
 
 The file panel offers the table and Large Icons. Older preferences for Small
-Icons or List open the table. Switching views preserves the shared selection.
+Icons or List open the table. Switching views preserves the shared selection
+and brings the current file into view.
 Large Icons centers wrapped labels below the icons. Cell geometry accommodates
 the platform icon and two lines of the active font; longer names remain available
 through the full-path tooltip. Font/style changes recalculate geometry, and
@@ -46,17 +47,22 @@ and displays its columns without a grid.
 Rename edits the name inline in the active table/icon list. On macOS, the editor
 and its native focus ring must remain inside the viewport, including the first
 icon column; resize and Escape retain the source selection and file bytes.
+Automatic refresh waits for inline Rename to finish in its panel. The other
+panel continues to refresh while the name is being edited.
 
-Source OnEndLabelEdit rejects an invalid filesystem name with the shared HRESULT
-error: Critical icon, source7-Zip caption (macOS omits native captions), plain
-formatted E_INVALIDARG and OK. It keeps the original name/selection and peer
+Rename rejects an empty file or archive entry name and other invalid filesystem
+names with the shared HRESULT error. It uses the Critical icon, the source
+7-Zip caption (macOS omits native captions), plain E_INVALIDARG text and OK.
+It keeps the original name/selection and peer
 state without loading rows. `panel_rename_state` covers both panes and EN/RU;
-eight `rename-invalid-*` Qt reports check message and OK bounds at requested
+`rename-invalid-*` Qt reports check message and OK bounds at requested
 440×220/340×220. macOS backing-widget reports fit400×116. Native Cocoa text/icon
 checks do not use its hidden backing-widget geometry as rendered native proof.
 
-Archive relative Rename retains the current provider and prefix while the source
-reload publishes the new parent row. ZIP/7z file and implicit-folder scenarios
+Archive Rename accepts safe relative paths and rejects absolute paths and parent
+traversal before writing. When a relative Rename leaves the result under the
+current folder, the panel selects the renamed item or its first visible parent.
+ZIP/7z file and implicit-folder scenarios
 inspect the table at980×620/640×400 in eight `archive-rename-relative-*` reports.
 Their geometry checks do not establish rendered Windows pixel parity.
 
@@ -69,6 +75,9 @@ stays unselected, and the focused-size/date fields stay empty when the pane
 has no selection. Check both panes, EN/RU and active/inactive ownership at
 980×620 and 640×400 through the `source-refresh-status` widget reports.
 Rebinding the view preserves selection notifications for the current provider.
+Create Folder brings the newly selected folder into view, including after a
+deferred reload. If the new folder is outside the current panel, the panel
+keeps its previous viewport.
 
 ### Archive directory CRC projection (P3-05)
 

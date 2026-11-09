@@ -14,6 +14,11 @@
     "tests": "^(root_navigation|root_command|persisted_location|address_navigation|address_combo|panel_address_keys|panel_key_source|ui_navigation|native_address_navigation)$",
     "interactive": true
   },
+  "native-file-transfer": {
+    "description": "System file clipboard and native drag-and-drop",
+    "tests": "^(native_file_clipboard|native_file_drag)$",
+    "interactive": true
+  },
   "options": {
     "description": "Options pages, keyboard, settings and window consumers",
     "tests": "^(options_integration|options_keyboard|options_dialog|options_window|system_page|mac_system_page|menu_page|language_ui|association_services|linux_association_clear_[01]|linux_system_page_.*)$",

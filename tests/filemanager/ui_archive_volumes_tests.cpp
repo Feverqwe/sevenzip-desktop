@@ -1,8 +1,10 @@
+#include "7zip/UI/FileManager/resourceGui.h"
 #include "archive/support/source_creation_fixture.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "localization/LangUtils.h"
 #include "support/progress_dialog.h"
-#include <QTreeWidget>
+#include <QPushButton>
 
 namespace {
 bool writeFile(const QString &path, const QByteArray &bytes) {
@@ -32,13 +34,12 @@ class CDialogAnswers {
                     if (box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning)
                         ++Errors;
                     box->accept();
-                } else if (widget->objectName() == "progressDialog") {
-                    auto *messages = widget->findChild<QTreeWidget *>("IDL_PROGRESS_MESSAGES");
-                    if (messages && messages->isVisible() && messages->topLevelItemCount() > 0)
+                } else if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+                    const auto report = TestProgressDialog::ReportText(*result);
+                    if (!report.isEmpty() && !report.contains(QString::fromWCharArray(
+                                                 LangString(IDS_MESSAGE_NO_ERRORS))))
                         ++Errors;
-                    auto *close = widget->findChild<QPushButton *>("IDCANCEL");
-                    if (TestProgressDialog::IsCloseButton(close))
-                        QTimer::singleShot(20, close, &QPushButton::click);
+                    TestProgressDialog::CloseResult(*result);
                 }
             }
         });
@@ -116,6 +117,41 @@ class UiArchiveVolumesTests final : public QObject, protected MainWindowTestSupp
         if (format == "7z" && !password.isEmpty())
             QVERIFY(answers.PasswordPrompts > 0);
     }
+    void refreshNoticesMissingLaterVolumeAndAllowsRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ArchiveBackend backend;
+        QString first;
+        QVERIFY(create(backend, fixture.path(), "7z", {}, first));
+        const QString second = first.left(first.size() - 3) + "002";
+        const QString parked = fixture.filePath("parked volume");
+        CDialogAnswers answers;
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(first);
+        QTRY_COMPARE(table(window)->rowCount(), 2);
+        QVERIFY(QFile::rename(second, parked));
+        auto *refresh = action(window, "refreshAction");
+        QVERIFY(refresh->isEnabled());
+        refresh->trigger();
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        QTRY_VERIFY(retry && retry->isVisible());
+        QCOMPARE(table(window)->rowCount(), 2);
+        const QString retained = fixture.filePath("retained output");
+        const int extractionErrors = answers.Errors;
+        window.extractTo(retained);
+        QCOMPARE(readFile(QDir(retained).filePath(kName)), QByteArray(400000, 'x'));
+        QCOMPARE(answers.Errors, extractionErrors);
+        QVERIFY(retry->isVisible());
+        QVERIFY(QFile::rename(parked, second));
+        retry->click();
+        QTRY_VERIFY(!retry->isVisible());
+        QCOMPARE(table(window)->rowCount(), 2);
+        const int errors = answers.Errors;
+        window.testArchive();
+        QCOMPARE(answers.Errors, errors);
+    }
+
     void missingAndCorruptVolumesReportErrors_data() {
         QTest::addColumn<int>("mode");
         QTest::newRow("missing-open") << 0;
@@ -141,11 +177,10 @@ class UiArchiveVolumesTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(!backend.busy());
             const int errors = answers.Errors;
             QVERIFY(writeFile(second, missingVolume));
-            MainWindow retry(&backend);
-            retry.openArchive(first);
-            QTRY_COMPARE(table(retry)->rowCount(), 2);
-            QVERIFY(action(retry, "testArchiveAction")->isEnabled());
-            retry.testArchive();
+            window.openArchive(first);
+            QTRY_COMPARE(table(window)->rowCount(), 2);
+            QVERIFY(action(window, "testArchiveAction")->isEnabled());
+            window.testArchive();
             QCOMPARE(answers.Errors, errors);
             return;
         }

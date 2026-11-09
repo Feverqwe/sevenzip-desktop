@@ -4,11 +4,13 @@
 // service; the remaining list-load/presentation stage is recorded in the audit.
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "Common/StringConvert.h"
 #include "Windows/FileName.h"
 #include "Windows/PropVariant.h"
 #include "archive/opening/archivecontainerpath.h"
 #include "filemanager/AppState.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FSDrives.h"
 #include "filemanager/providers/FSFolder.h"
@@ -26,7 +28,10 @@ void CPanel::OpenFolder(unsigned index) {
     CMyComPtr<IFolderFolder> newFolder;
     const HRESULT res = _folder->BindToFolder((unsigned)index, &newFolder);
     if (res != 0) {
-        MessageBox_Error_HRESULT(res);
+        if (IsFSFolder())
+            MessageBox_Error_2Lines_Message_HRESULT(GetItemFullPath(index), res);
+        else
+            MessageBox_Error_HRESULT(res);
         return;
     }
     if (!newFolder)
@@ -129,7 +134,7 @@ UString CPanel::GetParentDirPrefix() const {
     return s;
 }
 
-void CPanel::OpenParentFolder() {
+HRESULT CPanel::OpenParentFolder() {
     LoadFullPath(); // Maybe we don't need it ??
     UString parentFolderPrefix;
     UString focusedName;
@@ -170,7 +175,8 @@ void CPanel::OpenParentFolder() {
                 parentFolderPrefix = link.ParentFolderPath;
                 focusedName = link.RelPath;
             }
-            CloseOneLevel();
+            if (!CloseOneLevel(true))
+                return E_ABORT;
             needSetFolder = (!_folder);
         }
         if (needSetFolder) {
@@ -191,6 +197,7 @@ void CPanel::OpenParentFolder() {
     // ::SetCurrentDirectory(::_currentFolderPrefix);
     RefreshListCtrl(state);
     // _listView.EnsureVisible(_listView.GetFocusedItem(), false);
+    return S_OK;
 }
 
 void CPanel::OpenRootFolder() {
@@ -364,6 +371,11 @@ HRESULT CPanel::BindToPath(const UString &fullPath, const UString &arcFormat,
                 tfi.FolderPath = dirPrefix;
                 tfi.FilePath = us2fs(sysPath);
                 res = OpenAsArc(NULL, tfi, sysPath, arcFormat, openRes);
+            }
+            if (res == S_FALSE && openRes.Encrypted) {
+                if (openRes.ErrorMessage.IsEmpty())
+                    openRes.ErrorMessage = MyFormatNew(IDS_CANT_OPEN_ENCRYPTED_ARCHIVE, sysPath);
+                return E_FAIL;
             }
             if (res == S_FALSE)
                 _folder->BindToFolder(fs2us(dirPrefix), &newFolder);

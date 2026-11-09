@@ -4,6 +4,7 @@
     <context>
         <name>InlineCreateFolder</name>
         <message><source>Folder name</source><translation>Имя папки</translation></message>
+        <message><source>Enter a folder name.</source><translation>Введите имя папки.</translation></message>
     </context>
     <context>
         <name>ProgressRedesign</name>
@@ -19,8 +20,15 @@
         <message><source>Source: %1</source><translation>Источник: %1</translation></message>
         <message><source>Destination: %1</source><translation>Назначение: %1</translation></message>
         <message><source>Operation failed</source><translation>Операция завершилась с ошибкой</translation></message>
+        <message><source>Operation completed</source><translation>Операция завершена</translation></message>
         <message><source>Operation cancelled. Some changes may have completed.</source><translation>Операция отменена. Часть изменений могла быть выполнена.</translation></message>
         <message><source>Completed with skipped items or messages</source><translation>Завершено с пропусками или сообщениями</translation></message>
+    </context>
+    <context>
+        <name>ArchiveTest</name>
+        <message><source>Scope: selected items</source><translation>Проверено: выделенные элементы</translation></message>
+        <message><source>Scope: current folder</source><translation>Проверено: текущая папка</translation></message>
+        <message><source>Scope: entire archive</source><translation>Проверено: весь архив</translation></message>
     </context>
     <context>
         <name>ConflictRedesign</name>
@@ -88,12 +96,20 @@
             <translation>Недопустимое назначение.</translation>
         </message>
         <message>
+            <source>Not a folder: %1</source>
+            <translation>Этот путь не является папкой: %1</translation>
+        </message>
+        <message>
             <source>Enter a file or folder name.</source>
             <translation>Введите имя файла или папки.</translation>
         </message>
         <message>
             <source>The destination is read-only.</source>
             <translation>Назначение доступно только для чтения.</translation>
+        </message>
+        <message>
+            <source>The folder is read-only: %1</source>
+            <translation>Папка доступна только для чтения: %1</translation>
         </message>
         <message>
             <source>Choose another destination or change the name.</source>
@@ -606,6 +622,7 @@
     </context>
     <context>
         <name>CreateArchiveDialog</name>
+        <message><source>Archive path is a folder: %1</source><translation>Путь архива указывает на папку: %1</translation></message>
         <message>
             <location filename="../src/dialogs/compress/createarchivedialog.cpp" line="+51" />
             <source>Incorrect archive path</source>
@@ -4752,6 +4769,7 @@ Are you sure you want to split archive into such volumes?</source>
             <source>cannot move the file</source>
             <translation>Не удалось переместить файл</translation>
         </message>
+        <message><source>Cannot replace the archive</source><translation>Не удалось заменить архив</translation></message>
         <message>
             <location line="+8" />
             <source>Archive file size exceeds 4 GB</source>
@@ -4813,6 +4831,7 @@ Are you sure you want to split archive into such volumes?</source>
             <source>Cannot open output file</source>
             <translation>Не удалось открыть выходной файл</translation>
         </message>
+        <message><source>Cannot replace output file</source><translation>Не удалось заменить файл назначения</translation></message>
         <message>
             <location line="+3" />
             <source>Cannot open input file</source>
@@ -6445,7 +6464,44 @@ Use `Revert` to recover timestamp.</source>
     </context>
     <context>
         <name>qtfiletransfertransaction</name>
+        <message>
+            <source>Destination folder changed during transfer: %1</source>
+            <translation>Папка назначения изменилась во время переноса: %1</translation>
+        </message>
+        <message>
+            <source>Could not roll back %1. Check the original destination folder.</source>
+            <translation>Не удалось откатить перенос «%1». Проверьте прежнюю папку назначения.</translation>
+        </message>
+        <message>
+            <source>Source changed during transfer: %1</source>
+            <translation>Источник изменился во время переноса: %1</translation>
+        </message>
+        <message>
+            <source>Source changed after copying and was kept: %1</source>
+            <translation>Источник изменился после копирования и сохранён: %1</translation>
+        </message>
+        <message>
+            <source>Backup changed during transfer and was kept: %1</source>
+            <translation>Резервная копия изменилась во время переноса и сохранена: %1</translation>
+        </message>
+        <message>
+            <source>Could not remove backup: %1</source>
+            <translation>Не удалось удалить резервную копию: %1</translation>
+        </message>
+        <message>
+            <source>Could not restore %1 from %2.</source>
+            <translation>Не удалось вернуть «%2» по пути «%1».</translation>
+        </message>
+        <message>
+            <source>Could not remove transfer output: %1</source>
+            <translation>Не удалось удалить результат переноса: %1</translation>
+        </message>
+        <message>
+            <source>Could not restore %1 from backup %2.</source>
+            <translation>Не удалось восстановить «%1» из резервной копии «%2».</translation>
+        </message>
         <message><source>Some items were skipped.</source><translation>Некоторые объекты пропущены.</translation></message>
+        <message><source>All items were skipped.</source><translation>Все объекты пропущены.</translation></message>
         <message>
             <location filename="../src/fileops/transfer/qtfiletransfertransaction.cpp" line="+261" />
             <source> Some items may have been moved.</source>
@@ -6521,9 +6577,20 @@ Use `Revert` to recover timestamp.</source>
             <translation>Часть файлов пропущена; источники сохранены.</translation>
         </message>
         <message>
-            <location line="-83" />
-            <source>Source or destination unavailable, or the name is already in use.</source>
-            <translation>Источник или назначение недоступны либо имя уже занято.</translation>
+            <source>Source and destination are the same: %1</source>
+            <translation>Источник и назначение совпадают: %1</translation>
+        </message>
+        <message>
+            <source>Destination is inside the source folder: %1</source>
+            <translation>Путь назначения находится внутри исходной папки: %1</translation>
+        </message>
+        <message>
+            <source>Destination is a symbolic link: %1</source>
+            <translation>Путь назначения указывает на символическую ссылку: %1</translation>
+        </message>
+        <message>
+            <source>Multiple items would use the same destination: %1</source>
+            <translation>У нескольких элементов один путь назначения: %1</translation>
         </message>
         <message>
             <location line="-159" />
@@ -7244,9 +7311,21 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <source>Complete extraction could not be confirmed. The clipboard was kept unchanged.</source>
         <translation>Не удалось подтвердить полную распаковку. Буфер обмена не изменён.</translation>
     </message>
+    <message>
+        <source>No extracted files to copy.</source>
+        <translation>Нет распакованных файлов для копирования.</translation>
+    </message>
+    <message>
+        <source>Could not keep temporary files for pasting.</source>
+        <translation>Не удалось сохранить временные файлы для вставки.</translation>
+    </message>
 </context>
 <context>
     <name>QtNavigationBar</name>
+    <message>
+        <source>Parent folders</source>
+        <translation>Родительские папки</translation>
+    </message>
     <message>
         <source>Edit location</source>
         <translation>Изменить путь</translation>
@@ -7260,7 +7339,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <message><source>The original panel is busy.</source><translation>Исходная панель занята.</translation></message>
     <message><source>Opening canceled.</source><translation>Открытие отменено.</translation></message>
     <message><source>The location is unavailable or disconnected.</source><translation>Место недоступно или отключено.</translation></message>
-    <message><source>Could not open this location. %1</source><translation>Не удалось открыть это место. %1</translation></message>
+    <message><source>Could not open %1. %2</source><translation>Не удалось открыть %1. %2</translation></message>
     <message>
         <source>Archive</source>
         <translation>Архив</translation>
@@ -7497,6 +7576,8 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 </context>
 <context>
     <name>DeleteRedesign</name>
+    <message><source>Could not move the item to Trash.</source><translation>Не удалось переместить объект в Корзину.</translation></message>
+    <message><source>Items moved to Trash (%1)</source><translation>Перемещено в Корзину (%1)</translation></message>
     <message><source>Move to Trash?</source><translation>Переместить в Корзину?</translation></message>
     <message><source>Move to Trash</source><translation>В Корзину</translation></message>
     <message><source>You can restore the items from Trash after they have been moved successfully.</source><translation>После успешного перемещения объекты можно восстановить из Корзины.</translation></message>
@@ -7518,6 +7599,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     </context>
     <context>
         <name>QtOperationsButton</name>
+        <message><source>Done with warnings</source><translation>С предупреждениями</translation></message>
         <message><source>Operations</source><translation>Операции</translation></message>
         <message><source>Operations · %1</source><translation>Операции · %1</translation></message>
         <message><source>Test archive</source><translation>Проверка архива</translation></message>

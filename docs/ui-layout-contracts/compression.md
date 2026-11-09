@@ -9,9 +9,26 @@
 The agreed November 5 catalog supersedes the older two-column and four-section
 presentation requirements below for the Add form. Archive name/destination remain
 visible above the scrolling form as separate editable rows with leading labels.
-Destination edits use the existing source path resolver. Browse selects a folder
+Relative destination folders are resolved from the folder where the dialog was opened.
+Browse selects a folder
 through the existing folder picker, retaining the name and format; history can
 still restore the source folder/name/format split.
+Browse opens in the resolved parent folder of the archive, or its nearest
+existing ancestor. When the name field
+contains a relative or absolute path, choosing a folder moves the archive name
+to that folder. Cancelling preserves the path as entered.
+Switching formats keeps the destination folder, including a folder typed
+in the name field, when the format derives the archive name from the source.
+If a file, dangling link or known lack of write access blocks the destination
+folder, the form stays open and focuses the field that needs correction while
+retaining the archive options. The archive name must end with a file name,
+even when the destination folder has yet to be created.
+A wildcard in a Windows archive path keeps the form open and focuses the
+field containing it.
+A dangling link or read-only file at a single-file archive destination also
+keeps the form open.
+For a multi-volume archive, an occupied base path or volume keeps the form open so
+the user can choose another name or folder.
 Format is immediately available. Password protection has
 an explicit enable control; its dependent fields appear together, without a
 large framed heading. A source-supplied password enables the section. Turning
@@ -292,13 +309,13 @@ below the minimum, large dictionary threshold/clamp and source BZip2 decimal
 comparison. Solid below the first numeric entry stays Auto for 7z; full/non-solid
 remain explicit. An unavailable explicit thread count leaves no selected entry,
 as source SetNumThreads2 does. `compression_profile_selection` checks EN/RU
-760×720/640×480 reachability and writes `profile-selection-*.json`; values and
+760×720/640×480 reachability in the expert editor and writes
+`profile-selection-*.json`; values and
 Cancel/restart are asserted through public controls/options, outside JSON.
-Solid and thread events update memory using source GetNumThreads2 and the cached
-Auto count from the last SetNumThreads2 phase. Changing Solid preserves the
-thread selector, including an unavailable saved selection; dictionary/memory-limit
-events deliberately regenerate Auto. OK uses that same cached estimate for memory
-refusal. `compression_event` covers EN/RU XZ state transitions, refusal/no-save,
+Changing the XZ block size refreshes the automatic thread count and memory
+estimate together. It preserves the current thread selection, including an
+unavailable saved selection. The dialog checks the refreshed estimate on OK.
+`compression_event` covers EN/RU XZ state transitions, refusal/no-save,
 restart and official-engine workflows, with reachable thread/memory controls at
 760×720/640×480 in `compression-event-*.json`. Auto remains an all-ones operation
 spec; the official engine owns the actual compression thread calculation.

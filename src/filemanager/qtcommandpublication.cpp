@@ -29,7 +29,7 @@ void QtFileManagerCommands::PublishActions() {
     const auto interrupted = [this, owner] {
         return !owner || actionRefresh_ == ActionRefresh::Pending;
     };
-    const auto availability = Availability();
+    const auto availability = AvailabilityForPanel(window_.statusPanel_);
     const auto menuPanel = CapturedViewPanel();
     const auto menuAvailability = !viewMenuSource_ ? availability
                                   : menuPanel      ? AvailabilityForPanel(*menuPanel)
@@ -49,7 +49,8 @@ void QtFileManagerCommands::PublishActions() {
 }
 
 void QtFileManagerCommands::RefreshViewActions() {
-    const auto *panel = viewMenuSource_ ? viewMenuSource_->data() : &window_.app_.GetFocusedPanel();
+    const auto *panel =
+        viewMenuSource_ ? viewMenuSource_->data() : &window_.app_.Panels[window_.statusPanel_];
     for (const auto &[name, ascending] :
          {std::pair{"sortAscendingAction", true}, std::pair{"sortDescendingAction", false}})
         if (auto *action = window_.findChild<QAction *>(QString::fromLatin1(name))) {

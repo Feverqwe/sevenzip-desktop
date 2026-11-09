@@ -2,6 +2,7 @@
 #include "fileops/overwrite/overwritequestion.h"
 #include "fileops/transfer/filetransferoperation.h"
 #include <QList>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <optional>
@@ -19,14 +20,12 @@ class QtFileTransferTransaction final {
     enum class OverwriteDecision { Skip, Replace, Rename, Cancel };
     std::optional<OverwriteDecision> rememberedOverwrite_;
     std::optional<FileTransferOperation::ResultKind> failureKind_;
+    QStringList rollbackErrors_;
     bool skipped_ = false;
     OverwriteDecision decideOverwrite(const OverwriteSource &source);
-    enum class SourceState { Intact, Renamed, RemovalStarted };
+    enum class SourceState { Intact, Renamed, Changed, RemovalStarted, Removed };
     enum class RollbackMode { RestoreSources, KeepMovedSources };
-    struct TransferPath {
-        QString source;
-        QString target;
-    };
+    struct TransferPath;
     struct TransferEntry {
         QString source;
         QString target;
@@ -35,24 +34,36 @@ class QtFileTransferTransaction final {
         bool merged = false;
         QStringList writtenSources;
         QString ownedPath{};
+        std::function<bool(const QString &, const std::atomic_bool &)> backupMatches{};
+        std::function<bool(const QString &, bool)> sourceMatches{};
     };
     FileTransferOperation &worker_;
-    QList<TransferPath> prepareTargets(QString &error) const;
+    QString destinationDirectory_;
+    QString destinationIdentity_;
+    QSet<QString> plannedTargets_;
+    QList<TransferPath> prepareTargets(QString &error);
+    bool destinationMatches() const;
+    QString destinationChangedMessage() const;
     bool transferEntry(const TransferPath &path, QList<TransferEntry> &completed, QString &error);
     FileTransferOperation::Completion finish(QList<TransferEntry> &completed, QString &error);
     void rememberFailure(const QString &error) noexcept;
     void rollbackEntry(const TransferEntry &entry, RollbackMode mode);
+    void discardBackup(const TransferEntry &entry);
     void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);
     void removeSources(QList<TransferEntry> &completed, QString &error);
+    bool removeStagedSource(TransferEntry &entry, QString &error);
     bool copyEntry(const QString &source, const QString &target, QString *error,
                    bool reportProgress = true);
     bool mergeEntry(const QString &source, const QString &stage, const QString &target,
                     QStringList *writtenSources, QString *error);
     bool removeMergedSource(const QString &source, const QStringList &writtenSources,
-                            QString *error);
+                            QString *error, bool &rootRemoved);
+    static QStringList movedSources(const QList<TransferEntry> &completed);
     bool validateEntry(const QString &source, QString *error);
     static bool removeEntry(const QString &path);
+    static QString availableName(const QString &target,
+                                 const std::function<bool(const QString &)> &reserved);
 
   public:
     explicit QtFileTransferTransaction(FileTransferOperation &worker) : worker_(worker) {}

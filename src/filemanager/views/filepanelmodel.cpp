@@ -119,7 +119,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
         return {};
     case Qt::EditRole:
         if (column == 0)
-            return row.editName ? *row.editName : row.name.normalized(QString::NormalizationForm_C);
+            return row.editName ? *row.editName : row.name;
         [[fallthrough]];
     case Qt::DisplayRole:
         if (panel && !panel->ShouldDisplayItemText())
@@ -252,6 +252,19 @@ void FilePanelModel::setColumns(const QStringList &labels) {
     if (!labels.isEmpty())
         emit headerDataChanged(Qt::Horizontal, 0, labels.size() - 1);
 }
+QModelIndexList FilePanelModel::match(const QModelIndex &start, int role, const QVariant &value,
+                                      int hits, Qt::MatchFlags flags) const {
+    // Qt clears its keyboard prefix with an empty search. Do not select a row.
+    if (role == Qt::DisplayRole && flags == (Qt::MatchStartsWith | Qt::MatchWrap)) {
+        const QString prefix = value.toString();
+        if (prefix.isEmpty())
+            return {};
+        return QAbstractTableModel::match(
+            start, role, prefix.normalized(QString::NormalizationForm_C), hits, flags);
+    }
+    return QAbstractTableModel::match(start, role, value, hits, flags);
+}
+
 void FilePanelModel::append(Row row) {
     const int position = rows_.size();
     beginInsertRows({}, position, position);

@@ -4,3 +4,5 @@
 #include "Common/MyString.h"
 
 bool CorrectFsPath(const UString &relBase, const UString &path, UString &result);
+bool HasEmptyWindowsPathComponent(const UString &path, const UString &resolved);
+int FindInvalidWindowsPathCharacter(const UString &path);

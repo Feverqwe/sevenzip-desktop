@@ -6,6 +6,7 @@
 #include "filemanager/panels/Panel.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/trash/qttrashservice.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -34,6 +35,7 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
         setState(State::Operating);
         begin(QtLangText(move ? IDS_MOVING : IDS_PROGRESS_EXTRACTING), projectedUi().archive,
               destination);
+        progress_->filesystemOutput = destination;
         // Source refusal permits fallback only at the archive root. Retain
         // Move's full-path transport and Copy's explicit extraction options.
         if (move) {
@@ -97,6 +99,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
             this, QtLangText(IDS_COPYING),
             QCoreApplication::translate("mainwindow_archive_transfer",
                                         "Transfer between these archives is unavailable."));
+        appPresentation_->CopyFinished(true);
         return true;
     }
     if (indices.IsEmpty())
@@ -111,6 +114,8 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
     QtArchiveTransferResult transfer{E_FAIL, {}};
     std::unique_ptr<QtArchiveTransferBackup> rollback;
     const QString destinationArchive = panelUi_[destinationIndex].archive;
+    const QString sourceArchive = projectedUi().archive;
+    bool sourcePublished = false;
     if (move) {
         auto saved = backend_->saveArchiveTransferDestination(destinationArchive);
         if (saved)
@@ -121,6 +126,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
             this, QtLangText(IDS_MOVING),
             QCoreApplication::translate("mainwindow_archive_transfer",
                                         "Could not save destination archive for rollback."));
+        appPresentation_->CopyFinished(true);
         return true;
     }
     enum class Outcome { Stopped, Updated, Retained, RolledBack, RollbackFailed };
@@ -136,6 +142,7 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
             outcome = Outcome::Updated;
             if (move) {
                 const auto removed = source.RemoveItemsAfterMove(indices, selected, true);
+                sourcePublished = removed.Published == true;
                 terminalDiagnostics = removed.Diagnostics;
                 result = removed.Result;
                 if (result != S_OK) {
@@ -164,6 +171,18 @@ bool MainWindow::transferBetweenArchivePanels(const QString &destination, bool m
         refreshArchiveTransferDestination(destinationIndex, destinationSelection,
                                           retainedUpdate ? ArchiveTransferReload::BoundFolder
                                                          : ArchiveTransferReload::ReopenArchive);
+    const auto publish = [this](const QString &archive, const CPanel *updated) {
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->ArchivePublished(archive, updated);
+        else
+            ArchivePublished(archive, updated);
+    };
+    if (transfer.Published)
+        publish(destinationArchive, outcome == Outcome::Stopped ? nullptr : &target);
+    if (sourcePublished)
+        publish(sourceArchive, &source);
+    if (outcome != Outcome::Updated)
+        appPresentation_->CopyFinished(true);
     if (outcome == Outcome::RollbackFailed) {
         terminalDiagnostics.prepend(QCoreApplication::translate(
             "mainwindow_archive_transfer",

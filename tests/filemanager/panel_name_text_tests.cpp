@@ -6,6 +6,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 
 namespace {
@@ -121,9 +122,12 @@ class PanelNameTextTests final : public QObject, protected MainWindowTestSupport
         };
         QTimer closeError;
         connect(&closeError, &QTimer::timeout, &panel, [] {
-            for (QWidget *widget : QApplication::topLevelWidgets())
+            for (QWidget *widget : QApplication::topLevelWidgets()) {
+                if (TestProgressDialog::DismissVisibleResult(widget))
+                    continue;
                 if (auto *box = qobject_cast<QMessageBox *>(widget); box && box->isVisible())
                     box->accept();
+            }
         });
         closeError.start(2);
         std::unique_ptr<CPanel::CDisableNotify> notify;
@@ -226,15 +230,14 @@ class PanelNameTextTests final : public QObject, protected MainWindowTestSupport
                 item = view->model()->index(row, 0);
         QVERIFY(item.isValid());
         QCOMPARE(item.data().toString(), shown);
-        QCOMPARE(item.data(Qt::EditRole).toString(), raw.normalized(QString::NormalizationForm_C));
+        QCOMPARE(item.data(Qt::EditRole).toString(), raw);
         QCOMPARE(item.data(Qt::UserRole + 3).toString(), raw);
         QCOMPARE(item.data(Qt::UserRole + 6).toUInt(), 0u);
         {
             CPanel::CDisableNotify guard(*view->sourcePanel);
             SetPanelData(item, QVariant(), Qt::DisplayRole);
             QCOMPARE(item.data().toString(), QString());
-            QCOMPARE(item.data(Qt::EditRole).toString(),
-                     raw.normalized(QString::NormalizationForm_C));
+            QCOMPARE(item.data(Qt::EditRole).toString(), raw);
         }
         QCOMPARE(item.data().toString(), shown);
         window.show();

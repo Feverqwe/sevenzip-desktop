@@ -162,9 +162,8 @@ class PanelNavigationTests : public QObject {
     void nestedCleanup_data() {
         QTest::addColumn<int>("answer");
         QTest::addColumn<bool>("changed");
-        QTest::newRow("unchanged") << int(QMessageBox::No) << false;
-        QTest::newRow("changed-no") << int(QMessageBox::No) << true;
-        QTest::newRow("changed-cancel") << int(QMessageBox::Cancel) << true;
+        QTest::newRow("unchanged") << int(QMessageBox::Discard) << false;
+        QTest::newRow("changed-discard") << int(QMessageBox::Discard) << true;
         QTest::newRow("changed-yes-unsupported-preserves-temp") << int(QMessageBox::Yes) << true;
     }
     void nestedCleanup() {

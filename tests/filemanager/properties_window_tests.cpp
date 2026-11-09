@@ -7,6 +7,7 @@
 #include "filemanager/support/window_state_support.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#include "support/window_activation.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
@@ -124,12 +125,14 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
     }
     void unknownZeroFoldersAndPartialSelectionStayDistinct() {
         CMyComPtr<IFolderFolder> folder;
-        QCOMPARE(CreateArchiveFolder({{"unknown", -1, -1}, {"zero", 0, 0}, {"folder/child", 13, 5}},
-                                     UString("zip"), &folder),
-                 S_OK);
+        QCOMPARE(
+            CreateArchiveFolder(
+                {{"unknown", -1, -1}, {"zero", 0, 0}, {"known", 11, 7}, {"folder/child", 13, 5}},
+                UString("zip"), &folder),
+            S_OK);
         UInt32 count = 0;
         QCOMPARE(folder->GetNumberOfItems(&count), S_OK);
-        std::optional<UInt32> unknown, zero, directory;
+        std::optional<UInt32> unknown, zero, known, directory;
         for (UInt32 i = 0; i < count; ++i) {
             NWindows::NCOM::CPropVariant value;
             QCOMPARE(folder->GetProperty(i, kpidName, &value), S_OK);
@@ -138,33 +141,50 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
                 unknown = i;
             else if (name == "zero")
                 zero = i;
+            else if (name == "known")
+                known = i;
             else if (name == "folder")
                 directory = i;
         }
-        QVERIFY(unknown && zero && directory);
+        QVERIFY(unknown && zero && known && directory);
         QtPropertiesWindow missing(collect(folder, {*unknown}));
         QtPropertiesWindow empty(collect(folder, {*zero}));
         QtPropertiesWindow contents(collect(folder, {*directory}));
         QtPropertiesWindow multiple(collect(folder, {*unknown, *zero, *directory}));
+        QtPropertiesWindow knownFiles(collect(folder, {*zero, *known}));
         QCOMPARE(shownSize(missing), QString::fromUtf8("—"));
         QVERIFY(missing.findChild<QWidget *>("propertiesIdentity")->toolTip().isEmpty());
         QCOMPARE(shownSize(empty), QtRegionalFormat::bytes(0));
-        QCOMPARE(shownSize(contents), QString("Not calculated"));
+        QCOMPARE(shownSize(contents), QtRegionalFormat::bytes(13));
+        QVERIFY(contents.Information().contains("Size: " + QtRegionalFormat::bytes(13)));
         QCOMPARE(shownSize(multiple), QString("Not calculated"));
+        QCOMPARE(shownSize(knownFiles), QtRegionalFormat::bytes(11));
+        copy(knownFiles);
+        QVERIFY(QApplication::clipboard()->text().contains("Size: " + QtRegionalFormat::bytes(11)));
         QVERIFY(multiple.Information().contains("Files: 2 · Folders: 1"));
         QVERIFY(multiple.Information().contains("Reported size (may be partial)"));
         QCOMPARE(multiple.findChild<QLabel *>("propertiesModified")->text(),
                  QString("Not applicable"));
         const QString englishSelection = QtSelectedItemsText(3);
+        copy(multiple);
+        const QString englishReport = QApplication::clipboard()->text();
+        QVERIFY(englishReport.contains(englishSelection));
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(UString("ru"), settings);
         ReloadLang(settings);
         QtNotifyLanguageChanged();
-        QVERIFY(!multiple.Information().contains(englishSelection));
-        QVERIFY(multiple.Information().contains(QtSelectedItemsText(3)));
+        copy(multiple);
+        const QString russianReport = QApplication::clipboard()->text();
+        QVERIFY(!russianReport.contains(englishSelection));
+        QVERIFY(russianReport.contains(QtSelectedItemsText(3)));
+        for (const QString &name :
+             {QStringLiteral("unknown"), QStringLiteral("zero"), QStringLiteral("folder")})
+            QVERIFY(russianReport.split(u'\n').contains(name));
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
         QtNotifyLanguageChanged();
+        copy(multiple);
+        QCOMPARE(QApplication::clipboard()->text(), englishReport);
         for (const auto &[window, tag] :
              {std::pair{&missing, "unknown"}, std::pair{&empty, "zero"},
               std::pair{&contents, "folder"}, std::pair{&multiple, "multiple"}}) {
@@ -175,7 +195,13 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             window->hide();
         }
     }
+    void navigationDoesNotRetargetIndependentWindows_data() {
+        QTest::addColumn<bool>("switchToIcons");
+        QTest::newRow("details") << false;
+        QTest::newRow("switch-to-icons") << true;
+    }
     void navigationDoesNotRetargetIndependentWindows() {
+        QFETCH(bool, switchToIcons);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -186,7 +212,8 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QPointer<QtPropertiesWindow> first = window.findChild<QtPropertiesWindow *>();
         QVERIFY(first && !first->isModal());
         const QString before = first->Information();
-        openListedArchive(window, backend, "second.zip", {{"second.txt", 19, 9}});
+        openListedArchive(window, backend, "second.zip",
+                          {{"second.txt", 19, 9}, {"z-next.txt", 23, 11}});
         table(window)->selectRow(0);
         window.findChild<QLineEdit *>("archivePath")->setFocus();
         action(window, "selectedPropertiesAction")->trigger();
@@ -196,15 +223,41 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(second != first);
         QVERIFY(second->Information().contains("second.txt"));
         QCOMPARE(first->Information(), before);
+        QWidget *focusTarget = table(window);
+        if (switchToIcons) {
+            action(window, "viewMode0Action")->trigger();
+            focusTarget = window.findChild<QListView *>("iconList");
+            QVERIFY(focusTarget && focusTarget->isVisible());
+            QVERIFY(!table(window)->isVisible());
+        }
         second->raise();
         second->activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(second));
         QTest::keyClick(second, Qt::Key_Escape);
         QTRY_VERIFY(!second);
         QVERIFY(first && first->isVisible());
-        QTRY_COMPARE(QApplication::focusWidget(), table(window));
+        QTRY_COMPARE(QApplication::focusWidget(), focusTarget);
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_End);
+        action(window, "selectedPropertiesAction")->trigger();
+        const auto reopened = window.findChildren<QtPropertiesWindow *>();
+        QCOMPARE(reopened.size(), 2);
+        QVERIFY(reopened.last()->Information().contains("z-next.txt"));
+        QCOMPARE(first->Information(), before);
+        reopened.last()->close();
+        ControlledBackend otherBackend;
+        MainWindow other(&otherBackend);
+        other.show();
+        QVERIFY(WindowActivation::waitForActive(other));
+        QWidget *otherView = table(other);
+        if (!otherView->isVisible())
+            otherView = other.findChild<QListView *>("iconList");
+        QVERIFY(otherView && otherView->isVisible());
+        otherView->setFocus();
+        QTRY_VERIFY(otherView->hasFocus());
         first->close();
         QTRY_VERIFY(!first);
+        QCOMPARE(QApplication::activeWindow(), static_cast<QWidget *>(&other));
+        QCOMPARE(QApplication::focusWidget(), otherView);
         QCOMPARE(backend.extractCalls, 0);
     }
     void overflowingSourceTotalIsNotShownAsZero() {
@@ -216,6 +269,24 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(shownSize(window), QString("Not calculated"));
         QVERIFY(window.Information().contains("Reported size (may be partial): Not available"));
         QVERIFY(window.Information().contains("Files: 2"));
+    }
+    void missingSelectionSizesAreDistinctFromZero() {
+        CMyComPtr<IFolderFolder> folder;
+        QCOMPARE(CreateArchiveFolder({{"unknown-a", -1, -1}, {"unknown-b", -1, -1}, {"zero", 0, 0}},
+                                     UString("zip"), &folder),
+                 S_OK);
+        QtPropertiesWindow missing(collect(folder, {0, 1}));
+        QtPropertiesWindow partial(collect(folder, {0, 2}));
+        const QString caption = QStringLiteral("Reported packed size (may be partial): ");
+        copy(missing);
+        QVERIFY(QApplication::clipboard()->text().contains(caption + "Not available"));
+        QVERIFY(QApplication::clipboard()->text().contains(
+            "Reported size (may be partial): Not available"));
+        copy(partial);
+        QVERIFY(
+            QApplication::clipboard()->text().contains(caption + QtRegionalFormat::exactBytes(0)));
+        QVERIFY(QApplication::clipboard()->text().contains("Reported size (may be partial): " +
+                                                           QtRegionalFormat::exactBytes(0)));
     }
     void withoutSelectionUsesCurrentFolder() {
         ControlledBackend backend;
@@ -229,7 +300,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         auto *properties = window.findChild<QtPropertiesWindow *>();
         QVERIFY(properties);
         QVERIFY(QTest::qWaitForWindowExposed(properties));
-        QCOMPARE(shownSize(*properties), QString("Not calculated"));
+        QCOMPARE(shownSize(*properties), QtRegionalFormat::bytes(7));
         QCOMPARE(properties->findChild<QWidget *>("propertiesIdentity")->accessibleName(),
                  QString("current-folder.zip"));
         QVERIFY(properties->findChild<QLabel *>("propertiesLocation")

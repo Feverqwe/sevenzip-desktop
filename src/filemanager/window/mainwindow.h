@@ -90,7 +90,7 @@ struct QtFileManagerStartup;
 
 class MainWindow : public QMainWindow {
   public:
-    void ArchivePublished(const QString &archive);
+    void ArchivePublished(const QString &archive, const CPanel *updated = nullptr);
     explicit MainWindow(ArchiveBackend *backend = nullptr,
                         std::function<bool(const QUrl &)> fileOpener = {},
                         IQtTrashService *trashService = nullptr,
@@ -110,6 +110,8 @@ class MainWindow : public QMainWindow {
     struct WindowProgress {
         QPointer<CProgressDialog> dialog;
         std::unique_ptr<IQtProgressTransport> transport;
+        ArchivePassword passwordBeforeOperation;
+        QString filesystemOutput;
     };
     DeviceSelectionServices deviceServices_;
     QtWindowStatusBar *statusStrip_ = nullptr;
@@ -181,7 +183,7 @@ class MainWindow : public QMainWindow {
     void backendFinished(bool ok, const QString &message, HRESULT result,
                          bool messageDisplayed = false,
                          std::optional<QtArchiveExtractStatus> extraction = std::nullopt,
-                         const QStringList &diagnostics = {});
+                         const QStringList &diagnostics = {}, const QString &filesystemOutput = {});
     bool extractWithSource(const QString &destination, bool onlySelected, const QString &password,
                            const ExtractionOptions &options, const QStringList &names,
                            const CRecordVector<UInt32> *explicitIndices = nullptr);
@@ -220,7 +222,7 @@ class MainWindow : public QMainWindow {
     QList<QAction *> panelShortcutActions_;
     void updatePanelModifier(const QKeyEvent &key);
     HRESULT showDirectory(const QString &path, bool remember, bool sourceAlreadyBound = false,
-                          bool updateAddress = true);
+                          bool updateAddress = true, bool refreshing = false);
     HRESULT renderRootFolder(bool updateAddress = true);
     HRESULT appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex);
     void appendParentEntry();
@@ -231,17 +233,21 @@ class MainWindow : public QMainWindow {
     HRESULT startFilesystemListing(bool sourceAlreadyBound, bool updateAddress);
     HRESULT finishSynchronousFilesystemListing(HRESULT result);
     HRESULT startFilesystemScan(IFolderFolder *folder);
-    struct FilesystemViewport {
-        FilesystemViewport(QAbstractItemView *source, const QString &folder, const QString &top,
-                           const QPoint &position)
-            : view(source), directory(folder), topPath(top), scrollPosition(position) {}
+    struct ListViewport {
+        ListViewport(QAbstractItemView *source, const QString &folder, const QString &top,
+                     const QPoint &position, int offset)
+            : view(source), directory(folder), topPath(top), scrollPosition(position),
+              topOffset(offset) {}
         QPointer<QAbstractItemView> view;
         QString directory;
         QString topPath;
         QPoint scrollPosition;
+        int topOffset;
     };
+    ListViewport captureListViewport();
+    void restoreListViewport(const ListViewport &viewport);
     HRESULT refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
-                              std::optional<FilesystemViewport> viewport = std::nullopt);
+                              std::optional<ListViewport> viewport = std::nullopt);
     void restoreListSelection(const CSelectedState &selection);
     struct FilesystemSignature;
     void pollAutoRefresh();
@@ -250,6 +256,7 @@ class MainWindow : public QMainWindow {
     void SelectAll(bool select);
     HRESULT navigateTo(const QString &path, bool sourceAddress = false);
     HRESULT navigateToImpl(const QString &path, bool sourceAddress);
+    QString resolveFilesystemAddress(const QString &path) const;
     void activateRow(int row, Qt::KeyboardModifiers modifiers);
     void activateItems(Qt::KeyboardModifiers modifiers);
     void goBack();
@@ -265,6 +272,7 @@ class MainWindow : public QMainWindow {
     HRESULT appendArchiveEntry(CAgentFolder &folder, unsigned index);
     void setState(State state);
     void refreshActions();
+    void refreshSelectionActions();
     void refreshPanelStatus();
     void showPanelStatus(unsigned panel, const CPanelStatus &status);
     void showStatusMessage(const QString &message, int timeout = 5000);
@@ -290,7 +298,8 @@ class MainWindow : public QMainWindow {
     void refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh::Outputs &output);
     void createDialog();
     void transferFiles(const QStringList &sources, const QString &destination, bool move,
-                       bool directPath = false, std::function<void(bool)> completed = {});
+                       bool directPath = false,
+                       std::function<void(const QStringList &)> transferOutput = {});
     void executeCopyDestination(bool move, bool copyToSame, unsigned sourceIndex,
                                 const QString &destination, const CRecordVector<UInt32> &indices,
                                 QtCopyRoute route);
@@ -349,11 +358,12 @@ class MainWindow : public QMainWindow {
         State state = State::Filesystem;
         bool locationUnavailable = false;
         bool scanningDisk = false;
+        bool refreshingDisk = false;
         bool scanningArchive = false;
         FilesystemScanner *filesystemScanner = nullptr;
         QtFolderProjection *listProjection = nullptr;
         QHash<QString, FilesystemSignature> autoRefreshSnapshot;
-        std::optional<FilesystemViewport> pendingViewport;
+        std::optional<ListViewport> pendingViewport;
         std::optional<CSelectedState> pendingSelection;
     };
     std::array<PanelUiState, 2> panelUi_;
@@ -365,6 +375,7 @@ class MainWindow : public QMainWindow {
     PanelUiState &projectedUi() { return panelUi_[projectedPanel_]; }
     const PanelUiState &projectedUi() const { return panelUi_[projectedPanel_]; }
     QTimer *autoRefreshTimer_ = nullptr;
+    unsigned nextAutoRefreshPanel_ = 0;
     std::unique_ptr<QtGuiOutputRefresh> guiOutputRefresh_;
     State previousState_ = State::Filesystem;
     struct PendingArchiveMove {

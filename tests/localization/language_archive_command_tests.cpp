@@ -88,6 +88,88 @@ class LanguageArchiveCommandTests final : public QObject {
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("memory fixture"));
     }
+    void enterRetriesExternalOpenAfterFailure_data() {
+        QTest::addColumn<bool>("missing");
+        QTest::addColumn<bool>("folder");
+        QTest::addColumn<bool>("replacement");
+        QTest::newRow("association") << false << false << false;
+        QTest::newRow("missing-file") << true << false << false;
+        QTest::newRow("missing-folder") << true << true << false;
+        QTest::newRow("file-replaced-by-folder") << true << false << true;
+    }
+    void enterRetriesExternalOpenAfterFailure() {
+        QFETCH(bool, missing);
+        QFETCH(bool, folder);
+        QFETCH(bool, replacement);
+        const QString path = fixture.filePath(folder ? QStringLiteral("open folder 文件")
+                                                     : QStringLiteral("open again 文件.txt"));
+        const QString parked = fixture.filePath("temporarily moved.txt");
+        const QString other = fixture.filePath("another file.txt");
+        if (folder)
+            QVERIFY(QDir().mkpath(path));
+        for (const auto &name : folder ? QStringList{other} : QStringList{path, other}) {
+            QFile file(name);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write("source bytes"), qint64(12));
+        }
+        QList<QUrl> attempts;
+        ControlledBackend backend;
+        MainWindow window(&backend, [&](const QUrl &url) {
+            attempts.append(url);
+            return missing || attempts.size() > 1;
+        });
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *table = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(table->isEnabled() && table->rowCount() >= 2);
+        const auto matches = table->model()->match(table->model()->index(0, 0), Qt::DisplayRole,
+                                                   QFileInfo(path).fileName(), 1, Qt::MatchExactly);
+        QCOMPARE(matches.size(), 1);
+        table->setCurrentIndex(matches.front());
+        table->selectRow(matches.front().row());
+        table->setFocus();
+        QTRY_VERIFY(table->hasFocus());
+        if (missing) {
+            table->sourcePanel->Set_AutoRefresh_Mode(false);
+            QVERIFY(QDir().rename(path, parked));
+        }
+        if (replacement)
+            QVERIFY(QDir().mkdir(path));
+        const auto open = [&] {
+            if (folder)
+                window.findChild<QAction *>("openOutsideAction")->trigger();
+            else
+                PanelKeys::openSelection(window.focusWidget());
+        };
+
+        QString message;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            if (box) {
+                message = box->text();
+                box->accept();
+            }
+        });
+        dismiss.start(5);
+        open();
+        dismiss.stop();
+        const QUrl expected = QUrl::fromLocalFile(folder ? path + '/' : path);
+        QCOMPARE(attempts, missing ? QList<QUrl>{} : QList{expected});
+        QVERIFY(QDir::fromNativeSeparators(message).contains(path));
+        if (replacement)
+            QVERIFY(QDir().rmdir(path));
+        if (missing)
+            QVERIFY(QDir().rename(parked, path));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(table->hasFocus());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QFileInfo(path).fileName());
+        open();
+        QCOMPARE(attempts, missing ? QList{expected} : (QList{expected, expected}));
+    }
+
     void externalAssociationFailureUsesLocalizedMessageAndGeometry() {
         const QString path = fixture.filePath(QStringLiteral("large file 密碼.txt"));
         QFile file(path);

@@ -7,6 +7,7 @@
 #include <QString>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 class ArchiveCodecCatalog;
 CMyComPtr<IProgress> CreateArchiveOpenReadRequest(IOpenCallbackUI *callback);
@@ -19,8 +20,15 @@ class ArchiveNativeOpen final : public IOpenCallbackUI, public IFscryptKeyUI {
     QString transportType_;
     CArchiveLink link_;
     CMyComPtr<IInStream> input_;
-    QString sourcePath_, sourceIdentity_;
-    NWindows::NFile::NFind::CFileInfo sourceInfo_;
+    struct SourceFile {
+        QString path, identity;
+        UInt64 size = 0;
+        CFiTime modified{};
+        explicit SourceFile(const QString &path = {});
+        bool IsCurrent() const;
+    };
+    SourceFile source_;
+    std::vector<SourceFile> volumes_;
     bool sourceStable_ = false;
     bool directoryReadRequested_ = false;
     std::mutex itemStreamMutex_;

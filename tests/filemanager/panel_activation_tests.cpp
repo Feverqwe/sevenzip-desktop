@@ -3,10 +3,12 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
+#include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QScopeGuard>
 #include <QStandardPaths>
-#include <QTreeWidget>
 
 class ActivationExternalFiles final : public IQtExternalFileServices {
   public:
@@ -35,7 +37,7 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
                     ->findChild<QLineEdit *>("archivePath");
     }
     static void navigate(MainWindow &window, unsigned pane, const QString &path) {
-        address(window, pane).setFocus();
+        PanelKeys::focusAddress(&address(window, pane));
         address(window, pane).setText(path);
         QTest::keyClick(&address(window, pane), Qt::Key_Return);
         QTRY_COMPARE(list(window, pane).rowCount(), 2);
@@ -201,6 +203,7 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         panel.AttachExternalFileServices(&external);
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
+        view.setFocus();
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
         QAbstractItemView *control = &view;
         if (mode == 0)
@@ -239,13 +242,17 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
                 return;
             const auto close = qScopeGuard([&] { dialog->reject(); });
             shown = true;
-            auto *values = dialog->findChild<QTreeWidget *>("propertiesList");
-            QVERIFY(values);
-            QVERIFY(values->findItems(target, Qt::MatchExactly, 1).size() == 1);
+            auto *identity = dialog->findChild<QWidget *>("propertiesIdentity");
+            auto *copy = dialog->findChild<QPushButton *>("propertiesCopyInformation");
+            QVERIFY(identity && copy);
+            const auto clear = qScopeGuard([] { QApplication::clipboard()->clear(); });
+            copy->click();
+            QVERIFY(QApplication::clipboard()->text().contains(target));
             for (const QSize size : {QSize(540, 360), QSize(360, 240)}) {
                 dialog->resize(size);
                 QApplication::processEvents();
-                QVERIFY(UiInspection::fullyVisible(*values, *dialog));
+                QVERIFY(UiInspection::fullyVisible(*identity, *dialog));
+                QVERIFY(UiInspection::fullyVisible(*copy, *dialog));
                 QVERIFY(UiInspection::writeReport(*dialog, QString("activation-properties-%1-%2")
                                                                .arg(QTest::currentDataTag())
                                                                .arg(size.width())));
@@ -288,6 +295,80 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(read(arc), original);
         QCOMPARE(read(QDir(files).filePath("root.txt")), QByteArray("untouched"));
         QCOMPARE(read(QDir(files).filePath(target + "/child δ.txt")), QByteArray("untouched"));
+    }
+    void missingDiskFileCanBeOpenedAfterRestoration_data() {
+        QTest::addColumn<bool>("mouse");
+        QTest::newRow("keyboard") << false;
+        QTest::newRow("double-click") << true;
+    }
+    void missingDiskFileCanBeOpenedAfterRestoration() {
+        QFETCH(bool, mouse);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("документ 空.txt");
+        QFile file(fixture.filePath(name));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        QFile peer(fixture.filePath("another file.txt"));
+        QVERIFY(peer.open(QIODevice::WriteOnly));
+        peer.close();
+        ActivationExternalFiles external;
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto &view = list(window, 0);
+        QTRY_VERIFY(view.isEnabled() && filesystemRow(window, name) >= 0);
+        view.sourcePanel->Set_AutoRefresh_Mode(false);
+        view.sourcePanel->AttachExternalFileServices(&external);
+        const int row = filesystemRow(window, name);
+        const QPersistentModelIndex clicked(view.model()->index(row, 0));
+        const auto index = view.model()->index(row, 0);
+        const auto point = view.visualRect(index).center();
+        view.setFocus();
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        const auto activate = [&] {
+            if (mouse)
+                QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier,
+                                   view.visualRect(clicked).center());
+            else
+                activateWithKeyboard(window, &view);
+        };
+        QVERIFY(file.remove());
+        QStringList errors;
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                errors << box->text();
+                box->accept();
+            }
+        });
+        answer.start(5);
+        activate();
+        answer.stop();
+        QVERIFY(external.paths.isEmpty());
+        QCOMPARE(errors.size(), 1);
+        QVERIFY(errors.constFirst().normalized(QString::NormalizationForm_C).contains(name));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view.hasFocus());
+        QCOMPARE(view.currentIndex().siblingAtColumn(0), index);
+        QVERIFY(view.selectionModel()->isSelected(index));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        if (mouse) {
+            view.sortItems(0, Qt::DescendingOrder);
+            QVERIFY(clicked.isValid());
+            QVERIFY(clicked.row() != row);
+            const int peerRow = filesystemRow(window, "another file.txt");
+            QVERIFY(peerRow >= 0 && peerRow != clicked.row());
+            view.selectRow(peerRow);
+        }
+        activate();
+        QCOMPARE(external.paths.size(), 1);
+        QCOMPARE(external.paths.constFirst().normalized(QString::NormalizationForm_C),
+                 file.fileName());
     }
     void failedFolderRecovery_data() {
         QTest::addColumn<unsigned>("pane");

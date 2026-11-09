@@ -4,6 +4,7 @@
 #include "support/panel_keys.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QSplitterHandle>
 
 extern bool g_CaseSensitive;
@@ -17,13 +18,230 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
 
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void typingAndEnterOpenTheMatchingFolder_data() {
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<bool>("switchView");
+        QTest::addColumn<bool>("decomposed");
+        QTest::newRow("details") << 3 << false << false;
+        QTest::newRow("icons") << 0 << false << false;
+        QTest::newRow("details-to-icons") << 3 << true << false;
+        QTest::newRow("icons-to-details") << 0 << true << false;
+        QTest::newRow("decomposed-details") << 3 << false << true;
+        QTest::newRow("decomposed-icons") << 0 << false << true;
+    }
+    void typingAndEnterOpenTheMatchingFolder() {
+        QFETCH(int, mode);
+        QFETCH(bool, switchView);
+        QFETCH(bool, decomposed);
+        const int searchInterval = QApplication::keyboardInputInterval();
+        const auto restoreInterval = qScopeGuard(
+            [searchInterval] { QApplication::setKeyboardInputInterval(searchInterval); });
+        QApplication::setKeyboardInputInterval(5000);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = decomposed ? QStringLiteral("Café") : QStringLiteral("Журнал");
+        const QString expected = fixture.filePath(folder);
+        QVERIFY(QDir().mkdir(fixture.filePath("alpha")));
+        if (decomposed)
+            QVERIFY(QDir().mkdir(fixture.filePath("Cafe plain")));
+        QVERIFY(QDir().mkdir(expected));
+        QVERIFY(QDir(expected).mkdir("alpha"));
+        QVERIFY(QDir(expected).mkdir("zebra"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = window.findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(filesystemRow(window, "alpha") >= 0);
+        auto *viewMode = action(window, qPrintable(QString("viewMode%1Action").arg(mode)));
+        viewMode->trigger();
+        auto *active = mode == 3 ? static_cast<QAbstractItemView *>(view)
+                                 : window.findChild<QListView *>("iconList");
+        active->setFocus();
+        QTRY_VERIFY(active->hasFocus());
+        const int row = filesystemRow(window, "alpha");
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        if (mode == 3 && switchView) {
+            const int sizeColumn = view->columnForProperty(kpidSize);
+            QVERIFY(sizeColumn > 0);
+            view->setCurrentCell(row, sizeColumn, QItemSelectionModel::NoUpdate);
+        }
+        const QString prefix = decomposed ? QStringLiteral("Cafe\u0301") : QStringLiteral("ж");
+        for (QChar character : prefix) {
+            if (character == u'\u0301')
+                QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                         QString("Cafe plain"));
+            QKeyEvent letter(QEvent::KeyPress, 0, Qt::NoModifier, QString(character));
+            QApplication::sendEvent(active, &letter);
+        }
+        if (switchView) {
+            action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
+            active = mode == 3 ? window.findChild<QAbstractItemView *>("iconList") : view;
+            QVERIFY(active);
+            QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(active));
+        }
+        QCOMPARE(active->currentIndex()
+                     .data(QtPanelList::NameRole)
+                     .toString()
+                     .normalized(QString::NormalizationForm_C),
+                 folder);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix()))
+                         .normalized(QString::NormalizationForm_C),
+                     expected.normalized(QString::NormalizationForm_C));
+        QTRY_VERIFY(active->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Z);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
+        if (switchView) {
+            viewMode->trigger();
+            action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
+            QTRY_VERIFY(active->hasFocus());
+            QTest::keyClick(window.focusWidget(), Qt::Key_A);
+            QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QString("alpha"));
+        }
+        const QString current = active->currentIndex().data(QtPanelList::NameRole).toString();
+        QTest::keyClick(window.focusWidget(), Qt::Key_X);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), current);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix()))
+                         .normalized(QString::NormalizationForm_C),
+                     QDir(expected).filePath(current).normalized(QString::NormalizationForm_C));
+    }
+    void typingStartsFreshAfterSwitchingPanels() {
+        const int oldInterval = QApplication::keyboardInputInterval();
+        const auto restoreInterval =
+            qScopeGuard([oldInterval] { QApplication::setKeyboardInputInterval(oldInterval); });
+        QApplication::setKeyboardInputInterval(5000);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const auto &name : {"left/alpha", "left/zebra", "right/bravo", "right/yankee"})
+            QVERIFY(QDir().mkpath(fixture.filePath(name)));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.filePath("left"));
+        QTRY_VERIFY(filesystemRow(window, "alpha") >= 0);
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        auto *right = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(right);
+        auto *address = right->findChild<QLineEdit *>("archivePath");
+        auto *peer = right->findChild<FileTable *>("archiveTable");
+        auto *leftPane = window.findChild<QWidget *>("filePanel0");
+        QVERIFY(leftPane);
+        auto *left = leftPane->findChild<FileTable *>("archiveTable");
+        QVERIFY(address && left && peer && left != peer);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(fixture.filePath("right"));
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_B);
+        QCOMPARE(peer->currentIndex().data(QtPanelList::NameRole).toString(), QString("bravo"));
+
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(left->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_A);
+        QCOMPARE(left->currentIndex().data(QtPanelList::NameRole).toString(), QString("alpha"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Y);
+        QCOMPARE(peer->currentIndex().data(QtPanelList::NameRole).toString(), QString("yankee"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(left->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Z);
+        QCOMPARE(left->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
+    }
+
+    void typingFindsTheNameFromAnotherColumn_data() {
+        QTest::addColumn<bool>("matches");
+        QTest::newRow("cyrillic-match") << true;
+        QTest::newRow("no-match") << false;
+    }
+    void typingFindsTheNameFromAnotherColumn() {
+        QFETCH(bool, matches);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        openListedArchive(window, backend, fixture.filePath("names.zip"),
+                          {ArchiveEntry{"alpha.txt", 1, 1},
+                           ArchiveEntry{QStringLiteral("Журнал.txt"), 2, 2},
+                           ArchiveEntry{QStringLiteral("Журнал2.txt"), 3, 3},
+                           ArchiveEntry{QStringLiteral("Ясень.txt"), 4, 4},
+                           ArchiveEntry{QStringLiteral("Яя.txt"), 5, 5}});
+        window.show();
+        auto *view = window.findChild<FileTable *>("archiveTable");
+        QTRY_COMPARE(view->rowCount(), 5);
+        view->setFocus();
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn > 0);
+        const int nameColumn = view->columnForProperty(kpidName);
+        QVERIFY(nameColumn >= 0);
+        view->setColumnHidden(sizeColumn, false);
+        view->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+        view->setColumnWidth(nameColumn, view->viewport()->width() + 100);
+        QTRY_VERIFY(view->horizontalScrollBar()->maximum() > 0);
+        view->setCurrentCell(0, sizeColumn);
+        view->horizontalScrollBar()->setValue(view->horizontalScrollBar()->maximum());
+        const int horizontalPosition = view->horizontalScrollBar()->value();
+        QVERIFY(horizontalPosition > 0);
+        QCOMPARE(view->currentIndex().column(), sizeColumn);
+        const auto current = view->currentIndex();
+        const auto selected = view->selectionModel()->selectedRows();
+        QVERIFY(!selected.isEmpty());
+        QKeyEvent key(QEvent::KeyPress, 0, Qt::NoModifier,
+                      matches ? QStringLiteral("ж") : QStringLiteral("щ"));
+        QApplication::sendEvent(view, &key);
+        QCOMPARE(view->horizontalScrollBar()->value(), horizontalPosition);
+        if (matches) {
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Журнал.txt"));
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
+            for (const QChar letter : QStringLiteral("урнал2")) {
+                QKeyEvent next(QEvent::KeyPress, 0, Qt::NoModifier, QString(letter));
+                QApplication::sendEvent(view, &next);
+            }
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Журнал2.txt"));
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
+            const auto typeYa = [&] {
+                QKeyEvent letter(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("я"));
+                QApplication::sendEvent(view, &letter);
+            };
+            QTest::qWait(QApplication::keyboardInputInterval() + 1);
+            typeYa();
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Ясень.txt"));
+            typeYa();
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Яя.txt"));
+            QTest::qWait(QApplication::keyboardInputInterval() + 1);
+            typeYa();
+            QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QStringLiteral("Ясень.txt"));
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
+        } else {
+            QCOMPARE(view->currentIndex(), current);
+            QCOMPARE(view->selectionModel()->selectedRows(), selected);
+        }
+    }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove_data() {
         QTest::addColumn<int>("mode");
-        for (int mode : {0, 3})
-            QTest::newRow(qPrintable(QString("%1").arg(mode))) << mode;
+        QTest::addColumn<bool>("switchView");
+        QTest::addColumn<bool>("selectToEnd");
+        QTest::newRow("icons") << 0 << false << false;
+        QTest::newRow("details") << 3 << false << false;
+        QTest::newRow("icons-to-details") << 0 << true << false;
+        QTest::newRow("details-to-icons") << 3 << true << false;
+        QTest::newRow("details-to-last-row") << 3 << false << true;
     }
     void shiftSelectionDoesNotIncludeFollowingUnmodifiedMove() {
         QFETCH(int, mode);
+        QFETCH(bool, switchView);
+        QFETCH(bool, selectToEnd);
         QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
         settings.setValue("FM/AlternativeSelection", true);
         settings.sync();
@@ -48,19 +266,29 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         target->setCurrentIndex(view->model()->index(0, 0));
         view->selectRow(0);
         const auto arrow = mode <= 1 ? Qt::Key_Right : Qt::Key_Down;
-        QKeyEvent shiftDown(QEvent::KeyPress, arrow, Qt::ShiftModifier);
-        QKeyEvent down(QEvent::KeyPress, arrow, Qt::NoModifier);
+        QKeyEvent shiftDown(QEvent::KeyPress, selectToEnd ? Qt::Key_End : arrow, Qt::ShiftModifier);
         QApplication::sendEvent(target, &shiftDown);
-        QCOMPARE(view->currentRow(), 1);
-        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        QCOMPARE(view->currentRow(), selectToEnd ? 2 : 1);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), selectToEnd ? 3 : 2);
+        auto nextArrow = selectToEnd ? Qt::Key_Up : arrow;
+        if (switchView) {
+            action(window, mode == 3 ? "viewMode0Action" : "viewMode3Action")->trigger();
+            target = mode == 3 ? window.findChild<QAbstractItemView *>("iconList") : view;
+            QVERIFY(target);
+            QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(target));
+            QCOMPARE(view->currentRow(), 1);
+            QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+            nextArrow = mode == 3 ? Qt::Key_Right : Qt::Key_Down;
+        }
+        QKeyEvent down(QEvent::KeyPress, nextArrow, Qt::NoModifier);
         QApplication::sendEvent(target, &down);
-        QCOMPARE(view->currentRow(), 2);
+        QCOMPARE(view->currentRow(), selectToEnd ? 1 : 2);
         QApplication::processEvents();
         CPanel *panel = static_cast<FileTable *>(view)->sourcePanel;
         for (int row = 0; row < 3; ++row)
             QCOMPARE(
                 panel->IsItemMarked(view->model()->index(row, 0).data(Qt::UserRole + 6).toUInt()),
-                row == 2);
+                row == view->currentRow());
     }
     void archiveOpenDisablesBothPanelAddresses() {
         QTemporaryDir fixture;
@@ -213,6 +441,36 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         added.close();
         QTRY_VERIFY_WITH_TIMEOUT(rightTable->rowCount() > rightRows, 4000);
         QCOMPARE(leftTable->rowCount(), leftRows);
+        rightTable->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 258; ++i) {
+            QFile entry(QDir(right).filePath(QString("scan-%1.txt").arg(i)));
+            QVERIFY(entry.open(QIODevice::WriteOnly));
+        }
+        rightTable->setFocus();
+        QTRY_VERIFY(rightTable->hasFocus());
+        action(window, "refreshAction")->trigger();
+        QVERIFY(!action(window, "refreshAction")->isEnabled());
+        leftTable->setFocus();
+        QVERIFY(leftTable->hasFocus());
+        QTest::keyClick(leftTable, Qt::Key_Tab);
+        QVERIFY(leftTable->hasFocus());
+        const auto leftCurrent = leftTable->currentIndex();
+        QTest::keyClick(leftTable, Qt::Key_Down);
+        QCOMPARE(leftTable->currentIndex(), leftCurrent);
+        const auto leftSelection = leftTable->selectionModel()->selectedRows();
+        QTest::keyClick(leftTable, Qt::Key_Home, Qt::ShiftModifier);
+        QCOMPARE(leftTable->currentIndex(), leftCurrent);
+        QCOMPARE(leftTable->selectionModel()->selectedRows(), leftSelection);
+        QTest::keyClick(leftTable, Qt::Key_F2);
+        QVERIFY(!leftTable->findChild<QLineEdit *>());
+        const auto leftSort = leftTable->sourcePanel->GetSortID();
+        QVERIFY(leftSort != kpidSize);
+        QTest::keyClick(leftTable, Qt::Key_F6, Qt::ControlModifier);
+        QCOMPARE(leftTable->sourcePanel->GetSortID(), leftSort);
+        QTRY_VERIFY(rightTable->isEnabled() && rightTable->hasFocus());
+        QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 1);
+        leftTable->setFocus();
+        QTRY_VERIFY(leftTable->hasFocus());
         window.resize(640, 400);
         QApplication::processEvents();
         QCOMPARE(window.width(), 640);
@@ -248,7 +506,7 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(backend.extractCalls, extractCalls);
 
         rightIcons->setFocus();
-        QTest::keyClick(rightIcons, Qt::Key_Tab);
+        QTest::keyClick(rightIcons, Qt::Key_Backtab, Qt::ShiftModifier);
         QTRY_VERIFY(leftIcons->hasFocus());
         QCOMPARE(leftTable->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 0);
@@ -257,6 +515,8 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
                  QFileInfo(left).canonicalFilePath());
         QTest::keyClick(leftIcons, Qt::Key_F9);
         QVERIFY(!rightPanel->isVisible());
+        QTest::keyClick(leftIcons, Qt::Key_Backtab, Qt::ShiftModifier);
+        QTRY_VERIFY(leftIcons->hasFocus());
         QApplication::processEvents();
         QVERIFY(leftPanel->width() >= window.width() - 8);
         action(window, "twoPanelsAction")->trigger();

@@ -15,6 +15,7 @@ UInt64 CreateArchiveDialog::GetDict2() const {
 }
 
 void CreateArchiveDialog::SetNumThreads2() {
+    const bool hadNoSelection = threads_->count() > 0 && threads_->currentIndex() < 0;
     const UInt32 previous = threads_->currentData().toUInt();
     const int method = archiveNameState_.GetMethodID();
     const auto options = NCompressDialog::SetNumThreads2(
@@ -30,7 +31,7 @@ void CreateArchiveDialog::SetNumThreads2() {
         for (UInt32 count : options.Values)
             threads_->addItem(QString::number(count), count);
         const int index = threads_->findData(previous);
-        threads_->setCurrentIndex(index >= 0 ? index : 0);
+        threads_->setCurrentIndex(hadNoSelection ? -1 : qMax(index, 0));
         threads_->setEnabled(!options.Values.isEmpty());
     }
     hardwareThreads_->setText(

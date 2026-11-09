@@ -29,14 +29,16 @@ class QtLocalFileTask final : public QObject {
     bool OwnsWindow(const QWidget &window) const;
     static QList<QtLocalFileTask *> Active();
   signals:
-    void finished(bool success, bool cancelled, const QString &message);
+    void finished(bool success, bool cancelled, const QString &message, bool partial);
     void transferCompleted(bool complete);
+    void transferOutput(const QStringList &movedSources);
 
   private:
     QtLocalFileTask(QThread &worker, const QString &title, const QString &detail,
                     std::function<void()> cancel);
     void AskOverwrite(FileTransferOperation &worker, const OverwriteQuestion &question);
-    void Finish(bool success, bool cancelled, const QString &message, bool partial = false);
+    void Finish(bool success, bool cancelled, const QString &message, bool partial,
+                const QStringList &movedSources, bool retainedOutput);
     void PresentFinish(bool success, bool cancelled, const QString &message, bool partial);
     void RequestPresentation(std::function<void()> action);
     void TryPresent();

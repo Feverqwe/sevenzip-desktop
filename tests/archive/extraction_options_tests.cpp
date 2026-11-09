@@ -391,6 +391,7 @@ class ExtractionOptionsTests : public QObject {
         QVERIFY(QDir().mkpath(source));
         for (const QString &name : {QStringLiteral("one"), QStringLiteral("two")})
             writeFile(source + "/" + name, "new");
+        writeFile(source + "/z-new.txt", "no conflict");
         const QString archive = temp.filePath("fixture.7z");
         ArchiveBackend backend;
         QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
@@ -398,8 +399,8 @@ class ExtractionOptionsTests : public QObject {
         await(backend, true);
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
-        for (const int answer :
-             {NOverwriteAnswer::kNoToAll, NOverwriteAnswer::kYesToAll, NOverwriteAnswer::kCancel}) {
+        for (const int answer : {NOverwriteAnswer::kNoToAll, NOverwriteAnswer::kYesToAll,
+                                 NOverwriteAnswer::kAutoRename, NOverwriteAnswer::kCancel}) {
             const QString output = temp.filePath(QStringLiteral("output-%1").arg(answer));
             QVERIFY(QDir().mkpath(output + "/source"));
             writeFile(output + "/source/one", "old");
@@ -421,8 +422,118 @@ class ExtractionOptionsTests : public QObject {
                      answer == NOverwriteAnswer::kYesToAll ? QByteArray("new") : QByteArray("old"));
             QCOMPARE(readFile(output + "/source/two"),
                      answer == NOverwriteAnswer::kYesToAll ? QByteArray("new") : QByteArray("old"));
+            const QString fresh = output + "/source/z-new.txt";
+            if (answer == NOverwriteAnswer::kCancel)
+                QVERIFY(!QFileInfo::exists(fresh));
+            else
+                QCOMPARE(readFile(fresh), QByteArray("no conflict"));
+            const QDir directory(output + "/source");
+            QStringList copies = directory.entryList(QDir::Files | QDir::Hidden);
+            copies.removeAll("one");
+            copies.removeAll("two");
+            copies.removeAll("z-new.txt");
+            QCOMPARE(copies.size(), answer == NOverwriteAnswer::kAutoRename ? 2 : 0);
+            for (const QString &copy : copies)
+                QCOMPARE(readFile(directory.filePath(copy)), QByteArray("new"));
             disconnect(connection);
         }
+    }
+
+#ifdef Q_OS_WIN
+    void lockedReplacementCanBeRetried() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const auto archive = temp.filePath("replacement.zip");
+        const auto output = temp.filePath("output");
+        const auto target = QDir(output).filePath(QStringLiteral("a-файл с пробелом.txt"));
+        const auto other = QDir(output).filePath("z-other.txt");
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{QFileInfo(target).fileName(), "new bytes"}, {"z-other.txt", "other bytes"}},
+            "zip"));
+        QVERIFY(QDir().mkpath(output));
+        writeFile(target, "old bytes");
+        ArchiveBackend backend;
+        backend.list(archive);
+        await(backend, true);
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        {
+            const HANDLE locked =
+                ::CreateFileW(NativeFixturePath(target), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+            QVERIFY(locked != INVALID_HANDLE_VALUE);
+            const auto close = qScopeGuard([&] { ::CloseHandle(locked); });
+            backend.extract(archive, output, {}, {}, options);
+            QTRY_COMPARE(finished.size(), 1);
+            const auto failure = finished.takeFirst();
+            QVERIFY(!failure[0].toBool());
+            const auto details = failure[1].toString();
+            QVERIFY2(details.contains("Cannot replace output file") &&
+                         details.contains(QFileInfo(target).fileName()),
+                     qPrintable(details));
+        }
+        QCOMPARE(readFile(target), QByteArray("old bytes"));
+        QCOMPARE(readFile(other), QByteArray("other bytes"));
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden),
+                 (QStringList{QFileInfo(target).fileName(), QFileInfo(other).fileName()}));
+        backend.extract(archive, output, {}, {}, options);
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(finished.takeFirst().first().toBool());
+        QCOMPARE(readFile(target), QByteArray("new bytes"));
+    }
+#endif
+
+    void damagedEntryDoesNotReplaceExistingFile_data() {
+        QTest::addColumn<bool>("readOnly");
+        QTest::newRow("writable") << false;
+        QTest::newRow("read-only") << true;
+    }
+    void damagedEntryDoesNotReplaceExistingFile() {
+        QFETCH(bool, readOnly);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const auto clean = temp.filePath("clean.zip");
+        const auto damaged = temp.filePath("damaged.zip");
+        const auto output = temp.filePath("output");
+        const auto target = QDir(output).filePath(QStringLiteral("данные.bin"));
+        const QByteArray good("another entry");
+        const QByteArray incoming("stored replacement bytes");
+        QVERIFY(NativeArchiveFixture::Write(clean, {{"a.txt", good}, {"данные.bin", incoming}},
+                                            "zip", {}, true, true));
+        auto bytes = readFile(clean);
+        const auto offset = bytes.indexOf(incoming);
+        QVERIFY(offset > 0);
+        bytes[offset] = char(bytes.at(offset) ^ 0x55);
+        writeFile(damaged, bytes);
+        QVERIFY(QDir().mkpath(output));
+        writeFile(target, "original bytes");
+        if (readOnly)
+            QVERIFY(QFile::setPermissions(target, QFile::ReadOwner | QFile::ReadUser));
+        const auto permissions = QFile::permissions(target);
+
+        ArchiveBackend backend;
+        ExtractionOptions options;
+        options.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
+        backend.list(damaged);
+        await(backend, true);
+        QSignalSpy finished(&backend, &ArchiveBackend::finished);
+        backend.extract(damaged, output, {}, {}, options);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
+        QVERIFY(!finished.takeFirst().first().toBool());
+        QCOMPARE(readFile(target), QByteArray("original bytes"));
+        QCOMPARE(QFile::permissions(target), permissions);
+        QCOMPARE(readFile(QDir(output).filePath("a.txt")), good);
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden).size(), 2);
+
+        backend.list(clean);
+        await(backend, true);
+        finished.clear();
+        backend.extract(clean, output, {}, {}, options);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 30000);
+        QVERIFY(finished.takeFirst().first().toBool());
+        QCOMPARE(readFile(target), incoming);
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden).size(), 2);
     }
 
     void encryptedOverwrite_data() {
@@ -451,15 +562,14 @@ class ExtractionOptionsTests : public QObject {
         ExtractionOptions options;
         options.overwriteMode = ExtractionOptions::OverwriteMode::Ask;
         QSignalSpy rejected(&backend, &ArchiveBackend::finished);
-        const QString failedOutput = temp.filePath("wrong password output");
-        backend.extract(archive, failedOutput, {}, QStringLiteral("incorrect-test-password"),
-                        options);
+        backend.extract(archive, output, {}, QStringLiteral("incorrect-test-password"), options);
         QTRY_COMPARE_WITH_TIMEOUT(rejected.size(), 1, 30000);
         QVERIFY(!rejected.takeFirst().first().toBool());
         // Source ArchiveExtractCallback can leave unverified/partial output on
         // a data-password failure. The backend must report that as failure.
         QVERIFY(backend.lastResult() != S_OK);
         QCOMPARE(readFile(output + "/secret.txt"), QByteArray("old secret"));
+        QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden), QStringList{"secret.txt"});
         backend.extract(archive, output, {}, password, options);
         await(backend, true);
         QCOMPARE(readFile(output + "/secret.txt"), QByteArray("new secret"));
@@ -527,14 +637,22 @@ class ExtractionOptionsTests : public QObject {
                  QByteArray("existing version"));
 
         flat.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
+        QSignalSpy completion(&backend, &ArchiveBackend::finished);
         backend.extract(archive, destination, {}, {}, flat);
         await(backend, true);
+        QCOMPARE(completion.size(), 1);
+        QCOMPARE(completion.takeFirst().at(1).toString(),
+                 QCoreApplication::translate("ProgressRedesign",
+                                             "Completed with skipped items or messages"));
         QCOMPARE(readFile(destination + QStringLiteral("/δ file.txt")),
                  QByteArray("existing version"));
 
         flat.overwriteMode = ExtractionOptions::OverwriteMode::OverwriteExisting;
         backend.extract(archive, destination, {}, {}, flat);
         await(backend, true);
+        QCOMPARE(completion.size(), 1);
+        QCOMPARE(completion.takeFirst().at(1).toString(),
+                 QCoreApplication::translate("archivebackend_completion", "Extraction completed."));
         QCOMPARE(readFile(destination + QStringLiteral("/δ file.txt")),
                  QByteArray("archive version"));
 

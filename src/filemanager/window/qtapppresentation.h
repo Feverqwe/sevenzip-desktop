@@ -14,34 +14,37 @@ class QtAppPresentation final : public IQtAppPresentation {
     bool CreatePanel(CPanel &panel, unsigned index) override;
     CPanelCallback *PanelCallback(unsigned index) override;
     bool AllowPanelFocusChange(unsigned index) const override;
+    bool AllowPanelTitleChange(unsigned index) const override;
+    bool IsCopyDestinationAvailable(unsigned index) const override;
     void PrepareFolderChange(unsigned index) override;
+    bool OpenFolderInPeer(unsigned index, std::optional<UInt32> item) override;
+    bool OpenBoundFolderInPeer(unsigned source, IFolderFolder *folder,
+                               const UString &fallbackPath) override;
     void ExecuteCopy(bool move, bool copyToSame, unsigned sourceIndex, const QString &destination,
                      const CRecordVector<UInt32> &indices, QtCopyRoute route) override;
     void SetListSettings(unsigned index, const CFmSettings &settings) override;
     void ShowPanel(unsigned index, bool visible) override;
     void MoveSubWindows() override;
-    void CopyFinished();
+    void CopyFinished(bool preserveSourceSelection = false, bool refreshSource = false);
     void CompleteCopyIfReady();
     void CopyDestinationRefreshed(unsigned index);
     void RefreshCopyPanel(unsigned index);
     void CopySourceRefreshed(unsigned index);
     bool IsCopyPending() const { return copy_.has_value(); }
-    void RequestInitialFocus(unsigned index);
-    void RequestListFocus(unsigned index);
     void RestoreWidgetFocus(QWidget *widget);
-    void CompleteInitialFocusIfReady();
-    void CancelInitialFocus() { initialFocus_.reset(); }
 
   private:
     MainWindow &window_;
     QMenu *editMenu_ = nullptr;
-    std::optional<unsigned> initialFocus_;
     struct CopyContinuation {
-        CopyContinuation(unsigned index, bool move, bool copyToSame)
-            : source(index), refreshSource(move || copyToSame), refreshDestination(!copyToSame) {}
+        CopyContinuation(unsigned index, bool move, bool copyToSame, quint64 interaction)
+            : source(index), interaction(interaction), refreshSource(move || copyToSame),
+              refreshDestination(!copyToSame) {}
         const unsigned source;
+        const quint64 interaction;
         bool executing = false;
         bool finished = false;
+        bool preserveSourceSelection = false;
         bool refreshSource;
         bool refreshDestination;
     };

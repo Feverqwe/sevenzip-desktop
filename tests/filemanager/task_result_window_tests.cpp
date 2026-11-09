@@ -262,6 +262,9 @@ class TaskResultWindowTests final : public QObject {
         connect(&input, &QLineEdit::editingFinished, &question, [&] { ++commits; });
         QVERIFY(SourceExtractFixture::writeFile(barrier, "crash child"));
         QTRY_VERIFY_WITH_TIMEOUT(!QtOperationRegistry::Application().Reviews().isEmpty(), 10000);
+        const auto pending = QtOperationRegistry::Application().Reviews();
+        QCOMPARE(pending.size(), 1);
+        QVERIFY(!pending.constFirst().Result.Error.isEmpty());
         QVERIFY(!reportWindow());
         QCOMPARE(QApplication::activeModalWidget(), modal ? &question : nullptr);
         QVERIFY(input.hasFocus());
@@ -273,12 +276,12 @@ class TaskResultWindowTests final : public QObject {
         QCOMPARE(input.text(), QString("unfinished input-draft retained"));
         question.reject();
         QTRY_VERIFY(!QApplication::activeModalWidget());
-        ShowTasksOnQuit(application);
         QTRY_VERIFY(reportWindow());
-        QVERIFY(!reportWindow()
-                     ->findChild<QPlainTextEdit *>("taskResultReport")
-                     ->toPlainText()
-                     .contains(input.text()));
+        const auto report =
+            reportWindow()->findChild<QPlainTextEdit *>("taskResultReport")->toPlainText();
+        QVERIFY(report.contains(archive));
+        QVERIFY(report.contains(pending.constFirst().Result.Error));
+        QVERIFY(!report.contains(input.text()));
         reportWindow()->reject();
         QVERIFY(QtOperationRegistry::Application().Reviews().isEmpty());
     }

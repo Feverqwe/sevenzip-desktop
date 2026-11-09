@@ -83,7 +83,7 @@ void MainWindow::configureShortcuts() {
     addAction(newWindow);
     connect(newWindow, &QAction::triggered, this, [this] {
         if (auto *application = QtWorkspaceApplication::Find()) {
-            application->NewWindow(workspace_->CurrentLocation());
+            application->NewWindowFrom(*this);
         }
     });
     auto *closeWindow = new QAction(tr("Close window"), this);

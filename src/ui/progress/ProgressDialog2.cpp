@@ -271,6 +271,12 @@ bool CProgressDialog::OnNotify(QKeyEvent *key) {
 void CProgressDialog::OnOK() {}
 void CProgressDialog::OnCancel() {
     Sync.Set_Stopped(true);
+    // A stopped checkpoint can wake safely. Clear the dialog's paused state
+    // without asking the transport to resume.
+    if (Sync.Get_Paused()) {
+        Sync.Set_Paused(false);
+        SetTitleText();
+    }
     if (_transport)
         _transport->Cancel();
 }
@@ -343,8 +349,10 @@ bool CProgressDialog::OnExternalCloseMessage() {
     const bool isError = !fm.ErrorMessage.Message.IsEmpty() ||
                          (result != E_ABORT && (fm.HadErrors || FAILED(result)));
     const bool cancelled = !isError && result == E_ABORT;
+    const bool hasSuccessReport = result == S_OK && !isError && !fm.Partial && !thereAreMessages &&
+                                  !fm.OkMessage.Message.IsEmpty();
     if (!DisableUserQuestions && !DeferResultReview &&
-        (isError || cancelled || fm.Partial || thereAreMessages)) {
+        (isError || cancelled || fm.Partial || thereAreMessages || hasSuccessReport)) {
         _waitCloseByCancelButton = true;
         UpdateMessagesDialog();
         const UString &detail = isError ? fm.ErrorMessage.Message : fm.OkMessage.Message;
@@ -354,10 +362,11 @@ bool CProgressDialog::OnExternalCloseMessage() {
             AddMessage(HResultToMessage(result == S_OK ? E_FAIL : result));
         EnableErrorsControls(!_messageStrings.IsEmpty());
         const char *summary =
-            isError ? QT_TRANSLATE_NOOP("ProgressRedesign", "Operation failed")
-            : cancelled
-                ? QT_TRANSLATE_NOOP("ProgressRedesign",
-                                    "Operation cancelled. Some changes may have completed.")
+            isError     ? QT_TRANSLATE_NOOP("ProgressRedesign", "Operation failed")
+            : cancelled ? QT_TRANSLATE_NOOP("ProgressRedesign",
+                                            "Operation cancelled. Some changes may have completed.")
+            : hasSuccessReport
+                ? QT_TRANSLATE_NOOP("ProgressRedesign", "Operation completed")
                 : QT_TRANSLATE_NOOP("ProgressRedesign", "Completed with skipped items or messages");
         QtBindLocalText(GetItem(IDT_PROGRESS_STATUS), "ProgressRedesign", summary);
         GetItem(IDT_PROGRESS_STATUS)->show();
@@ -408,16 +417,16 @@ bool CProgressDialog::OnButtonClicked(unsigned buttonID) {
             _inCancelMessageBox = true;
             const int res = AskCancel(this, _title);
             _inCancelMessageBox = false;
-            if (res == IDYES)
-                _cancelWasPressed = true;
-            if (canPause && Sync.Get_Paused() != paused)
+            if ((res != IDYES || _externalCloseMessageWasReceived) && canPause &&
+                Sync.Get_Paused() != paused)
                 OnPauseButton();
             if (_externalCloseMessageWasReceived) {
                 OnExternalCloseMessage();
                 return true;
             }
-            if (!_cancelWasPressed)
+            if (res != IDYES)
                 return true;
+            _cancelWasPressed = true;
             MessagesDisplayed = true;
         }
         break;

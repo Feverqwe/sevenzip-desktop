@@ -49,11 +49,11 @@ void QtOperationRegistry::Register(QtOperationLauncher &operation, const QtOpera
             [this, id, job](const QtOperationResult &result) {
                 observations_.removeIf([&](const Observation &entry) { return entry.id == id; });
                 using Outcome = QtOperationResult::Outcome;
-                if (result.Status == Outcome::Success) {
+                if (result.Status == Outcome::Success || result.Status == Outcome::Warning) {
                     // Recent display values have no keep-alive hold or full job.
                     completed_.prepend(Listing(id, job, {}, result.Status));
-                    constexpr qsizetype recentSuccessLimit = 20;
-                    if (completed_.size() > recentSuccessLimit)
+                    constexpr qsizetype recentResultLimit = 20;
+                    if (completed_.size() > recentResultLimit)
                         completed_.removeLast();
                 }
                 if (result.Status == Outcome::LaunchFailed ||

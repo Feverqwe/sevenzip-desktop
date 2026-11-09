@@ -26,6 +26,88 @@ class WorkspaceSelectionGestureTests final : public QObject, protected MainWindo
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void cleanup() { QApplication::clipboard()->clear(); }
+    void doubleClickUsesThePaneAndViewThatReceivedIt() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkpath(fixture.filePath("child/grandchild")));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *first = table(window);
+        QTRY_VERIFY(first->isEnabled() && first->rowCount() == 1);
+        action(window, "viewMode3Action")->trigger();
+        action(window, "twoPanelsAction")->trigger();
+        auto *secondPane = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(secondPane);
+        auto *second = secondPane->findChild<FileTable *>("archiveTable");
+        QVERIFY(second);
+        auto *address = secondPane->findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        address->setFocus();
+        address->setText(fixture.path());
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(second->isEnabled() && second->rowCount() == 1);
+        action(window, "viewMode3Action")->trigger();
+        QVERIFY(WindowActivation::waitForActive(window));
+        first->setFocus();
+        QTRY_VERIFY(first->hasFocus());
+
+        const auto child = second->model()->index(0, 0);
+        auto *hiddenIcons = first->parentWidget()->findChild<QAbstractItemView *>("iconList");
+        QVERIFY(hiddenIcons && !hiddenIcons->isVisible());
+        emit hiddenIcons->doubleClicked(hiddenIcons->model()->index(0, 0));
+        QCOMPARE(first->model()->index(0, 0).data().toString(), QString("child"));
+        emit second->doubleClicked(child);
+        QCOMPARE(first->model()->index(0, 0).data().toString(), QString("child"));
+
+        const QPoint point = second->visualRect(child).center();
+        QCOMPARE(second->indexAt(point), child);
+        QTest::mouseClick(second->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTest::mouseDClick(second->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTRY_COMPARE(second->model()->index(0, 0).data().toString(), QString("grandchild"));
+        QCOMPARE(first->model()->index(0, 0).data().toString(), QString("child"));
+    }
+    void doubleClickOpensFoldersOnlyWithTheLeftButton_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+    void doubleClickOpensFoldersOnlyWithTheLeftButton() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString child = fixture.filePath("child");
+        QVERIFY(QDir().mkpath(child));
+        QFile control(child + "/inside.txt");
+        QVERIFY(control.open(QIODevice::WriteOnly));
+        control.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && filesystemRow(window, "child") >= 0);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *view = icons ? window.findChild<QAbstractItemView *>("iconList") : files;
+        QVERIFY(view && view->isVisible());
+        const auto index = view->model()->index(filesystemRow(window, "child"), 0);
+        const QPoint point = view->visualRect(index).center();
+        QCOMPARE(view->indexAt(point), index);
+        QTest::mouseClick(view->viewport(), Qt::RightButton, Qt::NoModifier, point);
+        QTest::mouseDClick(view->viewport(), Qt::RightButton, Qt::NoModifier, point);
+        QCOMPARE(filesystemRow(window, "inside.txt"), -1);
+        QVERIFY(filesystemRow(window, "child") >= 0);
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        if (icons) {
+            const QPoint padding = view->visualRect(index).topRight() + QPoint(-2, 2);
+            QCOMPARE(view->indexAt(padding), index);
+            QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, padding);
+            QCOMPARE(filesystemRow(window, "inside.txt"), -1);
+        }
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTRY_VERIFY(filesystemRow(window, "inside.txt") >= 0);
+    }
     void blankAreaSelectsIntersectedEntries_data() {
         QTest::addColumn<bool>("icons");
         QTest::addColumn<int>("modifier");

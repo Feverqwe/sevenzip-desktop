@@ -1,4 +1,5 @@
 #include "archive/resources/qtarchivefileresource.h"
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
@@ -17,11 +18,22 @@ void MainWindow::setState(State state) {
                       : state == State::Operating ? QtAppOperationState::Kind::Operation
                       : scanningPanels            ? QtAppOperationState::Kind::Scan
                                                   : QtAppOperationState::Kind::Idle;
+    const bool startingOperation =
+        kind == QtAppOperationState::Kind::Operation && !app_.QtOperations().blocking();
     if (!(panelProjectionDepth_ && app_.QtOperations().blocking()) &&
         !app_.QtOperations().Begin(kind, scanningPanels))
         return;
     projectedUi().state = state;
+    const unsigned inputPanel = statusPanel_;
+    const auto &input = panelUi_[inputPanel];
+    const auto *focused = focusWidget();
+    const auto draft = startingOperation && focused && input.path &&
+                               (focused == input.path || focused == input.pathCombo)
+                           ? std::optional(QtAddressDraft(*input.path))
+                           : std::nullopt;
     refreshActions();
+    if (draft)
+        workspace_->RestoreAddressFocus(inputPanel, *draft);
 }
 
 void MainWindow::refreshActions() {
@@ -31,6 +43,7 @@ void MainWindow::refreshActions() {
         QScopedValueRollback<unsigned> projection(panelProjectionDepth_, panelProjectionDepth_ + 1);
         app_.RefreshTitle();
         const bool navigating = !app_.QtOperations().closed() && !app_.QtOperations().blocking();
+        const bool operating = app_.QtOperations().kind() == QtAppOperationState::Kind::Operation;
         const bool idle =
             navigating && !projectedUi().scanningDisk && !projectedUi().scanningArchive;
         refreshBookmarks();
@@ -48,8 +61,12 @@ void MainWindow::refreshActions() {
                 continue;
             const bool projecting = ui.scanningDisk || ui.scanningArchive;
             const bool panelIdle = navigating && !projecting && !ui.locationUnavailable;
-            QWidget *focused = QApplication::focusWidget();
-            if (projecting && focused &&
+            const bool keepListFocus =
+                navigating && ui.scanningDisk && ui.refreshingDisk && !ui.locationUnavailable;
+            // A closing popup can leave global focus unset while the window
+            // still remembers the file list that owned keyboard input.
+            QWidget *focused = operating ? focusWidget() : QApplication::focusWidget();
+            if (((projecting && !keepListFocus) || operating) && focused &&
                 (ui.table == focused || ui.table->isAncestorOf(focused) || ui.iconList == focused ||
                  ui.iconList->isAncestorOf(focused)))
                 workspace_->RetainListFocus(index);
@@ -57,8 +74,9 @@ void MainWindow::refreshActions() {
             // restoration finish. Keep that policy across Qt's asynchronous batches.
             ui.table->setUpdatesEnabled(!projecting);
             ui.iconList->setUpdatesEnabled(!projecting);
-            ui.table->setEnabled(panelIdle);
-            ui.iconList->setEnabled(panelIdle);
+            ui.table->setEnabled(panelIdle || keepListFocus);
+            ui.iconList->setEnabled(panelIdle || keepListFocus);
+            ui.table->horizontalHeader()->setEnabled(panelIdle);
             // Native archive progress is modal to the file manager. Qt disables
             // its lists during the operation; disable the address controls too so
             // focus cannot move to an inactive pane while its source guards block
@@ -73,11 +91,22 @@ void MainWindow::refreshActions() {
         projectedUi().iconList->setDragEnabled(dragAvailable);
     }
     if (appPresentation_ && !panelProjectionDepth_) {
-        appPresentation_->CompleteInitialFocusIfReady();
+        workspace_->CompleteListFocusIfReady();
         appPresentation_->CompleteCopyIfReady();
     }
     if (workspace_)
         workspace_->Refresh();
+    if (clipboard_)
+        clipboard_->Refresh();
+}
+
+void MainWindow::refreshSelectionActions() {
+    if (commands_) {
+        commands_->RefreshActions();
+        if (!projectedUi().scanningDisk && !projectedUi().scanningArchive)
+            app_.GetFocusedPanel().Refresh_StatusBar();
+    }
+    workspace_->RefreshChrome();
     if (clipboard_)
         clipboard_->Refresh();
 }

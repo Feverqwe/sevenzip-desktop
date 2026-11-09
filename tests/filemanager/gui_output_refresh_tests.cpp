@@ -18,7 +18,7 @@ class GuiOutputRefreshTests final : public QObject {
         QList<unsigned> panels;
         QList<QtGuiOutputRefresh::Outputs> batches;
         QtGuiOutputRefresh refresh(
-            [&] {
+            [&](unsigned) {
                 ++attempts;
                 return ready;
             },
@@ -43,7 +43,7 @@ class GuiOutputRefreshTests final : public QObject {
         bool ready = true;
         QList<unsigned> panels;
         QList<QtGuiOutputRefresh::Outputs> batches;
-        QtGuiOutputRefresh refresh([&] { return ready; },
+        QtGuiOutputRefresh refresh([&](unsigned) { return ready; },
                                    [&](unsigned panel, const auto &output) {
                                        panels.append(panel);
                                        batches.append(output);
@@ -68,7 +68,7 @@ class GuiOutputRefreshTests final : public QObject {
         QList<unsigned> panels;
         QList<QtGuiOutputRefresh::Outputs> batches;
         QtGuiOutputRefresh *owner = nullptr;
-        QtGuiOutputRefresh refresh([] { return true; },
+        QtGuiOutputRefresh refresh([](unsigned) { return true; },
                                    [&](unsigned panel, const auto &output) {
                                        panels.append(panel);
                                        batches.append(output);
@@ -94,7 +94,7 @@ class GuiOutputRefreshTests final : public QObject {
     void shutdownDuringReloadDiscardsPeerAndLaterResults() {
         unsigned calls = 0;
         QtGuiOutputRefresh *owner = nullptr;
-        QtGuiOutputRefresh refresh([] { return true; },
+        QtGuiOutputRefresh refresh([](unsigned) { return true; },
                                    [&](unsigned, const auto &) {
                                        ++calls;
                                        owner->Stop();

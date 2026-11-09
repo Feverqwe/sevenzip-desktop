@@ -2,8 +2,12 @@
 #include "filemanager/views/filetable.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
+#include <QContextMenuEvent>
 #include <QScopeGuard>
 #include <QToolButton>
 
@@ -44,6 +48,260 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void contextMenuKeepsSelection_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::addColumn<bool>("keyboard");
+        QTest::newRow("details-keyboard") << false << true;
+        QTest::newRow("icons-keyboard") << true << true;
+        QTest::newRow("details-mouse") << false << false;
+        QTest::newRow("icons-mouse") << true << false;
+    }
+
+    void contextMenuKeepsSelection() {
+        QFETCH(bool, icons);
+        QFETCH(bool, keyboard);
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        QFile::remove(settings);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const auto *name : {"a.txt", "b.txt", "c.txt"}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(name), qint64(5));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *files = openPanel(window, 0, fixture.path());
+        QVERIFY(files);
+        QTRY_VERIFY(row(*files, "c.txt") >= 0);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *stack = window.findChild<QStackedWidget *>("fileViewStack");
+        auto *view = qobject_cast<QAbstractItemView *>(stack->currentWidget());
+        QVERIFY(view);
+        const int column = icons && keyboard ? files->columnForProperty(kpidSize) : 0;
+        QVERIFY(column >= 0);
+        if (icons && keyboard)
+            qobject_cast<QListView *>(view)->setModelColumn(column);
+        view->setFocus();
+        auto *selection = view->selectionModel();
+        const auto index = [&](const char *name) {
+            return view->model()->index(row(*files, name), column);
+        };
+        const QModelIndex focused = index("a.txt");
+        selection->setCurrentIndex(focused,
+                                   QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        selection->select(index("b.txt"), QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        const auto selected = selection->selectedRows();
+        QCOMPARE(selected.size(), 2);
+        const QModelIndex hit = index(keyboard ? "c.txt" : "b.txt");
+        const QPoint point = view->visualRect(hit).center();
+        QCOMPARE(view->indexAt(point).row(), hit.row());
+        bool menuShown = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            if (menu) {
+                menuShown = menu->objectName() == "panelContextMenu";
+                const auto close = qScopeGuard([&] { menu->close(); });
+                if (!keyboard) {
+                    auto *rename = menuAction(*menu, "renameAction");
+                    QVERIFY(rename && rename->isEnabled());
+                    menu->setActiveAction(rename);
+                    QTest::keyClick(menu, Qt::Key_Return);
+                }
+            }
+        });
+        QContextMenuEvent event(keyboard ? QContextMenuEvent::Keyboard : QContextMenuEvent::Mouse,
+                                point, view->viewport()->mapToGlobal(point));
+        QApplication::sendEvent(view->viewport(), &event);
+        QVERIFY(menuShown);
+        QCOMPARE(selection->currentIndex(), keyboard ? focused : hit);
+        QCOMPARE(selection->selectedRows(), selected);
+        if (!keyboard) {
+            auto *editor = view->findChild<QLineEdit *>();
+            QVERIFY(editor);
+            QCOMPARE(editor->text(), QString("b.txt"));
+            editor->setText("renamed.txt");
+            QTest::keyClick(editor, Qt::Key_Return);
+            QFile renamed(fixture.filePath("renamed.txt"));
+            QTRY_VERIFY(renamed.exists());
+            QVERIFY(renamed.open(QIODevice::ReadOnly));
+            QCOMPARE(renamed.readAll(), QByteArray("b.txt"));
+            QVERIFY(!QFileInfo::exists(fixture.filePath("b.txt")));
+            QFile peer(fixture.filePath("a.txt"));
+            QVERIFY(peer.open(QIODevice::ReadOnly));
+            QCOMPARE(peer.readAll(), QByteArray("a.txt"));
+        }
+    }
+
+    void failedPasteLeavesTheDestinationPanelUsable_data() {
+        QTest::addColumn<bool>("move");
+        QTest::addColumn<bool>("editingAddress");
+        QTest::newRow("copy") << false << false;
+        QTest::newRow("cut") << true << false;
+        QTest::newRow("copy-with-address-draft") << false << true;
+    }
+    void failedPasteLeavesTheDestinationPanelUsable() {
+        QFETCH(bool, move);
+        QFETCH(bool, editingAddress);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        QTemporaryDir destination, peerDirectory;
+        QVERIFY(destination.isValid() && peerDirectory.isValid());
+        const QString child = destination.filePath("child");
+        QVERIFY(QDir().mkpath(child));
+        QFile control(child + "/control.txt");
+        QVERIFY(control.open(QIODevice::WriteOnly));
+        control.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *owner = openPanel(window, 0, destination.path());
+        auto *peer = openPanel(window, 1, peerDirectory.path());
+        QVERIFY(owner && peer);
+        QTRY_VERIFY(row(*owner, "child") >= 0);
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+
+        const QString missingName = QStringLiteral("missing 文件.txt");
+        const QString existingName = QStringLiteral("ready файл.txt");
+        const auto writeSource = [&](const QString &name, const QByteArray &bytes) {
+            QFile file(peerDirectory.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(bytes), bytes.size());
+        };
+        writeSource(existingName, "ready bytes");
+        const QList<QUrl> sources{QUrl::fromLocalFile(peerDirectory.filePath(existingName)),
+                                  QUrl::fromLocalFile(peerDirectory.filePath(missingName))};
+        const auto publishFiles = [&] {
+            auto *clipboard = new QMimeData;
+            clipboard->setUrls(sources);
+            if (move)
+                clipboard->setData("application/x-kde-cutselection", "1");
+            QApplication::clipboard()->setMimeData(clipboard);
+        };
+        publishFiles();
+        const QString pasteLabel = action(window, "pasteFilesAction")->text();
+        bool pasteChosen = false;
+        const auto choosePaste = [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            const auto close = qScopeGuard([&] { menu->close(); });
+            for (auto *item : menu->actions())
+                if (item->text() == pasteLabel) {
+                    QVERIFY(item->isEnabled());
+                    QApplication::clipboard()->setText("plain text");
+                    QTRY_VERIFY(!item->isEnabled());
+                    publishFiles();
+                    QTRY_VERIFY(item->isEnabled());
+                    pasteChosen = true;
+                    menu->setActiveAction(item);
+                    QTest::keyClick(menu, Qt::Key_Return);
+                    return;
+                }
+            QFAIL("Paste action missing");
+        };
+        QString report;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (auto *result = TestProgressDialog::ResultWindow(widget);
+                    result && result->isVisible()) {
+                    report = TestProgressDialog::ReportText(*result);
+                    TestProgressDialog::CloseResult(*result);
+                }
+        });
+        dismiss.start(5);
+        const QPoint point =
+            owner->visualRect(owner->model()->index(row(*owner, "child"), 0)).center();
+        QTimer::singleShot(0, &window, choosePaste);
+        QVERIFY(QMetaObject::invokeMethod(owner, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, point)));
+        QVERIFY(pasteChosen);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(peer, Qt::Key_Tab);
+        QTRY_VERIFY(owner->hasFocus());
+        QTRY_VERIFY(!report.isEmpty() ||
+                    window.statusBar()->currentMessage().contains(missingName));
+        dismiss.stop();
+        QVERIFY(report.isEmpty());
+        QVERIFY(window.statusBar()->currentMessage().contains(missingName));
+        QVERIFY(!QFileInfo::exists(destination.filePath(missingName)));
+        QVERIFY(!QFileInfo::exists(destination.filePath(existingName)));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), sources);
+        QCOMPARE(QApplication::clipboard()->mimeData()->data("application/x-kde-cutselection"),
+                 move ? QByteArray("1") : QByteArray());
+        QVERIFY(QFileInfo::exists(peerDirectory.filePath(existingName)));
+        QTRY_VERIFY(action(window, "settingsAction")->isEnabled());
+        window.activateWindow();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *ownerUi = window.findChild<QWidget *>("filePanel0");
+        auto *address = ownerUi->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(child);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(row(*owner, "control.txt") >= 0);
+        writeSource(missingName, "restored bytes");
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+        auto *peerAddress =
+            window.findChild<QWidget *>("filePanel1")->findChild<QLineEdit *>("archivePath");
+        if (editingAddress) {
+            QVERIFY(peerAddress);
+            PanelKeys::focusAddress(peerAddress);
+            QTRY_VERIFY(peerAddress->hasFocus());
+            peerAddress->selectAll();
+            QTest::keyClicks(peerAddress, "unfinished");
+            peerAddress->setSelection(10, -3);
+        }
+        const QString peerStatus = QStringLiteral("Peer status");
+        window.statusBar()->showMessage(peerStatus, 10000);
+        pasteChosen = false;
+        QTimer::singleShot(0, &window, choosePaste);
+        const QPoint retryPoint =
+            owner->visualRect(owner->model()->index(row(*owner, "control.txt"), 0)).center();
+        QVERIFY(QMetaObject::invokeMethod(owner, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, retryPoint)));
+        QVERIFY(pasteChosen);
+        QTRY_VERIFY(owner->isEnabled() && row(*owner, missingName) >= 0 &&
+                    row(*owner, existingName) >= 0);
+        QFile restored(QDir(child).filePath(missingName));
+        QFile existing(QDir(child).filePath(existingName));
+        QVERIFY(restored.open(QIODevice::ReadOnly));
+        QVERIFY(existing.open(QIODevice::ReadOnly));
+        QCOMPARE(restored.readAll(), QByteArray("restored bytes"));
+        QCOMPARE(existing.readAll(), QByteArray("ready bytes"));
+        QCOMPARE(QFileInfo::exists(peerDirectory.filePath(existingName)), !move);
+        QCOMPARE(QFileInfo::exists(peerDirectory.filePath(missingName)), !move);
+        if (move)
+            QVERIFY(!QApplication::clipboard()->mimeData() ||
+                    !QApplication::clipboard()->mimeData()->hasUrls());
+        QCOMPARE(window.statusBar()->currentMessage(), peerStatus);
+        QVERIFY(WindowActivation::waitForActive(window));
+        if (editingAddress) {
+            QTRY_VERIFY(peerAddress->hasFocus());
+            QCOMPARE(peerAddress->text(), QString("unfinished"));
+            QCOMPARE(peerAddress->cursorPosition(), 7);
+            QCOMPARE(peerAddress->selectedText(), QString("hed"));
+            QTest::keyClicks(peerAddress, "X");
+            QCOMPARE(peerAddress->text(), QString("unfinisX"));
+            QTest::keyClick(peerAddress, Qt::Key_Tab);
+        }
+        QTRY_VERIFY2(peer->hasFocus(),
+                     qPrintable(window.focusWidget() ? window.focusWidget()->objectName()
+                                                     : QStringLiteral("No focused widget")));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(owner->hasFocus());
+        QTRY_COMPARE(window.statusBar()->currentMessage(),
+                     QCoreApplication::translate("qtfiletransfertransaction",
+                                                 move ? "Items moved." : "Items copied."));
+    }
+
     void owningPanel_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");
@@ -100,8 +358,8 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         auto *peer = openPanel(window, 1 - pane, peerDirectory.path());
         QVERIFY(peer);
         QTRY_COMPARE(peer->rowCount(), 1);
-        peer->setCurrentCell(0, 0);
-        peer->selectRow(0);
+        peer->clearSelection();
+        peer->selectionModel()->setCurrentIndex({}, QItemSelectionModel::NoUpdate);
         peer->setFocus();
         CMyComPtr<IFolderFolder> ownerFolder = owner->sourcePanel->GetFolder();
         CMyComPtr<IFolderFolder> peerFolder = peer->sourcePanel->GetFolder();
@@ -164,6 +422,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     auto *rename = menuAction(*menu, "renameAction");
                     auto *create = menuAction(*menu, "createFolderAction");
                     QVERIFY(open && rename && create);
+                    QVERIFY(rename->isEnabled());
                     QVERIFY(menu->actions().indexOf(open) >= 0);
                     QVERIFY(menu->actions().indexOf(open) < menu->actions().indexOf(rename));
                     auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
@@ -201,6 +460,18 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                                              .arg(icons)
                                                              .arg(width)
                                                              .arg(keyboard)));
+                    if (!keyboard && width == 980 && pane == 0 && !icons && language == "-") {
+                        auto *cut = action(window, "cutFilesAction");
+                        QVERIFY(!cut->isEnabled());
+                        for (auto *item : menu->actions())
+                            if (item->text() == cut->text()) {
+                                QVERIFY(item->isEnabled());
+                                menu->setActiveAction(item);
+                                QTest::keyClick(menu, Qt::Key_Return);
+                                return;
+                            }
+                        QFAIL("Cut action missing");
+                    }
                     QTest::keyClick(menu, Qt::Key_Escape);
                 });
                 cancel.start(5);
@@ -211,6 +482,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                                   Qt::DirectConnection, Q_ARG(QPoint, point)));
                 QVERIFY(cancelled);
                 QVERIFY(!QTest::currentTestFailed());
+                if (!keyboard && width == 980 && pane == 0 && !icons && language == "-") {
+                    const auto clear = qScopeGuard([] { QApplication::clipboard()->clear(); });
+                    const QList<QUrl> expected{QUrl::fromLocalFile(fixture.filePath(original))};
+                    QCOMPARE(QApplication::clipboard()->mimeData()->urls(), expected);
+                }
                 QVERIFY(action(window, "settingsAction")->isEnabled());
                 QCOMPARE(owner->sourcePanel->GetFolder(), (IFolderFolder *)ownerFolder);
                 QCOMPARE(peer->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);

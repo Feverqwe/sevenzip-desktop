@@ -9,8 +9,13 @@
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QAccessible>
 #include <QClipboard>
 #include <QListWidget>
+#include <QMenu>
+#include <QScopeGuard>
+#include <QScrollBar>
+#include <QTimer>
 #include <QToolButton>
 
 class WorkspaceNavigationTests final : public QObject {
@@ -38,6 +43,46 @@ class WorkspaceNavigationTests final : public QObject {
   private slots:
     void initTestCase() { UiInspection::configureReviewAppearance(); }
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void addressTabReturnsToTheListAfterRefresh_data() {
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<int>("key");
+        QTest::newRow("details-tab") << 3 << int(Qt::Key_Tab);
+        QTest::newRow("icons-backtab") << 0 << int(Qt::Key_Backtab);
+    }
+
+    void addressTabReturnsToTheListAfterRefresh() {
+        QFETCH(int, mode);
+        QFETCH(int, key);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *table = visibleTable(window);
+        QVERIFY(table);
+        QTRY_VERIFY(table->isEnabled());
+        window.findChild<QAction *>(QString("viewMode%1Action").arg(mode))->trigger();
+        auto *view = mode == 3 ? static_cast<QAbstractItemView *>(table)
+                               : window.findChild<QListView *>("iconList");
+        QVERIFY(view && view->isVisible());
+        table->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 301; ++i) {
+            QFile file(fixture.filePath(QString("item-%1.txt").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        auto *refresh = window.findChild<QAction *>("refreshAction");
+        refresh->trigger();
+        QVERIFY(!refresh->isEnabled());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QVERIFY(address->hasFocus());
+        QTest::keyClick(address, static_cast<Qt::Key>(key));
+        QTRY_VERIFY(view->isEnabled() && view->hasFocus());
+        QCOMPARE(table->rowCount(), 301);
+    }
     void locationPublicationWaitsForSourceGuard() {
         QTemporaryDir fixture;
         ControlledBackend backend;
@@ -70,15 +115,17 @@ class WorkspaceNavigationTests final : public QObject {
         QWidget host;
         auto *address = new QComboBox(&host);
         address->setEditable(true);
-        QtNavigationBar bar(*address, [](const QString &) {}, &host);
+        QString opened;
+        QtNavigationBar bar(*address, [&](const QString &target) { opened = target; }, &host);
         const QString longName = QStringLiteral("long folder name ").repeated(4).trimmed();
+        const QString parent = QStringLiteral("/Users/Projects & Docs");
         const std::vector<QtAddressSegment> segments = {
             {L"/", L"/", 0, QtAddressSegmentKind::Root},
             {L"Users", L"/Users", 0, QtAddressSegmentKind::Folder},
-            {L"projects", L"/Users/projects", 0, QtAddressSegmentKind::Folder},
-            {ToUString(longName), ToUString("/Users/projects/" + longName), 0,
+            {L"Projects & Docs", ToUString(parent), 0, QtAddressSegmentKind::Folder},
+            {ToUString(longName), ToUString(parent + '/' + longName), 0,
              QtAddressSegmentKind::Folder},
-            {L"newsBot", ToUString("/Users/projects/" + longName + "/newsBot"), 0,
+            {L"newsBot", ToUString(parent + '/' + longName + "/newsBot"), 0,
              QtAddressSegmentKind::Folder}};
         bar.resize(1400, 36);
         host.resize(1400, 36);
@@ -91,10 +138,57 @@ class WorkspaceNavigationTests final : public QObject {
                     labels.append(button->text());
             return labels;
         };
-        const QStringList fullPath{"/", "Users", "projects", longName, "newsBot"};
+        const QStringList fullPath{"/", "Users", "Projects && Docs", longName, "newsBot"};
         QTRY_COMPARE(visibleLabels(), fullPath);
+        QVERIFY(UiInspection::writeReport(bar, "literal-breadcrumb-wide"));
         bar.resize(260, 36);
         QTRY_COMPARE(visibleLabels(), (QStringList{QStringLiteral("…"), "newsBot"}));
+        QVERIFY(QTest::qWaitForWindowActive(&host));
+        QToolButton *overflowButton = nullptr;
+        QToolButton *edit = nullptr;
+        for (auto *button : bar.findChildren<QToolButton *>()) {
+            if (!button->isVisible())
+                continue;
+            if (button->menu())
+                overflowButton = button;
+            if (button->objectName() == "editLocationButton")
+                edit = button;
+        }
+        QVERIFY(overflowButton && edit);
+        const auto *accessible = QAccessible::queryAccessibleInterface(overflowButton);
+        QVERIFY(accessible);
+        QCOMPARE(accessible->text(QAccessible::Name), QStringLiteral("Parent folders"));
+        QCOMPARE(overflowButton->toolTip(), accessible->text(QAccessible::Name));
+        edit->setFocus();
+        QTest::keyClick(edit, Qt::Key_Backtab);
+        QVERIFY(bar.isAncestorOf(host.focusWidget()));
+        QTest::keyClick(host.focusWidget(), Qt::Key_Backtab);
+        QCOMPARE(host.focusWidget(), overflowButton);
+        auto *overflow = overflowButton->menu();
+        QAction *entry = nullptr;
+        for (auto *action : overflow->actions())
+            if (action->toolTip() == parent)
+                entry = action;
+        QVERIFY(entry);
+        QCOMPARE(entry->text(), QStringLiteral("Projects && Docs"));
+        QVERIFY(QKeySequence::mnemonic(entry->text()).isEmpty());
+        bool selectedWithKeyboard = false;
+        connect(overflow, &QMenu::aboutToShow, overflow, [&] {
+            QTimer::singleShot(0, overflow, [&] {
+                const auto close = qScopeGuard([&] { overflow->hide(); });
+                QVERIFY(overflow->isVisible() && entry->isVisible());
+                QVERIFY(UiInspection::writeReport(*overflow, "literal-breadcrumb-overflow"));
+                for (int i = 0; i < overflow->actions().size() && overflow->activeAction() != entry;
+                     ++i)
+                    QTest::keyClick(overflow, Qt::Key_Down);
+                QCOMPARE(overflow->activeAction(), entry);
+                QTest::keyClick(overflow, Qt::Key_Return);
+                selectedWithKeyboard = true;
+            });
+        });
+        QTest::keyClick(overflowButton, Qt::Key_Space);
+        QTRY_VERIFY(selectedWithKeyboard);
+        QCOMPARE(opened, parent);
         bar.resize(1400, 36);
         QTRY_COMPARE(visibleLabels(), fullPath);
     }
@@ -103,11 +197,13 @@ class WorkspaceNavigationTests final : public QObject {
         const QString parent = fixture.filePath(QStringLiteral("folder with archive.zip"));
         const QString child = parent + QStringLiteral("/child 空");
         QVERIFY(QDir().mkpath(child));
+        QVERIFY(QDir(parent).mkdir("another folder"));
         writeFile(child + "/keep.txt", "unchanged");
         ControlledBackend backend;
         MainWindow window(&backend);
         window.resize(980, 620);
         window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openPath(child);
         auto *table = visibleTable(window);
         QTRY_VERIFY(table && table->isEnabled());
@@ -115,15 +211,41 @@ class WorkspaceNavigationTests final : public QObject {
             dynamic_cast<QtNavigationBar *>(window.findChild<QWidget *>("panelNavigation0"));
         QVERIFY(bar);
         QToolButton *parentButton = nullptr;
-        for (auto *button : bar->findChildren<QToolButton *>())
-            if (QDir::cleanPath(button->toolTip()) == parent && button->isVisible())
+        QToolButton *currentButton = nullptr;
+        QToolButton *edit = nullptr;
+        for (auto *button : bar->findChildren<QToolButton *>()) {
+            if (!button->isVisible())
+                continue;
+            if (QDir::cleanPath(button->toolTip()) == parent)
                 parentButton = button;
-        QVERIFY(parentButton);
+            if (QDir::cleanPath(button->toolTip()) == child)
+                currentButton = button;
+            if (button->objectName() == "editLocationButton")
+                edit = button;
+        }
+        QVERIFY(parentButton && currentButton && edit);
         QVERIFY(parentButton->icon().isNull());
-        QTest::mouseClick(parentButton, Qt::LeftButton);
+        const auto matches =
+            table->model()->match(table->model()->index(0, 0), Qt::DisplayRole, "keep.txt");
+        QCOMPARE(matches.size(), 1);
+        table->selectRow(matches.front().row());
+        QTest::mouseClick(currentButton, Qt::LeftButton);
+        QTRY_VERIFY(table->hasFocus());
+        QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(table->selectionModel()->selectedRows().front().data().toString(),
+                 QString("keep.txt"));
+        edit->setFocus();
+        QTest::keyClick(edit, Qt::Key_Backtab);
+        QVERIFY(bar->isAncestorOf(window.focusWidget()));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Backtab);
+        QTRY_VERIFY(parentButton->hasFocus());
+        QTest::keyClick(parentButton, Qt::Key_Space);
         QTRY_COMPARE(QDir::cleanPath(ToQString(table->sourcePanel->GetCurrentFolderPrefix())),
                      parent);
+        QTRY_VERIFY(table->hasFocus());
         QVERIFY(table->sourcePanel->IsFSFolder());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QStringLiteral("child 空"));
         QCOMPARE(backend.listCalls, 0);
         for (int width : {980, 640}) {
             window.resize(width, 620);
@@ -131,7 +253,139 @@ class WorkspaceNavigationTests final : public QObject {
             QVERIFY(UiInspection::fullyVisible(*bar, window));
             QVERIFY(UiInspection::writeReport(window, QString("native-location-%1").arg(width)));
         }
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(ToQString(table->sourcePanel->GetCurrentFolderPrefix())),
+                     child);
+        const QString deep = child + "/deeper";
+        QVERIFY(QDir().mkpath(deep));
+        window.resize(980, 620);
+        window.openPath(deep);
+        QTRY_VERIFY(table->isEnabled());
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), deep);
+        QToolButton *ancestor = nullptr;
+        for (auto *button : bar->findChildren<QToolButton *>())
+            if (button->isVisible() && QDir::cleanPath(button->toolTip()) == parent)
+                ancestor = button;
+        QVERIFY(ancestor);
+        QTest::mouseClick(ancestor, Qt::LeftButton);
+        QTRY_VERIFY(table->isEnabled() && table->hasFocus());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QStringLiteral("child 空"));
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), child);
     }
+    void archiveParentBreadcrumbReturnsToTheChildRow() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("folders.zip");
+        QVERIFY(QDir(fixture.path()).mkdir("another folder"));
+        ControlledBackend backend;
+        QVERIFY(backend.prepareArchiveFixture(archive));
+        MainWindow window(&backend);
+        window.resize(1100, 620);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        const auto listArchive = [&] {
+            backend.completeList({ArchiveEntry{"another/first.txt", 1, 1},
+                                  ArchiveEntry{QStringLiteral("папка 空/deeper/keep.txt"), 1, 1}});
+        };
+        backend.queueListAction(listArchive);
+        window.openArchive(archive);
+        auto *table = visibleTable(window);
+        QVERIFY(table);
+        QTRY_VERIFY(table->isEnabled());
+        const QString child = QStringLiteral("папка 空");
+        const auto rows =
+            table->model()->match(table->model()->index(0, 0), Qt::DisplayRole, child);
+        QCOMPARE(rows.size(), 1);
+        table->setCurrentIndex(rows.front());
+        table->setFocus();
+        QTest::keyClick(table, Qt::Key_Return);
+        auto *bar = window.findChild<QWidget *>("panelNavigation0");
+        QVERIFY(bar);
+        const auto clickCrumb = [&](const QString &location) {
+            for (auto *button : bar->findChildren<QToolButton *>())
+                if (button->isVisible() && QDir::cleanPath(button->toolTip()) == location) {
+                    QTest::mouseClick(button, Qt::LeftButton);
+                    return true;
+                }
+            return false;
+        };
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QVERIFY(clickCrumb(archive));
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+        QTRY_VERIFY(table->isEnabled());
+        QTRY_VERIFY(table->hasFocus());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(), child);
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
+        QCOMPARE(backend.listCalls, 1);
+        const auto deeper =
+            table->model()->match(table->model()->index(0, 0), Qt::DisplayRole, "deeper");
+        QCOMPARE(deeper.size(), 1);
+        table->setCurrentIndex(deeper.front());
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child + "/deeper");
+        QVERIFY(clickCrumb(archive));
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+        QTRY_VERIFY(table->hasFocus() && table->isEnabled());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(), child);
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive + '/' + child);
+        QVERIFY(clickCrumb(archive));
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+        QVERIFY(clickCrumb(fixture.path()));
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), fixture.path());
+        QTRY_VERIFY(table->isEnabled() && table->hasFocus());
+        QCOMPARE(table->currentIndex().siblingAtColumn(0).data().toString(),
+                 QString("folders.zip"));
+        backend.queueListAction(listArchive);
+        QTest::keyClick(table, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(bar->toolTip()), archive);
+    }
+
+    void backKeepsTheSelectedFileVisibleAfterSwitchingViews() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("initial");
+        const QString other = fixture.filePath("other");
+        QVERIFY(QDir().mkpath(initial) && QDir().mkpath(other));
+        writeFile(initial + "/a.txt", "selected");
+        for (int i = 0; i < 150; ++i)
+            writeFile(initial + QString("/file-%1.txt").arg(i), {});
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(640, 400);
+        window.show();
+        window.openPath(initial);
+        auto *table = visibleTable(window);
+        QVERIFY(table);
+        QTRY_COMPARE(table->rowCount(), 151);
+        table->setCurrentCell(0, 0);
+        table->selectRow(0);
+        auto *scroll = table->verticalScrollBar();
+        QTRY_VERIFY(scroll->maximum() > 0);
+        scroll->setValue(scroll->maximum());
+        const int savedScroll = scroll->value();
+        window.openPath(other);
+        auto *back = window.findChild<QAction *>("backAction");
+        QVERIFY(back);
+        QTRY_VERIFY(back->isEnabled());
+        back->trigger();
+        QTRY_COMPARE(table->rowCount(), 151);
+        QTRY_COMPARE(scroll->value(), savedScroll);
+        window.openPath(other);
+        window.findChild<QAction *>("viewMode0Action")->trigger();
+        auto *icons = window.findChild<QListView *>("iconList");
+        QTRY_VERIFY(icons && icons->isVisible());
+        back->trigger();
+        QTRY_COMPARE(icons->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QString("a.txt"));
+        QVERIFY(icons->selectionModel()->isSelected(icons->currentIndex()));
+        QTRY_VERIFY(icons->viewport()->rect().intersects(icons->visualRect(icons->currentIndex())));
+    }
+
     void hidingLeftPanelKeepsBothLocationsAndRightSelection() {
         QTemporaryDir fixture;
         const QString left = fixture.filePath("Left folder");
@@ -274,7 +528,13 @@ class WorkspaceNavigationTests final : public QObject {
         QVERIFY(QFileInfo(second).isDir());
     }
 
-    void canceledCutPastePreservesSourceAndClipboardThenSuccessfulPasteMovesBytes() {
+    void refusedCutPasteCanBeRetried_data() {
+        QTest::addColumn<bool>("sameFolder");
+        QTest::newRow("cancel-overwrite") << false;
+        QTest::newRow("same-folder") << true;
+    }
+    void refusedCutPasteCanBeRetried() {
+        QFETCH(bool, sameFolder);
         QTemporaryDir fixture;
         const QString source = fixture.filePath("Cut source");
         const QString destination = fixture.filePath("Cut target");
@@ -298,13 +558,16 @@ class WorkspaceNavigationTests final : public QObject {
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
         QTest::keySequence(table, QKeySequence::Cut);
-        window.openPath(destination);
+        if (!sameFolder)
+            window.openPath(destination);
         auto *paste = window.findChild<QAction *>("pasteFilesAction");
         QTRY_VERIFY(paste->isEnabled());
         bool canceled = false;
+        QString failure;
         QTimer responder;
         dialogs_.connectResponder(responder, &window, [&] {
             if (auto *result = TestProgressDialog::ResultWindow(dialogs_.activeDialog())) {
+                failure = TestProgressDialog::ReportText(*result);
                 TestProgressDialog::CloseResult(*result);
                 return;
             }
@@ -320,13 +583,21 @@ class WorkspaceNavigationTests final : public QObject {
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
         QTest::keySequence(table, QKeySequence::Paste);
-        QTRY_VERIFY_WITH_TIMEOUT(canceled && table->isEnabled(), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            (sameFolder ? window.statusBar()->currentMessage().contains(name) : canceled) &&
+                table->isEnabled(),
+            10000);
+        if (sameFolder)
+            QVERIFY(failure.isEmpty());
         responder.stop();
         QFile old(destination + '/' + name);
         QVERIFY(old.open(QIODevice::ReadOnly));
         QCOMPARE(old.readAll(), "existing bytes");
         old.close();
-        QVERIFY(QFileInfo::exists(source + '/' + name));
+        QFile original(source + '/' + name);
+        QVERIFY(original.open(QIODevice::ReadOnly));
+        QCOMPARE(original.readAll(), "original bytes");
+        original.close();
         QVERIFY(QApplication::clipboard()->mimeData()->hasUrls());
         window.openPath(source);
         QTRY_VERIFY(table->isEnabled());

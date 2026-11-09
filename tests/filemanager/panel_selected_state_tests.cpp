@@ -22,6 +22,17 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         view->selectionModel()->select(view->model()->index(row, 0),
                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
     }
+    static void openFolderFromVisibleList(MainWindow &window, const QString &folder) {
+        const int row = rowWithPath(window, folder);
+        QVERIFY(row >= 0);
+        auto *stack = window.findChild<QStackedWidget *>("fileViewStack");
+        QVERIFY(stack);
+        auto *view = qobject_cast<QAbstractItemView *>(stack->currentWidget());
+        QVERIFY(view);
+        table(window)->selectRow(row);
+        view->setFocus();
+        QTest::keySequence(view, action(window, "openItemAction")->shortcut());
+    }
 
   private slots:
 #ifndef Q_OS_WIN
@@ -85,8 +96,8 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QList<ArchiveEntry> entries = {{unknown, -1, -1}, {zero, 0, 0}};
         openListedArchive(window, backend, "typed-sizes.zip", entries);
         entries.clear(); // The runtime retains its own immutable metadata owner.
-        openRow(window, rowWithPath(window, folder));
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
+        openFolderFromVisibleList(window, folder);
         auto *view = table(window);
         const int unknownRow = rowWithPath(window, unknown);
         const int zeroRow = rowWithPath(window, zero);
@@ -125,8 +136,8 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QList<ArchiveEntry> entries = {
             {selected, 1, 1}, {focused, 2, 2}, {QStringLiteral("другая/имя.txt"), 3, 3}};
         openListedArchive(window, backend, "selection-refresh.zip", entries);
-        openRow(window, rowWithPath(window, folder));
         action(window, qPrintable(QString("viewMode%1Action").arg(mode)))->trigger();
+        openFolderFromVisibleList(window, folder);
         auto *view = table(window);
         view->clearSelection();
         selectRow(view, rowWithPath(window, selected));
@@ -217,6 +228,64 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         QVERIFY(!state.FocusedName_Defined);
         QVERIFY(state.SelectFocused);
         QCOMPARE(state.SelectedNames.Size(), 0u);
+    }
+
+    void switchingFileViewsKeepsCurrentItemVisible_data() {
+        QTest::addColumn<int>("column");
+        QTest::newRow("name") << 0;
+        QTest::newRow("size") << 2;
+    }
+
+    void switchingFileViewsKeepsCurrentItemVisible() {
+        QFETCH(int, column);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QDir root(QFileInfo(temp.path()).canonicalFilePath());
+        for (int i = 0; i < 120; ++i)
+            createFile(root.filePath(QString("item-%1.txt").arg(i, 3, 10, QLatin1Char('0'))));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(640, 480);
+        window.show();
+
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        address->setText(root.path());
+        QTest::keyClick(address, Qt::Key_Return);
+        auto *details = table(window);
+        auto *icons = window.findChild<QAbstractItemView *>("iconList");
+        QVERIFY(icons);
+        auto *detailsAction = action(window, "viewMode3Action");
+        auto *iconsAction = action(window, "viewMode0Action");
+        detailsAction->trigger();
+        const QString lastPath = root.filePath("item-119.txt");
+        const QString firstPath = root.filePath("item-000.txt");
+        QTRY_VERIFY(fileRow(details, lastPath) >= 0);
+        auto *selection = details->selectionModel();
+        selection->clearSelection();
+        selectRow(details, fileRow(details, lastPath));
+        selectRow(details, fileRow(details, firstPath));
+        const auto selectedRows = selection->selectedRows();
+
+        details->setFocus();
+        QTRY_VERIFY(details->hasFocus());
+        const QModelIndex last = details->model()->index(fileRow(details, lastPath), 0);
+        const QModelIndex lastCell = last.siblingAtColumn(column);
+        selection->setCurrentIndex(lastCell, QItemSelectionModel::NoUpdate);
+        details->scrollTo(lastCell);
+        iconsAction->trigger();
+        QCOMPARE(icons->currentIndex().row(), last.row());
+        QCOMPARE(selection->selectedRows(), selectedRows);
+        QTRY_VERIFY(icons->hasFocus());
+        QTRY_VERIFY(icons->visualRect(last).intersects(icons->viewport()->rect()));
+
+        const QModelIndex first = details->model()->index(fileRow(details, firstPath), 0);
+        selection->setCurrentIndex(first, QItemSelectionModel::NoUpdate);
+        icons->scrollTo(first);
+        detailsAction->trigger();
+        QCOMPARE(details->currentIndex(), first);
+        QCOMPARE(selection->selectedRows(), selectedRows);
+        QTRY_VERIFY(details->hasFocus());
+        QTRY_VERIFY(details->visualRect(first).intersects(details->viewport()->rect()));
     }
 
     void filesystemRefreshRetainsCurrentAndSelectedItems_data() {

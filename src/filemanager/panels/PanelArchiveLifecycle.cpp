@@ -22,6 +22,20 @@
 using namespace NWindows;
 using namespace NFile;
 
+namespace {
+bool RetainNestedArchiveCopy(const CFolderLink &link, const NFind::CFileInfo &info) {
+    if (!link.OwnedTempLease)
+        return false;
+    const QtExternalFileRecord record{QFileInfo(ToQString(fs2us(link.FilePath))).fileName(),
+                                      ToQString(link.RelPath),
+                                      ToQString(link.VirtualPath),
+                                      {info.Size, info.MTime},
+                                      {},
+                                      false};
+    return link.OwnedTempLease->SetContext(record.Save());
+}
+} // namespace
+
 HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                           const UString &virtualFilePath, const UString &arcFormat,
                           COpenResult &openRes, bool materializeStream) {
@@ -47,9 +61,21 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
     ffp.SettingsPath = _settingsPath;
     ffp.OwnedStreamFile = inStream && tempFileInfo.NeedDelete && !tempFileInfo.FilePath.IsEmpty();
     ffp.MaterializeStreamFile = materializeStream;
-    const HRESULT res = ffp.OpenFileFolderPlugin(
-        inStream, folderLink.FilePath.IsEmpty() ? us2fs(virtualFilePath) : folderLink.FilePath,
-        arcFormat, virtualFilePath, GetParent());
+    const FString path =
+        folderLink.FilePath.IsEmpty() ? us2fs(virtualFilePath) : folderLink.FilePath;
+    const auto open = [&] {
+        return ffp.OpenFileFolderPlugin(inStream, path, arcFormat, virtualFilePath, GetParent());
+    };
+    HRESULT res = open();
+    if (res == S_FALSE && ffp.Encrypted && _archiveOpenPassword && _retryArchiveOpenPassword &&
+        _archiveOpenDialogs) {
+        if (inStream) {
+            RINOK(inStream->Seek(0, STREAM_SEEK_SET, nullptr))
+        }
+        ffp.Encrypted = false;
+        ffp.Password.Empty();
+        res = open();
+    }
     openRes.Encrypted = ffp.Encrypted;
     openRes.ErrorMessage = ffp.ErrorMessage;
     RINOK(res)
@@ -94,7 +120,7 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
 
 HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                               const UString &virtualFilePath, const UString &arcFormat,
-                              bool materializeStream) {
+                              bool materializeStream, UString *failure) {
     COpenResult opRes;
     HRESULT res =
         OpenAsArc(inStream, tempFileInfo, virtualFilePath, arcFormat, opRes, materializeStream);
@@ -110,7 +136,14 @@ HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFile
                                   virtualFilePath);
         else
             message = HResultToMessage(res);
-        MessageBox_Error(message);
+        if (failure)
+            *failure = message;
+        else
+            MessageBox_Error(message);
+        // A recognized encrypted archive must not fall through to an external
+        // application when the supplied password did not open it.
+        if (res == S_FALSE)
+            return E_FAIL;
     }
     return res;
 }
@@ -124,68 +157,64 @@ HRESULT CPanel::OpenAsArc_Name(const UString &relPath, const UString &arcFormat)
     return OpenAsArc_Msg(NULL, tfi, fullPath, arcFormat);
 }
 
-HRESULT CPanel::OpenParentArchiveFolder() {
+bool CPanel::CloseOneLevel(bool allowCancel) {
     CDisableTimerProcessing disableTimerProcessing(*this);
     CDisableNotify disableNotify(*this);
-    if (_parentFolders.Size() < 2)
-        return S_OK;
-    const CFolderLink &folderLinkPrev = _parentFolders[_parentFolders.Size() - 2];
-    const CFolderLink &folderLink = _parentFolders.Back();
-    if (_archiveContextOutdated) {
-        if (folderLink.KeepOnOutdatedClose)
-            return S_OK;
-        folderLink.DeleteDirAndFile();
-        return S_OK;
-    }
-    NFind::CFileInfo newFileInfo;
-    if (newFileInfo.Find(folderLink.FilePath)) {
-        if (folderLink.WasChanged_from_FolderLink(newFileInfo)) {
-            const UString message = MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, folderLink.RelPath);
-            QMessageBox box(QMessageBox::Question, QStringLiteral("7-Zip"),
-                            QString::fromWCharArray(message.Ptr()),
-                            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, GetParent());
-            box.setObjectName("modifiedArchiveQuestion");
-            box.setTextFormat(Qt::PlainText);
-            box.setDefaultButton(QMessageBox::Yes);
+    const bool nested = _parentFolders.Size() > 1;
+    CFolderLink &link = _parentFolders.Back();
+    int answer = QMessageBox::No;
+    NFind::CFileInfo current;
+    if (nested && !_archiveContextOutdated && current.Find(link.FilePath) &&
+        link.WasChanged_from_FolderLink(current)) {
+        const UString message = MyFormatNew(IDS_WANT_UPDATE_MODIFIED_FILE, link.RelPath);
+        const auto buttons = allowCancel ? QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+                                         : QMessageBox::Yes | QMessageBox::Discard;
+        QMessageBox box(QMessageBox::Question, QStringLiteral("7-Zip"),
+                        QString::fromWCharArray(message.Ptr()), buttons, GetParent());
+        box.setObjectName("modifiedArchiveQuestion");
+        box.setTextFormat(Qt::PlainText);
+        box.setDefaultButton(QMessageBox::Yes);
+        if (allowCancel)
             box.setEscapeButton(QMessageBox::Cancel);
-            const int answer = box.exec();
-            if (_archiveContextOutdated) {
-                PreserveOutdatedArchiveCopies();
-                return S_OK;
-            }
-            if (answer == QMessageBox::Yes) {
-                if (OnOpenItemChanged(folderLink.FileIndex, fs2us(folderLink.FilePath),
-                                      folderLinkPrev.UsePassword,
-                                      folderLinkPrev.Password.native()) != S_OK) {
-                    MessageBox_Error(
-                        MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(folderLink.FilePath)));
-                    return S_OK;
-                }
-            }
-        }
+        answer = box.exec();
+        if (allowCancel && answer != QMessageBox::Yes && answer != QMessageBox::No)
+            return false;
     }
-    folderLink.DeleteDirAndFile();
-    return S_OK;
-}
 
-void CPanel::CloseOneLevel() {
     if (_archiveContextOutdated)
         PreserveOutdatedArchiveCopies();
     ReleaseFolder();
     _library.Free();
-    {
-        CFolderLink &link = _parentFolders.Back();
-        if (link.ParentFolder)
-            SetNewFolder(link.ParentFolder);
-        _library.Attach(link.Library.Detach());
+    if (link.ParentFolder)
+        SetNewFolder(link.ParentFolder);
+    _library.Attach(link.Library.Detach());
+    QString publishedArchive;
+    if (nested && !link.KeepOnOutdatedClose) {
+        bool removeCopy = true;
+        if (!_archiveContextOutdated && answer == QMessageBox::Yes) {
+            const auto &parent = _parentFolders[_parentFolders.Size() - 2];
+            const auto updated = UpdateExternalFile(link.FileIndex, fs2us(link.FilePath),
+                                                    parent.UsePassword, parent.Password.native());
+            if (_parentFolders.Size() == 2 && updated.Published == true)
+                publishedArchive = ToQString(parent.VirtualPath);
+            removeCopy = updated.Result == S_OK;
+            if (!removeCopy) {
+                if (current.Find(link.FilePath))
+                    RetainNestedArchiveCopy(link, current);
+                MessageBox_Error(MyFormatNew(IDS_CANNOT_UPDATE_FILE, fs2us(link.FilePath)));
+            }
+        }
+        if (removeCopy)
+            link.DeleteDirAndFile();
     }
-    if (_parentFolders.Size() > 1)
-        OpenParentArchiveFolder();
     _parentFolders.DeleteBack();
-    if (_parentFolders.IsEmpty())
+    if (_parentFolders.IsEmpty()) {
         _archiveContextOutdated = false;
-    if (_parentFolders.IsEmpty())
         _flatMode = _flatModeForDisk;
+    }
+    if (!publishedArchive.isEmpty() && _archivePublication)
+        _archivePublication(publishedArchive, _locationTransactions.empty() ? this : nullptr);
+    return true;
 }
 
 void CPanel::CloseOpenFolders() {
@@ -256,17 +285,7 @@ bool CPanel::PreserveOutdatedArchiveCopies() {
         if (!link.WasChanged_from_FolderLink(current))
             continue;
         link.KeepOnOutdatedClose = true;
-        if (!link.OwnedTempLease) {
-            complete = false;
-            continue;
-        }
-        const QtExternalFileRecord record{QFileInfo(ToQString(fs2us(link.FilePath))).fileName(),
-                                          ToQString(link.RelPath),
-                                          ToQString(link.VirtualPath),
-                                          QtNativeFileStamp{current.Size, current.MTime},
-                                          {},
-                                          false};
-        if (!link.OwnedTempLease->SetContext(record.Save()))
+        if (!RetainNestedArchiveCopy(link, current))
             complete = false;
     }
     return complete;

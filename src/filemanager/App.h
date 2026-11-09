@@ -23,6 +23,7 @@ class IQtFileManagerMenuCommandServices;
 struct QtArchiveTransferResult {
     HRESULT Result;
     QString Error;
+    bool Published = false;
 };
 
 void SetButtonText(int commandID, UString &s);
@@ -61,7 +62,13 @@ class IQtAppPresentation {
     virtual bool CreatePanel(CPanel &panel, unsigned index) = 0;
     virtual CPanelCallback *PanelCallback(unsigned index) = 0;
     virtual bool AllowPanelFocusChange(unsigned) const { return true; }
+    virtual bool AllowPanelTitleChange(unsigned) const { return true; }
+    virtual bool IsCopyDestinationAvailable(unsigned) const { return true; }
     virtual void PrepareFolderChange(unsigned) {}
+    virtual bool OpenFolderInPeer(unsigned, std::optional<UInt32> = {}) { return false; }
+    virtual bool OpenBoundFolderInPeer(unsigned, IFolderFolder *, const UString & = {}) {
+        return false;
+    }
     virtual void ExecuteCopy(bool, bool, unsigned, const QString &, const CRecordVector<UInt32> &,
                              QtCopyRoute) {}
     virtual void SetListSettings(unsigned index, const CFmSettings &settings) = 0;
@@ -86,12 +93,12 @@ class CApp {
                            bool needOpenArc, COpenResult &openRes);
     void SetListSettings();
     void RefreshView() { GetFocusedPanel().OnReload(); }
-    void RefreshAllPanels() {
+    void RefreshAllPanels(bool preserveAddress = false) {
         for (unsigned i = 0; i < NumPanels; i++) {
             unsigned index = i;
             if (NumPanels == 1)
                 index = LastFocusedPanel;
-            Panels[index].OnReload();
+            Panels[index].OnReload(preserveAddress);
         }
     }
     void MoveSubWindows();
@@ -104,7 +111,7 @@ class CApp {
     // Existing Qt command consumers remain behind this routing boundary until
     // their full application command bodies are ported in P0-03/P0-08.
     void OnCopy(bool move, bool copyToSame, unsigned index);
-    void CompleteCopy();
+    void CompleteCopy(bool preserveSourceSelection = false, bool restoreSourceFocus = true);
     bool RefreshCopyPanel(unsigned index);
     QtArchiveTransferResult CopyArchiveToArchive(unsigned srcPanelIndex,
                                                  const CRecordVector<UInt32> &indices,

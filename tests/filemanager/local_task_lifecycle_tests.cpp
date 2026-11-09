@@ -1,9 +1,12 @@
+#include "archive/support/native_archive_fixture.h"
+#include "dialogs/copy/alias.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtlocalfiletask.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
@@ -24,7 +27,7 @@ class CompletingTransfer final : public FileTransferOperation {
     void run() override {
         started_.release();
         finish_.acquire();
-        emit result(false, QStringLiteral("fixture failure"));
+        emit result(false, QStringLiteral("fixture failure"), {});
     }
 
   public:
@@ -46,6 +49,576 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void cutUsesThePanelThatIssuedTheCommand() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
+        const QString file = source + "/file.txt";
+        QVERIFY(write(file, "payload"));
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *left = window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>();
+        auto *right = window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>();
+        left->setFocus();
+        window.openPath(source);
+        QTRY_VERIFY(left->isEnabled());
+        const auto matches = left->model()->match(left->model()->index(0, 0), Qt::DisplayRole,
+                                                  QStringLiteral("file.txt"), 1, Qt::MatchExactly);
+        QCOMPARE(matches.size(), 1);
+        const int row = matches.front().row();
+        left->setCurrentCell(row, 0);
+        left->selectRow(row);
+        right->setFocus();
+        window.openPath(destination);
+        QTRY_VERIFY(right->hasFocus());
+        QVERIFY(!action(window, "cutFilesAction")->isEnabled());
+        left->sourcePanel->EditCut();
+        const QList<QUrl> expected{QUrl::fromLocalFile(file)};
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), expected);
+        QVERIFY(left->model()->index(row, 0).data(QtPanelList::CutRole).toBool());
+        QVERIFY(right->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(left->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(right->hasFocus());
+        QVERIFY(action(window, "pasteFilesAction")->isEnabled());
+        PanelKeys::command(window.focusWidget(), Qt::Key_V, Qt::ControlModifier);
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(destination + "/file.txt"), QByteArray("payload"));
+        QVERIFY(!QFileInfo::exists(file));
+    }
+    void transferPublishesChangesWithoutAutoRefresh_data() {
+        QTest::addColumn<bool>("linkedDestination");
+        QTest::addColumn<bool>("viaClipboard");
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy-command") << false << false << false;
+        QTest::newRow("move-command") << false << false << true;
+        QTest::newRow("clipboard-directory") << false << true << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("clipboard-directory-symlink") << true << true << false;
+#endif
+    }
+    void transferPublishesChangesWithoutAutoRefresh() {
+        QFETCH(bool, linkedDestination);
+        QFETCH(bool, viaClipboard);
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath(QStringLiteral("source 空.txt"));
+        const QString destination = fixture.filePath("destination folder");
+        QVERIFY(write(source, "source bytes"));
+        QVERIFY(QDir().mkpath(destination));
+        QString opened = destination;
+        if (linkedDestination) {
+            opened = fixture.filePath("directory link");
+            QVERIFY(QFile::link(destination, opened));
+            QVERIFY(QFileInfo(opened).isSymLink());
+        }
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend, observerBackend, sourceObserverBackend;
+        MainWindow window(&backend), observer(&observerBackend);
+        observer.show();
+        observer.openPath(destination);
+        auto *observed = table(observer);
+        QTRY_VERIFY(observed->isEnabled());
+        if (linkedDestination) {
+            COpenResult openedLink;
+            QCOMPARE(
+                observed->sourcePanel->BindToPath(ToUString(opened + '/'), UString(), openedLink),
+                S_OK);
+            QCOMPARE(observed->sourcePanel->RefreshListCtrl(), S_OK);
+            QCOMPARE(QDir::cleanPath(ToQString(observed->sourcePanel->GetCurrentFolderPrefix())),
+                     opened);
+        }
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
+        const QString name = QFileInfo(source).fileName();
+        std::unique_ptr<MainWindow> sourceObserver;
+        if (move) {
+            sourceObserver = std::make_unique<MainWindow>(&sourceObserverBackend);
+            sourceObserver->show();
+            sourceObserver->openPath(fixture.path());
+            QTRY_VERIFY(filesystemRow(*sourceObserver, name) >= 0);
+            table(*sourceObserver)->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
+        window.show();
+        window.openPath(viaClipboard ? opened : fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->setFocus();
+        QCOMPARE(window.focusWidget(), view);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        if (viaClipboard) {
+            auto *mime = new QMimeData;
+            mime->setUrls({QUrl::fromLocalFile(source)});
+            QApplication::clipboard()->setMimeData(mime);
+            auto *paste = action(window, "pasteFilesAction");
+            QTRY_VERIFY(paste->isEnabled());
+            paste->trigger();
+        } else {
+            const int row = filesystemRow(window, name);
+            QVERIFY(row >= 0);
+            view->setCurrentCell(row, 0);
+            view->selectRow(row);
+            QTimer submit;
+            connect(&submit, &QTimer::timeout, &window, [&] {
+                auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+                if (!dialog || !dialog->isVisible())
+                    return;
+                submit.stop();
+                const auto close = qScopeGuard([&] {
+                    if (dialog->isVisible())
+                        dialog->reject();
+                });
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
+                dialog->accept();
+            });
+            submit.start(1);
+            action(window, move ? "moveAction" : "copyAction")->trigger();
+        }
+        QTRY_VERIFY(filesystemRow(observer, name) >= 0);
+        QTRY_COMPARE(filesystemRow(window, name) >= 0, !move);
+        if (sourceObserver)
+            QTRY_COMPARE(filesystemRow(*sourceObserver, name), -1);
+        QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
+        if (move)
+            QVERIFY(!QFileInfo::exists(source));
+        else
+            QCOMPARE(read(source), QByteArray("source bytes"));
+        if (linkedDestination)
+            QVERIFY(QFileInfo(opened).isSymLink());
+        if (viaClipboard)
+            QVERIFY(action(window, "pasteFilesAction")->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), view);
+    }
+
+    void movingFolderClosesTheArchiveAtItsOldLocationInThePeer() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(destination));
+        const QString archive = QDir(source).filePath("opened.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "zip"));
+        const QByteArray bytes = read(archive);
+        QVERIFY(!bytes.isEmpty());
+
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        action(window, "twoPanelsAction")->trigger();
+        auto *peerPanel = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peerPanel && peerPanel->isVisible());
+        auto *peer = peerPanel->findChild<FileTable *>("archiveTable");
+        auto *address = peerPanel->findChild<QLineEdit *>("archivePath");
+        QVERIFY(peer && address);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        window.openPath(archive);
+        QTRY_VERIFY(peer->sourcePanel->IsArcFolder() && peer->isEnabled());
+
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(files->isVisible() && files->isEnabled());
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        const auto items = files->model()->match(files->model()->index(0, 0), Qt::DisplayRole,
+                                                 "source", 1, Qt::MatchExactly);
+        QCOMPARE(items.size(), 1);
+        files->setCurrentIndex(items.front());
+        files->selectRow(items.front().row());
+        QTimer submit;
+        connect(&submit, &QTimer::timeout, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            if (!dialog || !dialog->isVisible())
+                return;
+            submit.stop();
+            dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
+            dialog->accept();
+            if (dialog->isVisible())
+                dialog->reject();
+        });
+        bool failed = false;
+        QString report;
+        QTimer dismissResult;
+        connect(&dismissResult, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                failed = true;
+                report = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
+            }
+        });
+        dismissResult.start(5);
+        submit.start(1);
+        QTest::keyClick(files, Qt::Key_F6);
+        const QString moved = QDir(destination).filePath("source/opened.zip");
+        QTRY_VERIFY(failed || peer->sourcePanel->IsFSFolder());
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        if (failed) {
+            QVERIFY(report.contains("Could not delete source after copying:"));
+            QVERIFY(!report.contains("Some items may have been moved."));
+            QVERIFY(peer->sourcePanel->IsArcFolder());
+            QCOMPARE(read(archive), bytes);
+            QVERIFY(!QFileInfo::exists(QDir(destination).filePath("source")));
+            QVERIFY(WindowActivation::waitForActive(window));
+            peer->setFocus();
+            QTRY_VERIFY(peer->hasFocus());
+            window.openPath(fixture.path());
+            QTRY_VERIFY(peer->sourcePanel->IsFSFolder());
+            files->setFocus();
+            QTRY_VERIFY(files->hasFocus());
+            QCOMPARE(files->currentIndex().siblingAtColumn(0).data().toString(), QString("source"));
+            failed = false;
+            submit.start(1);
+            QTest::keyClick(files, Qt::Key_F6);
+            QTRY_VERIFY(failed || !QFileInfo::exists(source));
+            QVERIFY2(!failed, qPrintable(report));
+            QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+            QCOMPARE(read(moved), bytes);
+        } else {
+            QVERIFY(!QFileInfo::exists(source));
+            QCOMPARE(read(moved), bytes);
+            QCOMPARE(QDir::cleanPath(ToQString(peer->sourcePanel->GetFsPath())), fixture.path());
+        }
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(files->hasFocus());
+    }
+
+    void pasteKeepsBothFiles_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy-twice") << false;
+        QTest::newRow("cut") << true;
+    }
+    void pasteKeepsBothFiles() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString name = QStringLiteral("файл 空.txt");
+        const QString source = fixture.filePath(name);
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(destination));
+        QVERIFY(write(source, "incoming bytes"));
+        QVERIFY(write(QDir(destination).filePath(name), "existing bytes"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, name) >= 0);
+        view->selectRow(filesystemRow(window, name));
+        QTest::keySequence(view, move ? QKeySequence::Cut : QKeySequence::Copy);
+        auto *clipboard = QApplication::clipboard();
+        QVERIFY(clipboard->mimeData());
+        const QList<QUrl> original{QUrl::fromLocalFile(source)};
+        QCOMPARE(clipboard->mimeData()->urls(), original);
+        window.openPath(destination);
+        QTRY_VERIFY(view->isEnabled() && view->hasFocus() && filesystemRow(window, name) >= 0);
+
+        const QString parked = fixture.filePath("temporarily unavailable");
+        QVERIFY(QFile::rename(source, parked));
+        QTest::keySequence(view, QKeySequence::Paste);
+        const QString rejected = window.statusBar()->currentMessage();
+        QVERIFY(rejected.contains(name));
+        QVERIFY(QFile::rename(parked, source));
+
+        int prompts = 0;
+        bool cancel = true;
+        QTimer drive;
+        dialogs_.connectResponder(drive, &window, [&] {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
+                ++prompts;
+                question->findChild<QPushButton *>(cancel ? "overwriteCancel" : "overwriteRename")
+                    ->click();
+            } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
+                TestProgressDialog::CloseResult(*report);
+        });
+        drive.start(5);
+        QTest::keySequence(view, QKeySequence::Paste);
+        QTRY_VERIFY_WITH_TIMEOUT(prompts == 1 && QtLocalFileTask::Active().isEmpty(), 3000);
+        QVERIFY(window.statusBar()->currentMessage() != rejected);
+        QCOMPARE(read(source), QByteArray("incoming bytes"));
+        QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
+        QCOMPARE(clipboard->mimeData()->urls(), original);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_COMPARE(window.focusWidget(), view);
+        cancel = false;
+        prompts = 0;
+        for (int attempt = 1; attempt <= (move ? 1 : 2); ++attempt) {
+            QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
+            const QString renamed = QStringLiteral("файл 空_%1.txt").arg(attempt);
+            QTRY_VERIFY(filesystemRow(window, renamed) >= 0 && view->isEnabled());
+            QTRY_COMPARE(window.focusWidget(), view);
+            QCOMPARE(prompts, attempt);
+            QCOMPARE(read(QDir(destination).filePath(renamed)), QByteArray("incoming bytes"));
+            QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("existing bytes"));
+            if (!move) {
+                QVERIFY(clipboard->mimeData());
+                QCOMPARE(clipboard->mimeData()->urls(), original);
+                QCOMPARE(read(source), QByteArray("incoming bytes"));
+            }
+        }
+        if (move) {
+            QVERIFY(!QFileInfo::exists(source));
+            QVERIFY(!clipboard->mimeData() || !clipboard->mimeData()->hasUrls());
+        } else {
+            QCOMPARE(read(QDir(destination).filePath(QStringLiteral("файл 空_1.txt"))),
+                     QByteArray("incoming bytes"));
+        }
+    }
+
+    void partialFolderCutRefreshesSourceContents_data() {
+        QTest::addColumn<bool>("trailingSeparator");
+        QTest::newRow("plain-url") << false;
+        QTest::newRow("directory-url") << true;
+    }
+    void partialFolderCutRefreshesSourceContents() {
+        QFETCH(bool, trailingSeparator);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString source = fixture.filePath("source/folder");
+        const QString destination = fixture.filePath("destination");
+        const QString target = destination + "/folder";
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(target));
+        QVERIFY(write(source + "/moved.txt", "moved bytes"));
+        QVERIFY(write(source + "/skipped.txt", "skipped bytes"));
+        QVERIFY(write(target + "/skipped.txt", "existing bytes"));
+
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend sourceBackend, destinationBackend;
+        MainWindow sourceWindow(&sourceBackend), destinationWindow(&destinationBackend);
+        sourceWindow.show();
+        destinationWindow.show();
+        sourceWindow.openPath(source);
+        destinationWindow.openPath(destination);
+        QTRY_VERIFY(filesystemRow(sourceWindow, "moved.txt") >= 0);
+        table(sourceWindow)->sourcePanel->Set_AutoRefresh_Mode(false);
+        const QList<QUrl> urls{QUrl::fromLocalFile(trailingSeparator ? source + '/' : source)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        mime->setData("application/x-kde-cutselection", "1");
+        QApplication::clipboard()->setMimeData(mime);
+
+        QTimer drive;
+        int overwritePrompts = 0;
+        bool retry = false;
+        dialogs_.connectResponder(drive, &destinationWindow, [&] {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
+                ++overwritePrompts;
+                question->findChild<QPushButton *>(retry ? "overwriteYes" : "overwriteNo")->click();
+            } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
+                TestProgressDialog::CloseResult(*report);
+        });
+        drive.start(5);
+        auto *paste = action(destinationWindow, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(overwritePrompts == 1 && QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(target + "/moved.txt"), QByteArray("moved bytes"));
+        QCOMPARE(read(target + "/skipped.txt"), QByteArray("existing bytes"));
+        QCOMPARE(read(source + "/skipped.txt"), QByteArray("skipped bytes"));
+        QVERIFY(!QFileInfo::exists(source + "/moved.txt"));
+        QTRY_VERIFY(filesystemRow(sourceWindow, "moved.txt") < 0);
+        QVERIFY(filesystemRow(sourceWindow, "skipped.txt") >= 0);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QCOMPARE(QApplication::clipboard()->mimeData()->data("application/x-kde-cutselection"),
+                 QByteArray("1"));
+
+        retry = true;
+        QVERIFY(WindowActivation::waitForActive(destinationWindow));
+        auto *destinationList = table(destinationWindow);
+        destinationList->setFocus();
+        QTRY_VERIFY(destinationList->hasFocus() && paste->isEnabled());
+        PanelKeys::command(destinationList, Qt::Key_V, Qt::ControlModifier);
+        QTRY_VERIFY(overwritePrompts == 2 && QtLocalFileTask::Active().isEmpty());
+        QVERIFY(!QFileInfo::exists(source));
+        QCOMPARE(read(target + "/moved.txt"), QByteArray("moved bytes"));
+        QCOMPARE(read(target + "/skipped.txt"), QByteArray("skipped bytes"));
+        QVERIFY(!QApplication::clipboard()->mimeData() ||
+                !QApplication::clipboard()->mimeData()->hasUrls());
+    }
+
+    void gnomeCutAppliesOnlyToMatchingClipboardFiles_data() {
+        QTest::addColumn<QString>("metadata");
+        QTest::newRow("same-files-different-order") << QString("matching");
+        QTest::newRow("same-files-with-a-repeated-url") << QString("repeated");
+        QTest::newRow("different-files") << QString("different");
+        QTest::newRow("invalid-file-list") << QString("invalid");
+    }
+    void gnomeCutAppliesOnlyToMatchingClipboardFiles() {
+        QFETCH(QString, metadata);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath("second.txt");
+        const QString unrelated = fixture.filePath("unrelated.txt");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(destination));
+        QVERIFY(write(first, "first") && write(second, "second") && write(unrelated, "other"));
+        auto *mime = new QMimeData;
+        const auto firstUrl = QUrl::fromLocalFile(first);
+        const auto secondUrl = QUrl::fromLocalFile(second);
+        const bool repeated = metadata == "repeated";
+        const bool matching = metadata == "matching" || repeated;
+        mime->setUrls(repeated ? QList{firstUrl, secondUrl, firstUrl} : QList{firstUrl, secondUrl});
+        QByteArray gnome = "cut\n";
+        if (matching)
+            gnome += secondUrl.toEncoded() + '\n' + firstUrl.toEncoded();
+        else if (metadata == "different")
+            gnome += QUrl::fromLocalFile(unrelated).toEncoded();
+        else
+            gnome += "https://example.invalid/not-a-file";
+        mime->setData("x-special/gnome-copied-files", gnome);
+        QApplication::clipboard()->setMimeData(mime);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(destination);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(QDir(destination).filePath("first.txt")), QByteArray("first"));
+        QCOMPARE(read(QDir(destination).filePath("second.txt")), QByteArray("second"));
+        QCOMPARE(QFileInfo::exists(first), !matching);
+        QCOMPARE(QFileInfo::exists(second), !matching);
+        QCOMPARE(read(unrelated), QByteArray("other"));
+        QVERIFY(!QFileInfo::exists(QDir(destination).filePath("unrelated.txt")));
+    }
+
+    void partialCutCanBeRetried_data() {
+        QTest::addColumn<bool>("replaceClipboard");
+        QTest::addColumn<bool>("gnomeOnly");
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("retry-skipped-file") << false << false << false;
+        QTest::newRow("keep-new-clipboard") << true << false << false;
+        QTest::newRow("retry-gnome-cut") << false << true << false;
+        QTest::newRow("retry-after-escape") << false << false << true;
+    }
+    void partialCutCanBeRetried() {
+        QFETCH(bool, replaceClipboard);
+        QFETCH(bool, gnomeOnly);
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
+        const QString moved = QStringLiteral("01 перенести # %23 空.txt");
+        const QString skipped = QStringLiteral("02 пропустить δ.txt");
+        QVERIFY(write(source + '/' + moved, "moved bytes"));
+        QVERIFY(write(source + '/' + skipped, "skipped bytes"));
+        QVERIFY(write(destination + '/' + skipped, "existing bytes"));
+
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend sourceBackend, destinationBackend;
+        MainWindow sourceWindow(&sourceBackend), destinationWindow(&destinationBackend);
+        sourceWindow.show();
+        destinationWindow.show();
+        sourceWindow.openPath(source);
+        destinationWindow.openPath(destination);
+        QTRY_VERIFY(filesystemRow(sourceWindow, moved) >= 0 &&
+                    filesystemRow(sourceWindow, skipped) >= 0);
+        QTRY_VERIFY(filesystemRow(destinationWindow, skipped) >= 0);
+        auto *view = table(sourceWindow);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        table(destinationWindow)->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (const auto &name : {moved, skipped})
+            view->selectionModel()->select(
+                view->model()->index(filesystemRow(sourceWindow, name), 0),
+                QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        action(sourceWindow, "cutFilesAction")->trigger();
+        QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
+        if (gnomeOnly) {
+            auto *external = new QMimeData;
+            external->setData("x-special/gnome-copied-files",
+                              QByteArray("cut\n") +
+                                  QUrl::fromLocalFile(source + '/' + moved).toEncoded() + '\n' +
+                                  QUrl::fromLocalFile(source + '/' + skipped).toEncoded() + '\n');
+            QApplication::clipboard()->setMimeData(external);
+        }
+
+        bool answered = false;
+        bool retrying = false;
+        QTimer drive;
+        dialogs_.connectResponder(drive, &destinationWindow, [&] {
+            auto *dialog = dialogs_.activeDialog();
+            if (auto *question = dynamic_cast<COverwriteDialog *>(dialog)) {
+                if (answered)
+                    return;
+                answered = true;
+                if (replaceClipboard)
+                    QApplication::clipboard()->setText("new clipboard data");
+                if (retrying)
+                    question->findChild<QPushButton *>("overwriteYes")->click();
+                else if (cancel)
+                    QTest::keyClick(question, Qt::Key_Escape);
+                else
+                    question->findChild<QPushButton *>("overwriteNo")->click();
+            } else if (auto *report = TestProgressDialog::ResultWindow(dialog))
+                TestProgressDialog::CloseResult(*report);
+        });
+        drive.start(5);
+        auto *paste = action(destinationWindow, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
+        QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(destination + '/' + moved),
+                 cancel ? QByteArray() : QByteArray("moved bytes"));
+        QCOMPARE(read(source + '/' + moved), cancel ? QByteArray("moved bytes") : QByteArray());
+        QCOMPARE(read(destination + '/' + skipped), QByteArray("existing bytes"));
+        QCOMPARE(read(source + '/' + skipped), QByteArray("skipped bytes"));
+        QTRY_COMPARE(filesystemRow(sourceWindow, moved) >= 0, cancel);
+        QTRY_COMPARE(filesystemRow(destinationWindow, moved) >= 0, !cancel);
+        QTRY_VERIFY(filesystemRow(sourceWindow, skipped) >= 0);
+        const auto stillCut = [&] {
+            return view->model()
+                ->index(filesystemRow(sourceWindow, skipped), 0)
+                .data(QtPanelList::CutRole)
+                .toBool();
+        };
+        QTRY_COMPARE(stillCut(), !replaceClipboard);
+        if (replaceClipboard) {
+            QCOMPARE(QApplication::clipboard()->text(), QString("new clipboard data"));
+            return;
+        }
+        const auto urls = QApplication::clipboard()->mimeData()->urls();
+        const auto skippedUrl = QUrl::fromLocalFile(source + '/' + skipped);
+        const auto movedUrl = QUrl::fromLocalFile(source + '/' + moved);
+        QCOMPARE(urls.size(), cancel ? 2 : 1);
+        QVERIFY(urls.contains(skippedUrl));
+        QCOMPARE(urls.contains(movedUrl), cancel);
+        answered = false;
+        retrying = true;
+        QVERIFY(paste->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(destinationWindow));
+        auto *destinationView = table(destinationWindow);
+        QTRY_VERIFY(destinationView->hasFocus());
+        PanelKeys::command(destinationWindow.focusWidget(), Qt::Key_V, Qt::ControlModifier);
+        QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
+        QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
+        QCOMPARE(read(destination + '/' + moved), QByteArray("moved bytes"));
+        QVERIFY(!QFileInfo::exists(source + '/' + moved));
+        QVERIFY(!QFileInfo::exists(source + '/' + skipped));
+        QTRY_VERIFY(filesystemRow(sourceWindow, skipped) < 0);
+        QVERIFY(!paste->isEnabled());
+    }
     void cleanup() {
         QTimer answer;
         connect(&answer, &QTimer::timeout, this, [] {
@@ -135,8 +708,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         const auto destination = fixture.filePath("destination with spaces");
         const QString name = QStringLiteral("данные.txt");
         QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
-        QVERIFY(write(source + '/' + name, "new bytes"));
-        QVERIFY(write(destination + '/' + name, "old bytes"));
+        const QByteArray incoming("new bytes");
+        const QByteArray existing("original bytes");
+        QVERIFY(write(source + '/' + name, incoming));
+        QVERIFY(write(destination + '/' + name, existing));
         QtWorkspaceApplication application(*qApp);
         ControlledBackend sourceBackend, destinationBackend;
         auto sourceWindow = std::make_unique<MainWindow>(&sourceBackend);
@@ -147,6 +722,17 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         destinationWindow->openPath(destination);
         QTRY_VERIFY(filesystemRow(*sourceWindow, name) >= 0);
         QTRY_VERIFY(filesystemRow(*destinationWindow, name) >= 0);
+        auto *destinationView = table(*destinationWindow);
+        destinationView->sourcePanel->Set_AutoRefresh_Mode(false);
+        const int sizeColumn = destinationView->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        const auto listedSize = [&] {
+            return destinationView->model()
+                ->index(filesystemRow(*destinationWindow, name), sizeColumn)
+                .data(Qt::UserRole + 2)
+                .toLongLong();
+        };
+        QCOMPARE(listedSize(), qint64(existing.size()));
         const int row = filesystemRow(*sourceWindow, name);
         QVERIFY(row >= 0);
         table(*sourceWindow)->selectRow(row);
@@ -156,11 +742,12 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         cut->trigger();
         const QPointer<const QMimeData> original(QApplication::clipboard()->mimeData());
         auto *paste = action(*destinationWindow, "pasteFilesAction");
-        QVERIFY(paste->isEnabled());
+        QTRY_VERIFY(paste->isEnabled());
         paste->trigger();
         const auto tasks = QtLocalFileTask::Active();
         QCOMPARE(tasks.size(), 1);
         QSignalSpy finished(tasks.first(), &QtLocalFileTask::finished);
+        QSignalSpy published(tasks.first(), &QtLocalFileTask::transferOutput);
         bool answered = false, closed = false, retained = false, contextModal = false;
         bool reviewed = false;
         QTimer drive;
@@ -198,8 +785,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(finished.size(), 1);
         QCOMPARE(finished[0][0].toBool(), choice != "overwriteCancel");
         QCOMPARE(finished[0][1].toBool(), choice == "overwriteCancel");
-        QCOMPARE(read(destination + '/' + name),
-                 choice == "overwriteYes" ? QByteArray("new bytes") : QByteArray("old bytes"));
+        QCOMPARE(published.size(), choice == "overwriteYes" ? 1 : 0);
+        const auto &expected = choice == "overwriteYes" ? incoming : existing;
+        QCOMPARE(read(destination + '/' + name), expected);
+        QTRY_COMPARE(listedSize(), qint64(expected.size()));
         QCOMPARE(QFileInfo::exists(source + '/' + name), choice != "overwriteYes");
         if (choice == "overwriteYes")
             QVERIFY(!QApplication::clipboard()->mimeData() ||
@@ -238,7 +827,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         table(peer)->setCurrentCell(row, 0);
         action(peer, "cutFilesAction")->trigger();
         const QPointer<const QMimeData> original(QApplication::clipboard()->mimeData());
-        action(*owner, "pasteFilesAction")->trigger();
+        auto *paste = action(*owner, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        paste->trigger();
         const auto tasks = QtLocalFileTask::Active();
         QCOMPARE(tasks.size(), 1);
         const QPointer<FileTransferOperation> worker =
@@ -385,6 +976,46 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QVERIFY(!finished[0][1].toBool());
         QVERIFY(!finished[0][2].toString().isEmpty());
     }
+    void interruptedFolderMovePublishesRetainedOutput() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination");
+        const QString merged = QDir(destination).filePath("source");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(merged));
+        QVERIFY(write(QDir(source).filePath("first.txt"), "first"));
+        QVERIFY(write(QDir(source).filePath("second.txt"), "second"));
+        QVERIFY(write(QDir(merged).filePath("existing.txt"), "existing"));
+        FileTransferOperation *worker = nullptr;
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.removeSource = [&worker](const QString &path) {
+            const bool removed = QFile::remove(path);
+            if (removed)
+                worker->cancel();
+            return removed;
+        };
+        worker = new FileTransferOperation({source}, destination, true, nullptr, adapter);
+        auto *task = new QtLocalFileTask(*worker, "Move", destination);
+        QSignalSpy output(task, &QtLocalFileTask::transferOutput);
+        QSignalSpy finished(task, &QtLocalFileTask::finished);
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, this, [] {
+            for (auto *window : QApplication::topLevelWidgets())
+                TestProgressDialog::DismissVisibleResult(window);
+        });
+        answer.start(5);
+        task->Start();
+        QTRY_COMPARE(finished.size(), 1);
+        QVERIFY(!finished.constFirst().constFirst().toBool());
+        QCOMPARE(output.size(), 1);
+        QVERIFY(output.constFirst().constFirst().toStringList().isEmpty());
+        QCOMPARE(QDir(source).entryList(QDir::Files).size(), 1);
+        QCOMPARE(read(QDir(merged).filePath("first.txt")), QByteArray("first"));
+        QCOMPARE(read(QDir(merged).filePath("second.txt")), QByteArray("second"));
+        QCOMPARE(read(QDir(merged).filePath("existing.txt")), QByteArray("existing"));
+        QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
+    }
+
     void lateFailurePreservesAnotherWindowsDraft_data() {
         QTest::addColumn<bool>("closeTask");
         QTest::newRow("explicit-show") << false;

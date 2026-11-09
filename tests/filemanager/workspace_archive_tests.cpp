@@ -1,13 +1,17 @@
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QEventLoop>
+#include <QMenu>
 #include <QScopeGuard>
 #include <QToolButton>
 
@@ -38,6 +42,366 @@ class WorkspaceArchiveTests final : public QObject, protected MainWindowTestSupp
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void archiveHistoryKeepsListFocus_data() {
+        QTest::addColumn<bool>("encrypted");
+        QTest::newRow("zip") << false;
+        QTest::newRow("encrypted-7z") << true;
+    }
+    void archiveHistoryKeepsListFocus() {
+        QFETCH(bool, encrypted);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload 空.txt");
+        const QString format = encrypted ? "7z" : "zip";
+        const QString filename = "history." + format;
+        const QString archive = fixture.filePath(filename);
+        const QString password = encrypted ? QString("local password") : QString();
+        QVERIFY(write(fixture.filePath(name), "history payload"));
+        QVERIFY(createArchive(fixture.path(), archive, name, format, password));
+        const QString plainArchive = "other.zip";
+        const QString plainEntry = "plain.txt";
+        if (encrypted) {
+            QVERIFY(write(fixture.filePath(plainEntry), "other archive payload"));
+            QVERIFY(createArchive(fixture.path(), fixture.filePath(plainArchive), plainEntry));
+        }
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = active(window);
+        QVERIFY(view);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, filename) >= 0);
+        bool cancel = false;
+        int canceledPrompts = 0;
+        QTimer answer;
+        widgetDialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(widgetDialogs_.activeDialog())) {
+                auto *edit = dialog->findChild<QLineEdit *>("passwordEdit");
+                if (cancel) {
+                    ++canceledPrompts;
+                    QTest::keyClick(edit, Qt::Key_Escape);
+                } else {
+                    edit->setText(password);
+                    dialog->accept();
+                }
+            }
+        });
+        answer.start(5);
+        view->setFocus();
+        if (encrypted) {
+            view->selectRow(filesystemRow(window, filename));
+            view->setCurrentCell(filesystemRow(window, filename), 0);
+            cancel = true;
+            PanelKeys::openSelection(window.focusWidget());
+            QTRY_COMPARE(canceledPrompts, 1);
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(view->isEnabled() && view->hasFocus() && view->sourcePanel->IsFSFolder());
+            QCOMPARE(view->currentIndex().data().toString(), filename);
+            QVERIFY(!action(window, "forwardAction")->isEnabled());
+
+            const int other = filesystemRow(window, plainArchive);
+            QVERIFY(other >= 0);
+            view->selectRow(other);
+            view->setCurrentCell(other, 0);
+            const QDir peerFolder(fixture.filePath("peer"));
+            QVERIFY(QDir().mkpath(peerFolder.path()));
+            action(window, "twoPanelsAction")->trigger();
+            auto *peerPane = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(peerPane && peerPane->isVisible());
+            auto *peer = peerPane->findChild<FileTable *>("archiveTable");
+            auto *peerAddress = peerPane->findChild<QLineEdit *>("archivePath");
+            QVERIFY(peer && peerAddress);
+            PanelKeys::focusAddress(peerAddress);
+            QTRY_VERIFY(peerAddress->hasFocus());
+            window.openPath(peerFolder.path());
+            QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 0);
+            peer->sourcePanel->Set_AutoRefresh_Mode(false);
+            for (int i = 0; i < 301; ++i)
+                QVERIFY(write(peerFolder.filePath(QString("item-%1.txt").arg(i)), "peer bytes"));
+            peer->setFocus();
+            QVERIFY(peer->hasFocus());
+            QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
+            QTest::keyClick(peer, Qt::Key_Tab);
+            QVERIFY(view->hasFocus());
+            QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), plainArchive);
+            QVERIFY(view->selectionModel()->isRowSelected(other, {}));
+            PanelKeys::openSelection(window.focusWidget());
+            QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
+            QVERIFY(filesystemRow(window, plainEntry) >= 0);
+            QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
+            QCOMPARE(canceledPrompts, 1);
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(view->hasFocus());
+            QTest::keySequence(window.focusWidget(), action(window, "backAction")->shortcut());
+            QTRY_VERIFY(view->isEnabled() && view->hasFocus() && view->sourcePanel->IsFSFolder());
+            QCOMPARE(view->currentIndex().data().toString(), plainArchive);
+            cancel = false;
+        }
+        const int archiveRow = filesystemRow(window, filename);
+        QVERIFY(archiveRow >= 0);
+        view->selectRow(archiveRow);
+        view->setCurrentCell(archiveRow, 0);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
+        for (bool forward : {false, true}) {
+            QVERIFY(WindowActivation::waitForActive(window));
+            view->setFocus();
+            auto *travel = action(window, forward ? "forwardAction" : "backAction");
+            QVERIFY(travel->isEnabled());
+            if (forward && encrypted) {
+                const int row = filesystemRow(window, filename);
+                QVERIFY(row >= 0);
+                view->selectRow(row);
+                cancel = true;
+                travel->trigger();
+                QTRY_COMPARE(canceledPrompts, 2);
+                QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
+                QTRY_COMPARE(window.focusWidget(), view);
+                QVERIFY(view->selectionModel()->isRowSelected(row, {}));
+                QVERIFY(travel->isEnabled());
+                cancel = false;
+                QVERIFY(WindowActivation::waitForActive(window));
+            }
+            travel->trigger();
+            QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder() == forward);
+            QTRY_COMPARE(window.focusWidget(), view);
+        }
+    }
+
+    void canceledArchiveOpenRestoresInput_data() {
+        QTest::addColumn<bool>("editAddress");
+        QTest::newRow("address draft") << true;
+        QTest::newRow("long file list") << false;
+    }
+
+    void canceledArchiveOpenRestoresInput() {
+        QFETCH(bool, editAddress);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload.txt");
+        const QString archive = fixture.filePath("encrypted.7z");
+        const QString password = QStringLiteral("fixture password");
+        QVERIFY(write(fixture.filePath(name), "payload"));
+        QVERIFY(createArchive(fixture.path(), archive, name, "7z", password));
+        if (!editAddress)
+            for (int index = 0; index < 300; ++index)
+                QVERIFY(write(fixture.filePath(QString("entry-%1.txt").arg(index)), "control"));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = active(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, name) >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        const QString draft = QStringLiteral("unsubmitted address");
+        if (editAddress) {
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            address->selectAll();
+            QTest::keyClicks(address, draft);
+            address->setSelection(11, -4);
+        } else {
+            view->setCurrentCell(filesystemRow(window, name), 0);
+            view->setFocus();
+            QTRY_VERIFY(view->hasFocus());
+        }
+        int prompts = 0;
+        QTimer answer;
+        widgetDialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(widgetDialogs_.activeDialog())) {
+                if (++prompts == 1)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->accept();
+                }
+            }
+        });
+        answer.start(5);
+        window.openArchive(archive);
+        QCOMPARE(prompts, 1);
+        QVERIFY(view->sourcePanel->IsFSFolder());
+        QVERIFY(WindowActivation::waitForActive(window));
+        if (editAddress) {
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), draft);
+            QCOMPARE(address->selectedText(), draft.mid(7, 4));
+            QCOMPARE(address->cursorPosition(), 7);
+        } else {
+            QTRY_VERIFY(view->isEnabled() && view->hasFocus());
+            const int row = filesystemRow(window, name);
+            QVERIFY(row > 0);
+            QCOMPARE(view->currentRow(), row);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Up);
+            QCOMPARE(view->currentRow(), row - 1);
+        }
+
+        window.openArchive(archive);
+        QCOMPARE(prompts, 2);
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
+        QVERIFY(address->text().contains("encrypted.7z"));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
+    void canceledFavoriteKeepsCurrentFolderAndSelection() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload 空.txt");
+        const QString password = QStringLiteral("local 密碼");
+        const QString archive = fixture.filePath("encrypted favorite.7z");
+        const QByteArray bytes("favorite payload");
+        QVERIFY(write(fixture.filePath(name), bytes));
+        QVERIFY(createArchive(fixture.path(), archive, name, "7z", password));
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = active(window);
+        QVERIFY(view);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, name) >= 0);
+        const auto origin = view->sourcePanel->GetCurrentFolderPrefix();
+        view->setCurrentCell(filesystemRow(window, name), 0);
+        view->selectRow(view->currentRow());
+        QtFavoriteStore *favorites = nullptr;
+        for (auto *object : qApp->children())
+            if (auto *store = dynamic_cast<QtFavoriteStore *>(object);
+                store && store->property("settingsPath").toString() ==
+                             qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"))
+                favorites = store;
+        QVERIFY(favorites);
+        QtArchiveLocation location;
+        location.physicalPath = QDir::toNativeSeparators(archive);
+        favorites->Add(archive, "Encrypted favorite", {}, location);
+
+        auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+        QVERIFY(menu);
+        const auto open = [&] {
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            QTRY_VERIFY(menu->isVisible());
+            for (auto *entry : menu->actions())
+                if (entry->toolTip() == archive) {
+                    menu->setActiveAction(entry);
+                    QTest::keyClick(menu, Qt::Key_Return);
+                    return;
+                }
+            menu->hide();
+            QFAIL("Encrypted favorite is absent from the menu");
+        };
+        bool cancel = true;
+        int prompts = 0;
+        QTimer answer;
+        widgetDialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(widgetDialogs_.activeDialog())) {
+                ++prompts;
+                if (cancel)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->accept();
+                }
+            }
+        });
+        answer.start(1);
+        open();
+        QTRY_COMPARE(prompts, 1);
+        QVERIFY(view->isEnabled());
+        QCOMPARE(view->sourcePanel->GetCurrentFolderPrefix(), origin);
+        QCOMPARE(view->currentRow(), filesystemRow(window, name));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QVERIFY(!action(window, "forwardAction")->isEnabled());
+        cancel = false;
+        open();
+        QTRY_VERIFY(view->isEnabled() && rowWithPath(window, name) >= 0 &&
+                    view->sourcePanel->IsArcFolder());
+        QCOMPARE(prompts, 2);
+        const QString output = fixture.filePath("export");
+        view->selectRow(rowWithPath(window, name));
+        window.extractTo(output, true);
+        QCOMPARE(read(QDir(output).filePath(name)), bytes);
+    }
+    void newWindowOpensCurrentNestedArchiveIndependently_data() {
+        QTest::addColumn<bool>("encrypted");
+        QTest::newRow("plain") << false;
+        QTest::newRow("cancel-password-and-retry") << true;
+    }
+    void newWindowOpensCurrentNestedArchiveIndependently() {
+        QFETCH(bool, encrypted);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload 空.txt");
+        const QString bytes = QStringLiteral("nested window payload");
+        const QString password = encrypted ? QStringLiteral(" local 密碼 ") : QString();
+        const QString innerName = QStringLiteral("inner архив.7z");
+        const QString outer = fixture.filePath("outer.zip");
+        QVERIFY(write(fixture.filePath(name), bytes.toUtf8()));
+        QVERIFY(createArchive(fixture.path(), fixture.filePath(innerName), name, "7z", password));
+        QVERIFY(createArchive(fixture.path(), outer, innerName));
+        QtWorkspaceApplication application(*qApp);
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        bool refuse = false;
+        QTimer answer;
+        widgetDialogs_.connectResponder(answer, &window, [&] {
+            auto *dialog = dynamic_cast<CPasswordDialog *>(widgetDialogs_.activeDialog());
+            if (!dialog)
+                return;
+            if (refuse)
+                dialog->reject();
+            else {
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                dialog->accept();
+            }
+        });
+        answer.start(1);
+        window.openArchive(outer);
+        QTRY_VERIFY(rowWithPath(window, innerName) >= 0);
+        openRow(window, rowWithPath(window, innerName));
+        QTRY_VERIFY(rowWithPath(window, name) >= 0 && active(window)->isEnabled());
+        auto *source = active(window);
+        const auto requested = source->sourcePanel->GetCurrentFolderPrefix();
+        const int row = rowWithPath(window, name);
+        source->selectRow(row);
+        source->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
+        refuse = encrypted;
+        action(window, "newWindowAction")->trigger();
+
+        QPointer<MainWindow> copy;
+        const auto findCopy = [&] {
+            for (auto *widget : QApplication::topLevelWidgets())
+                if (auto *candidate = dynamic_cast<MainWindow *>(widget);
+                    candidate && candidate != &window && candidate->isVisible())
+                    return candidate;
+            return static_cast<MainWindow *>(nullptr);
+        };
+        const auto close = qScopeGuard([&] {
+            if (copy)
+                copy->close();
+        });
+        QTRY_VERIFY((copy = findCopy()));
+        if (encrypted) {
+            auto *retry = copy->findChild<QPushButton *>("navigationRetry0");
+            QVERIFY(retry);
+            QTRY_VERIFY(retry->isVisible());
+            QVERIFY(!active(*copy)->isEnabled());
+            QCOMPARE(source->sourcePanel->GetCurrentFolderPrefix(), requested);
+            refuse = false;
+            retry->click();
+        }
+        QTRY_VERIFY(active(*copy) && active(*copy)->isEnabled() && rowWithPath(*copy, name) >= 0);
+        QCOMPARE(active(*copy)->sourcePanel->GetParentFolders().Size(), 2u);
+        QCOMPARE(active(*copy)->sourcePanel->GetCurrentFolderPrefix(), requested);
+        QVERIFY(active(*copy)->selectionModel()->selectedRows().isEmpty());
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 1);
+        const QString output = fixture.filePath("export");
+        active(*copy)->selectRow(rowWithPath(*copy, name));
+        copy->extractTo(output, true);
+        QCOMPARE(read(QDir(output).filePath(name)), bytes.toUtf8());
+        QCOMPARE(source->sourcePanel->GetCurrentFolderPrefix(), requested);
+    }
     void encryptedArchiveSessionResumesItsDirectory_data() {
         QTest::addColumn<bool>("legacy");
         QTest::newRow("current-session") << false;

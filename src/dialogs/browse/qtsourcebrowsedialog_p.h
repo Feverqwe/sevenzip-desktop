@@ -36,6 +36,8 @@ class CBrowseDialog : public QDialog {
     bool GetParentPath(const UString &path, UString &parentPrefix, UString &name);
     HRESULT Reload(UString pathPrefix, const UString &selectedName);
     HRESULT Reload();
+    void ShowReloadError(HRESULT result);
+    void NavigateFolder(const UString &path, const UString &selectedName);
     void OpenParentFolder();
     void SetPathEditText();
     void OnCreateDir();
@@ -65,6 +67,7 @@ class CBrowseDialog : public QDialog {
     bool SaveMode = false;
     bool FolderMode = false;
     bool StartInDirectory = false;
+    bool ExistingArchiveOnly = false;
     int FilterIndex = -1;
     CObjectVector<CBrowseFilterInfo> Filters;
     UString FilePath;

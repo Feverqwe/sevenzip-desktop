@@ -6,10 +6,15 @@
 #include "localization/qtlangcontrols.h"
 #include "platform/support/external_editor_fixture.h"
 #include "support/panel_keys.h"
+#include "support/widget_dialogs.h"
 #include "ui/support/layout_inspection.h"
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QPushButton>
 
 class RootCommandTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
+    WidgetDialogFixture widgetDialogs_;
     static QString drivePrefix(const QString &language) {
 #ifdef Q_OS_WIN
         Q_UNUSED(language);
@@ -77,12 +82,14 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
         enterFolder(*rightAddress, rightPath);
         action(window, "viewMode3Action")->trigger();
         QTRY_VERIFY(rightTable->hasFocus());
-        if (route == 0)
+        if (route == 0) {
+            PanelKeys::focusAddress(rightAddress);
             action(window, "openRootAction")->trigger();
-        else
+        } else
             QTest::keyClick(rightTable, route == 1 ? Qt::Key_Backslash : Qt::Key_Slash,
                             route == 3 ? Qt::KeypadModifier : Qt::NoModifier);
         QTRY_COMPARE(rightAddress->text(), drivePrefix(language));
+        QTRY_COMPARE(window.focusWidget(), rightTable);
         QVERIFY(static_cast<FileTable *>(rightTable)->sourcePanel->IsFSDrivesFolder());
         QVERIFY(rightTable->rowCount() > 0);
         QVERIFY(action(window, "parentFolderAction")->isEnabled());
@@ -103,7 +110,17 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
         QTRY_VERIFY(rightAddress->text().isEmpty());
         QVERIFY(static_cast<FileTable *>(rightTable)->sourcePanel->IsRootFolder());
         action(window, "backAction")->trigger();
+        QTRY_COMPARE(rightAddress->text(), drivePrefix(language));
+        QVERIFY(rightTable->sourcePanel->IsFSDrivesFolder());
+        action(window, "backAction")->trigger();
         QTRY_COMPARE(rightAddress->text(), QFileInfo(rightPath).canonicalFilePath());
+        QVERIFY(rightTable->sourcePanel->IsFSFolder());
+        action(window, "forwardAction")->trigger();
+        QTRY_COMPARE(rightAddress->text(), drivePrefix(language));
+        QVERIFY(rightTable->sourcePanel->IsFSDrivesFolder());
+        action(window, "forwardAction")->trigger();
+        QTRY_VERIFY(rightAddress->text().isEmpty());
+        QVERIFY(rightTable->sourcePanel->IsRootFolder());
         QCOMPARE(leftAddress->text(), QFileInfo(leftPath).canonicalFilePath());
     }
     void driveViewIsRestoredFromFilesystemHistory_data() {
@@ -154,6 +171,7 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
             action(window, "viewMode3Action")->trigger();
             action(window, "openRootAction")->trigger();
             QTRY_COMPARE(addresses[i]->text(), drivePrefix("-"));
+            QTRY_COMPARE(window.focusWidget(), views[i]);
         }
         views[1]->setCurrentCell(0, 0);
         views[1]->selectRow(0);
@@ -161,13 +179,19 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY(selected.isValid() && PanelIndexSelected(selected));
         const int count = views[1]->rowCount();
         const QString edit = QStringLiteral("черновик / path 密碼");
-        if (pending)
+        if (pending) {
             addresses[0]->setText(edit);
+            addresses[0]->setSelection(10, -4);
+        }
         for (const QString language : {QStringLiteral("ru"), QStringLiteral("-")}) {
             SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
             ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
             QtNotifyLanguageChanged();
             QCOMPARE(addresses[0]->text(), pending ? edit : drivePrefix(language));
+            if (pending) {
+                QCOMPARE(addresses[0]->cursorPosition(), 6);
+                QCOMPARE(addresses[0]->selectedText(), edit.mid(6, 4));
+            }
             QCOMPARE(addresses[1]->text(), drivePrefix(language));
             QCOMPARE(window.windowTitle(), drivePrefix(language));
             QCOMPARE(views[1]->rowCount(), count);
@@ -177,13 +201,32 @@ class RootCommandTests final : public QObject, protected MainWindowTestSupport {
             for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
                 window.resize(size);
                 QApplication::processEvents();
-                QVERIFY(UiInspection::fullyVisible(*addresses[0], window));
-                QVERIFY(UiInspection::fullyVisible(*addresses[1], window));
+                QVERIFY(
+                    UiInspection::fullyVisible(*PanelKeys::navigationFor(addresses[0]), window));
+                QVERIFY(
+                    UiInspection::fullyVisible(*PanelKeys::navigationFor(addresses[1]), window));
                 QVERIFY(UiInspection::writeReport(window, QString("root-language-%1-%2-%3")
                                                               .arg(pending)
                                                               .arg(language)
                                                               .arg(size.width())));
             }
+        }
+        if (pending) {
+            widgetDialogs_.respond(window, [](QDialog &dialog) {
+                auto *language = dialog.findChild<QComboBox *>("languageChoice");
+                auto *buttons = dialog.findChild<QDialogButtonBox *>("settingsButtons");
+                if (language && buttons)
+                    language->setCurrentIndex(language->findData(QStringLiteral("ru")));
+                if (buttons)
+                    buttons->button(QDialogButtonBox::Ok)->click();
+                if (dialog.isVisible())
+                    dialog.reject();
+            });
+            action(window, "settingsAction")->trigger();
+            QCOMPARE(addresses[1]->text(), drivePrefix("ru"));
+            QCOMPARE(addresses[0]->text(), edit);
+            QCOMPARE(addresses[0]->cursorPosition(), 6);
+            QCOMPARE(addresses[0]->selectedText(), edit.mid(6, 4));
         }
         QCOMPARE(backend.listCalls, 0);
     }

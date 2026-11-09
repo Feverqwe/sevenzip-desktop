@@ -75,11 +75,15 @@ class DragArchiveTests : public QObject {
     void cleanup() { qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", previousRegistry); }
     void nativeArchiveDropUsesCorrectExecutionOwner_data() {
         QTest::addColumn<bool>("archiveTarget");
-        QTest::newRow("archive-to-disk") << false;
-        QTest::newRow("archive-to-archive") << true;
+        QTest::addColumn<bool>("deferred");
+        QTest::newRow("archive-to-disk") << false << false;
+        QTest::newRow("archive-to-archive") << true << false;
+        QTest::newRow("deferred-to-disk") << false << true;
+        QTest::newRow("deferred-to-archive") << true << true;
     }
     void nativeArchiveDropUsesCorrectExecutionOwner() {
         QFETCH(bool, archiveTarget);
+        QFETCH(bool, deferred);
         QTemporaryDir root;
         const QString name = QStringLiteral("из архива с пробелом.bin");
         const QByteArray payload("transfer\0bytes", 14);
@@ -142,19 +146,40 @@ class DragArchiveTests : public QObject {
         HRESULT entered = E_FAIL, dropped = E_FAIL;
         UInt32 flags = 0;
         QString temporary;
-        QtPanelDragTransport transport(&list, [&](QDrag &drag, Qt::DropActions) {
-            auto *mime = dynamic_cast<const QtPanelDragMime *>(drag.mimeData());
-            if (!mime)
-                return Qt::IgnoreAction;
-            temporary = ToQString(mime->Data().SrcDirPrefix_Temp);
+        bool materializedOnEnter = false;
+        const auto executeDrop = [&](CDataObject &data) {
+            temporary = ToQString(data.SrcDirPrefix_Temp);
             DWORD effect = DROPEFFECT_COPY;
-            entered = app.DropTarget().DragEnter(&mime->Data(), MK_CONTROL, 0, 0, &effect);
+            entered = app.DropTarget().DragEnter(&data, MK_CONTROL, 0, 0, &effect);
+            materializedOnEnter = QFileInfo::exists(QDir(temporary).filePath(name));
             effect = DROPEFFECT_COPY;
-            dropped = app.DropTarget().Drop(&mime->Data(), MK_CONTROL, 0, 0, &effect);
-            flags = mime->Data().m_Transfer.Target.Flags;
-            return effect ? Qt::CopyAction : Qt::IgnoreAction;
+            dropped = app.DropTarget().Drop(&data, MK_CONTROL, 0, 0, &effect);
+            flags = data.m_Transfer.Target.Flags;
+            return effect;
+        };
+        QtPanelDragTransport transport(&list, [&](QDrag &drag, Qt::DropActions) {
+            const auto *mime = dynamic_cast<const QtPanelDragMime *>(drag.mimeData());
+            return mime && executeDrop(mime->Data()) ? Qt::CopyAction : Qt::IgnoreAction;
         });
-        app.Panels[0].AttachDragServices(&transport);
+        class DeferredTransport final : public IQtPanelDragServices {
+            const std::function<DWORD(CDataObject &)> execute_;
+
+          public:
+            explicit DeferredTransport(std::function<DWORD(CDataObject &)> execute)
+                : execute_(std::move(execute)) {}
+            HRESULT DoDragDrop(CDataObject &data, CDropSource &, DWORD, DWORD &effect) override {
+                data.DeferredTempFiles = true;
+                data.UsePreGlobal = false;
+                effect = execute_(data);
+                return effect ? DRAGDROP_S_DROP : DRAGDROP_S_CANCEL;
+            }
+            HRESULT CompressFiles(CPanel &, const UString &, const UString &, const UStringVector &,
+                                  bool) override {
+                return E_NOTIMPL;
+            }
+        } deferredTransport(executeDrop);
+        app.Panels[0].AttachDragServices(
+            deferred ? static_cast<IQtPanelDragServices *>(&deferredTransport) : &transport);
         QStringList errors;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &list, [&] {
@@ -183,6 +208,7 @@ class DragArchiveTests : public QObject {
                                                   .arg(targetResult)));
         QCOMPARE(entered, S_OK);
         QCOMPARE(dropped, S_OK);
+        QCOMPARE(materializedOnEnter, !deferred);
         QVERIFY(flags & (archiveTarget ? k_TargetFlags_WasProcessed
                                        : k_TargetFlags_MustBeProcessedBySource));
         QCOMPARE(Read(sourceZip), original);
@@ -211,6 +237,7 @@ class DragArchiveTests : public QObject {
         QTest::newRow("recipient-allocation-fails") << 7;
         QTest::newRow("recipient-confirms-drop-end") << 8;
         QTest::newRow("recipient-over-is-not-completion") << 9;
+        QTest::newRow("checksum-failure") << 10;
 #ifdef Q_OS_MACOS
         QTest::newRow("native-qt-ignore-unconfirmed") << 5;
 #endif
@@ -230,10 +257,18 @@ class DragArchiveTests : public QObject {
         QVERIFY(!engine.isEmpty());
         QProcess create;
         create.setWorkingDirectory(fixture.path());
-        create.start(engine, {"a", "-tzip", "--", archive, name});
+        create.start(engine, {"a", "-tzip", "-mx=0", "--", archive, name});
         QVERIFY(create.waitForFinished(10000));
         QCOMPARE(create.exitCode(), 0);
-        const QByteArray original = Read(archive);
+        QByteArray original = Read(archive);
+        if (outcome == 10) {
+            const auto offset = original.indexOf(payload);
+            QVERIFY(offset >= 0);
+            original[offset] = '!';
+            QFile damaged(archive);
+            QVERIFY(damaged.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(damaged.write(original), qint64(original.size()));
+        }
         ArchiveBackend backend;
         QList<ArchiveEntry> listed;
         connect(&backend, &ArchiveBackend::entriesReady, &backend,
@@ -330,7 +365,9 @@ class DragArchiveTests : public QObject {
         responder.start(1);
         app.Panels[0].OnDrag(false);
         responder.stop();
-        if (outcome == 6 || outcome == 7)
+        if (outcome == 10)
+            QCOMPARE(errors.size(), 1);
+        else if (outcome == 6 || outcome == 7)
             QVERIFY(!errors.isEmpty());
         else
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
@@ -338,7 +375,7 @@ class DragArchiveTests : public QObject {
         QCOMPARE(app.DropTarget().SrcPanelIndex, -1);
         QCOMPARE(Read(archive), original);
         QVERIFY(!backend.busy());
-        if (outcome == 3) {
+        if (outcome == 3 || outcome == 10) {
             QCOMPARE(calls, 0);
             QVERIFY(row->isSelected());
             return;
@@ -364,6 +401,7 @@ class DragArchiveTests : public QObject {
         QCOMPARE(row->isSelected(),
                  outcome == 2 || outcome == 4 || outcome == 5 || outcome == 6 || outcome == 7);
         if (outcome == 1 || outcome == 5 || outcome == 6 || outcome == 7 || outcome == 9) {
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
             QCOMPARE(Read(delivered), payload);
             QtOwnedTempRegistry registry;
             bool found = false;

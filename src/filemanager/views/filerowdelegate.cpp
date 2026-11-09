@@ -144,9 +144,16 @@ class FileRowDelegate final : public QStyledItemDelegate {
     }
 #endif
     void setEditorData(QWidget *editor, const QModelIndex &index) const override {
-        if (const auto *line = qobject_cast<QLineEdit *>(editor); line && line->isModified())
+        if (const auto *line = qobject_cast<QLineEdit *>(editor);
+            line && (line->isModified() || line->text() == index.data(Qt::EditRole).toString()))
             return;
         QStyledItemDelegate::setEditorData(editor, index);
+    }
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const override {
+        // Workspace names are published by the rename controller after the native operation.
+        if (!workspace_)
+            QStyledItemDelegate::setModelData(editor, model, index);
     }
     void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override {
         QStyledItemDelegate::initStyleOption(option, index);

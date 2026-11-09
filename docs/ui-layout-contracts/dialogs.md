@@ -65,6 +65,7 @@ the worker password consumers separately check success, empty input and Cancel.
 The address bar opens a short list of recently visited places. Choosing an item
 opens it in the pane that owns the address bar. Escape closes the menu without
 navigating. Back and Forward keep their own history in each pane.
+On Linux, paths that differ only by letter case have separate history entries.
 
 ## Archive picker
 
@@ -73,6 +74,8 @@ source browser opens it with the same archive filters. Cancel leaves the pane
 at its current location. The source browser keeps its path field and actions
 visible while its file list scrolls. New Folder opens an inline field. An error
 keeps the name available for correction, and Escape returns focus to New Folder.
+In the source folder picker, creating a folder fills the path field and focuses
+it so Enter can confirm the new destination.
 
 ## Hash results
 
@@ -167,21 +170,23 @@ The source counters and range conversion remain operation state.
 
 Unknown totals use an indeterminate indicator without a percentage. Known
 native byte/count totals and percent-only transports drive the same display;
-a new unknown phase clears the previous percentage. Preparation has a short
-state caption. Pause freezes rendering and preserves reached progress. It is
-available only when supported by that operation's transport; callback-only
-filesystem/volume operations hide it. Pause/Continue and Stop remain reachable
+a new unknown worker phase clears the previous percentage and filename.
+Preparation has a short state caption. Pause freezes rendering and preserves
+reached progress. It is available only when supported by that operation's
+transport. Callback-only filesystem/volume operations hide it. Pause/Continue and Stop remain reachable
 in the footer, and the title bar provides Minimize. Full locations come from the
 accepted operation plan, not from the changing current-file string.
 
 Stop and closing a running window ask Continue working / Stop. Continue is the
 default and Escape answer. Refusal restores the former pause state. Confirmed
-Stop disables repeated requests and shows Stopping until the owner finishes;
+Stop cancels the worker directly from pause, disables repeated requests and
+shows Stopping until the owner finishes;
 completion retires an obsolete question without waiting for user input. Neither
 an empty message list nor a full bar proves success. The operation supplies its
 result and completeness after required publication/source removal. Full success
-closes automatically. Failure, cancellation, skipped items or messages keep a
-short result and any diagnostics until Close, with the running bar hidden.
+closes automatically unless the operation supplies a report, as when testing
+the contents of an open archive. A report, failure, cancellation, skipped items
+or messages keep the result visible until Close, with the running bar hidden.
 Diagnostics appear directly in a scrollable list when messages are available.
 Cancellation warns that changes may already have completed.
 

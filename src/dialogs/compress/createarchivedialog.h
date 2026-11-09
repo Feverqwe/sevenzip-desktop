@@ -75,7 +75,8 @@ class CreateArchiveDialog : public QDialog {
     void showExpertOptions(QWidget *focus = nullptr);
     void prepareMetadataSource(CCompressDialog &source) const;
     void updateAdvancedSummary();
-    bool checkVolumeSizes();
+    bool checkVolumeSizes(CCompressDialog::EVolumeResult result,
+                          const NCompressDialog::CInfo &info);
     void SetEncryptionMethod();
     bool updateProtectionControls();
     QString GetEncryptionMethodSpec() const;

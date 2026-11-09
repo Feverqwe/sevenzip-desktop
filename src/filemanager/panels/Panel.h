@@ -108,6 +108,7 @@ struct CCopyToOptions {
     NExtract::NZoneIdMode::EEnum ZoneIdMode;
     CByteBuffer ZoneBuf;
     UString folder;
+    UString TestScope;
     NExtract::NPathMode::EEnum pathMode;
     NExtract::NOverwriteMode::EEnum overwriteMode;
     UStringVector hashMethods;
@@ -155,13 +156,12 @@ struct CSelectedState {
     int FocusedItem;
     bool SelectFocused;
     bool FocusedName_Defined;
-    bool CalledFromTimer;
+    bool PreserveAddress = false;
+    bool KeepViewport = true;
     UString FocusedName;
     UStringVector SelectedNames;
 
-    CSelectedState()
-        : FocusedItem(-1), SelectFocused(true), FocusedName_Defined(false), CalledFromTimer(false) {
-    }
+    CSelectedState() : FocusedItem(-1), SelectFocused(true), FocusedName_Defined(false) {}
 };
 
 struct CTempFileInfo {
@@ -306,6 +306,12 @@ class CPanel : public QObject {
     void AttachReloadPresentation(std::function<HRESULT(const CSelectedState &)> reload) {
         _reloadPresentation = std::move(reload);
     }
+    void AttachArchivePublication(std::function<void(const QString &, const CPanel *)> publish) {
+        _archivePublication = std::move(publish);
+    }
+    void AttachFilesystemPublication(std::function<void(const QStringList &)> publish) {
+        _filesystemPublication = std::move(publish);
+    }
     void AttachInvalidationPresentation(std::function<void()> invalidate) {
         _invalidatePresentation = std::move(invalidate);
     }
@@ -325,10 +331,10 @@ class CPanel : public QObject {
     void Set_AutoRefresh_Mode(bool mode) { AutoRefresh_Mode = mode; }
     void MarkPortableFolderChanged() { _portableFolderChanged = true; }
     void OnTimer();
-    void OnReload(bool onTimer = false);
+    void OnReload(bool preserveAddress = false);
     // Qt retains the source caller's error policy across bounded row batches.
     std::function<void(HRESULT)> GetReloadCompletion() const { return _reloadCompletion; }
-    HRESULT RefreshListCtrl_SaveFocused(bool onTimer = false);
+    HRESULT RefreshListCtrl_SaveFocused(bool preserveAddress = false);
     UInt32 _listViewMode = 3;
     int _xSize = 0;
     PROPID _sortID = 0;
@@ -429,7 +435,8 @@ class CPanel : public QObject {
     HRESULT CompressDropFiles(const UStringVector &filePaths, const UString &folderPath,
                               bool createNewArchive, bool moveMode, UInt32 sourceFlags,
                               UInt32 &targetFlags,
-                              std::optional<CSelectedState> *refreshSelection = nullptr);
+                              std::optional<CSelectedState> *refreshSelection = nullptr,
+                              bool *published = nullptr);
     HRESULT CopyFsItems(CCopyToOptions &options, const UStringVector &filePaths,
                         UStringVector *messages) {
         bool usePassword = false;
@@ -438,7 +445,8 @@ class CPanel : public QObject {
         return CopyTo(options, indices, messages, usePassword, password, &filePaths);
     }
     HRESULT CopyFromNoAsk(bool moveMode, const UStringVector &filePaths,
-                          std::optional<CSelectedState> *refreshSelection = nullptr);
+                          std::optional<CSelectedState> *refreshSelection = nullptr,
+                          bool *published = nullptr);
     void RefreshTitle(bool always = false) {
         if (_panelCallback)
             _panelCallback->RefreshTitle(always);
@@ -464,10 +472,13 @@ class CPanel : public QObject {
     HRESULT CopyFrom(bool moveMode, const UString &folderPrefix, const UStringVector &filePaths,
                      bool showErrorMessages, UStringVector *messages,
                      const NUpdateArchive::CActionSet *actionSet = nullptr,
-                     std::optional<NWildcard::ECensorPathMode> pathMode = std::nullopt);
+                     std::optional<NWildcard::ECensorPathMode> pathMode = std::nullopt,
+                     bool *published = nullptr);
     void SetNewFolder(IFolderFolder *folder);
-    void SetArchiveOpenPassword(std::optional<ArchivePassword> password) {
+    void SetArchiveOpenPassword(std::optional<ArchivePassword> password,
+                                bool retryPassword = false) {
         _archiveOpenPassword = std::move(password);
+        _retryArchiveOpenPassword = retryPassword;
     }
     void AttachFolderManager(IFolderManager *manager, const QString &settingsPath) {
         _folderManager = manager;
@@ -478,7 +489,7 @@ class CPanel : public QObject {
                       COpenResult &openRes, bool materializeStream = false);
     HRESULT OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                           const UString &virtualFilePath, const UString &arcFormat,
-                          bool materializeStream = false);
+                          bool materializeStream = false, UString *failure = nullptr);
     HRESULT OpenAsArc_Name(const UString &relPath, const UString &arcFormat);
     HRESULT OpenAsArc_Index(unsigned index, const wchar_t *type = NULL);
     void OpenFolder(unsigned index);
@@ -492,9 +503,8 @@ class CPanel : public QObject {
     void OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal,
                            const wchar_t *type = nullptr);
     HRESULT OpenItemInArchiveInternal(unsigned index, const wchar_t *type = nullptr,
-                                      bool materializeStream = false);
+                                      bool materializeStream = false, UString *failure = nullptr);
     bool IsVirus_Message(const UString &name);
-    HRESULT OpenParentArchiveFolder();
     HRESULT OnOpenItemChanged(UInt32 index, const wchar_t *fullFilePath, bool usePassword,
                               const UString &password);
     QtArchiveUpdateResult UpdateExternalFile(UInt32 index, const wchar_t *fullFilePath,
@@ -512,10 +522,11 @@ class CPanel : public QObject {
     bool OnOpenItemChanged(const CTempFileInfo &tpi, const UString &fullPathFolderPrefix,
                            bool usePassword, const UString &password,
                            std::optional<CSelectedState> *refreshSelection = nullptr);
-    void CloseOneLevel();
+    bool CloseOneLevel(bool allowCancel = false);
     void CloseOpenFolders();
     void LoadFullPath();
-    void LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &displayPath);
+    void LoadFullPathAndShow(IQtPanelAddressCombo &header,
+                             const std::optional<UString> &displayPath);
     bool OnComboBoxCommand(QtAddressCommand code, IQtPanelAddressCombo &header);
     bool OnNotifyComboBoxEnter(const UString &text, IQtPanelAddressCombo &header);
     std::vector<QtAddressSegment> AddressAncestors(IQtPanelAddressCombo &header,
@@ -529,7 +540,7 @@ class CPanel : public QObject {
     // Share the original Windows quote handling with Qt address transport.
     static UString PrepareBindPath(const UString &path);
     UString GetParentDirPrefix() const;
-    void OpenParentFolder();
+    HRESULT OpenParentFolder();
     void OpenRootFolder();
     void OpenDrivesFolder();
     const CObjectVector<CFolderLink> &GetParentFolders() const { return _parentFolders; }
@@ -617,13 +628,17 @@ class CPanel : public QObject {
     bool DoesItSupportOperations() const { return _folderOperations != NULL; }
     bool CheckBeforeUpdate(UINT resourceID);
     bool CorrectFsPath(const UString &path, UString &result);
-    HRESULT CreateFolder(UString name, QString &error);
+    HRESULT CreateFolder(UString name, QString &error, QString *destinationDirectory = nullptr,
+                         QString *publishedArchive = nullptr);
     void RenameFile();
     bool OnBeginLabelEdit(int row);
-    HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName);
+    HRESULT OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
+                           QString *destinationDirectory = nullptr,
+                           QString *publishedArchive = nullptr);
     HRESULT MoveItemsToTrash(class IQtTrashService &trash, CSelectedState &selection,
                              const CRecordVector<UInt32> *explicitIndices = nullptr,
-                             bool confirm = true);
+                             bool confirm = true, unsigned *moved = nullptr,
+                             std::optional<QStringList> *review = nullptr);
     QtArchiveUpdateResult RemoveItemsAfterMove(const CRecordVector<UInt32> &indices,
                                                CSelectedState &selection, bool confirm);
     bool IsDeviceDrivesPrefix() const { return _currentFolderPrefix.IsEqualTo("\\\\.\\"); }
@@ -698,6 +713,8 @@ class CPanel : public QObject {
     QPointer<QWidget> _parentWindow;
     std::function<bool(CPanel &)> _createPresentation;
     std::function<HRESULT(const CSelectedState &)> _reloadPresentation;
+    std::function<void(const QString &, const CPanel *)> _archivePublication;
+    std::function<void(const QStringList &)> _filesystemPublication;
     std::function<void(HRESULT)> _reloadCompletion;
     std::function<void()> _invalidatePresentation;
     std::function<void(const CPanelStatus &)> _statusPresentation;
@@ -713,6 +730,7 @@ class CPanel : public QObject {
     IQtPanelDragServices *_dragServices = nullptr;
     std::optional<CSelectedState> _refreshSelection;
     std::optional<ArchivePassword> _archiveOpenPassword;
+    bool _retryArchiveOpenPassword = false;
     bool _archiveOpenDialogs = true;
     bool _archiveContextOutdated = false;
     std::vector<QtPanelLocationTransaction *> _locationTransactions;
@@ -720,7 +738,8 @@ class CPanel : public QObject {
     std::unique_ptr<CExitEventLauncher> _exitEventLauncher;
     std::vector<std::weak_ptr<IQtExternalSessionOwner>> _externalSessions;
     HRESULT OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
-                                  const wchar_t *type, bool materializeStream = false);
+                                  const wchar_t *type, bool materializeStream = false,
+                                  UString *failure = nullptr);
     void StartExternalFileSession(NWindows::NFile::NDir::CTempDir &tempDirectory,
                                   const CTempFileInfo &tempFileInfo, const FString &tempDirNorm,
                                   bool usePassword, const UString &password);

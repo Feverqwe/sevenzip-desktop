@@ -1,4 +1,6 @@
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/resources/qtarchivedirectoryread.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QScopeGuard>
@@ -74,7 +76,7 @@ HRESULT QtWindowWorkspace::OpenArchiveDirectory(unsigned panel, const QtArchiveL
 
 HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLocation &location,
                                                const std::vector<ReopenLayer> *layers,
-                                               bool interactive) {
+                                               bool interactive, QString *failure) {
     QtAppOperationState::CallScope call(window_.app_.QtOperations());
     const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
     auto &source = window_.app_.Panels[panel];
@@ -90,17 +92,33 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
     if (result != S_OK)
         return result;
     COpenResult physical;
-    source.SetArchiveOpenPassword(layers ? layers->front().password : std::nullopt);
+    source.SetArchiveOpenPassword(layers ? layers->front().password : std::nullopt, interactive);
     result = source.BindToPath(ToUString(location.physicalPath),
                                layers ? ToUString(layers->front().format) : UString(), physical);
-    if (result != S_OK)
+    if (result != S_OK) {
+        if (failure && result != E_ABORT) {
+            *failure = ToQString(
+                physical.Encrypted && !physical.ArchiveIsOpened
+                    ? MyFormatNew(IDS_CANT_OPEN_ENCRYPTED_ARCHIVE, ToUString(location.physicalPath))
+                    : physical.ErrorMessage);
+        }
         return result;
+    }
 
     const auto &parents = source.GetParentFolders();
     if (!source.IsArcFolder() || parents.Size() != 1 ||
         ToQString(parents.Front().VirtualPath) != location.physicalPath ||
-        !GetFolderPath(source.GetFolder()).IsEmpty())
+        !GetFolderPath(source.GetFolder()).IsEmpty()) {
+        if (failure) {
+            if (QFileInfo::exists(location.physicalPath))
+                *failure =
+                    ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, ToUString(location.physicalPath)));
+            else
+                *failure = QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                           location.physicalPath;
+        }
         return S_FALSE;
+    }
     result = ReadDirectory(source, &window_, window_.toolbarSettingsPath(), interactive);
     if (result != S_OK)
         return result;
@@ -124,17 +142,29 @@ HRESULT QtWindowWorkspace::OpenArchiveLocation(unsigned panel, const QtArchiveLo
                     return E_INVALIDARG;
                 entry = index;
             }
-        if (!entry || source.IsItem_Folder(*entry))
+        if (!entry || source.IsItem_Folder(*entry)) {
+            if (failure) {
+                source.LoadFullPath();
+                *failure = QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                           ToQString(source.GetCurrentFolderPrefix()) + link.entry;
+            }
             return E_INVALIDARG;
+        }
         const unsigned depth = source.GetParentFolders().Size();
         source.LoadFullPath();
-        source.SetArchiveOpenPassword(layers ? (*layers)[level].password : std::nullopt);
+        source.SetArchiveOpenPassword(layers ? (*layers)[level].password : std::nullopt,
+                                      interactive);
         const UString format = layers ? ToUString((*layers)[level].format) : UString();
-        result = source.OpenItemInArchiveInternal(*entry, layers ? format.Ptr() : nullptr);
+        UString nestedFailure;
+        result = source.OpenItemInArchiveInternal(*entry, layers ? format.Ptr() : nullptr, false,
+                                                  failure ? &nestedFailure : nullptr);
         ++level;
         window_.cancelListPublication();
-        if (result != S_OK)
+        if (result != S_OK) {
+            if (failure)
+                *failure = ToQString(nestedFailure);
             return result;
+        }
         if (!source.IsArcFolder() || source.GetParentFolders().Size() != depth + 1 ||
             ToQString(source.GetParentFolders().Back().RelPath) != link.entry)
             return S_FALSE;

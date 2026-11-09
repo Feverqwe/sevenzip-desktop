@@ -18,6 +18,7 @@
 #include "support/operation_kill.h"
 #include "support/operation_temp_cleanup.h"
 #include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include "support/progress_dialog.h"
 #include "support/scoped_environment.h"
 #include "support/widget_dialogs.h"
@@ -110,7 +111,11 @@ bool makeArchive(const QString &directory, const QString &path, const QString &t
 void dismissResults(WidgetDialogFixture &dialogs, QStringList &errors, QStringList &successes) {
     if (auto *widget = dialogs.activeDialog()) {
         if (auto *result = TestProgressDialog::ResultWindow(widget)) {
-            errors << TestProgressDialog::ReportText(*result);
+            const QString report = TestProgressDialog::ReportText(*result);
+            if (report.contains(ToQString(LangString(IDS_MESSAGE_NO_ERRORS))))
+                successes << report;
+            else
+                errors << report;
             TestProgressDialog::CloseResult(*result);
         } else if (auto *box = qobject_cast<QMessageBox *>(widget)) {
             // Source ProgressDialog2 success MB_OK carries no icon flags.
@@ -212,12 +217,13 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             const bool crash = !opened && attempt == 0;
             backend.CrashNext = crash;
             errors.clear();
+            successes.clear();
             QVERIFY(action(window, "testArchiveAction")->isEnabled());
             source->setFocus();
             PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
             if (opened)
-                QVERIFY(successes.isEmpty());
+                QCOMPARE(successes.size(), 1);
             else {
                 QVERIFY(action(window, "refreshAction")->isEnabled());
                 QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), attempt + 1, 30000);
@@ -294,6 +300,49 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             QTRY_VERIFY(source->hasFocus());
         }
     }
+    void mixedArchiveTestReportsFailureAndRetainsSelection() {
+        QTemporaryDir fixture(FixtureTemplate());
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("archives");
+        QVERIFY(QDir().mkpath(input));
+        const QString damaged = QDir(input).filePath(QStringLiteral("01 повреждённый.zip"));
+        const QString healthy = QDir(input).filePath(QStringLiteral("02 исправный.zip"));
+        const QByteArray invalid("invalid ZIP bytes");
+        QVERIFY(writeFile(damaged, invalid));
+        QVERIFY(writeFile(fixture.filePath("entry.txt"), "payload"));
+        QVERIFY(makeArchive(fixture.path(), healthy, "zip", "entry.txt"));
+        const auto before = readFile(healthy);
+        GuiTestBackend backend;
+        QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        auto *source = openPanel(window, 0, input);
+        QTRY_COMPARE(source->rowCount(), 2);
+        source->selectAll();
+        source->setFocus();
+        QStringList errors, successes;
+        QTimer driver;
+        dialogs_.connectResponder(driver, &window,
+                                  [&] { dismissResults(dialogs_, errors, successes); });
+        driver.start(1);
+        QVERIFY(action(window, "testArchiveAction")->isEnabled());
+        action(window, "testArchiveAction")->trigger();
+        QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
+        QCOMPARE(backend.Results.first().Status, QtOperationResult::Outcome::Failure);
+        QCOMPARE(backend.Selections.size(), 1);
+        QStringList tested;
+        for (const auto &path : backend.Selections.first())
+            tested.append(QFileInfo(path).canonicalFilePath());
+        tested.sort();
+        QCOMPARE(tested, QStringList({QFileInfo(damaged).canonicalFilePath(),
+                                      QFileInfo(healthy).canonicalFilePath()}));
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 2);
+        QTRY_VERIFY(source->hasFocus());
+        QCOMPARE(readFile(damaged), invalid);
+        QCOMPARE(readFile(healthy), before);
+    }
+
     void archiveToolbarUsesSourceCopyTo_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::newRow("left") << 0u;
@@ -305,9 +354,13 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("данные δ.txt");
         const QByteArray payload("source toolbar bytes");
+        const QString other = QStringLiteral("second entry.txt");
+        const QByteArray otherPayload("second entry bytes");
         QVERIFY(writeFile(fixture.filePath(name), payload));
+        QVERIFY(writeFile(fixture.filePath(other), otherPayload));
         const QString archive = fixture.filePath("source.zip");
         QVERIFY(makeArchive(fixture.path(), archive, "zip", name));
+        QVERIFY(makeArchive(fixture.path(), archive, "zip", other));
         const QByteArray before = readFile(archive);
         const QString output = fixture.filePath("peer output");
         QVERIFY(writeFile(QDir(output).filePath("peer.txt"), "peer bytes"));
@@ -322,23 +375,29 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QTRY_COMPARE(peer->rowCount(), 1);
         peer->selectRow(0);
         auto *source = openPanel(window, pane, archive);
-        QTRY_COMPARE(source->rowCount(), 1);
+        QTRY_COMPARE(source->rowCount(), 2);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
-        source->selectRow(0);
+        source->selectAll();
         source->setFocus();
         CMyComPtr<IFolderFolder> provider = source->sourcePanel->GetFolder();
         QString modalName;
         QString destination;
+        QStringList errors;
+        QStringList successes;
+        bool retry = false;
         QTimer driver;
         dialogs_.connectResponder(driver, &window, [&] {
-            if (auto *dialog = qobject_cast<QDialog *>(dialogs_.activeDialog())) {
-                modalName = dialog->objectName();
-                if (auto *copy = dynamic_cast<CopyDialog *>(dialog)) {
-                    destination = copy->destination();
+            if (auto *copy = dynamic_cast<CopyDialog *>(dialogs_.activeDialog())) {
+                modalName = copy->objectName();
+                destination = copy->destination();
+                if (retry)
+                    copy->accept();
+                else {
                     inspectDialog(*copy, QString("toolbar-archive-copy-%1").arg(pane));
+                    QTest::keyClick(copy, Qt::Key_Escape);
                 }
-                dialog->reject();
-            }
+            } else
+                dismissResults(dialogs_, errors, successes);
         });
         driver.start(1);
         action(window, "extractArchiveAction")->trigger();
@@ -349,8 +408,36 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QCOMPARE(readFile(archive), before);
         QCOMPARE(readFile(QDir(output).filePath("peer.txt")), QByteArray("peer bytes"));
         QVERIFY(!QFileInfo::exists(QDir(output).filePath(name)));
+        QVERIFY(!QFileInfo::exists(QDir(output).filePath(other)));
         QCOMPARE(peer->selectionModel()->selectedRows().size(), 1);
         QVERIFY(source->sourcePanel->ShouldProcessNotifications());
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 2);
+        QTRY_COMPARE(window.focusWidget(), source);
+        retry = true;
+        modalName.clear();
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
+        constexpr int added = 257;
+        for (int i = 0; i < added; ++i)
+            QVERIFY(writeFile(QDir(output).filePath(QString("new-%1.txt").arg(i)), "peer update"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QCOMPARE(window.focusWidget(), source);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+        QVERIFY(!action(window, "refreshAction")->isEnabled());
+        QTest::keyClick(peer, Qt::Key_Tab);
+        QVERIFY(source->hasFocus());
+        QVERIFY(action(window, "extractArchiveAction")->isEnabled());
+        driver.start(1);
+        PanelKeys::command(window.focusWidget(), Qt::Key_E,
+                           Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(modalName, QString("copyDialog"));
+        QTRY_COMPARE(peer->rowCount(), added + 3);
+        driver.stop();
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(readFile(QDir(output).filePath(name)), payload);
+        QCOMPARE(readFile(QDir(output).filePath(other)), otherPayload);
+        QCOMPARE(readFile(archive), before);
     }
     void filesystemShellCommandsUseIndependentOperations_data() {
         QTest::addColumn<QString>("verb");
@@ -533,6 +620,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QVERIFY(makeArchive(fixture.path(), second, "7z", name));
         const QByteArray firstBefore = readFile(first), secondBefore = readFile(second);
         const QString output = fixture.filePath("output δ");
+        QVERIFY(QDir().mkpath(output));
         GuiTestBackend backend;
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
         MainWindow window(&backend);
@@ -540,6 +628,9 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         QVERIFY(showTwoPanels(window));
+        auto *peer = openPanel(window, 1 - pane, output);
+        QTRY_COMPARE(peer->rowCount(), 0);
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
         auto *source = openPanel(window, pane, input);
         QTRY_COMPARE(source->rowCount(), 2);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
@@ -568,14 +659,26 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
             action(window, "extractArchiveAction")->trigger();
             QVERIFY(backend.ExtractJobs.isEmpty());
-            QVERIFY(!QFileInfo::exists(output));
+            QVERIFY(QDir(output).isEmpty());
             PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
             QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
             QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
             QCOMPARE(backend.Selections.last().size(), 2);
             QCOMPARE(readFile(first), firstBefore);
             QCOMPARE(readFile(second), secondBefore);
-            return;
+            source->selectRow(firstRow);
+            QTRY_VERIFY(action(window, "extractArchiveAction")->isEnabled());
+            backend.Results.clear();
+            backend.Selections.clear();
+        } else {
+            const QString parked = fixture.filePath("parked.zip");
+            QVERIFY(QFile::rename(first, parked));
+            PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+            QVERIFY(backend.ExtractJobs.isEmpty());
+            QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(first).fileName()));
+            QTRY_COMPARE(window.focusWidget(), source);
+            QVERIFY(source->selectionModel()->isRowSelected(firstRow, {}));
+            QVERIFY(QFile::rename(parked, first));
         }
         backend.ExtractDestination = output;
         backend.ExtractDialogReport = fixture.filePath("extract-dialog.json");
@@ -583,16 +686,15 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         backend.CancelExtract = true;
         source->setFocus();
         PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+        if (!multiple)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Cancelled);
-        QVERIFY(!QFileInfo::exists(output));
+        QVERIFY(QDir(output).isEmpty());
         backend.CancelExtract = false;
-        QVERIFY(QDir().mkpath(output));
-        auto *peer = openPanel(window, 1 - pane, output);
-        QTRY_COMPARE(peer->rowCount(), 0);
-        peer->sourcePanel->Set_AutoRefresh_Mode(false);
-        source->setFocus();
-        PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_COMPARE(window.focusWidget(), source);
+        PanelKeys::command(window.focusWidget(), Qt::Key_E,
+                           Qt::ControlModifier | Qt::ShiftModifier);
         QVERIFY(action(window, "refreshAction")->isEnabled());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 2, 30000);
         QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);

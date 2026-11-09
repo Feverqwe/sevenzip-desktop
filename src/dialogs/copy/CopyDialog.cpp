@@ -33,7 +33,9 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTextDocument>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -187,7 +189,7 @@ bool CCopyDialog::OnInit() {
     connect(buttons, &QDialogButtonBox::accepted, this, &CCopyDialog::OnOK);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(browse, &QPushButton::clicked, this, &CCopyDialog::OnButtonSetPath);
-    connect(_pathEdit, &QLineEdit::textChanged, this, &CCopyDialog::UpdateDestination);
+    connect(_pathEdit, &QLineEdit::textChanged, this, [this] { UpdateDestination(); });
     UpdateDestination();
     resize(560, minimumSizeHint().height() + fontMetrics().lineSpacing() * 2);
     QtNormalizeDialogSize(*this, true);
@@ -222,16 +224,18 @@ void CCopyDialog::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange) {
         RefreshSourceSummary();
         UpdateDestination();
+    } else if (event->type() == QEvent::ActivationChange && isActiveWindow()) {
+        UpdateDestination();
     }
 }
 
 void CCopyDialog::OnButtonSetPath() {
-    UString currentPath;
-    if (!ReadPath(currentPath))
-        return;
+    const QString draft = _pathEdit->text();
+    const UString initialDirectory =
+        draft.contains(QChar::Null) ? UString() : ToUString(PreviewDestination(draft));
     UString selectedPath;
-    const bool chosen =
-        MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)), currentPath, selectedPath);
+    const bool chosen = MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)),
+                                          initialDirectory, selectedPath);
     _pathEdit->setFocus();
     if (!chosen)
         return;
@@ -253,9 +257,30 @@ bool CCopyDialog::ReadPath(UString &path) {
 }
 
 void CCopyDialog::OnOK() {
-    UpdateDestination();
-    if (!_canAccept)
+    const bool couldSubmit = _canSubmit;
+    QLineEdit *correctionField = _pathEdit;
+    if (!UpdateDestination(true, &correctionField)) {
+        if (couldSubmit) {
+            correctionField->setFocus();
+            correctionField->selectAll();
+            QTimer::singleShot(0, this, [this, correctionField] {
+                auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
+                if (!scroll || !_destinationMessage->isVisible())
+                    return;
+                const int top = correctionField->mapTo(scroll->widget(), QPoint()).y();
+                const int bottom = _destinationMessage->mapTo(scroll->widget(), QPoint()).y() +
+                                   _destinationMessage->height();
+                const int missingHeight = bottom - top - scroll->viewport()->height();
+                if (missingHeight > 0) {
+                    resize(width(), height() + missingHeight);
+                    QtNormalizeDialogSize(*this, false);
+                }
+                const int margin = qMin((bottom - top + 1) / 2, scroll->viewport()->height() / 2);
+                scroll->ensureVisible(0, top + margin, 0, margin);
+            });
+        }
         return;
+    }
     UString path;
     if (!ReadPath(path))
         return;

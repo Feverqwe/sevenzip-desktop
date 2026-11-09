@@ -96,7 +96,7 @@ class CompressionErrorPolicyTests final : public QObject {
             qputenv("SEVENZIP_SETTINGS_PATH", _previousSettings);
     }
     void refusalAndRecovery_data() {
-        addData({"ascii", "length", "mismatch", "path", "volume", "browse", "path-before-volume"});
+        addData({"ascii", "length", "mismatch", "path", "volume", "volume-before-path"});
     }
     void refusalAndRecovery() {
 #ifndef SEVENZIP_CODEC_MODULE
@@ -137,13 +137,13 @@ class CompressionErrorPolicyTests final : public QObject {
             password->setText("first");
             confirmation->setText("second");
             expected = QString::fromWCharArray(LangString(IDS_PASSWORD_NOT_MATCH));
-        } else if (scenario == "volume") {
+        } else if (scenario == "volume" || scenario == "volume-before-path") {
+            if (scenario == "volume-before-path")
+                name->setText(QString("../").repeated(256) + "refused.zip");
             volume->setEditText("invalid volume");
             expected = QString::fromWCharArray(LangString(IDS_INCORRECT_VOLUME_SIZE));
         } else {
             name->setText(QString("../").repeated(256) + "refused.zip");
-            if (scenario == "path-before-volume")
-                volume->setEditText("invalid volume");
             expected = QString::fromUtf8(language == "ru" ? "Неверный путь к архиву"
                                                           : "Incorrect archive path");
         }
@@ -152,13 +152,17 @@ class CompressionErrorPolicyTests final : public QObject {
             QString("compress-error-%1-%2-%3").arg(scenario).arg(suppressed).arg(language);
         CMessages messages(tag);
         dialog.show();
-        if (scenario == "browse")
-            dialog.findChild<QPushButton *>("archiveBrowse")->click();
-        else
-            submit(dialog);
+        submit(dialog);
         QCOMPARE(messages.Texts, suppressed ? QStringList() : QStringList{expected});
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
         QVERIFY(dialog.target().isEmpty());
+        if (scenario == "volume" || scenario == "volume-before-path") {
+            QCOMPARE(volume->lineEdit()->selectedText(), QString("invalid volume"));
+            auto *editor = dialog.focusWidget();
+            QVERIFY(editor);
+            QTest::keyClicks(editor, "2M");
+            QCOMPARE(volume->currentText(), QString("2M"));
+        }
         QCOMPARE(SourceExtractFixture::readFile(_settings), before);
         QCOMPARE(SourceExtractFixture::readFile(input), bytes);
         QCOMPARE(QDir(fixture.path()).entryList(QDir::Files),
@@ -202,7 +206,22 @@ class CompressionErrorPolicyTests final : public QObject {
         const QByteArray before = SourceExtractFixture::readFile(_settings);
         CreateArchiveDialog dialog(_fixture.path());
         CMessages messages(QString("compress-error-memory-%1-%2").arg(suppressed).arg(language));
+        bool memoryEditorOpened = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &dialog, [&] {
+            auto *editor = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!editor || editor->objectName() != "archiveExpertDialog")
+                return;
+            responder.stop();
+            const auto close = qScopeGuard([&] { editor->reject(); });
+            auto *limit = editor->findChild<QComboBox *>("compressionMemoryLimit");
+            QVERIFY(limit && limit->isVisible());
+            QCOMPARE(limit->currentData().toString(), QString("1M"));
+            memoryEditorOpened = true;
+        });
+        responder.start(1);
         submit(dialog);
+        QVERIFY(memoryEditorOpened);
         QCOMPARE(messages.Texts.size(), 1);
         QVERIFY(messages.Texts[0].contains(
             QString::fromWCharArray(LangString(IDS_MEM_OPERATION_BLOCKED))));
@@ -247,13 +266,15 @@ class CompressionErrorPolicyTests final : public QObject {
         g_DisableUserQuestions = suppressed;
         const QByteArray before = SourceExtractFixture::readFile(_settings);
         CreateArchiveDialog dialog(_fixture.path());
-        dialog.findChild<QComboBox *>("archiveVolumeSize")->setEditText("1K");
+        auto *volume = dialog.findChild<QComboBox *>("archiveVolumeSize");
+        volume->setEditText("1K");
         CMessages messages(
             QString("compress-question-%1-%2-%3").arg(scenario).arg(suppressed).arg(language), true,
             scenario == "no" ? QMessageBox::No : QMessageBox::Cancel);
         submit(dialog);
         QCOMPARE(messages.Texts.size(), 1);
         QVERIFY(dialog.target().isEmpty());
+        QCOMPARE(volume->lineEdit()->selectedText(), QString("1K"));
         QCOMPARE(SourceExtractFixture::readFile(_settings), before);
         dialog.reject();
     }

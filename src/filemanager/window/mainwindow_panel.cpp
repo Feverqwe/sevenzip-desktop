@@ -1,7 +1,9 @@
 #include "7zip/PropID.h"
+#include "7zip/UI/FileManager/resource.h"
 #include "filemanager/PropertyName.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanelcontextmenu.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtfilemanagerdrag.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/views/qtworkspacefiletable.h"
@@ -30,20 +32,22 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     back->setObjectName(QStringLiteral("panelBackButton%1").arg(index));
     back->setAutoRaise(true);
     QtConfigureChromeToolButton(*back);
-    back->setIcon(QtCommandSymbol(QtCommandIcon::Back));
+    back->setFocusPolicy(Qt::TabFocus);
+    back->setIcon(QtCommandSymbol(QtCommandIcon::Back, navigationRow));
     QtBindLocalText(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"), true);
     QtBindLocalToolTip(back, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Back"));
     connect(back, &QToolButton::clicked, this, [this, index] {
         activatePanelUi(index);
         if (projectedPanel_ == index)
-            back_->trigger();
+            app_.ExecuteCommand(QtFileManagerCommands::Back);
     });
     navigation->addWidget(back);
     auto *forward = new QToolButton(central);
     forward->setObjectName(QStringLiteral("panelForwardButton%1").arg(index));
     forward->setAutoRaise(true);
     QtConfigureChromeToolButton(*forward);
-    forward->setIcon(QtCommandSymbol(QtCommandIcon::Forward));
+    forward->setFocusPolicy(Qt::TabFocus);
+    forward->setIcon(QtCommandSymbol(QtCommandIcon::Forward, navigationRow));
     QtBindLocalText(forward, "mainwindow_menus", QT_TRANSLATE_NOOP("mainwindow_menus", "Forward"),
                     true);
     QtBindLocalToolTip(forward, "mainwindow_menus",
@@ -51,14 +55,14 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     connect(forward, &QToolButton::clicked, this, [this, index] {
         activatePanelUi(index);
         if (projectedPanel_ == index)
-            forward_->trigger();
+            app_.ExecuteCommand(QtFileManagerCommands::Forward);
     });
     navigation->addWidget(forward);
     {
         auto *button = new QPushButton(central);
         // Keep the source parent command without its longer View menu caption.
+        button->setIcon(QtCommandSymbol(QtCommandIcon::Parent, navigationRow));
         const auto updateButton = [this, button] {
-            button->setIcon(QtCommandSymbol(QtCommandIcon::Parent));
             button->setAccessibleName(up_->toolTip());
             button->setToolTip(up_->toolTip());
         };
@@ -67,10 +71,10 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         // the focused panel's View menu. Reuse command gating after activation.
         connect(up_, &QAction::changed, button, updateButton);
         connect(button, &QPushButton::clicked, this, [this, index] {
-            appPresentation_->CancelInitialFocus();
+            workspace_->CancelListFocus();
             activatePanelUi(index);
             if (projectedPanel_ == index)
-                up_->trigger();
+                app_.ExecuteCommand(IDM_OPEN_PARENT_FOLDER);
         });
         QtConfigurePanelParentButton(*button);
         button->setObjectName(QString("panelParentButton%1").arg(index));
@@ -81,10 +85,42 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         [this, index](const QString &path, bool sourcePath) {
             if (app_.QtOperations().closed())
                 return E_ABORT;
+            auto &ui = panelUi_[index];
+            const QtAddressDraft draft(*ui.path);
+            const auto editRevision =
+                static_cast<QtPanelAddressCombo *>(ui.pathCombo)->UserEditRevision();
             activatePanelUi(index);
-            return navigateTo(path, sourcePath);
+            if (projectedPanel_ != index)
+                return E_ABORT;
+            clearStatusMessage();
+            // A repeated submission must not replace a scan of the same directory.
+            if (!sourcePath && ui.scanningDisk &&
+                QFileInfo(resolveFilesystemAddress(path)).canonicalFilePath() == ui.directory) {
+                ui.path->setText(ui.directory);
+                return S_OK;
+            }
+            const auto interaction = workspace_->InteractionRevision();
+            return workspace_->Navigate(
+                [&] { return navigateToImpl(path, sourcePath); },
+                [this, index, draft, editRevision, interaction](HRESULT result) {
+                    if (result == S_OK || app_.QtOperations().closed())
+                        return;
+                    auto &owner = panelUi_[index];
+                    auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
+                    const auto restored = combo->UserEditRevision() == editRevision
+                                              ? std::optional(draft)
+                                              : combo->LastUserDraft();
+                    if (!restored)
+                        return;
+                    restored->Restore(*owner.path);
+                    if (projectedPanel_ == index &&
+                        workspace_->InteractionRevision() == interaction) {
+                        combo->CancelPendingListFocus();
+                        workspace_->RestoreAddressFocus(index, *restored);
+                    }
+                });
         },
-        central, [this, index] { appPresentation_->RequestListFocus(index); });
+        central, [this, index] { workspace_->RequestListFocus(index); });
     projectedUi().pathCombo->setObjectName("pathCombo");
     projectedUi().pathCombo->setEditable(true);
     projectedUi().pathCombo->setInsertPolicy(QComboBox::NoInsert);
@@ -99,14 +135,11 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
                     QT_TRANSLATE_NOOP("mainwindow_panel", "Path to folder or archive"), true);
     projectedUi().navigation = new QtNavigationBar(
         *projectedUi().pathCombo,
-        [this, index](const QString &path) {
-            activatePanelUi(index);
-            navigateTo(path, true);
-        },
+        [this, index](const QString &path) { workspace_->NavigateBreadcrumb(index, path); },
         navigationRow,
         [this, index] {
             static_cast<QtPanelAddressCombo *>(panelUi_[index].pathCombo)->CancelPendingListFocus();
-            appPresentation_->CancelInitialFocus();
+            workspace_->CancelListFocus();
             activatePanelUi(index);
         });
     projectedUi().navigation->setObjectName(QStringLiteral("panelNavigation%1").arg(index));
@@ -116,7 +149,8 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     recent->setObjectName(QStringLiteral("panelRecentPlacesButton%1").arg(index));
     recent->setAutoRaise(true);
     QtConfigureChromeToolButton(*recent);
-    recent->setIcon(QtCommandSymbol(QtCommandIcon::History));
+    recent->setFocusPolicy(Qt::TabFocus);
+    recent->setIcon(QtCommandSymbol(QtCommandIcon::History, navigationRow));
     QtBindLocalText(recent, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"),
                     true);
     QtBindLocalToolTip(recent, "CommandMenus", QT_TRANSLATE_NOOP("CommandMenus", "Recent places…"));
@@ -138,15 +172,24 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
     projectedUi().viewStack->addWidget(projectedUi().table);
     projectedUi().viewStack->addWidget(projectedUi().iconList);
     workspace_->AttachContent(index, *layout);
+    auto *table = static_cast<QAbstractItemView *>(projectedUi().table);
+    auto *icons = projectedUi().iconList;
+    connect(table->model(), &QAbstractItemModel::rowsAboutToBeRemoved, icons,
+            [table, icons](const QModelIndex &, int first, int last) {
+                if (first == 0 && last == table->model()->rowCount() - 1) {
+                    table->keyboardSearch({});
+                    icons->keyboardSearch({});
+                }
+            });
     connect(projectedUi().table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             [this, index] {
                 if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
-                    refreshActions();
+                    refreshSelectionActions();
             });
     connect(projectedUi().table->selectionModel(), &QItemSelectionModel::currentChanged, this,
             [this, index] {
                 if (projectedPanel_ == index && app_.Panels[index].ShouldProcessNotifications())
-                    refreshActions();
+                    refreshSelectionActions();
             });
     if (!panelSplitter_) {
         panelSplitter_ = new QtFileManagerSplitter(this);
@@ -218,7 +261,13 @@ void MainWindow::createFileTable(QWidget *central) {
     connectFileView(*projectedUi().table);
     app_.GetFocusedPanel().AttachSelectionView(
         fileTable,
-        [fileTable](PROPID property, Int32) { return fileTable->columnForProperty(property); },
+        [fileTable](PROPID property, Int32) {
+            const int current = fileTable->horizontalHeader()->sortIndicatorSection();
+            if (current >= 0 && !fileTable->isColumnHidden(current) &&
+                fileTable->propertyId(current) == property)
+                return current;
+            return fileTable->columnForProperty(property);
+        },
         [this, owner = projectedPanel_](int row) {
             withPanelProjection(owner, [this, row] { renameController_->Begin(row); });
         });
@@ -268,9 +317,11 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
     view.setContextMenuPolicy(Qt::CustomContextMenu);
     view.installEventFilter(this);
     view.viewport()->installEventFilter(this);
-    connect(&view, &QAbstractItemView::doubleClicked, this, [this](const QModelIndex &index) {
-        activateRow(index.row(), selectionClickModifiers_);
-    });
+    connect(&view, &QAbstractItemView::doubleClicked, this,
+            [this, owner = projectedPanel_, view = &view](const QModelIndex &index) {
+                if (owner == projectedPanel_ && projectedUi().viewStack->currentWidget() == view)
+                    activateRow(index.row(), selectionClickModifiers_);
+            });
     connect(&view, &QWidget::customContextMenuRequested, this,
             [this, owner = projectedPanel_, view = &view](const QPoint &pos) {
                 showItemContextMenu(owner, view, pos);
@@ -279,6 +330,9 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
     const unsigned owner = projectedPanel_;
     const auto activate = [host, owner] {
         if (!host || !host->isVisible() || host->isPanelEditorFocused())
+            return false;
+        const auto &ui = host->panelUi_[owner];
+        if (ui.scanningDisk || ui.scanningArchive)
             return false;
         host->activatePanelUi(owner);
         if (host->projectedPanel_ != owner)

@@ -8,6 +8,7 @@
 #include "platform/shell/qtnativeshellmenu.h"
 #include <QMenu>
 #include <QMessageBox>
+#include <QPointer>
 #include <QScopedValueRollback>
 
 QtFileManagerShellMenu::QtFileManagerShellMenu(MainWindow &window, QMenu &menu,
@@ -87,8 +88,15 @@ HRESULT QtFileManagerShellMenu::Open(const UString &path, const UString &type) {
     backend.release();
     receiver->setObjectName("shellArchiveWindow");
     receiver->setAttribute(Qt::WA_DeleteOnClose);
+    const QPointer<MainWindow> alive(receiver);
     receiver->show();
-    return receiver->openArchiveAs(ToQString(path), ToQString(type));
+    const HRESULT result = receiver->openArchiveAs(ToQString(path), ToQString(type));
+    if (alive && result != S_OK) {
+        if (result == E_INVALIDARG)
+            _window.showStatusMessage(alive->statusBar()->currentMessage());
+        alive->close();
+    }
+    return result;
 }
 
 bool QtFileManagerShellMenu::HasContextMenu(bool system) const {

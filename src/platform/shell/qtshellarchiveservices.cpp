@@ -9,6 +9,7 @@
 #include "gui/UpdateGUI.h"
 #include "localization/LangUtils.h"
 #include "operations/CompressCall.h"
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
@@ -19,6 +20,7 @@ namespace {
 // its current output root when the source callback validates a final path.
 class COutputPolicy final : public IQtExtractPathPolicy {
     const CExtractOptions &_options;
+    CQtExtractPathPolicy _protectedInputs;
 
   public:
     QString Root() const {
@@ -28,7 +30,34 @@ class COutputPolicy final : public IQtExtractPathPolicy {
         return wildcard < 0 ? output : output.left(output.lastIndexOf('/', wildcard) + 1);
     }
 
-    explicit COutputPolicy(const CExtractOptions &options) : _options(options) {}
+    COutputPolicy(const CExtractOptions &options, const QStringList &inputs)
+        : _options(options), _protectedInputs({}, inputs) {}
+    HRESULT CheckReplace(const FString &path, UString &message) override {
+        return _protectedInputs.CheckReplace(path, message);
+    }
+    QString DestinationError(const QString &destination) const {
+        QString error;
+        if (!ArchiveBackend::validateExtractionOutput(destination, destination, true, &error))
+            return error;
+        // The source engine picks the actual directory for these templates.
+        if (_options.OutDirMode == NExtractOutDirMode::k_AddArcName ||
+            (_options.OutDirMode == NExtractOutDirMode::k_ReplaceAsterisk &&
+             destination.contains('*')))
+            return {};
+        QString path = destination;
+        for (;;) {
+            const QFileInfo entry(path);
+            if (entry.exists())
+                return entry.isWritable() ? QString()
+                                          : QCoreApplication::translate(
+                                                "CopyRedesign", "The folder is read-only: %1")
+                                                .arg(path);
+            const QString parent = entry.absolutePath();
+            if (parent == path)
+                return {};
+            path = parent;
+        }
+    }
     HRESULT CheckPath(const FString &path, bool directory, bool stream, UString &message) override {
         return CQtExtractPathPolicy(Root()).CheckPath(path, directory, stream, message);
     }
@@ -105,16 +134,21 @@ HRESULT QtShellArchiveServices::ExtractGUI(CCodecs &codecs, const CObjectVector<
         else if (type.FormatIndex >= 0 && unsigned(type.FormatIndex) < codecs.Formats.Size())
             open.SetOpenType(codecs.Formats[unsigned(type.FormatIndex)].Name);
     }
-    COutputPolicy policy(options);
+    QStringList inputs;
+    FOR_VECTOR(index, fullPaths)
+    inputs.append(QString::fromWCharArray(fullPaths[index].Ptr(), fullPaths[index].Len()));
+    COutputPolicy policy(options, inputs);
     auto *previous = options.NtOptions.QtPathPolicy;
     const auto restore = qScopeGuard([&] { options.NtOptions.QtPathPolicy = previous; });
     options.NtOptions.QtPathPolicy = &policy;
-    const HRESULT result =
-        ::ExtractGUI(&codecs, types, excludedFormats, paths, fullPaths, censor, options, hashBundle,
-                     showDialog, messageWasDisplayed, &callback, &open, &open, _parent, [&] {
-                         if (_routes.OutputReady)
-                             _routes.OutputReady(policy.Root(), QtGUIOutputKind::Directory);
-                     });
+    const HRESULT result = ::ExtractGUI(
+        &codecs, types, excludedFormats, paths, fullPaths, censor, options, hashBundle, showDialog,
+        messageWasDisplayed, &callback, &open, &open, _parent,
+        [&] {
+            if (_routes.OutputReady)
+                _routes.OutputReady(policy.Root(), QtGUIOutputKind::Directory);
+        },
+        [&](const QString &destination) { return policy.DestinationError(destination); });
     return result;
 }
 HRESULT QtShellArchiveServices::HashCalcGUI(const CExternalCodecs *providers,

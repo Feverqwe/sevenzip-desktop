@@ -1,13 +1,20 @@
+#include "archive/support/native_archive_fixture.h"
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
+#include "support/panel_keys.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QJsonDocument>
+#include <QMessageBox>
+#include <QMimeData>
 #include <QScopeGuard>
 #include <QSplitterHandle>
 
@@ -193,6 +200,141 @@ class WorkspaceSessionTests final : public QObject {
         QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel), identity);
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
     }
+    void newWindowOpensTheFolderBeingScanned_data() {
+        QTest::addColumn<bool>("archive");
+        QTest::newRow("filesystem") << false;
+        QTest::newRow("archive") << true;
+    }
+    void newWindowOpensTheFolderBeingScanned() {
+        QFETCH(bool, archive);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QList<NativeArchiveFixture::Item> items;
+        for (int i = 0; i < 301; ++i) {
+            const QString name = QString("file-%1.txt").arg(i);
+            if (archive)
+                items.append({QString("folder/") + name, "archive content"});
+            else {
+                QFile file(fixture.filePath(name));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+            }
+        }
+        const QString path = archive ? fixture.filePath("loading.zip") : fixture.path();
+        if (archive)
+            QVERIFY(NativeArchiveFixture::Write(path, items, "zip"));
+        QtWorkspaceApplication application(*qApp);
+        ArchiveBackend backend;
+        MainWindow source(&backend);
+        source.show();
+        source.findChild<QAction *>("openRootAction")->trigger();
+        auto *table = active(source);
+        QVERIFY(table);
+        QCOMPARE(QtNativePlaces::RootIdentity(*table->sourcePanel), QString("computer"));
+        QString warning;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &source, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                warning = box->text();
+                box->reject();
+            }
+        });
+        dismiss.start(5);
+        const QString locationPath = archive ? path + "/folder" : path;
+        source.openPath(locationPath);
+        QVERIFY2(warning.isEmpty(), qPrintable(warning));
+        QVERIFY(!table->isEnabled());
+        source.findChild<QAction *>("newWindowAction")->trigger();
+        QPointer<MainWindow> copy;
+        const auto close = qScopeGuard([&] {
+            if (copy)
+                copy->close();
+        });
+        QTRY_COMPARE(windows().size(), 2);
+        for (auto *window : windows())
+            if (window != &source)
+                copy = window;
+        QVERIFY(copy);
+        QTRY_VERIFY(active(*copy) && active(*copy)->isEnabled() &&
+                    active(*copy)->rowCount() == 301);
+        const QString canonical = QFileInfo(path).canonicalFilePath();
+        QCOMPARE(location(*copy), archive ? canonical + "/folder" : canonical);
+        QCOMPARE(active(*copy)->sourcePanel->IsArcFolder(), archive);
+    }
+
+    void newWindowKeepsNativeRootAcrossDeferredLanguageChange() {
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SaveRegLang(L"-", settings);
+        ReloadLang(settings);
+        const auto resetLanguage = qScopeGuard([&] {
+            SaveRegLang(L"-", settings);
+            ReloadLang(settings);
+        });
+        QtWorkspaceApplication application(*qApp);
+        ControlledBackend backend;
+        MainWindow source(&backend);
+        source.show();
+        source.findChild<QAction *>("openRootAction")->trigger();
+        QTRY_VERIFY(active(source));
+        QCOMPARE(QtNativePlaces::RootIdentity(*active(source)->sourcePanel), QString("computer"));
+        source.findChild<QAction *>("newWindowAction")->trigger();
+        SaveRegLang(L"ru", settings);
+        ReloadLang(settings);
+        QPointer<MainWindow> copy;
+        const auto close = qScopeGuard([&] {
+            if (copy)
+                copy->close();
+        });
+        QTRY_COMPARE(windows().size(), 2);
+        for (auto *window : windows())
+            if (window != &source)
+                copy = window;
+        QVERIFY(copy);
+        QTRY_VERIFY(active(*copy) && active(*copy)->isEnabled());
+        QTRY_COMPARE(QtNativePlaces::RootIdentity(*active(*copy)->sourcePanel),
+                     QString("computer"));
+        QVERIFY(!copy->findChild<QAction *>("createFolderAction")->isEnabled());
+    }
+
+    void unavailableNativePlaceDoesNotOpenItsOldPathAsAFolder() {
+        const QString identity = QStringLiteral("volumes");
+        QtNativePlaces nativePlaces;
+        if (nativePlaces.FindIdentity(identity).isValid())
+            QSKIP("This platform provides the saved device namespace");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString stalePath = fixture.filePath("Stale system path");
+        QVERIFY(QDir().mkpath(stalePath));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        const QJsonObject panel{{"path", stalePath}, {"nativePlace", identity}};
+        const QJsonObject saved{{"panels", QJsonArray{panel}}, {"count", 1}};
+        bool restored = false;
+        workspace(window)->Restore(saved, [&] { restored = true; });
+        QTRY_VERIFY(restored);
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(retry && address);
+        QVERIFY(retry->isVisible());
+        QVERIFY(!active(window)->isEnabled());
+        QCOMPARE(active(window)->rowCount(), 0);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), stalePath);
+        retry->click();
+        QVERIFY(retry->isVisible());
+        QVERIFY(!active(window)->isEnabled());
+        QCOMPARE(active(window)->rowCount(), 0);
+        auto *parent = window.findChild<QPushButton *>("navigationParent0");
+        QVERIFY(parent);
+        parent->click();
+        QTRY_VERIFY(active(window)->isEnabled() && !retry->isVisible());
+        QCOMPARE(QtNativePlaces::RootIdentity(*active(window)->sourcePanel),
+                 QStringLiteral("locations"));
+        QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
+        window.openPath(stalePath);
+        QTRY_VERIFY(active(window)->isEnabled());
+        QCOMPARE(location(window), stalePath);
+    }
+
     void closingDuringRestoreDoesNotBlockPeerPersistence() {
         const bool quit = qApp->quitOnLastWindowClosed();
         qApp->setQuitOnLastWindowClosed(false);
@@ -252,6 +394,53 @@ class WorkspaceSessionTests final : public QObject {
         };
         QTRY_COMPARE(QDir::cleanPath(persistedPath()), peerPath);
     }
+    void restoredFolderKeepsRetryTargetAfterBackgroundReadFailure() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString origin = fixture.filePath("Original");
+        const QString target = fixture.filePath("Saved папка");
+        QVERIFY(QDir().mkpath(origin) && QDir().mkpath(target));
+        for (int i = 0; i < 301; ++i) {
+            QFile file(QDir(target).filePath(QString::number(i) + ".txt"));
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(origin);
+        QTRY_COMPARE(location(window), origin);
+        QTRY_VERIFY(active(window)->isEnabled());
+        auto *scanner = window.findChild<FilesystemScanner *>();
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(scanner && retry && address);
+        connect(
+            scanner, &FilesystemScanner::advanced, &window,
+            [&] { scanner->start(fixture.filePath("Missing"), false); }, Qt::SingleShotConnection);
+        QSignalSpy failed(scanner, &FilesystemScanner::failed);
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                message->accept();
+        });
+        dismiss.start(1);
+        const QJsonObject saved{{"panels", QJsonArray{QJsonObject{{"path", target}}}},
+                                {"count", 1}};
+        bool restored = false;
+        workspace(window)->Restore(saved, [&] { restored = true; });
+        QTRY_VERIFY(restored);
+        QCOMPARE(failed.size(), 1);
+        QVERIFY(retry->isVisible());
+        QVERIFY(!active(window)->isEnabled());
+        QCOMPARE(active(window)->rowCount(), 0);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
+        retry->click();
+        QTRY_VERIFY(active(window)->isEnabled() && !retry->isVisible());
+        QCOMPARE(location(window), target);
+        QVERIFY(active(window)->rowCount() >= 301);
+        QVERIFY(!window.findChild<QAction *>("backAction")->isEnabled());
+    }
+
     void sessionRestoresCurrentLocationOfEachWindow() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -296,6 +485,180 @@ class WorkspaceSessionTests final : public QObject {
             application.Quit();
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         }
+    }
+
+    void sessionKeepsUnavailableFolderAndAllowsRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("saved folder");
+        const QString parked = fixture.filePath("renamed folder");
+        QVERIFY(QDir().mkpath(folder));
+        const auto payload = QStringLiteral("entry.txt");
+        QFile file(QDir(folder).filePath(payload));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        QJsonObject saved;
+        {
+            SavePanelPath(1, ToUString(fixture.path()),
+                          qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+            ControlledBackend backend;
+            MainWindow source(&backend);
+            source.show();
+            source.openPath(folder);
+            QTRY_COMPARE(location(source), folder);
+            QTRY_VERIFY(active(source)->rowCount() > 0 && active(source)->isEnabled());
+            source.findChild<QAction *>("twoPanelsAction")->trigger();
+            QVERIFY(source.findChild<QWidget *>("filePanel1")->isVisible());
+            saved = workspace(source)->Save();
+        }
+        QVERIFY(QDir().rename(folder, parked));
+        QFile replacement(folder);
+        QVERIFY(replacement.open(QIODevice::WriteOnly));
+        QCOMPARE(replacement.write("replacement"), qint64(11));
+        replacement.close();
+        ControlledBackend backend;
+        MainWindow restored(&backend);
+        restored.show();
+        QVERIFY(!active(restored)->sourcePanel->IsArcFolder());
+        bool done = false;
+        workspace(restored)->Restore(saved, [&] { done = true; });
+        QTRY_VERIFY(done);
+        auto *retry = restored.findChild<QPushButton *>("navigationRetry0");
+        QVERIFY(retry && retry->isVisible());
+        QVERIFY(WindowActivation::waitForActive(restored));
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
+        auto *owner = restored.findChild<QWidget *>("filePanel0");
+        auto *files = owner->findChild<FileTable *>();
+        auto *address = owner->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QTest::keyClick(address, Qt::Key_Tab);
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
+        auto *peer = restored.findChild<QWidget *>("filePanel1")->findChild<FileTable *>();
+        QVERIFY(peer && peer->isVisible() && peer->isEnabled());
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(restored.focusWidget(), Qt::Key_Tab);
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
+        QCOMPARE(QDir::cleanPath(address->text()), folder);
+        QVERIFY(replacement.remove());
+        QTest::keyClick(restored.focusWidget(), Qt::Key_Space);
+        QVERIFY(retry->isVisible());
+        QVERIFY(QDir().rename(parked, folder));
+        QCOMPARE(restored.focusWidget(), static_cast<QWidget *>(retry));
+        QTest::keyClick(restored.focusWidget(), Qt::Key_Space);
+        QTRY_COMPARE(QDir::cleanPath(address->text()), folder);
+        QTRY_VERIFY(files->isEnabled() && !retry->isVisible());
+        QVERIFY(files->rowCount() > 0);
+        QTRY_VERIFY(files->hasFocus());
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        QTest::keySequence(restored.focusWidget(), QKeySequence::SelectAll);
+        QTRY_COMPARE(files->selectionModel()->selectedRows().size(), 1);
+        QTRY_VERIFY(restored.findChild<QAction *>("copyFilesAction")->isEnabled());
+        QTest::keySequence(restored.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData());
+        QCOMPARE(clipboard->mimeData()->urls(),
+                 QList{QUrl::fromLocalFile(QDir(folder).filePath(payload))});
+    }
+
+    void sessionSavedDuringFolderScanRestoresTheFolder_data() {
+        QTest::addColumn<bool>("unavailable");
+        QTest::addColumn<bool>("archive");
+        QTest::newRow("system-place") << false << false;
+        QTest::newRow("unavailable-place") << true << false;
+        QTest::newRow("archive-from-system-place") << false << true;
+    }
+    void sessionSavedDuringFolderScanRestoresTheFolder() {
+        QFETCH(bool, unavailable);
+        QFETCH(bool, archive);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("large folder");
+        QVERIFY(QDir().mkpath(folder));
+        const QString archivePath = QDir(folder).filePath("loading.zip");
+        QList<NativeArchiveFixture::Item> items;
+        for (int i = 0; i < 301; ++i) {
+            const QString name = QString("file-%1.txt").arg(i);
+            if (archive)
+                items.append({QString("folder/") + name, "archive content"});
+            else {
+                QFile file(QDir(folder).filePath(name));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+            }
+        }
+        if (archive)
+            QVERIFY(NativeArchiveFixture::Write(archivePath, items, "zip"));
+        QJsonObject saved;
+        {
+            ArchiveBackend backend;
+            MainWindow first(&backend);
+            first.show();
+            if (unavailable) {
+                bool done = false;
+                const QJsonArray panels{QJsonObject{{"path", fixture.filePath("missing")}}};
+                workspace(first)->Restore({{"panels", panels}}, [&] { done = true; });
+                QTRY_VERIFY(done);
+                QVERIFY(first.findChild<QPushButton *>("navigationRetry0")->isVisible());
+            } else
+                first.findChild<QAction *>("openRootAction")->trigger();
+            auto *table = active(first);
+            QVERIFY(table);
+            if (!unavailable)
+                QVERIFY(!QtNativePlaces::RootIdentity(*table->sourcePanel).isEmpty());
+            first.openPath(archive ? archivePath + "/folder" : folder);
+            QVERIFY(!table->isEnabled());
+            saved = workspace(first)->Save();
+        }
+        ControlledBackend backend;
+        MainWindow restored(&backend);
+        restored.show();
+        bool done = false;
+        workspace(restored)->Restore(saved, [&] { done = true; });
+        QTRY_VERIFY(done);
+        QCOMPARE(location(restored), QFileInfo(folder).canonicalFilePath());
+        QVERIFY(active(restored)->sourcePanel->IsFSFolder());
+        QCOMPARE(active(restored)->rowCount(), archive ? 1 : 301);
+    }
+
+    void sessionRestoresIconViewAndDescendingOrder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const QString &name : {QString("a.txt"), QString("b.txt")}) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        QJsonObject saved;
+        {
+            ControlledBackend backend;
+            MainWindow first(&backend);
+            first.show();
+            first.openPath(fixture.path());
+            auto *table = active(first);
+            QVERIFY(table);
+            QTRY_VERIFY(table->isEnabled() && table->rowCount() == 2);
+            first.findChild<QAction *>("sortDescendingAction")->trigger();
+            QTRY_COMPARE(table->model()->index(0, 0).data().toString(), QString("b.txt"));
+            first.findChild<QAction *>("viewMode0Action")->trigger();
+            QTRY_VERIFY(first.findChild<QListView *>("iconList")->isVisible());
+            saved = workspace(first)->Save();
+        }
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ControlledBackend backend;
+        MainWindow restored(&backend);
+        restored.show();
+        bool done = false;
+        workspace(restored)->Restore(saved, [&] { done = true; });
+        QTRY_VERIFY(done);
+        auto *icons = restored.findChild<QListView *>("iconList");
+        QVERIFY(icons && icons->isVisible());
+        QVERIFY(WindowActivation::waitForActive(restored));
+        QTRY_COMPARE(restored.focusWidget(), static_cast<QWidget *>(icons));
+        QCOMPARE(icons->model()->rowCount(), 2);
+        QCOMPARE(icons->model()->index(0, icons->modelColumn()).data().toString(),
+                 QString("b.txt"));
+        QCOMPARE(icons->model()->index(1, icons->modelColumn()).data().toString(),
+                 QString("a.txt"));
     }
 
     void restoringCompactWindowKeepsItsCustomFileAreaSplit() {

@@ -3,8 +3,10 @@
 #include "dialogs/extract/ExtractDialog.h"
 #include "7zip/UI/GUI/ExtractDialogRes.h"
 #include "7zip/UI/GUI/ExtractRes.h"
+#include "Windows/FileDir.h"
 #include "Windows/FileName.h"
 #include "dialogs/browse/BrowseDialog.h"
+#include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
@@ -12,10 +14,14 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QDir>
 #include <QEvent>
+#include <QFileInfo>
+#include <QLabel>
+#include <QScrollArea>
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QTimer>
 #include <span>
+#include <utility>
 
 namespace {
 struct CExtractModeItem {
@@ -33,6 +39,27 @@ static constexpr CExtractModeItem kOverwriteModes[] = {
 static constexpr int kModeCaptionRole = Qt::UserRole + 1;
 static const unsigned kHistorySize = 16;
 
+QString InvalidOutputDirectory() {
+    return QCoreApplication::translate("SevenZipDiagnostics", "Incorrect output directory path");
+}
+
+QString DestinationDraft(const QString &draft, const QString &prefix = {}) {
+    const QString trimmed = draft.trimmed();
+    if (draft == trimmed || draft.contains(QChar::Null))
+        return draft;
+    const QFileInfo literal(prefix + draft);
+    return literal.exists() || literal.isSymLink() ? draft : trimmed;
+}
+
+bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
+    if (candidate.isEmpty() || candidate.contains(QChar::Null))
+        return false;
+    const UString path = ToUString(QDir::toNativeSeparators(candidate));
+    return FindInvalidWindowsPathCharacter(path) < 0 &&
+           NWindows::NFile::NDir::MyGetFullPathName(us2fs(path), resolved) &&
+           !HasEmptyWindowsPathComponent(path, fs2us(resolved));
+}
+
 static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> modes, int curVal) {
     for (const auto &mode : modes) {
         QString s = QtLangText(mode.LangID);
@@ -46,8 +73,10 @@ static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> mo
 } // namespace
 
 CExtractDialog::CExtractDialog(const QString &initialPath, const QStringList &history,
-                               QWidget *parent)
-    : QDialog(parent), DirPath(initialPath) {
+                               QWidget *parent,
+                               std::function<QString(const QString &)> destinationErrorForPath)
+    : QDialog(parent), _destinationErrorForPath(std::move(destinationErrorForPath)),
+      DirPath(initialPath) {
     QtUseContextDialogModality(*this);
     QtTaskPresentation::Watch(*this, QtOperationPhase::Draft);
     ElimDup.Val = true;
@@ -148,6 +177,17 @@ void CExtractDialog::OnInit(const QStringList &history) {
     // Qt addItem selects the first item in an editable empty combo. Restore typed text.
     _path->setCurrentIndex(-1);
     _path->setEditText(pathPrefix);
+    connect(_path, &QComboBox::activated, this, [this](int index) {
+        if (!_nameEnable->isChecked()) {
+            _pathName->clear();
+            return;
+        }
+        QString parent, name;
+        const QString destination = DestinationDraft(_path->itemText(index));
+        SplitPathToParts_Smart(destination, parent, name);
+        _path->setEditText(parent.isEmpty() ? destination : parent);
+        _pathName->setText(parent.isEmpty() ? QString() : name);
+    });
     AddComboItems(*_pathMode, kPathModes, PathMode);
     AddComboItems(*_overwriteMode, kOverwriteModes, OverwriteMode);
 }
@@ -184,13 +224,71 @@ void CExtractDialog::changeEvent(QEvent *event) {
 }
 
 void CExtractDialog::OnButtonSetPath() {
+    const QString draft = DestinationDraft(_path->currentText());
+    FString initial;
+    if (!ResolveOutputDirectory(draft, initial))
+        initial.Empty();
     UString path;
-    if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)),
-                          ToUString(_path->currentText()), path))
+    if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), fs2us(initial),
+                          path)) {
+        _path->setCurrentIndex(-1);
         _path->setEditText(ToQString(path));
+    }
+    _path->setFocus();
 }
 
 void CExtractDialog::OnOK() {
+    const QString base = DestinationDraft(_path->currentText());
+    const QString requested = ToQString(DraftDestination());
+    const auto directoryError = [this](const QString &candidate, FString *resolvedPath = nullptr,
+                                       bool checkOutputPolicy = true) -> QString {
+        FString resolved;
+        if (!ResolveOutputDirectory(candidate, resolved))
+            return InvalidOutputDirectory();
+        if (resolvedPath)
+            *resolvedPath = resolved;
+        QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
+        if (checkOutputPolicy && _destinationErrorForPath)
+            return _destinationErrorForPath(path);
+        for (;;) {
+            const QFileInfo entry(path);
+            if (entry.exists() || entry.isSymLink())
+                return entry.isDir() ? QString()
+                                     : QCoreApplication::translate(
+                                           "archivebackend_validation",
+                                           "Destination path is occupied by a file or link: %1")
+                                           .arg(path);
+            const QString parent = entry.absolutePath();
+            if (parent == path)
+                return {};
+            path = parent;
+        }
+    };
+    FString resolvedDestination;
+    QString baseError;
+    if (base.isEmpty())
+        baseError = QCoreApplication::translate("CopyRedesign", "Choose a destination.");
+    else if (_nameEnable->isChecked())
+        baseError = directoryError(base, nullptr, false);
+    const QString error =
+        baseError.isEmpty() ? directoryError(requested, &resolvedDestination) : baseError;
+    if (!error.isEmpty()) {
+        _destinationError->setText(error);
+        _destinationError->show();
+        if (_nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error) {
+            _pathName->setFocus();
+            _pathName->selectAll();
+        } else {
+            _path->setFocus();
+            _path->lineEdit()->selectAll();
+        }
+        QTimer::singleShot(0, this, [this] {
+            if (_destinationError->isVisible())
+                if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll"))
+                    scroll->ensureWidgetVisible(_destinationError);
+        });
+        return;
+    }
     const int pathMode2 = _pathMode->currentData().toInt();
     if (PathMode != NExtract::NPathMode::kCurPaths || pathMode2 != NExtract::NPathMode::kFullPaths)
         PathMode = (NExtract::NPathMode::EEnum)pathMode2;
@@ -210,28 +308,19 @@ void CExtractDialog::OnOK() {
     if (!OverwriteMode_Force && _info.OverwriteMode != OverwriteMode)
         _info.OverwriteMode_Force = true;
     _info.OverwriteMode = OverwriteMode;
-    int currentItem = _path->currentIndex();
-    // A Qt editable combo may retain its index after setEditText: Win32 GetCurSel is CB_ERR.
-    if (currentItem >= 0 && _path->currentText() != _path->itemText(currentItem))
-        currentItem = -1;
-    if (currentItem == -1 && _path->count() >= int(kHistorySize))
-        currentItem = _path->count() - 1;
-    UString s = DraftDestination();
-    NWindows::NFile::NName::NormalizeDirPathPrefix(s);
     const bool splitDest = _nameEnable->isChecked();
     if (splitDest != _info.SplitDest.Val) {
         _info.SplitDest.Def = true;
         _info.SplitDest.Val = splitDest;
     }
-    DirPath = QString::fromWCharArray(s.Ptr());
     _info.Paths.Clear();
-    AddUniqueString(_info.Paths, DirPath);
-    for (int i = 0; i < _path->count(); i++)
-        if (i != currentItem) {
-            UString sTemp(_path->itemText(i).toStdWString().c_str());
-            sTemp.Trim();
-            AddUniqueString(_info.Paths, QString::fromWCharArray(sTemp.Ptr()));
-        }
+    UString acceptedPath = fs2us(resolvedDestination);
+    NWindows::NFile::NName::NormalizeDirPathPrefix(acceptedPath);
+    DirPath = ToQString(acceptedPath);
+    AddUniqueArchivePath(_info.Paths, DirPath);
+    for (int i = 0; i < _path->count() && _info.Paths.Size() < kHistorySize; ++i) {
+        AddUniqueArchivePath(_info.Paths, DestinationDraft(_path->itemText(i)));
+    }
     _info.Save(settingsPath());
     QDialog::accept();
 }
@@ -244,13 +333,14 @@ QString CExtractDialog::destination() const {
 }
 
 UString CExtractDialog::DraftDestination() const {
-    UString s(_path->currentText().toStdWString().c_str());
-    s.Trim();
+    const QString base = _path->currentText();
+    const QString name = _nameEnable->isChecked() ? _pathName->text() : QString();
+    if (base.contains(QChar::Null) || name.contains(QChar::Null))
+        return {};
+    UString s = ToUString(DestinationDraft(base));
     if (_nameEnable->isChecked()) {
         NWindows::NFile::NName::NormalizeDirPathPrefix(s);
-        UString pathName(_pathName->text().toStdWString().c_str());
-        pathName.Trim();
-        s += pathName;
+        s += ToUString(DestinationDraft(name, ToQString(s)));
     }
     return s;
 }

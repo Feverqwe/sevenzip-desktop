@@ -18,12 +18,14 @@ bool ParseVolumeSizes(const UString &s, CRecordVector<UInt64> &values) {
         if (c == L' ')
             continue;
         if (c == L'-')
-            return true;
+            return i == s.Len() || s[i] < L'0' || s[i] > L'9';
         if (prevIsNumber) {
             prevIsNumber = false;
             unsigned numBits = 0;
             switch (MyCharLower_Ascii(c)) {
             case 'b':
+                if (i < s.Len() && s[i] != L' ' && s[i] != L'-')
+                    return false;
                 continue;
             case 'k':
                 numBits = 10;
@@ -44,9 +46,13 @@ bool ParseVolumeSizes(const UString &s, CRecordVector<UInt64> &values) {
                     return false;
                 val <<= numBits;
 
-                for (; i < s.Len(); i++)
-                    if (s[i] == L' ')
-                        break;
+                if (i + 1 < s.Len() && MyCharLower_Ascii(s[i]) == 'i' &&
+                    MyCharLower_Ascii(s[i + 1]) == 'b')
+                    i += 2;
+                else if (i < s.Len() && MyCharLower_Ascii(s[i]) == 'b')
+                    ++i;
+                if (i < s.Len() && s[i] != L' ' && s[i] != L'-')
+                    return false;
                 continue;
             }
         }
@@ -71,7 +77,7 @@ bool ParseVolumeSizesText(const QString &text, CRecordVector<UInt64> &values) {
         return false;
     UString native = ToUString(text);
     native.Trim();
-    return ParseVolumeSizes(native, values);
+    return native.IsEmpty() || (ParseVolumeSizes(native, values) && !values.IsEmpty());
 }
 
 static const char *const k_Sizes[] = {

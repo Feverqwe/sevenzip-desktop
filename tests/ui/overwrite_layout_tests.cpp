@@ -51,9 +51,11 @@ class OverwriteLayoutTests final : public QObject {
             ReloadLang(ini);
             QtNotifyLanguageChanged();
         });
-        const QString name = QStringLiteral("длинное имя 空 ") + QString(100, 'x') + ".txt";
+        const QString name = QStringLiteral(" длинное имя 空 ") + QString(100, 'x') + ".txt";
+        const QString existing = QStringLiteral("длинное имя 空.txt ");
+        const QString displayName = '"' + name + '"';
         OverwriteQuestion question;
-        question.Existing.Path = "/old/" + name;
+        question.Existing.Path = "/old/" + existing;
         question.Incoming.Path = "/new/" + name;
         question.MultipleConflictsPossible = multiple;
         COverwriteDialog dialog;
@@ -65,7 +67,21 @@ class OverwriteLayoutTests final : public QObject {
         auto *skip = dialog.findChild<QPushButton *>("overwriteNo");
         QVERIFY(skip->hasFocus());
         QCOMPARE(apply->isVisible(), multiple);
-        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(name));
+        auto *keepBoth = dialog.findChild<QPushButton *>("overwriteRename");
+        auto *cancel = dialog.findChild<QPushButton *>("overwriteCancel");
+        QTest::keyClick(skip, Qt::Key_Tab);
+        QCOMPARE(dialog.focusWidget(), static_cast<QWidget *>(keepBoth));
+        QTest::keyClick(keepBoth, Qt::Key_Tab);
+        QCOMPARE(dialog.focusWidget(),
+                 multiple ? static_cast<QWidget *>(apply) : static_cast<QWidget *>(cancel));
+        if (multiple) {
+            QTest::keyClick(apply, Qt::Key_Tab);
+            QCOMPARE(dialog.focusWidget(), static_cast<QWidget *>(cancel));
+        }
+        QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), displayName);
+        QVERIFY(
+            dialog.findChild<QLabel *>("overwriteOldFile")->text().contains('"' + existing + '"'));
+        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(displayName));
         QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains("Unknown"));
         if (multiple) {
             QLabel *caption = nullptr;
@@ -81,7 +97,7 @@ class OverwriteLayoutTests final : public QObject {
             QtNotifyLanguageChanged();
             QVERIFY(apply->isChecked());
             QVERIFY(apply->accessibleName() != english);
-            QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(name));
+            QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")->text().contains(displayName));
             QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
                         ->text()
                         .contains(QStringLiteral("Неизвестно")));
@@ -89,9 +105,23 @@ class OverwriteLayoutTests final : public QObject {
             QTest::keyClick(skip, Qt::Key_Return);
             QCOMPARE(dialog.result(), IDB_NO_TO_ALL);
         } else {
-            dialog.findChild<QPushButton *>("overwriteRename")->click();
+            keepBoth->click();
             QCOMPARE(dialog.result(), NOverwriteDialog::kAutoRenameOnceResult);
         }
+    }
+    void directoryConflictNamesTheIncomingFolder() {
+        OverwriteQuestion question;
+        question.Existing.Path = "/destination/folder";
+        question.Existing.Directory = true;
+        question.Incoming.Path = QStringLiteral("/source/папка 空/");
+        question.Incoming.Directory = true;
+        COverwriteDialog dialog;
+        dialog.SetQuestion(question);
+        QVERIFY(dialog.OnInit());
+        QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), QStringLiteral("папка 空"));
+        QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
+                    ->text()
+                    .contains(question.Incoming.Path));
     }
     void sourceFooterAndFileRows_data() {
         QTest::addColumn<QString>("language");
@@ -121,11 +151,20 @@ class OverwriteLayoutTests final : public QObject {
         COverwriteDialog dialog;
         dialog.ShowExtraButtons = extra;
         dialog.DefaultButton_is_NO = true;
-        dialog.OldFileInfo.Path = L"/destination/каталог 文件/old.txt";
-        dialog.NewFileInfo.Path = L"/source/каталог 文件/new.txt";
+        const QString common = QString(40, 'x');
+        const QString existing = '/' + common + "/папка назначения/" + common + '/';
+        const QString incoming = '/' + common + "/исходная папка/" + common + '/';
+        dialog.OldFileInfo.Path = (existing + "old.txt").toStdWString().c_str();
+        dialog.NewFileInfo.Path = (incoming + "new.txt").toStdWString().c_str();
         dialog.OldFileInfo.SetSize(12345);
-        dialog.NewFileInfo.SetSize(67890);
         QVERIFY(dialog.OnInit());
+        const QString oldDetails = dialog.findChild<QLabel *>("overwriteOldFile")->text();
+        const QString newDetails = dialog.findChild<QLabel *>("overwriteNewFile")->text();
+        const QString unknown = QCoreApplication::translate("ConflictRedesign", "Unknown");
+        QVERIFY(oldDetails.contains(existing));
+        QVERIFY(newDetails.contains(incoming));
+        QCOMPARE(oldDetails.count(unknown), 1);
+        QCOMPARE(newDetails.count(unknown), 2);
         dialog.resize(width, width < 500 ? 300 : 440);
         dialog.show();
         QApplication::processEvents();

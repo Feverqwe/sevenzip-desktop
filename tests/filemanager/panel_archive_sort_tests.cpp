@@ -31,10 +31,16 @@ class PanelArchiveSortTests final : public QObject {
         QFETCH(quint32, property);
         QFETCH(bool, flat);
         QFETCH(int, expected);
-        ArchiveEntry first{QStringLiteral("dir2/common 文件.txt"), 7, 3, "2026-10-01 12:00:00"};
+        ArchiveEntry first{QStringLiteral("dir2/common 文件.txt"), 7, 3};
         first.crc = 2;
-        ArchiveEntry second{QStringLiteral("dir10/common 文件.txt"), 11, 5, "2026-10-02 12:00:00"};
+        ArchiveEntry second{QStringLiteral("dir10/common 文件.txt"), 11, 5};
         second.crc = 1;
+        NWindows::NCOM::CPropVariant modified;
+        modified.vt = VT_FILETIME;
+        modified.filetime = FILETIME{0, 0x01D90003};
+        first.modifiedTime = modified;
+        ++modified.filetime.dwHighDateTime;
+        second.modifiedTime = modified;
         CMyComPtr<IFolderFolder> folder;
         QCOMPARE(CreateArchiveFolder({first, second}, UString(L"7z"), &folder), S_OK);
         CMyComPtr<IFolderSetFlatMode> mode;

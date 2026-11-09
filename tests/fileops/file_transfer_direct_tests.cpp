@@ -96,6 +96,8 @@ class FileTransferDirectTests : public QObject {
         QVERIFY(self.wait(30000));
         QTRY_COMPARE(selfResult.size(), 1);
         QVERIFY(!selfResult.first().first().toBool());
+        QCOMPARE(selfResult.first().at(1).toString(),
+                 QString("Source and destination are the same: %1").arg(source));
         QCOMPARE(read(source), QByteArray("keep"));
 
         QVERIFY(QDir().mkpath(temp.filePath("folder/sub")));
@@ -108,8 +110,35 @@ class FileTransferDirectTests : public QObject {
         QVERIFY(recursive.wait(30000));
         QTRY_COMPARE(recursiveResult.size(), 1);
         QVERIFY(!recursiveResult.first().first().toBool());
+        QCOMPARE(recursiveResult.first().at(1).toString(),
+                 QString("Destination is inside the source folder: %1").arg(child));
         QVERIFY(!QFileInfo::exists(child));
     }
+
+#ifndef Q_OS_WIN
+    void destinationLinkIdentifiesTheBlockedPath() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString source = temp.filePath("source.txt");
+        const QString existing = temp.filePath("existing.txt");
+        const QString link = temp.filePath("link.txt");
+        QVERIFY(write(source, "incoming"));
+        QVERIFY(write(existing, "existing"));
+        QVERIFY(QFile::link(existing, link));
+        FileTransferOperation operation({source}, link, true, nullptr, {},
+                                        FileTransferOperation::DestinationKind::DirectPath);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        operation.start();
+        QVERIFY(operation.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(!result.first().first().toBool());
+        QCOMPARE(result.first().at(1).toString(),
+                 QString("Destination is a symbolic link: %1").arg(link));
+        QVERIFY(QFileInfo(link).isSymLink());
+        QCOMPARE(read(existing), QByteArray("existing"));
+        QCOMPARE(read(source), QByteArray("incoming"));
+    }
+#endif
 };
 
 QTEST_GUILESS_MAIN(FileTransferDirectTests)

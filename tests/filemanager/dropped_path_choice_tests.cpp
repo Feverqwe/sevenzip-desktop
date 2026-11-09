@@ -8,6 +8,7 @@
 #include "support/drag_drop_backend.h"
 #include "support/drag_event_position.h"
 #include "support/operation_temp_cleanup.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QMimeData>
 #include <QPushButton>
@@ -41,6 +42,12 @@ class DroppedPathChoiceTests final : public QObject {
         const QString payload = QDir(input).filePath(QStringLiteral("данные with spaces.txt"));
         const QByteArray bytes("dropped folder bytes\0\xff", 22);
         QVERIFY(SourceExtractFixture::writeFile(payload, bytes));
+        const bool openLargeFolder = directory && choice == "open";
+        constexpr int extraFiles = 300;
+        if (openLargeFolder)
+            for (int i = 0; i < extraFiles; ++i)
+                QVERIFY(SourceExtractFixture::writeFile(
+                    QDir(input).filePath(QString("extra-%1.txt").arg(i)), "extra"));
         const QString archive = fixture.filePath(QStringLiteral("исходный архив 空.ZIP"));
         QVERIFY(NativeArchiveFixture::WriteFiles(archive, {payload}));
         const QString dropped = directory ? input : archive;
@@ -61,6 +68,27 @@ class DroppedPathChoiceTests final : public QObject {
         QTest::keyClick(address, Qt::Key_Return);
         auto *table = window.findChild<FileTable *>("archiveTable");
         QTRY_VERIFY(table->isEnabled());
+        FileTable *peerTable = nullptr;
+        int peerRows = 0;
+        if (openLargeFolder) {
+            auto *two = window.findChild<QAction *>("twoPanelsAction");
+            QVERIFY(two);
+            if (!two->isChecked())
+                two->trigger();
+            peerTable = table;
+            auto *target = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(target && target->isVisible());
+            address = target->findChild<QLineEdit *>("archivePath");
+            table = target->findChild<FileTable *>("archiveTable");
+            address->setFocus();
+            address->setText(output);
+            QTest::keyClick(address, Qt::Key_Return);
+            QTRY_VERIFY(table->isEnabled() && table->rowCount() == peerTable->rowCount());
+            QVERIFY(WindowActivation::waitForActive(window));
+            peerTable->setFocus();
+            QTRY_VERIFY(peerTable->hasFocus());
+            peerRows = peerTable->rowCount();
+        }
 
         bool asked = false;
         QTimer responder;
@@ -94,13 +122,20 @@ class DroppedPathChoiceTests final : public QObject {
             else
                 (choice == "open" ? open : compress)->click();
         });
-        responder.start(5);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(dropped)});
+        if (directory && choice == "open") {
+            QDragEnterEvent moveOnly(DragEventPosition(QPoint(5, 5)), Qt::MoveAction, &mime,
+                                     Qt::LeftButton, Qt::ShiftModifier);
+            QCoreApplication::sendEvent(table->viewport(), &moveOnly);
+            QVERIFY(!moveOnly.isAccepted());
+        }
+        responder.start(5);
         QDragEnterEvent enter(DragEventPosition(QPoint(5, 5)), Qt::CopyAction | Qt::MoveAction,
                               &mime, Qt::LeftButton, Qt::NoModifier);
         QCoreApplication::sendEvent(table->viewport(), &enter);
         QVERIFY(enter.isAccepted());
+        QCOMPARE(enter.dropAction(), Qt::CopyAction);
         QDropEvent drop(QPointF(5, 5), Qt::CopyAction | Qt::MoveAction, &mime, Qt::LeftButton,
                         Qt::NoModifier);
         QCoreApplication::sendEvent(table->viewport(), &drop);
@@ -110,8 +145,34 @@ class DroppedPathChoiceTests final : public QObject {
         if (choice != "cancel")
             QCOMPARE(drop.dropAction(), Qt::CopyAction);
         if (choice == "open") {
-            QTRY_VERIFY(table->isEnabled() && table->rowCount() == 1);
-            QCOMPARE(table->model()->index(0, 0).data().toString(), QFileInfo(payload).fileName());
+            const QPoint windowPoint = table->viewport()->mapTo(&window, QPoint(5, 5));
+            if (openLargeFolder) {
+                QVERIFY(!table->isEnabled());
+                QDragEnterEvent blocked(DragEventPosition(windowPoint), Qt::CopyAction, &mime,
+                                        Qt::LeftButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(&window, &blocked);
+                QVERIFY(!blocked.isAccepted());
+            }
+            const int expectedRows = openLargeFolder ? extraFiles + 1 : 1;
+            QTRY_VERIFY(table->isEnabled() && table->rowCount() == expectedRows);
+            if (openLargeFolder) {
+                QDragEnterEvent ready(DragEventPosition(windowPoint), Qt::CopyAction, &mime,
+                                      Qt::LeftButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(&window, &ready);
+                QVERIFY(ready.isAccepted());
+                QDragLeaveEvent leave;
+                QCoreApplication::sendEvent(&window, &leave);
+            }
+            bool foundPayload = false;
+            for (int row = 0; row < table->rowCount(); ++row)
+                foundPayload |= table->model()->index(row, 0).data().toString() ==
+                                QFileInfo(payload).fileName();
+            QVERIFY(foundPayload);
+            if (peerTable) {
+                QVERIFY(WindowActivation::waitForActive(window));
+                QTRY_VERIFY(table->hasFocus());
+                QCOMPARE(peerTable->rowCount(), peerRows);
+            }
             QVERIFY(address->text().contains(QFileInfo(dropped).fileName()));
             QVERIFY(backend.Results.isEmpty());
             QVERIFY(QDir(output).isEmpty());

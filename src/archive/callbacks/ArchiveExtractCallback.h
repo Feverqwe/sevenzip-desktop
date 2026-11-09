@@ -22,6 +22,7 @@
 #include "archive/callbacks/qtarchiveoutputidentity.h"
 #include "archive/opening/OpenArchive.h"
 #include "archive/resources/qtarchiveextractstatus.h"
+#include "fileops/native/FileDir.h"
 
 #include "archive/hashing/HashCalc.h"
 
@@ -58,6 +59,7 @@ struct IQtExtractPathPolicy {
                               UString &message) = 0;
     virtual HRESULT CheckLink(const FString &path, const FString &target, bool relative,
                               UString &message) = 0;
+    virtual HRESULT CheckReplace(const FString &, UString &) { return S_OK; }
 };
 
 struct CExtractNtOptions {
@@ -382,6 +384,9 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
 
     CReadArcItem _item;
     FString _diskFilePath;
+    FString _replacementPath;
+    std::unique_ptr<NWindows::NFile::NDir::CTempFile> _replacementFile;
+    QString _emptyEncryptedOutputIdentity;
 
     CProcessedFileInfo _fi;
     QtArchiveOutputIdentity QtOutputs;
@@ -558,11 +563,12 @@ class CArchiveExtractCallback Z7_final : public IArchiveExtractCallback,
     void CorrectPathParts();
     void CreateFolders();
 
-    HRESULT CheckExistFile(FString &fullProcessedPath, bool &needExit);
+    HRESULT CheckExistFile(FString &fullProcessedPath, bool isAnti, bool &needExit);
     HRESULT GetExtractStream(CMyComPtr<ISequentialOutStream> &outStreamLoc, bool &needExit);
     HRESULT GetItem(UInt32 index);
 
     HRESULT CloseFile();
+    void RemoveEmptyEncryptedOutput();
     HRESULT CloseReparseAndFile();
     HRESULT SetDirsTimes();
     HRESULT SetSecurityInfo(UInt32 indexInArc, const FString &path) const;

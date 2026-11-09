@@ -202,6 +202,7 @@ CBrowseDialog::Controls CBrowseDialog::CreateControls() {
             _filterCombo->setEnabled(false);
     }
     _filterCombo->setCurrentIndex((unsigned)FilterIndex < Filters.Size() ? FilterIndex : -1);
+    FilterIndex = _filterCombo->currentIndex();
     layout->addWidget(filterLabel);
     layout->addWidget(_filterCombo);
     for (auto *button : {parent, create})
@@ -216,19 +217,37 @@ void CBrowseDialog::ConnectControls(const Controls &controls) {
     connect(parent, &QPushButton::clicked, this, [this] { OnButtonClicked(IDB_BROWSE_PARENT); });
     connect(create, &QPushButton::clicked, this,
             [this] { OnButtonClicked(IDB_BROWSE_CREATE_DIR); });
-    connect(_filterCombo, &QComboBox::currentIndexChanged, this, [this] { Reload(); });
+    connect(_filterCombo, &QComboBox::currentIndexChanged, this, [this](int index) {
+        const HRESULT result = Reload();
+        if (result == S_OK) {
+            FilterIndex = index;
+            return;
+        }
+        {
+            const QSignalBlocker blocked(_filterCombo);
+            _filterCombo->setCurrentIndex(FilterIndex);
+        }
+        ShowReloadError(result);
+    });
     connect(_list, &QTreeWidget::itemDoubleClicked, this, [this] { OnItemEnter(); });
     connect(_list, &QTreeWidget::itemSelectionChanged, this, &CBrowseDialog::SetPathEditText);
     connect(_list->header(), &QHeaderView::sectionClicked, this, [this](int index) {
+        const int previousSort = _sortIndex;
+        const bool previousAscending = _ascending;
         if (index == _sortIndex)
             _ascending = !_ascending;
         else {
             _ascending = index == 0;
             _sortIndex = index;
         }
-        _list->header()->setSortIndicator(index,
-                                          _ascending ? Qt::AscendingOrder : Qt::DescendingOrder);
-        Reload();
+        const HRESULT result = Reload();
+        if (result != S_OK) {
+            _sortIndex = previousSort;
+            _ascending = previousAscending;
+            _list->header()->setSortIndicator(_sortIndex, _ascending ? Qt::AscendingOrder
+                                                                     : Qt::DescendingOrder);
+            ShowReloadError(result);
+        }
     });
 }
 

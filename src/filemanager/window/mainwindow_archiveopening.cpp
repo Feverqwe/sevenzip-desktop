@@ -7,6 +7,7 @@
 #include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "filemanager/FormatUtils.h"
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
@@ -55,9 +56,18 @@ HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
 HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) {
     if (app_.QtOperations().closed())
         return E_ABORT;
-    appPresentation_->CancelInitialFocus();
+    workspace_->CancelListFocus();
     const QPointer<QWidget> focused = focusWidget();
-    const auto restoreFocus = qScopeGuard([this, focused] {
+    const auto index = projectedPanel_;
+    const auto interaction = workspace_->InteractionRevision();
+    const bool listFocused = focused && focused == projectedUi().viewStack->currentWidget();
+    const auto restoreFocus = qScopeGuard([this, focused, index, interaction, listFocused] {
+        if (projectedPanel_ != index || workspace_->InteractionRevision() != interaction)
+            return;
+        if (listFocused) {
+            workspace_->RequestListFocus(index);
+            return;
+        }
         // Modal archive progress can clear Qt's remembered address focus.
         // Restore the selected control after the operation call scope ends.
         appPresentation_->RestoreWidgetFocus(focused);
@@ -71,18 +81,29 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
             QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
         return E_INVALIDARG;
     }
+    const auto pendingSelection = projectedUi().pendingSelection;
+    const auto pendingViewport = projectedUi().pendingViewport;
+    const auto addressDraft = projectedUi().path->isModified()
+                                  ? std::optional(QtAddressDraft(*projectedUi().path))
+                                  : std::nullopt;
     cancelListPublication();
     if (projectedUi().state == State::Filesystem)
         projectedUi().returnDirectory = projectedUi().directory;
     auto &panel = app_.GetFocusedPanel();
     CSelectedState previousSelection;
-    panel.SaveSelectedState(previousSelection);
+    if (pendingSelection)
+        previousSelection = *pendingSelection;
+    else
+        panel.SaveSelectedState(previousSelection);
     const QPointer<QAbstractItemView> previousView =
         qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
-    const QPoint previousScroll = previousView
-                                      ? QPoint(previousView->horizontalScrollBar()->value(),
-                                               previousView->verticalScrollBar()->value())
-                                      : QPoint();
+    QPoint previousScroll;
+    if (pendingViewport && pendingViewport->view == previousView &&
+        pendingViewport->directory == projectedUi().directory)
+        previousScroll = pendingViewport->scrollPosition;
+    else if (previousView)
+        previousScroll = {previousView->horizontalScrollBar()->value(),
+                          previousView->verticalScrollBar()->value()};
     QString message;
     HRESULT result;
     const PROPID previousSort = panel.GetSortID();
@@ -96,7 +117,9 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
             panel._sortID = previousSort;
             panel._ascending = previousAscending;
             panel.SetListViewMode(previousMode);
-            renderBoundFolder();
+            renderBoundFolder(!addressDraft);
+            if (addressDraft)
+                addressDraft->Restore(*projectedUi().path);
             restoreListSelection(previousSelection);
         }
     }
@@ -105,8 +128,12 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
     else if (message.isEmpty() && result != S_OK)
         message = ToQString(HResultToMessage(result));
     showStatusMessage(message);
-    if (result != S_OK && result != E_ABORT)
-        QMessageBox::warning(this, QStringLiteral("Sevenzip"), message);
+    if (result != S_OK && result != E_ABORT) {
+        QMessageBox warning(QMessageBox::Warning, QStringLiteral("Sevenzip"), message,
+                            QMessageBox::Ok, this);
+        warning.setTextFormat(Qt::PlainText);
+        warning.exec();
+    }
     // Acknowledging the error is part of this transition. Only later input
     // should supersede the restored source's scroll position.
     if (result != S_OK && previousView)
@@ -223,7 +250,7 @@ HRESULT MainWindow::renderBoundFolder(bool updateAddress) {
 void MainWindow::goBack() { workspace_->Travel(-1); }
 
 void MainWindow::goParent() {
-    workspace_->Navigate([this] { return goParentImpl(); });
+    workspace_->NavigateToList([this] { return goParentImpl(); });
 }
 
 HRESULT MainWindow::goParentImpl() {
@@ -244,20 +271,23 @@ HRESULT MainWindow::goParentImpl() {
     const unsigned panelIndex = app_.LastFocusedPanel;
     if (!panel.IsArcFolder() || !GetFolderPath(panel.GetFolder()).IsEmpty())
         workspace_->RetainNavigationFolder();
+    const State previousState = projectedUi().state;
     setState(State::Operating);
+    HRESULT result;
     {
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-        panel.OpenParentFolder();
+        result = panel.OpenParentFolder();
     }
-    const auto published = workspace_->NavigationPublication();
-    const HRESULT result = published ? *published
-                           : projectedUi().scanningDisk || projectedUi().scanningArchive
-                               ? S_OK
-                               : renderBoundFolder();
+    if (result == E_ABORT)
+        setState(previousState);
+    else if (const auto published = workspace_->NavigationPublication())
+        result = *published;
+    else if (!projectedUi().scanningDisk && !projectedUi().scanningArchive)
+        result = renderBoundFolder();
     // Win32 keeps list focus while Parent refreshes its rows. Qt can clear it
     // when disabling that view; use the existing publication/input guard.
     if (restoreListFocus)
-        appPresentation_->RequestListFocus(panelIndex);
+        workspace_->RequestListFocus(panelIndex);
     else
         appPresentation_->RestoreWidgetFocus(focused);
     return result;

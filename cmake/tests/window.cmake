@@ -9,20 +9,38 @@
     # Keep Copy/Move, cancellation, archive routing and modal selection changes
     # in the default run; the complete presentation matrix is separate.
     add_test(NAME ui_copy_routing_quick COMMAND ui_copy_routing_tests -silent
+        unavailablePeerIsNotProposed
         sourceReloadPublishesNamespace
         outsidePeerStillRefreshesDestination:0-0-copy
         outsidePeerStillRefreshesDestination:1-1-move
         outsidePeerStillRefreshesDestination:0-1-dialog-cancel
+        outsidePeerStillRefreshesDestination:dialog-cancel-move
         outsidePeerStillRefreshesDestination:1-0-overwrite-cancel
+        outsidePeerStillRefreshesDestination:overwrite-cancel-copy
+        outsidePeerStillRefreshesDestination:overwrite-cancel-move
+        outsidePeerStillRefreshesDestination:overwrite-skip-move
+        outsidePeerStillRefreshesDestination:overwrite-skip-copy
+        outsidePeerStillRefreshesDestination:missing-copy
+        outsidePeerStillRefreshesDestination:missing-move
+        outsidePeerStillRefreshesDestination:relative-copy
+        outsidePeerStillRefreshesDestination:relative-move
+        outsidePeerStillRefreshesDestination:new-batch-folder
+        outsidePeerStillRefreshesDestination:link-copy
         unselectedItemsReachSourceSmartCopy:0-0-0---440
         unselectedItemsReachSourceSmartCopy:1-1-1-ru-360
+        rejectsDestinationInsideSourceFolder
         capturedItemsSurviveModalSelectionChange:fs-to-fs-copy---0
         capturedItemsSurviveModalSelectionChange:archive-to-fs-move-ru-1
         capturedItemsSurviveModalSelectionChange:fs-to-archive-copy-ru-0
         capturedItemsSurviveModalSelectionChange:archive-to-archive-move---1
+        capturedItemsSurviveModalSelectionChange:typed-archive-copy
+        capturedItemsSurviveModalSelectionChange:typed-archive-move
         capturedItemsSurviveModalSelectionChange:large-fs-to-archive-move-1)
     set_tests_properties(ui_copy_routing_quick PROPERTIES TIMEOUT 45 ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/ui-copy-routing-quick.ini")
+    if(WIN32)
+        set_tests_properties(ui_copy_routing_quick PROPERTIES TIMEOUT 90)
+    endif()
     qt_add_executable(ui_update_modes_tests tests/filemanager/ui_update_modes_tests.cpp)
     target_link_libraries(ui_update_modes_tests PRIVATE sevenzip_window)
     target_include_directories(ui_update_modes_tests PRIVATE src tests)

@@ -8,6 +8,7 @@
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "gui/UpdateGUI.h"
 #include "gui/resource2.h"
 #include "localization/qtlangcontrols.h"
@@ -58,7 +59,8 @@ void MainWindow::calculateHash(const QString &method) {
 void MainWindow::extractArchives() { runArchiveBatchCommand(false); }
 
 void MainWindow::runArchiveBatchCommand(bool test) {
-    if (app_.QtOperations().closed() || app_.QtOperations().active())
+    if (app_.QtOperations().closed() || app_.QtOperations().blocking() || sourceArchiveProgress_ ||
+        projectedUi().scanningDisk || projectedUi().scanningArchive)
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     auto &panel = app_.GetFocusedPanel();
@@ -86,9 +88,7 @@ void MainWindow::runArchiveBatchCommand(bool test) {
         if (!app_.QtOperations().closed()) {
             activatePanelUi(source);
             setState(previous);
-            activateWindow();
-            if (focus && focus->isEnabled())
-                focus->setFocus();
+            appPresentation_->RestoreWidgetFocus(focus);
         }
     });
     setState(State::Operating);
@@ -103,10 +103,7 @@ void MainWindow::createDialog() {
     if (app_.QtOperations().closed())
         return;
     const QPointer<QWidget> focus = focusWidget();
-    const auto restoreFocus = qScopeGuard([&] {
-        if (!app_.QtOperations().closed() && focus && focus->isVisible() && focus->isEnabled())
-            focus->setFocus(Qt::OtherFocusReason);
-    });
+    const auto restoreFocus = qScopeGuard([&] { appPresentation_->RestoreWidgetFocus(focus); });
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing)
         return;
@@ -171,12 +168,14 @@ void MainWindow::testArchive() {
     if (resource && ArchiveHasExtractService(folder->GetArchiveProperties()) &&
         (resource->HasDirectInput() || resource->UsesNativeMetadata() ||
          backend_->hasListedSourceArchive(projectedUi().archive))) {
+        const QPointer<QWidget> focus = focusWidget();
         setState(State::Operating);
         {
             QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
             app_.TestArchives();
         }
         setState(State::Viewing);
+        appPresentation_->RestoreWidgetFocus(focus);
         return;
     }
     previousState_ = projectedUi().state;

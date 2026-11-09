@@ -169,3 +169,24 @@ no changed OS branch; no new secondary-platform or rendered-native acceptance
 is claimed. Configured four-job builds reused incremental outputs and compiler
 caches. Selected scratch directories were empty afterward; whitespace and source
 inventory checks passed. No full or slow gate ran.
+
+## Failed parent and child navigation — 2026-11-07
+
+The pinned source browser stages enumeration before replacing the listing.
+The Qt parent and child handlers now leave the path draft alone when that
+enumeration fails. Both report the failed destination, and a subsequent
+navigation uses the original selection and path context. The successful native
+enumeration and selection rules are unchanged.
+
+Linux `source_browse_dialog` and `shell_menu_window` passed. The source-browser
+test removes and restores the target while the dialog is open, then retries
+with the same button or key.
+
+## Failed list refresh — 2026-11-07
+
+The original filter, column and Ctrl+R handlers reread the current directory.
+The Qt adapter retains that enumeration, but reports a failed reread and
+restores the controls to match the retained listing. The path draft remains
+available and a retry can apply the filter, order or refresh. Linux
+`source_browse_dialog`, `source_archive_browse` and `shell_menu_window` passed
+69 checks with no skips.

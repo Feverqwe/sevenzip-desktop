@@ -3,9 +3,10 @@
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/panels/qtpanelkey.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include <QContextMenuEvent>
 #include <QMouseEvent>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -37,10 +38,11 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         updatePanelModifier(*static_cast<QKeyEvent *>(event));
     if (event->type() == QEvent::WindowDeactivate)
         rightControlPressed_ = false;
-    if (appPresentation_ &&
-        (event->type() == QEvent::KeyPress || event->type() == QEvent::MouseButtonPress ||
-         event->type() == QEvent::MouseButtonDblClick))
-        appPresentation_->CancelInitialFocus();
+    if (event->type() == QEvent::FocusOut) {
+        const unsigned panel = panelIndexFor(watched);
+        if (panel < kNumPanelsMax && panelInputTarget(watched, panel) == PanelInputTarget::List)
+            static_cast<QAbstractItemView *>(watched)->keyboardSearch({});
+    }
     if (!panelProjectionDepth_ &&
         (event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonPress ||
          event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::KeyPress)) {
@@ -56,14 +58,33 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     // Activation can be refused while an operation owns the source panel.
     // Classify against the resulting projection before delivering the event.
     const auto target = panelInputTarget(watched, projectedPanel_);
+    const unsigned inputPanel = panelIndexFor(watched);
+    if (inputPanel < kNumPanelsMax && panelUi_[inputPanel].scanningDisk &&
+        panelUi_[inputPanel].refreshingDisk &&
+        panelInputTarget(watched, inputPanel) != PanelInputTarget::Address) {
+        switch (event->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::MouseMove:
+        case QEvent::ContextMenu:
+            event->ignore();
+            return true;
+        default:
+            break;
+        }
+    }
     if (target == PanelInputTarget::ListViewport &&
         (event->type() == QEvent::MouseButtonPress ||
          event->type() == QEvent::MouseButtonDblClick)) {
         const auto *mouse = static_cast<QMouseEvent *>(event);
+        // Qt can emit doubleClicked for buttons that do not open files.
+        if (event->type() == QEvent::MouseButtonDblClick && mouse->button() != Qt::LeftButton)
+            return true;
         selectionClickModifiers_ = mouse->modifiers();
         auto *table = projectedUi().table;
-        if (event->type() == QEvent::MouseButtonDblClick && mouse->button() == Qt::LeftButton &&
-            watched == table->viewport() && table->isEnabled() && !isPanelEditorFocused()) {
+        if (event->type() == QEvent::MouseButtonDblClick && watched == table->viewport() &&
+            table->isEnabled() && !isPanelEditorFocused()) {
             const auto index = table->indexAt(mouse->position().toPoint());
             if (index.isValid()) {
                 activateRow(index.row(), mouse->modifiers());
@@ -88,8 +109,18 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         }
     }
     const bool list = target == PanelInputTarget::List || target == PanelInputTarget::ListViewport;
+    if (list && event->type() == QEvent::ContextMenu &&
+        static_cast<QContextMenuEvent *>(event)->reason() == QContextMenuEvent::Keyboard) {
+        auto *view = static_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
+        showItemContextMenu(projectedPanel_, view, QPoint(-1, -1));
+        event->accept();
+        return true;
+    }
     if (list && !isPanelEditorFocused() && event->type() == QEvent::ShortcutOverride) {
         const auto *key = static_cast<QKeyEvent *>(event);
+        if (projectedUi().scanningDisk && projectedUi().refreshingDisk &&
+            key->key() != Qt::Key_Tab && key->key() != Qt::Key_Backtab)
+            return false;
         if (overridePanelKey(*key)) {
             event->accept();
             return true;
@@ -175,6 +206,13 @@ bool MainWindow::handlePanelKey(PanelInputTarget target, QKeyEvent *key) {
         const auto modifiers = key->modifiers();
         if (modifiers.testFlag(Qt::MetaModifier))
             return false;
+        // The source address command focuses its own list. Qt may need to
+        // wait for publication or use the unavailable-location control.
+        if ((key->key() == Qt::Key_Tab || key->key() == Qt::Key_Backtab) &&
+            !modifiers.testFlag(Qt::AltModifier)) {
+            workspace_->RequestListFocus(projectedPanel_);
+            return true;
+        }
         return app_.GetFocusedPanel().OnAddressEditKeyDown(
             {key->key() == Qt::Key_Backtab ? Qt::Key_Tab : key->key(),
              modifiers.testFlag(Qt::AltModifier), modifiers.testFlag(Qt::ControlModifier), false,
@@ -186,8 +224,16 @@ bool MainWindow::handlePanelKey(PanelInputTarget target, QKeyEvent *key) {
 
 bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (app_.QtOperations().closed() || app_.QtOperations().blocking() ||
-        app_.QtOperations().callActive() || sourceArchiveProgress_ || projectedUi().scanningDisk ||
+        app_.QtOperations().callActive() || sourceArchiveProgress_ ||
         projectedUi().scanningArchive || QApplication::activeModalWidget())
+        return true;
+    const auto mods = key->modifiers();
+    const int virtualKey = QtPanelVirtualKey(*key);
+    if (virtualKey == Qt::Key_Tab && app_.NumPanels == 2 && !mods.testFlag(Qt::MetaModifier)) {
+        workspace_->RequestListFocus(1 - projectedPanel_, true);
+        return true;
+    }
+    if (projectedUi().scanningDisk)
         return true;
     CPanel &panel = app_.GetFocusedPanel();
     // Original Panel.cpp::OnNotify suppresses LVN_KEYDOWN with other list
@@ -195,14 +241,21 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (!panel.ShouldProcessNotifications())
         return true;
     if (QAction *action = panelShortcut(*key)) {
+        if (action->property("workspaceViewContext").toBool()) {
+            // The View menu keeps its source pane until its selected action
+            // is delivered. Keyboard navigation belongs to the focused list.
+            app_.ExecuteCommand(action->property("nativeCommandID").toUInt());
+            return true;
+        }
+        // Destination permissions can change between file list updates.
+        if (clipboard_ && action == clipboard_->paste && !action->isEnabled())
+            clipboard_->Refresh();
         if (action->isEnabled() && action->isVisible())
             action->trigger();
         return true;
     }
     if (reservedPanelKey(*key))
         return true;
-    const auto mods = key->modifiers();
-    const int virtualKey = QtPanelVirtualKey(*key);
     if (!mods.testFlag(Qt::MetaModifier) &&
         panel.OnListViewKeyDown({virtualKey, mods.testFlag(Qt::AltModifier),
                                  mods.testFlag(Qt::ControlModifier), false,
@@ -237,5 +290,5 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     if (key->key() != Qt::Key_Control && key->key() != Qt::Key_Shift && key->key() != Qt::Key_Alt)
         refreshActions();
     // Qt otherwise moves focus again after the source OnTab callback.
-    return handled || key->key() == Qt::Key_Tab;
+    return handled || virtualKey == Qt::Key_Tab;
 }

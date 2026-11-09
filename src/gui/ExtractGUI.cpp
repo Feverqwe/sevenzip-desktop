@@ -170,7 +170,8 @@ HRESULT ExtractGUI(
 #endif
     bool showDialog, bool &messageWasDisplayed, CExtractCallbackImp *extractCallback,
     IQtArchiveOpenService *qtOpenService, IQtProgressServices *progressServices,
-    QWidget *hwndParent, const std::function<void()> &outputReady) {
+    QWidget *hwndParent, const std::function<void()> &outputReady,
+    const std::function<QString(const QString &)> &destinationError) {
     messageWasDisplayed = false;
 
     CThreadExtracting extracter;
@@ -203,7 +204,8 @@ HRESULT ExtractGUI(
                 return E_FAIL;
             }
             NName::NormalizeDirPathPrefix(outputDirFull);
-            CExtractDialog dialog(ToQString(fs2us(outputDirFull)), {}, hwndParent);
+            CExtractDialog dialog(ToQString(fs2us(outputDirFull)), {}, hwndParent,
+                                  destinationError);
             if (archivePathsFull.Size() == 1)
                 dialog.ArcPath = archivePathsFull[0];
             dialog.SetArchiveSources(sourceLocations, wildcardCensor.AreAllAllowed() &&

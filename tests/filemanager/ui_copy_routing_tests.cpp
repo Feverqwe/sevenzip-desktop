@@ -3,14 +3,20 @@
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtfavoritestore.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "support/delete_reply.h"
 #include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QDialogButtonBox>
+#include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QProcess>
+#include <QScopeGuard>
 #include <QStandardPaths>
 
 class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport {
@@ -70,7 +76,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         return summary;
     }
     static void submit(MainWindow &window, FileTable &sourceView, int secondRow, bool move,
-                       bool &dialogSeen, QString &errors) {
+                       bool &dialogSeen, QString &errors, const QString &destination) {
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
@@ -78,7 +84,11 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                 dialogSeen = true;
                 sourceView.selectRow(secondRow);
                 sourceView.setCurrentCell(secondRow, 0);
+                if (!destination.isEmpty())
+                    dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
                 dialog->accept();
+                if (dialog->isVisible())
+                    dialog->reject();
             }
             for (QWidget *widget : QApplication::topLevelWidgets()) {
                 if (!widget->isVisible())
@@ -114,6 +124,148 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void unavailablePeerIsNotProposed_data() {
+        QTest::addColumn<QString>("state");
+        QTest::addColumn<bool>("move");
+        QTest::newRow("read-only") << QString("read-only") << false;
+        QTest::newRow("replaced-by-file") << QString("file") << false;
+        QTest::newRow("unavailable-favorite-copy") << QString("favorite") << false;
+        QTest::newRow("unavailable-favorite-move") << QString("favorite") << true;
+#ifdef Q_OS_UNIX
+        QTest::newRow("replaced-by-link") << QString("link") << false;
+#endif
+    }
+    void unavailablePeerIsNotProposed() {
+        QFETCH(QString, state);
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString peer = fixture.filePath("read only");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(peer));
+        write(source + "/file.txt", "source bytes");
+        write(peer + "/peer.txt", "peer bytes");
+        const auto restore = qScopeGuard([&] {
+            if (state == "read-only")
+                QFile::setPermissions(peer, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+        });
+        if (state == "read-only" &&
+            (!QFile::setPermissions(peer, QFile::ReadOwner | QFile::ExeOwner) ||
+             QFileInfo(peer).isWritable()))
+            QSKIP("Cannot make the peer folder read-only");
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        auto *target = openPanel(window, 1, peer);
+        QTRY_VERIFY(target->isEnabled() && row(*target, "peer.txt") >= 0);
+        if (state == "favorite") {
+            QtFavoriteStore *store = nullptr;
+            for (auto *object : qApp->children())
+                if (auto *candidate = dynamic_cast<QtFavoriteStore *>(object);
+                    candidate && candidate->property("settingsPath").toString() ==
+                                     qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"))
+                    store = candidate;
+            QVERIFY(store);
+            const QString missing = fixture.filePath("missing favorite");
+            store->Add(missing, QStringLiteral("Missing copy destination"), {}, {}, true);
+            auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+            QVERIFY(menu);
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            QTRY_VERIFY(menu->isVisible());
+            QAction *entry = nullptr;
+            for (auto *item : menu->actions())
+                if (item->toolTip() == missing)
+                    entry = item;
+            QVERIFY(entry);
+            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                              menu->actionGeometry(entry).center());
+            QTRY_VERIFY(!target->isEnabled());
+        }
+        auto *files = openPanel(window, 0, source);
+        QTRY_VERIFY(files->isEnabled() && row(*files, "file.txt") >= 0);
+        if (state == "file" || state == "link") {
+            target->sourcePanel->Set_AutoRefresh_Mode(false);
+            const QString parked = fixture.filePath("parked peer");
+            QVERIFY(QDir().rename(peer, parked));
+            if (state == "file")
+                write(peer, "replacement");
+            else
+                QVERIFY(QFile::link(parked, peer));
+        }
+        files->setCurrentCell(row(*files, "file.txt"), 0);
+        files->selectRow(row(*files, "file.txt"));
+        files->setFocus();
+        QTRY_COMPARE(window.focusWidget(), files);
+        QVERIFY(action(window, move ? "moveAction" : "copyAction")->isEnabled());
+
+        const QString output = fixture.filePath("manual output");
+        QVERIFY(QDir().mkpath(output));
+        const QString destination =
+            state == "file" ? peer : (state == "favorite" ? peer : output) + '/';
+        bool shown = false;
+        int overwritePrompts = 0;
+        QTimer overwrite;
+        connect(&overwrite, &QTimer::timeout, &window, [&] {
+            for (auto *widget : QApplication::topLevelWidgets()) {
+                if (auto *box = dynamic_cast<COverwriteDialog *>(widget); box && box->isVisible()) {
+                    ++overwritePrompts;
+                    box->findChild<QPushButton *>("overwriteYes")->click();
+                } else
+                    TestProgressDialog::DismissVisibleResult(widget);
+            }
+        });
+        overwrite.start(5);
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            if (!dialog)
+                return;
+            shown = true;
+            const auto cancel = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *path = dialog->findChild<QLineEdit *>("copyDestination");
+            auto *otherPanel = dialog->findChild<QPushButton *>("copyPeerDestination");
+            QVERIFY(path && otherPanel && otherPanel->isVisible());
+            QCOMPARE(QDir::cleanPath(path->text()), QFileInfo(source).canonicalFilePath());
+            QVERIFY(!otherPanel->isEnabled());
+            path->setText(destination);
+            auto *ok =
+                dialog->findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+            QVERIFY(ok->isEnabled());
+            dialog->accept();
+        });
+        QTest::keyClick(window.focusWidget(), move ? Qt::Key_F6 : Qt::Key_F5);
+        QVERIFY(shown);
+        QTRY_COMPARE(read(state == "file" ? peer : destination + "file.txt"),
+                     QByteArray("source bytes"));
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        QCOMPARE(overwritePrompts, state == "file" ? 1 : 0);
+        if (move) {
+            QVERIFY(!QFileInfo::exists(source + "/file.txt"));
+            QCOMPARE(row(*files, "file.txt"), -1);
+        } else {
+            QCOMPARE(read(source + "/file.txt"), QByteArray("source bytes"));
+        }
+        QCOMPARE(QFileInfo::exists(peer + "/file.txt"), state == "favorite");
+        if (state == "favorite") {
+            QCOMPARE(read(peer + "/peer.txt"), QByteArray("peer bytes"));
+            QVERIFY(!target->isEnabled());
+            QTRY_COMPARE(window.focusWidget(), files);
+            PanelKeys::command(window.focusWidget(), Qt::Key_Up,
+                               Qt::AltModifier | Qt::ShiftModifier);
+            QTRY_VERIFY(target->isEnabled());
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
+                         ToQString(target->sourcePanel->GetCurrentFolderPrefix()))),
+                     QFileInfo(source).canonicalFilePath());
+            QCOMPARE(window.focusWidget(), files);
+            QCOMPARE(row(*target, "file.txt") >= 0, !move);
+        }
+    }
     void sourceReloadPublishesNamespace() {
         ArchiveBackend backend;
         MainWindow window(&backend);
@@ -142,26 +294,60 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                     QTest::newRow(
                         qPrintable(QString("%1-%2-%3").arg(sourceIndex).arg(large).arg(outcome)))
                         << sourceIndex << large << QString::fromLatin1(outcome);
+        QTest::newRow("relative-copy") << 0u << false << QString("relative-copy");
+        QTest::newRow("relative-move") << 1u << false << QString("relative-move");
+        QTest::newRow("new-batch-folder") << 0u << false << QString("new-batch-folder");
+        QTest::newRow("dialog-cancel-move") << 1u << true << QString("dialog-cancel-move");
+        QTest::newRow("overwrite-cancel-copy") << 1u << false << QString("overwrite-cancel-copy");
+        QTest::newRow("overwrite-cancel-move") << 0u << false << QString("overwrite-cancel-move");
+        QTest::newRow("overwrite-skip-move") << 0u << false << QString("overwrite-skip-move");
+        QTest::newRow("overwrite-skip-copy") << 0u << false << QString("overwrite-skip-copy");
+        QTest::newRow("missing-copy") << 0u << false << QString("missing-copy");
+        QTest::newRow("missing-move") << 1u << false << QString("missing-move");
+        QTest::newRow("link-copy") << 0u << false << QString("link-copy");
     }
     void outsidePeerStillRefreshesDestination() {
         QFETCH(unsigned, sourceIndex);
         QFETCH(bool, large);
         QFETCH(QString, outcome);
-        const bool cancel = outcome == "dialog-cancel";
-        const bool overwrite = outcome == "overwrite-cancel";
-        const bool move = outcome == "move";
+        const bool cancel = outcome.startsWith("dialog-cancel");
+        const bool skip = outcome.startsWith("overwrite-skip-");
+        const bool cancelBatch = outcome.startsWith("overwrite-cancel-");
+        const bool missing = outcome.startsWith("missing-");
+        const bool overwrite = skip || outcome.startsWith("overwrite-cancel");
+        const bool move = outcome.endsWith("move");
+        const bool relative = outcome.startsWith("relative-");
+        const bool newBatchFolder = outcome == "new-batch-folder";
+        const bool linked = outcome == "link-copy";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath("input");
         const QString peer = fixture.filePath("peer");
         const QString output = fixture.filePath("output");
-        for (const QString &path : {input, peer, output})
+        for (const QString &path : {input, peer})
             QVERIFY(QDir().mkpath(path));
+        if (!newBatchFolder)
+            QVERIFY(QDir().mkpath(output));
+        const QString link = fixture.filePath("linked destination");
+        const QString alias = fixture.filePath("linked parent");
+        if (linked) {
+#ifdef Q_OS_WIN
+            QSKIP("The directory symlink fixture requires POSIX");
+#else
+            QVERIFY(QFile::link(output, link));
+            QVERIFY(QFile::link(fixture.path(), alias));
+#endif
+        }
         const QString name = QStringLiteral("payload δ.txt");
+        const QString other = QStringLiteral("another file.txt");
         write(QDir(input).filePath(name), "control bytes");
+        if (skip || missing || newBatchFolder || cancelBatch)
+            write(QDir(input).filePath(other), "move these bytes");
         write(QDir(peer).filePath("seed.txt"), "seed control");
         if (overwrite)
             write(QDir(output).filePath(name), "existing control");
+        if (cancelBatch)
+            write(QDir(output).filePath(other), "other existing bytes");
         const int originalRows = large ? 301 : 1;
         for (int i = 1; i < originalRows; ++i)
             write(QDir(peer).filePath(QString("item-%1").arg(i)), "control");
@@ -179,41 +365,130 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             static_cast<FileTable *>(view)->sourcePanel->Set_AutoRefresh_Mode(false);
         peerView->selectRow(row(*peerView, "seed.txt"));
         sourceView->selectRow(row(*sourceView, name));
+        if (skip || missing || newBatchFolder || cancelBatch)
+            sourceView->selectionModel()->select(
+                sourceView->model()->index(row(*sourceView, other), 0),
+                QItemSelectionModel::Select | QItemSelectionModel::Rows);
         QVERIFY(WindowActivation::waitForActive(window));
         sourceView->setFocus();
         QTRY_VERIFY(sourceView->hasFocus());
         bool seen = false;
+        bool removed = false;
+        bool reviewed = false;
+        int refusedDestinations = 0;
+        int overwritePrompts = 0;
+        bool retry = false;
         QTimer driver;
         connect(&driver, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
             if (dialog && dialog->isVisible() && !seen) {
                 seen = true;
                 write(QDir(peer).filePath("new while guarded.txt"), "new control");
-                dialog->findChild<QLineEdit *>("copyDestination")->setText(output + '/');
-                cancel ? dialog->reject() : dialog->accept();
+                auto *path = dialog->findChild<QLineEdit *>("copyDestination");
+                if (linked) {
+                    const auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
+                    auto *ok = buttons->button(QDialogButtonBox::Ok);
+                    for (const QString &blocked :
+                         {link, alias + "/input/", alias + "/input/" + name}) {
+                        path->setText(blocked);
+                        if (!ok->isEnabled())
+                            ++refusedDestinations;
+                    }
+                }
+#ifdef Q_OS_WIN
+                if (relative) {
+                    path->setText("../wrong?/output/");
+                    dialog->accept();
+                    if (dialog->isVisible())
+                        ++refusedDestinations;
+                }
+#endif
+                if (relative)
+                    path->setText(move ? "../unneeded/../output/" : "../unneeded/../output");
+                else
+                    path->setText(newBatchFolder ? output : output + '/');
+                if (missing)
+                    removed = QFile::remove(QDir(input).filePath(other));
+                if (cancel && !retry)
+                    QTest::keyClick(dialog->findChild<QLineEdit *>("copyDestination"),
+                                    Qt::Key_Escape);
+                else
+                    dialog->accept();
+                if (dialog->isVisible())
+                    dialog->reject();
             }
             for (QWidget *widget : QApplication::topLevelWidgets()) {
                 if (!widget->isVisible())
                     continue;
-                if (auto *box = dynamic_cast<COverwriteDialog *>(widget))
-                    box->findChild<QPushButton *>("overwriteCancel")->click();
-                else if (auto *box = qobject_cast<QMessageBox *>(widget))
+                if (auto *box = dynamic_cast<COverwriteDialog *>(widget)) {
+                    ++overwritePrompts;
+                    if (retry || (cancelBatch && overwritePrompts == 1))
+                        box->findChild<QPushButton *>("overwriteYes")->click();
+                    else if (cancelBatch)
+                        QTest::keyClick(box, Qt::Key_Escape);
+                    else
+                        box->findChild<QPushButton *>(skip ? "overwriteNo" : "overwriteCancel")
+                            ->click();
+                } else if (auto *box = qobject_cast<QMessageBox *>(widget))
                     box->accept();
                 else
-                    TestProgressDialog::DismissVisibleResult(widget);
+                    reviewed |= TestProgressDialog::DismissVisibleResult(widget);
             }
         });
         driver.start(1);
         QTest::keyClick(sourceView, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(seen);
+        if (linked)
+            QCOMPARE(refusedDestinations, 3);
+#ifdef Q_OS_WIN
+        if (relative)
+            QCOMPARE(refusedDestinations, 1);
+#endif
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        if (cancel || overwrite || missing) {
+            QTRY_COMPARE(window.focusWidget(), sourceView);
+            QCOMPARE(sourceView->selectionModel()->selectedRows().size(),
+                     cancelBatch || (skip && !move) ? 2 : 1);
+            QVERIFY(sourceView->selectionModel()->isRowSelected(row(*sourceView, name), {}));
+        }
         QTRY_COMPARE_WITH_TIMEOUT(peerView->rowCount(), originalRows + (cancel ? 0 : 1), 1000);
-        QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel);
-        QCOMPARE(read(QDir(output).filePath(name)), cancel      ? QByteArray()
+        QCOMPARE(QFileInfo::exists(QDir(output).filePath(name)), !cancel && !missing);
+        QVERIFY(!QFileInfo::exists(fixture.filePath("unneeded")));
+        QCOMPARE(read(QDir(output).filePath(name)), cancel || missing ? QByteArray()
                                                     : overwrite ? QByteArray("existing control")
                                                                 : QByteArray("control bytes"));
-        QCOMPARE(read(QDir(input).filePath(name)),
-                 move ? QByteArray() : QByteArray("control bytes"));
+        QCOMPARE(read(QDir(input).filePath(name)), move && !cancel && !overwrite && !missing
+                                                       ? QByteArray()
+                                                       : QByteArray("control bytes"));
+        if (missing) {
+            QVERIFY(removed && reviewed);
+            QVERIFY(!QFileInfo::exists(QDir(output).filePath(other)));
+        }
+        if (skip) {
+            QCOMPARE(QFileInfo::exists(QDir(input).filePath(other)), !move);
+            QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            if (move) {
+                retry = true;
+                seen = false;
+                QTest::keyClick(window.focusWidget(), Qt::Key_F6);
+                QVERIFY(seen);
+                QTRY_COMPARE(read(QDir(output).filePath(name)), QByteArray("control bytes"));
+                QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+                QCOMPARE(overwritePrompts, 2);
+                QVERIFY(!QFileInfo::exists(QDir(input).filePath(name)));
+                QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            }
+        }
+        if (cancelBatch) {
+            QCOMPARE(overwritePrompts, 2);
+            QVERIFY(sourceView->selectionModel()->isRowSelected(row(*sourceView, other), {}));
+            QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
+            QCOMPARE(read(QDir(output).filePath(other)), QByteArray("other existing bytes"));
+        }
+        if (newBatchFolder) {
+            QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
+        }
         QCOMPARE(peerView->selectionModel()->selectedRows().size(), 1);
         QCOMPARE(peerView->model()
                      ->index(peerView->selectionModel()->selectedRows().first().row(), 0)
@@ -223,6 +498,34 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         inspectCompletedPanels(
             window, *sourceView, *peerView,
             QString("copy-outside-peer-%1-%2-%3").arg(sourceIndex).arg(large).arg(outcome));
+        if (cancel || (overwrite && !skip)) {
+            const int promptsBeforeRetry = overwritePrompts;
+            retry = true;
+            seen = false;
+            QTest::keyClick(window.focusWidget(), move ? Qt::Key_F6 : Qt::Key_F5);
+            QVERIFY(seen);
+            QTRY_COMPARE(read(QDir(output).filePath(name)), QByteArray("control bytes"));
+            QTRY_COMPARE(peerView->rowCount(), originalRows + 1);
+            QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+            QCOMPARE(overwritePrompts - promptsBeforeRetry, cancelBatch ? 2 : int(overwrite));
+            if (cancelBatch) {
+                QCOMPARE(QFileInfo::exists(QDir(input).filePath(name)), !move);
+                QCOMPARE(QFileInfo::exists(QDir(input).filePath(other)), !move);
+                if (!move)
+                    QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
+                QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
+            } else if (move) {
+                QVERIFY(!QFileInfo::exists(QDir(input).filePath(name)));
+            } else {
+                QCOMPARE(read(QDir(input).filePath(name)), QByteArray("control bytes"));
+            }
+            QTRY_COMPARE(window.focusWidget(), sourceView);
+        }
+        if (outcome == "copy" || outcome == "move") {
+            QTRY_COMPARE(window.focusWidget(), sourceView);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+            QTRY_COMPARE(window.focusWidget(), peerView);
+        }
     }
     void unselectedItemsReachSourceSmartCopy_data() {
         QTest::addColumn<bool>("archive");
@@ -299,6 +602,65 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QCOMPARE(QDir(fixture.path()).entryList(QDir::Dirs | QDir::NoDotAndDotDot),
                  QStringList{"input"});
     }
+    void rejectsDestinationInsideSourceFolder_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("move") << true;
+    }
+
+    void rejectsDestinationInsideSourceFolder() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("source folder δ");
+        const QString source = fixture.filePath(name);
+        const QString blocked = source + "/new folder/";
+        const QString blockedInput = move ? name + "/new folder/" : blocked;
+        const QString output = fixture.filePath("source folder δ copy");
+        QVERIFY(QDir().mkpath(source));
+        write(source + "/file.txt", "control bytes");
+
+        ArchiveBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = openPanel(window, 0, fixture.path());
+        QTRY_COMPARE(row(*view, name), 0);
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        view->selectRow(0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+
+        bool stayedOpen = false;
+        bool corrected = false;
+        QString diagnostic;
+        QTimer::singleShot(0, &window, [&] {
+            auto *dialog = window.findChild<CopyDialog *>("copyDialog");
+            if (!dialog)
+                return;
+            auto *path = dialog->findChild<QLineEdit *>("copyDestination");
+            auto *buttons = dialog->findChild<QDialogButtonBox *>("copyButtons");
+            auto *ok = buttons->button(QDialogButtonBox::Ok);
+            path->setText(blockedInput);
+            diagnostic = dialog->findChild<QLabel *>("copyDestinationMessage")->text();
+            if (!ok->isEnabled()) {
+                dialog->accept();
+                stayedOpen = dialog->isVisible() && path->text() == blockedInput;
+            }
+            path->setText(output);
+            corrected = ok->isEnabled();
+            corrected ? dialog->accept() : dialog->reject();
+        });
+        QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
+        QVERIFY(stayedOpen);
+        QCOMPARE(diagnostic, QString("Destination is inside the source folder: %1").arg(blocked));
+        QVERIFY(corrected);
+        QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        QVERIFY(!QFileInfo::exists(blocked));
+        QCOMPARE(read(output + "/file.txt"), QByteArray("control bytes"));
+        QCOMPARE(QFileInfo::exists(source), !move);
+    }
+
     void capturedItemsSurviveModalSelectionChange_data() {
         QTest::addColumn<bool>("sourceArchive");
         QTest::addColumn<bool>("targetArchive");
@@ -306,6 +668,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTest::addColumn<QString>("language");
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<bool>("largeLists");
+        QTest::addColumn<bool>("typedArchivePath");
         for (bool sourceArchive : {false, true})
             for (bool targetArchive : {false, true})
                 for (bool move : {false, true})
@@ -318,13 +681,17 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                                                          .arg(language)
                                                          .arg(sourceIndex)))
                                 << sourceArchive << targetArchive << move
-                                << QString::fromLatin1(language) << sourceIndex << false;
+                                << QString::fromLatin1(language) << sourceIndex << false << false;
         for (unsigned sourceIndex : {0u, 1u}) {
             QTest::newRow(qPrintable(QString("large-fs-to-fs-move-%1").arg(sourceIndex)))
-                << false << false << true << QString("ru") << sourceIndex << true;
+                << false << false << true << QString("ru") << sourceIndex << true << false;
             QTest::newRow(qPrintable(QString("large-fs-to-archive-move-%1").arg(sourceIndex)))
-                << false << true << true << QString("ru") << sourceIndex << true;
+                << false << true << true << QString("ru") << sourceIndex << true << false;
         }
+        QTest::newRow("typed-archive-copy")
+            << false << true << false << QString("-") << 0u << false << true;
+        QTest::newRow("typed-archive-move")
+            << false << true << true << QString("-") << 1u << false << true;
     }
     void capturedItemsSurviveModalSelectionChange() {
         QFETCH(bool, sourceArchive);
@@ -333,6 +700,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QFETCH(QString, language);
         QFETCH(unsigned, sourceIndex);
         QFETCH(bool, largeLists);
+        QFETCH(bool, typedArchivePath);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -368,8 +736,28 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         else
             write(QDir(output).filePath("seed.txt"), "seed control");
         const QByteArray sourceBefore = sourceArchive ? read(source) : QByteArray();
-        ArchiveBackend backend;
+        QtWorkspaceApplication application(*qApp);
+        ArchiveBackend backend, observerBackend, sourceObserverBackend;
         MainWindow window(&backend);
+        std::unique_ptr<MainWindow> observer;
+        if ((targetArchive || sourceArchive) && !typedArchivePath) {
+            observer = std::make_unique<MainWindow>(&observerBackend);
+            observer->show();
+            if (targetArchive)
+                observer->openArchive(target);
+            else
+                observer->openPath(target);
+            QTRY_VERIFY(row(*table(*observer), "seed.txt") >= 0);
+            table(*observer)->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
+        std::unique_ptr<MainWindow> sourceObserver;
+        if (sourceArchive && move && !typedArchivePath) {
+            sourceObserver = std::make_unique<MainWindow>(&sourceObserverBackend);
+            sourceObserver->show();
+            sourceObserver->openArchive(source);
+            QTRY_VERIFY(row(*table(*sourceObserver), first) >= 0);
+            table(*sourceObserver)->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         action(window, "twoPanelsAction")->trigger();
@@ -399,7 +787,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QTRY_VERIFY(sourceView->hasFocus());
         bool dialogSeen = false;
         QString errors;
-        submit(window, *sourceView, secondRow, move, dialogSeen, errors);
+        const QString destination = typedArchivePath ? ".././target archive.zip/" : QString();
+        submit(window, *sourceView, secondRow, move, dialogSeen, errors, destination);
         QVERIFY(dialogSeen);
         QVERIFY2(errors.isEmpty(), qPrintable(errors));
         if (!sourceArchive)
@@ -420,10 +809,16 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         QCOMPARE(read(QDir(output).filePath(first)), firstBytes);
         QVERIFY(!QFileInfo::exists(QDir(output).filePath(second)));
         QTRY_VERIFY(row(*targetView, first) >= 0);
+        if (observer)
+            QTRY_VERIFY(row(*table(*observer), first) >= 0);
         QTRY_COMPARE(targetView->rowCount(), (largeLists ? 301 : 1) + 1);
         QVERIFY(row(*targetView, second) < 0);
         QCOMPARE(read(QDir(input).filePath(second)), secondBytes);
         if (sourceArchive) {
+            if (sourceObserver) {
+                QTRY_COMPARE(row(*table(*sourceObserver), first), -1);
+                QVERIFY(row(*table(*sourceObserver), second) >= 0);
+            }
             if (!move)
                 QCOMPARE(read(source), sourceBefore);
             QTRY_COMPARE(sourceView->rowCount(), move ? 1 : 2);

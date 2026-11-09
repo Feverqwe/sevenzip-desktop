@@ -72,6 +72,8 @@ bool QtPanelShortcutMatches(const QKeyEvent &key, const QList<QKeySequence> &sho
 
 int QtPanelVirtualKey(const QKeyEvent &key) {
     const int logical = key.key();
+    if (logical == Qt::Key_Backtab)
+        return Qt::Key_Tab;
     if (key.modifiers().testFlag(Qt::KeypadModifier))
         return logical >= Qt::Key_0 && logical <= Qt::Key_9 ? Qt::Key_unknown : logical;
 #ifdef Q_OS_WIN

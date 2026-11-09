@@ -26,6 +26,7 @@
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
 #include "fileops/native/FileDir.h"
+#include "platform/temp/qtownedtempidentity.h"
 
 #if defined(_WIN32) && !defined(UNDER_CE) && !defined(Z7_SFX)
 #define Z7_USE_SECURITY_CODE
@@ -56,6 +57,8 @@ static const char *const kCantDeleteOutputDir =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot delete output folder");
 static const char *const kCantOpenOutFile =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot open output file");
+static const char *const kCantReplaceOutFile =
+    QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot replace output file");
 #ifndef Z7_SFX
 static const char *const kCantOpenInFile =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot open input file");
@@ -1179,7 +1182,8 @@ void CArchiveExtractCallback::CreateFolders() {
   (needExit = true) means that we must exit GetStream() even for S_OK result.
 */
 
-HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool &needExit) {
+HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool isAnti,
+                                                bool &needExit) {
     needExit = true; // it was set already before
     bool renameOnce = false;
 
@@ -1241,6 +1245,16 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             }
         } // NExtract::NOverwriteMode::kAsk
 
+        if (_ntOptions.QtPathPolicy && !renameOnce &&
+            _overwriteMode != NExtract::NOverwriteMode::kRename) {
+            UString message;
+            const HRESULT result =
+                _ntOptions.QtPathPolicy->CheckReplace(fullProcessedPath, message);
+            if (result != S_OK) {
+                RINOK(_extractCallback2->MessageError(message))
+                return result;
+            }
+        }
         if (renameOnce || _overwriteMode == NExtract::NOverwriteMode::kRename) {
             if (!AutoRenamePath(fullProcessedPath)) {
                 RINOK(SendMessageError(kCantAutoRename, fullProcessedPath))
@@ -1261,6 +1275,17 @@ HRESULT CArchiveExtractCallback::CheckExistFile(FString &fullProcessedPath, bool
             }
         } else // not Rename*
         {
+            if (!isAnti && _ntOptions.QtPathPolicy && !_item.IsAltStream && !fileInfo.IsDir() &&
+                !fileInfo.IsOsSymLink() && !_fi.IsLinuxSymLink() && !_fi.IsReparse()
+#ifdef SUPPORT_LINKS
+                && _link.LinkPath.IsEmpty() && _hardLinks.IDs.IsEmpty()
+#endif
+            ) {
+                // The decoder can report a failure after writing output bytes.
+                _replacementPath = fullProcessedPath;
+                needExit = false;
+                return S_OK;
+            }
             if (fileInfo.IsDir()) {
                 // do we need to delete all files in folder?
                 if (!RemoveDir(fullProcessedPath)) {
@@ -1394,7 +1419,7 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
             return S_OK;
         }
     } else if (!_isSplit) {
-        RINOK(CheckExistFile(fullProcessedPath, needExit))
+        RINOK(CheckExistFile(fullProcessedPath, isAnti, needExit))
         if (needExit)
             return S_OK;
         needExit = true;
@@ -1516,11 +1541,28 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
 #endif
 
     // printf("\n GetExtractStream Create_ALWAYS_or_Open_ALWAYS : %s\n", fullProcessedPath.Ptr());
-    const bool createNew =
-        !_isSplit && (_isRenamed || _overwriteMode == NExtract::NOverwriteMode::kRename);
-    const bool created =
-        createNew ? _outFileStreamSpec->Create_NEW(fullProcessedPath)
-                  : _outFileStreamSpec->Create_ALWAYS_or_Open_ALWAYS(fullProcessedPath, !_isSplit);
+    const bool trackEmptyEncryptedOutput =
+        _encrypted && _ntOptions.QtPathPolicy && _replacementPath.IsEmpty() && !_isSplit &&
+        !_item.IsAltStream && !_fi.IsLinuxSymLink() && !_fi.IsReparse()
+#ifdef SUPPORT_LINKS
+        && _hardLinks.IDs.IsEmpty()
+#endif
+        ;
+    const bool createNew = !_isSplit && (trackEmptyEncryptedOutput || _isRenamed ||
+                                         _overwriteMode == NExtract::NOverwriteMode::kRename);
+    bool created;
+    if (!_replacementPath.IsEmpty()) {
+        _replacementFile = std::make_unique<CTempFile>();
+        FString prefix = fullProcessedPath.Left(fullProcessedPath.ReverseFind_PathSepar() + 1);
+        prefix += FTEXT(".7z-extract");
+        created = _replacementFile->Create(prefix, &_outFileStreamSpec->File);
+        if (created)
+            _diskFilePath = _replacementFile->GetPath();
+    } else {
+        created = createNew ? _outFileStreamSpec->Create_NEW(fullProcessedPath)
+                            : _outFileStreamSpec->Create_ALWAYS_or_Open_ALWAYS(fullProcessedPath,
+                                                                               !_isSplit);
+    }
     if (!created) {
         // if (::GetLastError() != ERROR_FILE_EXISTS || !isSplit)
         {
@@ -1528,6 +1570,10 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
             return S_OK;
         }
     }
+
+    if (trackEmptyEncryptedOutput)
+        _emptyEncryptedOutputIdentity =
+            QtOwnedTempIdentity(QString::fromWCharArray(fs2us(_diskFilePath)));
 
     SET_NEED_SET_OWNER
     _needSetAttrib = needSetAttrib;
@@ -1607,7 +1653,8 @@ HRESULT CArchiveExtractCallback::GetExtractStream(CMyComPtr<ISequentialOutStream
 
     _outFileStream = outFileStream_Loc;
 
-    RecordQtOutputIdentity(_diskFilePath);
+    if (!_replacementFile)
+        RecordQtOutputIdentity(_diskFilePath);
     needExit = false;
     return S_OK;
 }
@@ -1651,6 +1698,9 @@ Z7_COM7F_IMF(CArchiveExtractCallback::GetStream(const UInt32 index,
 
     _outFileStream.Release();
     _bufPtrSeqOutStream.Release();
+    _replacementFile.reset();
+    _replacementPath.Empty();
+    _emptyEncryptedOutputIdentity.clear();
 
     _encrypted = false;
     _isSplit = false;
@@ -1973,7 +2023,8 @@ HRESULT CArchiveExtractCallback::CloseFile() {
     if (ZoneBuf.Size() != 0 && !_item.IsAltStream) {
         // if (NFind::DoesFileExist_Raw(tempFilePath))
         if (ZoneMode != NExtract::NZoneIdMode::kOffice ||
-            FindExt2(kOfficeExtensions, fs2us(_diskFilePath))) {
+            FindExt2(kOfficeExtensions,
+                     fs2us(_replacementPath.IsEmpty() ? _diskFilePath : _replacementPath))) {
             // we must write zone file before setting of timestamps
             if (!WriteZoneFile_To_BaseFile(_diskFilePath, ZoneBuf)) {
                 // we can't write it in FAT
@@ -2694,6 +2745,15 @@ HRESULT CArchiveExtractCallback::SetSecurityInfo(UInt32 indexInArc, const FStrin
 }
 #endif // Z7_USE_SECURITY_CODE
 
+void CArchiveExtractCallback::RemoveEmptyEncryptedOutput() {
+    if (_emptyEncryptedOutputIdentity.isEmpty() || !_curSize_Defined || _curSize != 0)
+        return;
+
+    const QString path = QString::fromWCharArray(fs2us(_diskFilePath));
+    if (QtOwnedTempMatchesIdentity(path, _emptyEncryptedOutputIdentity))
+        DeleteFileAlways(_diskFilePath);
+}
+
 Z7_COM7F_IMF(CArchiveExtractCallback::SetOperationResult(Int32 opRes)) {
     COM_TRY_BEGIN
 
@@ -2755,6 +2815,22 @@ Z7_COM7F_IMF(CArchiveExtractCallback::SetOperationResult(Int32 opRes)) {
         SetAttrib(_diskFilePath);
 
     SET_OWNER
+
+    if (_replacementFile) {
+        if (opRes == NArchive::NExtract::NOperationResult::kOK &&
+            _diskFilePath == _replacementFile->GetPath()) {
+            if (!MyPublishExtractedReplacement(_diskFilePath, _replacementPath)) {
+                QtExtractStatus.Complete = false;
+                RINOK(SendMessageError_with_LastError(kCantReplaceOutFile, _replacementPath))
+            } else {
+                _replacementFile->DisableDeleting();
+                RecordQtOutputIdentity(_replacementPath);
+            }
+        }
+        _replacementFile.reset();
+    }
+    if (opRes != NArchive::NExtract::NOperationResult::kOK)
+        RemoveEmptyEncryptedOutput();
 
     return _extractCallback2->SetOperationResult(opRes, BoolToInt(_encrypted));
 
@@ -3042,7 +3118,12 @@ HRESULT CArchiveExtractCallback::SetDirsTimes() {
 
 HRESULT CArchiveExtractCallback::CloseArc() {
     // we call CloseReparseAndFile() here because we can have non-closed file in some cases?
+    const bool interruptedFile = bool(_outFileStream);
     HRESULT res = CloseReparseAndFile();
+    if (res == S_OK && interruptedFile)
+        RemoveEmptyEncryptedOutput();
+    _replacementFile.reset();
+    _replacementPath.Empty();
 #ifdef SUPPORT_LINKS
     {
         const HRESULT res2 = SetPostLinks();

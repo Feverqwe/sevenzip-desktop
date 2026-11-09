@@ -156,6 +156,81 @@ class ArchiveVolumeCreationTests final : public QObject {
         QTest::newRow("normal") << 760 << 720;
         QTest::newRow("compact") << 640 << 480;
     }
+    void occupiedVolumeCanBeCorrected_data() {
+        QTest::addColumn<QString>("suffix");
+        QTest::addColumn<bool>("link");
+        QTest::newRow("first") << QString(".001") << false;
+        QTest::newRow("later") << QString(".002") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("dangling-later") << QString(".002") << true;
+#endif
+    }
+    void occupiedVolumeCanBeCorrected() {
+        QFETCH(QString, suffix);
+        QFETCH(bool, link);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.bin");
+        const QString occupied = fixture.filePath("archive.7z" + suffix);
+        const QString missing = fixture.filePath("missing.bin");
+        QVERIFY(writeFile(source, "source"));
+        if (link)
+            QVERIFY(QFile::link(missing, occupied));
+        else
+            QVERIFY(writeFile(occupied, "keep this volume"));
+        CreateArchiveDialog dialog(fixture.path(), {source});
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        name->setText("archive.7z");
+        dialog.findChild<QComboBox *>("archiveVolumeSize")->setEditText("128K");
+        auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+        dialog.show();
+        const auto submitAndDismissWarning = [&] {
+            bool refused = false;
+            QTimer responder;
+            connect(&responder, &QTimer::timeout, &dialog, [&] {
+                if (auto *warning =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    refused = true;
+                    warning->accept();
+                }
+            });
+            responder.start(0);
+            ok->click();
+            return refused;
+        };
+        QVERIFY(submitAndDismissWarning() && dialog.isVisible());
+        QCOMPARE(name->selectedText(), QString("archive.7z"));
+        if (link) {
+            QVERIFY(QFileInfo(occupied).isSymLink());
+            QVERIFY(!QFileInfo::exists(missing));
+        } else {
+            QCOMPARE(readFile(occupied), QByteArray("keep this volume"));
+        }
+        const QString baseArchive = fixture.filePath("existing.7z");
+        QVERIFY(writeFile(baseArchive, "keep this archive"));
+        name->setText("existing.7z");
+        auto *volume = dialog.findChild<QComboBox *>("archiveVolumeSize");
+        volume->setEditText("0");
+        QVERIFY(submitAndDismissWarning() && dialog.isVisible());
+        QTRY_VERIFY(dialog.focusWidget() == volume || dialog.focusWidget() == volume->lineEdit());
+        QCOMPARE(name->text(), QString("existing.7z"));
+        volume->setEditText("128K");
+        QVERIFY(submitAndDismissWarning() && dialog.isVisible());
+        QCOMPARE(readFile(baseArchive), QByteArray("keep this archive"));
+        QCOMPARE(name->selectedText(), QString("existing.7z"));
+        QVERIFY(dialog.focusWidget());
+        QTest::keyClicks(dialog.focusWidget(), "different.7z");
+        QCOMPARE(name->text(), QString("different.7z"));
+        QCOMPARE(volume->currentText(), QString("128K"));
+        QVERIFY(writeFile(fixture.filePath("different.7z.0002"), "not a volume"));
+        ok->click();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        ArchiveBackend backend;
+        QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources(), {},
+                                               false, dialog.compressionOptions()),
+                 S_OK);
+        QVERIFY(QFileInfo(fixture.filePath("different.7z.001")).isFile());
+    }
     void smallVolumeConfirmationDoesNotSaveUntilYes() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -166,7 +241,9 @@ class ArchiveVolumeCreationTests final : public QObject {
         volume->setEditText("64K");
         auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
         const QByteArray original = readFile(settings_);
+        dialog.show();
         for (const auto answer : {QMessageBox::No, QMessageBox::Cancel, QMessageBox::Yes}) {
+            ok->setFocus();
             QTimer::singleShot(0, &dialog, [answer] {
                 auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
                 QVERIFY(message);
@@ -180,6 +257,10 @@ class ArchiveVolumeCreationTests final : public QObject {
             ok->click();
             if (answer != QMessageBox::Yes) {
                 QCOMPARE(dialog.result(), int(QDialog::Rejected));
+                QVERIFY(volume->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == volume ||
+                            dialog.focusWidget() == volume->lineEdit());
+                QCOMPARE(volume->currentText(), QString("64K"));
                 QCOMPARE(readFile(settings_), original);
             }
         }
@@ -212,7 +293,10 @@ class ArchiveVolumeCreationTests final : public QObject {
         QVERIFY(UiInspection::writeReport(dialog, "archive-volumes-" + QString::number(width)));
         const QByteArray original = readFile(settings_);
         auto *section = dialog.findChild<QtDisclosure *>("archiveAdditionalSection");
-        for (const auto &invalid : {QString("0"), QString("128K") + QChar::Null + " 256K"}) {
+        for (const auto &invalid :
+             {QString("0"), QString("-128K"), QString("128K -256K"), QString("128Mmistyped"),
+              QString("128K256K"), QString("65536B128K"),
+              QString("128K") + QChar::Null + " 256K"}) {
             volume->setEditText(invalid);
             section->setExpanded(false);
             bool reported = false;
@@ -231,13 +315,14 @@ class ArchiveVolumeCreationTests final : public QObject {
         }
         QCoreApplication::processEvents();
         QVERIFY(UiInspection::fullyVisible(*volume, dialog));
-        volume->setEditText("64K 128K");
+        volume->setEditText("65536B 64KiB 128KB - custom");
         footer->button(QDialogButtonBox::Ok)->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         const auto sizes = dialog.compressionOptions().VolumeSizes;
-        QCOMPARE(sizes.Size(), 2u);
+        QCOMPARE(sizes.Size(), 3u);
         QCOMPARE(sizes[0], UInt64(64 << 10));
-        QCOMPARE(sizes[1], UInt64(128 << 10));
+        QCOMPARE(sizes[1], UInt64(64 << 10));
+        QCOMPARE(sizes[2], UInt64(128 << 10));
         CreateArchiveDialog update(fixture.path(), {source});
         update.findChild<QLineEdit *>("archiveName")->setText(fixture.filePath("existing.zip"));
         QVERIFY(update.findChild<QComboBox *>("archiveVolumeSize")->isEnabled());

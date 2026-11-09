@@ -9,7 +9,9 @@
 #include "operations/qtoperationlauncher.h"
 #include "settings/RegistryUtils.h"
 #include "support/operation_temp_cleanup.h"
+#include "support/panel_keys.h"
 #include "support/scoped_environment.h"
+#include "support/window_activation.h"
 
 namespace {
 QAction *FindShellVerb(QMenu &menu, const QString &verb) {
@@ -146,6 +148,9 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         QVERIFY(input.isValid() && output.isValid());
         const QString source = input.filePath("payload 空.txt");
         QVERIFY(SourceExtractFixture::writeFile(source, "manager selection payload"));
+        const QString extra = input.filePath("second.txt");
+        QVERIFY(SourceExtractFixture::writeFile(extra, "second payload"));
+        QVERIFY(SourceExtractFixture::writeFile(input.filePath("unselected.txt"), "untouched"));
         const QString module = QStringLiteral(SEVENZIP_CODEC_MODULE);
         ArchiveCodecCatalog catalog(module, 0);
         QCOMPARE(catalog.result(), S_OK);
@@ -162,15 +167,41 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         auto *peer = openPanel(window, 1 - pane, output.path());
         QTRY_COMPARE(peer->rowCount(), 0);
         auto *selected = openPanel(window, pane, input.path());
-        QTRY_COMPARE(selected->rowCount(), 1);
+        QTRY_COMPARE(selected->rowCount(), 3);
         selected->sourcePanel->Set_AutoRefresh_Mode(false);
         peer->sourcePanel->Set_AutoRefresh_Mode(false);
-        selected->selectRow(0);
-        selected->setCurrentCell(0, 0);
+        if (cancel) {
+            for (int row = 0; row < selected->rowCount(); ++row)
+                if (selected->model()->index(row, 0).data().toString() == "second.txt") {
+                    selected->setCurrentCell(row, 0);
+                    selected->selectRow(row);
+                    break;
+                }
+            selected->setFocus();
+            QTRY_VERIFY(selected->hasFocus());
+            const QString parked = output.filePath("parked.txt");
+            QVERIFY(QFile::rename(extra, parked));
+            action(window, "toolbarAddAction")->trigger();
+            QVERIFY(backend.Requests.isEmpty());
+            QVERIFY(window.statusBar()->currentMessage().contains("second.txt"));
+            QTRY_COMPARE(window.focusWidget(), selected);
+            QVERIFY(selected->selectionModel()->isRowSelected(selected->currentRow(), {}));
+            QVERIFY(QFile::rename(parked, extra));
+        }
+        for (int row = 0; row < selected->rowCount(); ++row) {
+            const auto item = selected->model()->index(row, 0);
+            if (item.data().toString() == "unselected.txt")
+                selected->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
+            else
+                selected->selectionModel()->select(item, QItemSelectionModel::Select |
+                                                             QItemSelectionModel::Rows);
+        }
         selected->setFocus();
         QTRY_VERIFY(selected->hasFocus());
         QVERIFY(action(window, "toolbarAddAction")->isEnabled());
         action(window, "toolbarAddAction")->trigger();
+        if (cancel)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QVERIFY(action(window, "refreshAction")->isEnabled());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.first().Status, cancel ? QtOperationResult::Outcome::Cancelled
@@ -179,16 +210,65 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
             QCOMPARE(SourceExtractFixture::readFile(source),
                      QByteArray("manager selection payload"));
             QVERIFY(!QFileInfo::exists(backend.Target));
-            QCOMPARE(selected->rowCount(), 1);
+            QCOMPARE(selected->rowCount(), 3);
             QCOMPARE(peer->rowCount(), 0);
-        } else {
-            QTRY_COMPARE(selected->rowCount(), 1);
-            QTRY_COMPARE(peer->rowCount(), 1);
-            QCOMPARE(peer->model()->index(0, 0).data().toString().normalized(
-                         QString::NormalizationForm_C),
-                     QString("chosen archive 空.zip"));
-            QVERIFY(QFileInfo::exists(backend.Target));
+            QCOMPARE(selected->selectionModel()->selectedRows().size(), 2);
+            window.activateWindow();
+            QVERIFY(QTest::qWaitForWindowActive(&window));
+            QTRY_VERIFY(selected->hasFocus());
+            backend.Cancel = false;
+            action(window, "toolbarAddAction")->trigger();
+            QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 2, 30000);
+            QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
         }
+        QTRY_COMPARE(selected->rowCount(), 3);
+        QTRY_COMPARE(peer->rowCount(), 1);
+        QStringList retainedSelection;
+        for (const auto &item : selected->selectionModel()->selectedRows())
+            retainedSelection.append(
+                item.data().toString().normalized(QString::NormalizationForm_C));
+        retainedSelection.sort();
+        QCOMPARE(retainedSelection, (QStringList{QStringLiteral("payload 空.txt"), "second.txt"}));
+        QCOMPARE(selected->currentIndex().data().toString(), QString("unselected.txt"));
+        QTRY_COMPARE(window.focusWidget(), selected);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_COMPARE(window.focusWidget(), peer);
+        QCOMPARE(
+            peer->model()->index(0, 0).data().toString().normalized(QString::NormalizationForm_C),
+            QString("chosen archive 空.zip"));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(peer, Qt::Key_Home);
+        QCOMPARE(peer->currentRow(), 0);
+        QTest::keySequence(peer, QKeySequence::SelectAll);
+        QVERIFY(peer->selectionModel()->isRowSelected(0, {}));
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_VERIFY(peer->isEnabled() && peer->sourcePanel->IsArcFolder());
+        QStringList archived;
+        for (int row = 0; row < peer->rowCount(); ++row)
+            archived.append(peer->model()->index(row, 0).data().toString().normalized(
+                QString::NormalizationForm_C));
+        archived.sort();
+        QCOMPARE(archived, retainedSelection);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keySequence(peer, action(window, "backAction")->shortcut());
+        QTRY_VERIFY(peer->hasFocus() && peer->sourcePanel->IsFSFolder());
+        QCOMPARE(peer->currentIndex().data().toString().normalized(QString::NormalizationForm_C),
+                 QString("chosen archive 空.zip"));
+        const QString verified = input.filePath("verified");
+        QProcess extract;
+        extract.start(QStandardPaths::findExecutable("7z"),
+                      {"x", "-y", "-o" + verified, "--", backend.Target});
+        QVERIFY(extract.waitForFinished(10000));
+        QCOMPARE(extract.exitCode(), 0);
+        QCOMPARE(
+            SourceExtractFixture::readFile(QDir(verified).filePath(QFileInfo(source).fileName())),
+            QByteArray("manager selection payload"));
+        QCOMPARE(
+            SourceExtractFixture::readFile(QDir(verified).filePath(QFileInfo(extra).fileName())),
+            QByteArray("second payload"));
+        QVERIFY(!QFileInfo::exists(QDir(verified).filePath("unselected.txt")));
     }
     void filesystemShellCompressionUsesChild_data() {
         QTest::addColumn<QString>("verb");

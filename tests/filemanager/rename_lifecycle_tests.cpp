@@ -1,7 +1,12 @@
 #include "filemanager/support/window_state_support.h"
 #include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/window_activation.h"
+#include <QClipboard>
 #include <QInputMethodEvent>
+#include <QMimeData>
+#include <QScopeGuard>
+#include <QScrollBar>
 #include <QStyledItemDelegate>
 
 namespace {
@@ -43,7 +48,7 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString original = QStringLiteral("original 空.txt");
-        const QString renamed = QStringLiteral("renamed δ.txt");
+        const QString renamed = QStringLiteral("renamed 空.txt");
         QFile input(fixture.filePath(original));
         QVERIFY(input.open(QIODevice::WriteOnly));
         QCOMPARE(input.write("source bytes"), qint64(12));
@@ -71,11 +76,15 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         action(window, "renameAction")->trigger();
         QPointer<QLineEdit> editor = active->findChild<QLineEdit *>();
         QVERIFY(editor);
+        editor->setSelection(8, -8);
+        view->invalidateLanguageText();
+        QVERIFY(editor);
+        QCOMPARE(editor->selectedText(), QString("original"));
+        QCOMPARE(editor->cursorPosition(), 0);
         // The real language-change path refreshes display roles. It must
         // neither confirm nor retire an editor that the user still owns.
-        editor->selectAll();
         QInputMethodEvent inputMethod;
-        inputMethod.setCommitString(renamed);
+        inputMethod.setCommitString(QStringLiteral("renamed"));
         QApplication::sendEvent(editor, &inputMethod);
         QCOMPARE(editor->text(), renamed);
         view->invalidateLanguageText();
@@ -90,6 +99,50 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QFile output(fixture.filePath(cancel ? original : renamed));
         QVERIFY(output.open(QIODevice::ReadOnly));
         QCOMPARE(output.readAll(), QByteArray("source bytes"));
+    }
+    void unchangedNameKeepsItsOriginalUnicode_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+    void unchangedNameKeepsItsOriginalUnicode() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString composed = QStringLiteral("café.txt");
+        const QString original = composed.normalized(QString::NormalizationForm_D);
+        QFile file(fixture.filePath(original));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("source bytes"), qint64(12));
+        file.close();
+        if (QFileInfo::exists(fixture.filePath(composed)))
+            QSKIP("This filesystem treats the two Unicode spellings as the same entry.");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *active =
+            icons ? static_cast<QAbstractItemView *>(window.findChild<QListView *>("iconList"))
+                  : static_cast<QAbstractItemView *>(view);
+        active->setFocus();
+        action(window, "renameAction")->trigger();
+        QPointer<QLineEdit> editor = active->findChild<QLineEdit *>();
+        QVERIFY(editor);
+        QCOMPARE(editor->text(), original);
+        view->invalidateLanguageText();
+        QVERIFY(editor);
+        QCOMPARE(editor->text(), original);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(!editor);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), QByteArray("source bytes"));
+        QVERIFY(!QFileInfo::exists(fixture.filePath(composed)));
     }
     void refusedEditorDoesNotBlockOpening() {
         QTemporaryDir fixture;
@@ -118,7 +171,213 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
                      QFileInfo(child).canonicalFilePath());
         QVERIFY(QFileInfo(child).isDir());
+        action(window, "backAction")->trigger();
+        QTRY_COMPARE(window.focusWidget(), view);
+        QTRY_COMPARE(view->rowCount(), 1);
+        QTest::keyClick(window.focusWidget(), Qt::Key_F2);
+        auto *editor = qobject_cast<QLineEdit *>(window.focusWidget());
+        QVERIFY(editor);
+        QTest::keyClicks(editor, "discarded folder");
+        QTest::keyClick(editor, Qt::Key_Escape);
+        QCOMPARE(window.focusWidget(), view);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
+                     QFileInfo(child).canonicalFilePath());
     }
+    void clipboardShortcutsReturnToFilesAfterRename() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("original.txt");
+        const QString renamed = fixture.filePath(QStringLiteral("имя с пробелом.txt"));
+        QFile input(original);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTest::keyClick(view, Qt::Key_F2);
+        auto *editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->hasFocus());
+        QTest::keyClicks(editor, "discarded.txt");
+        QTest::keyClick(editor, Qt::Key_Escape);
+        QTRY_COMPARE(window.focusWidget(), view);
+        QVERIFY(QFileInfo::exists(original));
+        QVERIFY(!QFileInfo::exists(fixture.filePath("discarded.txt")));
+        QTest::keyClick(window.focusWidget(), Qt::Key_F2);
+        QTRY_VERIFY(qobject_cast<QLineEdit *>(window.focusWidget()));
+        editor = qobject_cast<QLineEdit *>(window.focusWidget());
+        QTest::keySequence(editor, QKeySequence::Copy);
+        QCOMPARE(clipboard->text(), QString("original.txt"));
+        QVERIFY(!clipboard->mimeData()->hasUrls());
+        clipboard->setText(QFileInfo(renamed).fileName());
+        QTest::keySequence(editor, QKeySequence::Paste);
+        QCOMPARE(editor->text(), QFileInfo(renamed).fileName());
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(QFileInfo::exists(renamed) && view->hasFocus() && view->isEnabled());
+        QTRY_COMPARE(view->model()->index(0, 0).data().toString(), QFileInfo(renamed).fileName());
+        QTest::keySequence(view, QKeySequence::Copy);
+        QCOMPARE(clipboard->mimeData()->urls(), QList<QUrl>{QUrl::fromLocalFile(renamed)});
+    }
+    void renameRevealsFileAtItsNewSortedPosition_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+    void renameRevealsFileAtItsNewSortedPosition() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString originalName = QStringLiteral("m060.txt");
+        const QString original = fixture.filePath(originalName);
+        const QString renamed = fixture.filePath("z.txt");
+        QFile input(original);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+        for (int i = 0; i <= 120; ++i) {
+            if (i == 60)
+                continue;
+            QFile peer(fixture.filePath(QString("m%1.txt").arg(i, 3, 10, QChar('0'))));
+            QVERIFY(peer.open(QIODevice::WriteOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(640, 400);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 121);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *active = icons ? window.findChild<QAbstractItemView *>("iconList") : view;
+        QVERIFY(active);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QTest::keyClicks(address, "unsubmitted path");
+        active->setFocus();
+        const int row = filesystemRow(window, originalName);
+        QVERIFY(row >= 0);
+        const auto source = active->model()->index(row, 0);
+        active->setCurrentIndex(source);
+        active->scrollTo(source, QAbstractItemView::PositionAtCenter);
+        action(window, "renameAction")->trigger();
+        auto *editor = active->findChild<QLineEdit *>();
+        QVERIFY(editor);
+        QCOMPARE(editor->text(), originalName);
+        const int position = active->verticalScrollBar()->value();
+        QVERIFY(position > 0);
+        bool reported = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                reported = true;
+                TestProgressDialog::CloseResult(*result);
+            }
+        });
+        responder.start(2);
+        editor->setText("m061.txt");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(reported && active->isEnabled());
+        responder.stop();
+        QCOMPARE(address->text(), QString("unsubmitted path"));
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), originalName);
+        QCOMPARE(active->verticalScrollBar()->value(), position);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(active->hasFocus());
+        QTest::keyClick(active, Qt::Key_F2);
+        editor = active->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        editor->setText("z.txt");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_COMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                     QString("z.txt"));
+        QCOMPARE(address->text(), QString("unsubmitted path"));
+        QVERIFY(active->selectionModel()->isRowSelected(active->currentIndex().row(), {}));
+        QTRY_VERIFY(
+            active->visualRect(active->currentIndex()).intersects(active->viewport()->rect()));
+        QTRY_VERIFY(active->hasFocus());
+        QVERIFY(!QFileInfo::exists(original));
+        QFile output(renamed);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("payload"));
+        output.close();
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls(),
+                     QList<QUrl>{QUrl::fromLocalFile(QFileInfo(renamed).canonicalFilePath())});
+        QVERIFY(action(window, "renameAction")->isEnabled());
+        QTest::keyClick(window.focusWidget(), Qt::Key_F2);
+        QLineEdit *reopened = nullptr;
+        for (auto *candidate : active->findChildren<QLineEdit *>())
+            if (candidate->isVisible())
+                reopened = candidate;
+        QVERIFY(reopened);
+        QCOMPARE(reopened->text(), QString("z.txt"));
+        QTest::keyClick(reopened, Qt::Key_Escape);
+        QTRY_VERIFY(active->hasFocus());
+        QTemporaryDir destination;
+        QVERIFY(destination.isValid());
+        window.openPath(destination.path());
+        QTRY_VERIFY(active->isEnabled() && active->hasFocus());
+        QTest::keySequence(active, QKeySequence::Paste);
+        QFile pasted(destination.filePath("z.txt"));
+        QTRY_VERIFY(filesystemRow(window, "z.txt") >= 0);
+        QVERIFY(pasted.open(QIODevice::ReadOnly));
+        QCOMPARE(pasted.readAll(), QByteArray("payload"));
+        QVERIFY(QFileInfo::exists(renamed));
+    }
+
+    void discardedRenameDoesNotSeedTheNextEditor() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("original.txt");
+        QFile input(original);
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTest::keyClick(view, Qt::Key_F2);
+        auto *editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        editor->setText("discarded.txt");
+        {
+            CPanel::CDisableNotify publishing(*view->sourcePanel);
+            view->itemDelegate()->commitData(editor);
+            view->itemDelegate()->closeEditor(editor);
+            QTRY_VERIFY(!view->findChild<QLineEdit *>());
+            QTest::qWait(1);
+        }
+        QVERIFY(QFileInfo::exists(original));
+        QVERIFY(!QFileInfo::exists(fixture.filePath("discarded.txt")));
+        view->clearSelection();
+        view->selectRow(0);
+        view->setFocus();
+        QTRY_VERIFY(action(window, "renameAction")->isEnabled());
+        QTest::keyClick(view, Qt::Key_F2);
+        editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        QCOMPARE(editor->text(), QString("original.txt"));
+        QTest::keyClick(editor, Qt::Key_Escape);
+    }
+
     void destroyingWindowCancelsQueuedRename() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

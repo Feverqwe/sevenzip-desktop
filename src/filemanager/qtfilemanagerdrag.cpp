@@ -3,9 +3,13 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
+#ifdef Q_OS_MACOS
+#include "filemanager/panels/qtmacfilepromisedrag.h"
+#endif
 #include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QStorageInfo>
@@ -13,6 +17,8 @@
 QtFileManagerDrag::QtFileManagerDrag(MainWindow &window) : QObject(&window), window_(window) {
 #ifdef _WIN32
     nativeConverter_ = QtNativePanelDragConverter::ForApplication();
+#elif defined(Q_OS_MACOS)
+    QtRegisterMacFilePromiseDrag();
 #endif
     window.app_.DropTarget().AttachPresentation(this);
     window.setAcceptDrops(true);
@@ -80,6 +86,18 @@ HRESULT QtFileManagerDrag::DoDragDrop(CDataObject &data, CDropSource &source, DW
     const auto &ui = window_.panelUi_[i];
     QWidget *view = ui.viewStack ? ui.viewStack->currentWidget() : ui.table;
     QtPanelDragTransport transport(view);
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
+    transport.SetPromiseMaterializer(
+        [window = QPointer<MainWindow>(&window_), i](CDataObject &promise, CPanel &panel) {
+            if (!window || window->app_.QtOperations().closed() ||
+                window->app_.QtOperations().blocking() ||
+                (window->scanningPanelMask() & (1u << i)) || window->backend_->busy())
+                return false;
+            QScopedValueRollback<bool> guard(window->sourceArchiveProgress_, true);
+            promise.CopyFromPanelTo_Folder(&panel);
+            return promise.Copy_HRESULT == S_OK && promise.Messages.IsEmpty();
+        });
+#endif
     return transport.DoDragDrop(data, source, allowed, effect);
 }
 int QtFileManagerDrag::PanelAtPoint(int x, int y) const {
@@ -93,7 +111,8 @@ int QtFileManagerDrag::PanelAtPoint(int x, int y) const {
 }
 bool QtFileManagerDrag::PanelEnabled(unsigned i) const {
     const auto &ui = window_.panelUi_[i];
-    return ui.container && ui.container->isEnabled() && ui.table && ui.table->isEnabled();
+    return !ui.scanningDisk && !ui.scanningArchive && ui.container && ui.container->isEnabled() &&
+           ui.table && ui.table->isEnabled();
 }
 int QtFileManagerDrag::FolderAtPoint(unsigned i, int x, int y, UString &name) const {
     const auto &ui = window_.panelUi_[i];
@@ -106,9 +125,10 @@ int QtFileManagerDrag::FolderAtPoint(unsigned i, int x, int y, UString &name) co
     if (!index.isValid())
         return -1;
     const UInt32 real = index.data(QtPanelList::SourceIndexRole).toUInt();
-    if (real == UInt32(-1) || !window_.app_.Panels[i].IsItem_Folder(real))
+    const auto &panel = window_.app_.Panels[i];
+    if (real == UInt32(-1) || !panel.IsItem_Folder(real))
         return -1;
-    name = window_.app_.Panels[i].GetItemName(real);
+    name = panel.IsFSFolder() ? panel.GetItemRelPath(real) : panel.GetItemName(real);
     return index.row();
 }
 void QtFileManagerDrag::Highlight(unsigned i, int item, bool enabled) {
@@ -137,19 +157,29 @@ HRESULT QtFileManagerDrag::ExecuteDrop(CDataObject *data, DWORD keys, const QPoi
     auto &target = window_.app_.DropTarget();
     CPanel *const owner = target.TargetPanel();
     std::optional<CSelectedState> refreshSelection;
+    bool published = false;
     HRESULT result;
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
-        result = target.Drop(data, keys, position.x(), position.y(), &effect, &refreshSelection);
+        result = target.Drop(data, keys, position.x(), position.y(), &effect, &refreshSelection,
+                             &published);
     }
     if (refreshSelection)
         for (unsigned index = 0; index < kNumPanelsMax; ++index)
             if (owner == &window_.app_.Panels[index]) {
                 window_.withPanelProjection(index,
                                             [&] { owner->RefreshListCtrl(*refreshSelection); });
-                window_.appPresentation_->RequestListFocus(index);
+                window_.workspace_->RequestListFocus(index);
                 break;
             }
+    if (published && owner && owner->GetParentFolders().Size() == 1) {
+        const QString archive = ToQString(owner->GetParentFolders().Front().VirtualPath);
+        const auto *updated = refreshSelection ? owner : nullptr;
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->ArchivePublished(archive, updated);
+        else
+            window_.ArchivePublished(archive, updated);
+    }
     return result;
 }
 
@@ -172,15 +202,23 @@ std::optional<HRESULT> QtFileManagerDrag::HandleDroppedPathChoice(CDataObject *d
     effect = DROPEFFECT_NONE;
     if (choice == DroppedPathAction::Cancel)
         return E_ABORT;
-    for (unsigned i = 0; i < kNumPanelsMax; ++i)
-        if (panel == &window_.app_.Panels[i])
-            window_.activatePanelUi(i);
-    // Opening never transfers ownership of the dropped item.
-    const HRESULT result =
-        QFileInfo(path).isDir() ? window_.navigateTo(path) : window_.openArchiveAs(path, {});
-    if (result == S_OK)
-        effect = DROPEFFECT_COPY;
-    return result;
+    const unsigned previousPanel = window_.projectedPanel_;
+    for (unsigned i = 0; i < kNumPanelsMax; ++i) {
+        if (panel != &window_.app_.Panels[i])
+            continue;
+        window_.activatePanelUi(i);
+        const HRESULT result =
+            QFileInfo(path).isDir() ? window_.navigateTo(path) : window_.openArchiveAs(path, {});
+        if (result == S_OK) {
+            // Opening never transfers ownership of the dropped item.
+            effect = DROPEFFECT_COPY;
+            window_.workspace_->RequestListFocus(i);
+        } else {
+            window_.activatePanelUi(previousPanel);
+        }
+        return result;
+    }
+    return E_ABORT;
 }
 
 QString QtFileManagerDrag::PathToOpen(CDataObject *data, DWORD keys) const {

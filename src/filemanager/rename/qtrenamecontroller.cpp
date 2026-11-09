@@ -1,6 +1,10 @@
 #include "filemanager/rename/qtrenamecontroller.h"
+#include "7zip/UI/FileManager/resource.h"
+#include "archive/backend/archivebackend.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include <QAbstractItemDelegate>
 #include <QFileInfo>
 #include <QLineEdit>
@@ -39,6 +43,7 @@ struct QtRenameController::Request {
     const QPointer<QAbstractItemView> view;
     QPointer<QLineEdit> editor;
     QString name;
+    std::function<void()> refresh;
     Phase phase = Phase::Editing;
 };
 
@@ -67,14 +72,16 @@ void QtRenameController::Attach(QAbstractItemView &view, unsigned panel) {
 }
 
 void QtRenameController::Begin(int row) {
-    if (request_ || window_.app_.QtOperations().closed())
+    if (Pending() || window_.app_.QtOperations().closed())
         return;
+    if (request_)
+        Stop();
     auto &panel = window_.app_.GetFocusedPanel();
     const bool streams = panel.GetFolder() && panel.IsAltStreamsFolder();
     const bool archive = window_.projectedUi().state == MainWindow::State::Viewing;
     if (window_.projectedUi().state != MainWindow::State::Filesystem && !archive && !streams)
         return;
-    if (!window_.rename_->isEnabled() || row < 0 ||
+    if (!window_.commands_->CanExecuteCommand(IDM_RENAME) || row < 0 ||
         row >= window_.projectedUi().table->rowCount() || panel.OnBeginLabelEdit(row))
         return;
     const QModelIndex item = window_.projectedUi().table->model()->index(row, 0);
@@ -127,6 +134,20 @@ void QtRenameController::Cancel(unsigned panel) {
     completion_.start();
 }
 
+bool QtRenameController::Pending() const {
+    return request_ && (request_->phase != Request::Phase::Cancelled || request_->refresh ||
+                        (request_->editor && request_->editor->isVisible()));
+}
+
+bool QtRenameController::PendingFor(unsigned panel) const {
+    return request_ && request_->panel == panel;
+}
+
+void QtRenameController::AfterEdit(unsigned panel, std::function<void()> refresh) {
+    if (PendingFor(panel))
+        request_->refresh = std::move(refresh);
+}
+
 void QtRenameController::Stop() {
     completion_.stop();
     request_.reset();
@@ -139,8 +160,11 @@ void QtRenameController::Complete() {
     const QPointer<QtRenameController> guard(this);
     if (request->phase == Request::Phase::Committed)
         Apply(*request);
-    if (guard && request_ == request)
+    if (guard && request_ == request) {
         request_.reset();
+        if (request->refresh)
+            request->refresh();
+    }
 }
 
 void QtRenameController::Apply(const Request &request) {
@@ -168,20 +192,26 @@ void QtRenameController::Apply(const Request &request) {
         if (request.name == ToQString(panel.GetItemName(request.sourceIndex)))
             return;
         if (!archive && !streams &&
-            QFileInfo(path).absolutePath() != window_.projectedUi().directory)
+            QFileInfo(QFileInfo(path).absolutePath()).canonicalFilePath() !=
+                window_.projectedUi().directory)
             return;
         Finish(request, panel);
     });
 }
 
 void QtRenameController::Finish(const Request &request, CPanel &panel) {
+    QString destinationDirectory;
+    QString publishedArchive;
+    HRESULT result = E_INVALIDARG;
     {
         QScopedValueRollback<bool> source(window_.sourceArchiveProgress_, true);
-        if (request.name.contains(QChar::Null)) {
+        if (request.name.contains(QChar::Null) ||
+            (panel.IsArcFolder() && !ArchiveBackend::safePath(request.name))) {
             CPanel::CDisableTimerProcessing disableTimer(panel);
             panel.MessageBox_Error_HRESULT(E_INVALIDARG);
         } else
-            panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name));
+            result = panel.OnEndLabelEdit(request.sourceIndex, ToUString(request.name),
+                                          &destinationDirectory, &publishedArchive);
     }
     const auto selection = panel.TakeRefreshSelection();
     if (!selection) {
@@ -192,6 +222,20 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     }
     // The source worker owns operation errors. Its posted reload ignores the
     // publication result and must not add a second rename diagnostic.
-    if (window_.renderBoundFolder() == S_OK)
+    if (result != S_OK && panel.IsFSFolder())
+        panel.RefreshListCtrl(*selection);
+    else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK)
         window_.restoreListSelection(*selection);
+    if (!publishedArchive.isEmpty()) {
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->ArchivePublished(publishedArchive, &panel);
+        else
+            window_.ArchivePublished(publishedArchive, &panel);
+    }
+    if (!destinationDirectory.isEmpty()) {
+        const QStringList changed{QFileInfo(request.path).absolutePath(), destinationDirectory};
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->FilesystemPublished(changed, &window_);
+        window_.guiOutputRefresh_->Enqueue(changed, {}, int(request.panel));
+    }
 }

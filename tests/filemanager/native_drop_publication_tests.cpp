@@ -5,6 +5,7 @@
 #include "filemanager/support/selection_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "platform/support/native_property_failure_runtime.h"
 #include "support/drag_event_position.h"
@@ -128,7 +129,11 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         modes.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+#ifdef Q_OS_WIN
         const QString archive = fixture.filePath("native drop archive 空.7z");
+#else
+        const QString archive = fixture.filePath("native drop <b> archive 空.7z");
+#endif
         QVERIFY(QFile::copy(seeds_.filePath(QString::number(count) + ".7z"), archive));
         const QByteArray original = SourceExtractFixture::readFile(archive);
         const QString addedName = QStringLiteral("added drop 文件 δ.bin");
@@ -146,6 +151,20 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         startup.FullPath = ToUString(archive);
         startup.ArcFormat = L"SevenzipFixture7z";
         startup.NeedOpenArc = true;
+        QtWorkspaceApplication application(*qApp);
+        std::unique_ptr<MainWindow> observer;
+        FileTable *observed = nullptr;
+        if (activeTarget && (scenario == 0 || scenario == 6)) {
+            observer = std::make_unique<MainWindow>(&backend, nullptr, nullptr, &startup);
+            observer->show();
+            auto *observedPane = observer->findChild<QWidget *>(QString("filePanel%1").arg(pane));
+            QVERIFY(observedPane);
+            observed = observedPane->findChild<FileTable *>("archiveTable");
+            QVERIFY(observed);
+            QTRY_COMPARE(observed->rowCount(), count);
+            QVERIFY(observed->sourcePanel->IsArcFolder());
+            observed->sourcePanel->Set_AutoRefresh_Mode(false);
+        }
         MainWindow window(&backend, {}, nullptr, &startup);
         const auto resetControls = qScopeGuard([&] { runtime_.clear(); });
         window.show();
@@ -177,6 +196,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         QSignalSpy publication(list->model(), &QAbstractItemModel::rowsRemoved);
         QSignalSpy peerPublication(peerList->model(), &QAbstractItemModel::rowsRemoved);
         bool confirmed = false, injected = false, cancelled = false, retrying = false;
+        bool literalConfirmation = false;
         QStringList errors;
         QTimer responder, cancelDriver;
         dialogs_.connectResponder(responder, &window, [&] {
@@ -197,6 +217,8 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
                                                                      : QMessageBox::Yes;
                     if (auto *button = box->button(answer)) {
                         confirmed = true;
+                        literalConfirmation = box->textFormat() == Qt::PlainText &&
+                                              box->text().contains(QFileInfo(archive).fileName());
                         button->click();
                     } else {
                         errors << box->text();
@@ -234,6 +256,7 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         }
         QCOMPARE(dropFile(*view, input), succeeded);
         QVERIFY(confirmed);
+        QVERIFY(literalConfirmation);
         QTRY_VERIFY2(list->isEnabled() && list->updatesEnabled() &&
                          panel.ShouldProcessNotifications(),
                      qPrintable(QString("enabled=%1 redraw=%2 notify=%3 rows=%4")
@@ -247,6 +270,12 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         QTRY_COMPARE(list->rowCount(),
                      succeeded && rendered != int(S_OK) ? 0 : count + int(succeeded));
         QCOMPARE(panel.GetFolder(), provider.Interface());
+        if (observed) {
+            QTRY_COMPARE(observed->rowCount(), count + int(succeeded));
+            const auto matches = observed->model()->match(observed->model()->index(0, 0),
+                                                          Qt::DisplayRole, addedName);
+            QCOMPARE(!matches.isEmpty(), succeeded);
+        }
         QCOMPARE(window.focusWidget(), static_cast<QWidget *>(view));
         QVERIFY(peerPublication.isEmpty());
         QCOMPARE(peerList->sourcePanel->GetFolder(), peerProvider.Interface());
@@ -269,22 +298,25 @@ class NativeDropPublicationTests final : public QObject, protected MainWindowTes
         }
         inspect(window, "published");
         QVERIFY(runtime_.clear());
-        QVERIFY(WindowActivation::waitForActive(window));
-        view->setFocus();
-        QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
-        QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);
-        QTRY_COMPARE(list->rowCount(), count + int(succeeded));
-        QTRY_VERIFY(list->isEnabled() && panel.ShouldProcessNotifications());
-        QCOMPARE(panel.GetFolder(), provider.Interface());
-        if (!succeeded || rendered == int(S_OK)) {
-            verifySelection(panel, selected);
-            QVERIFY(!QTest::currentTestFailed());
+        if (attempted) {
+            QVERIFY(WindowActivation::waitForActive(window));
+            view->setFocus();
+            QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
+            QTest::keyClick(view, Qt::Key_R, Qt::ControlModifier);
+            QTRY_COMPARE(list->rowCount(), count + int(succeeded));
+            QTRY_VERIFY(list->isEnabled() && panel.ShouldProcessNotifications());
+            QCOMPARE(panel.GetFolder(), provider.Interface());
+            if (!succeeded || rendered == int(S_OK)) {
+                verifySelection(panel, selected);
+                QVERIFY(!QTest::currentTestFailed());
+            }
+            inspect(window, "recovered");
         }
-        inspect(window, "recovered");
         if (!succeeded) {
             window.activateWindow();
             QVERIFY(WindowActivation::waitForActive(window));
-            view->setFocus();
+            if (attempted)
+                view->setFocus();
             QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
             retrying = true;
             confirmed = injected = false;

@@ -18,8 +18,12 @@
 #include "platform/trash/qttrashoperation.h"
 #include "platform/trash/qttrashservice.h"
 
+#include <QCoreApplication>
+#include <QDir>
 #include <QFileIconProvider>
 #include <QFileInfo>
+#include <QHash>
+#include <QSet>
 #include <utility>
 
 static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> &indices,
@@ -45,7 +49,12 @@ static bool ConfirmDeleteItems(const CPanel &panel, const CRecordVector<UInt32> 
 }
 
 HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
-                                 const CRecordVector<UInt32> *explicitIndices, bool confirm) {
+                                 const CRecordVector<UInt32> *explicitIndices, bool confirm,
+                                 unsigned *moved, std::optional<QStringList> *review) {
+    if (moved)
+        *moved = 0;
+    if (review)
+        review->reset();
     if (!IsFSFolder())
         return E_NOTIMPL;
     CDisableTimerProcessing disableTimerProcessing(*this);
@@ -57,15 +66,65 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
     if (indices.IsEmpty())
         return S_FALSE;
     SaveSelectedState(state);
+    state.PreserveAddress = true;
     if (!CheckBeforeUpdate(IDS_ERROR_DELETING))
         return E_ABORT;
+    QHash<QString, UInt32> selectedFolders;
+    if (GetFlatMode()) {
+        FOR_VECTOR(i, indices) {
+            const UInt32 index = indices[i];
+            if (IsItem_Folder(index))
+                selectedFolders.insert(QDir::fromNativeSeparators(ToQString(GetItemRelPath(index))),
+                                       index);
+        }
+    }
+    const auto trashRoot = [&](UInt32 index) {
+        UInt32 root = index;
+        if (selectedFolders.isEmpty())
+            return root;
+        QString prefix = QDir::fromNativeSeparators(ToQString(GetItemPrefix(index)));
+        while (!prefix.isEmpty()) {
+            prefix.chop(1);
+            root = selectedFolders.value(prefix, root);
+            prefix.truncate(prefix.lastIndexOf('/') + 1);
+        }
+        return root;
+    };
+    CRecordVector<UInt32> roots;
+    FOR_VECTOR(i, indices) {
+        if (trashRoot(indices[i]) == indices[i])
+            roots.Add(indices[i]);
+    }
+    CRecordVector<UInt32> precedingRows;
+    for (int row = 0; row < state.FocusedItem; ++row)
+        precedingRows.Add(trashRoot(GetRealItemIndex(row)));
     UStringVector paths;
-    GetFilePaths(indices, paths);
+    GetFilePaths(roots, paths);
     if (confirm && !ConfirmDeleteItems(*this, indices, QtDeleteConfirmation::Mode::Trash))
         return E_ABORT;
 
     CDisableNotify disableNotify(*this);
-    const HRESULT result = QtMoveItemsToTrash(paths, trash, GetParent());
+    unsigned movedCount = 0;
+    QStringList diagnostics;
+    const HRESULT result =
+        QtMoveItemsToTrash(paths, trash, GetParent(), review != nullptr, &diagnostics, &movedCount);
+    if (review && result != S_OK) {
+        diagnostics.append(
+            QCoreApplication::translate("DeleteRedesign", "Items moved to Trash (%1)")
+                .arg(movedCount));
+        *review = std::move(diagnostics);
+    }
+    if (moved)
+        *moved = movedCount;
+    if (movedCount && state.FocusedItem > 0) {
+        // When the focused name disappears, keep its position among surviving rows.
+        const auto *first = roots.ConstData();
+        const QSet<UInt32> moved(first, first + movedCount);
+        FOR_VECTOR(i, precedingRows) {
+            if (moved.contains(precedingRows[i]))
+                --state.FocusedItem;
+        }
+    }
     RefreshListCtrl(state);
     return result;
 }

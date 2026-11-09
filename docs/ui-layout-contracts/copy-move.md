@@ -39,7 +39,8 @@ source publication, or an unknown publication result, retains the destination
 copy and reports the source error without claiming complete success. The warning
 explains the retained copy and asks to check both archives, including when late
 cancellation caused the incomplete result. Its EN/RU label and OK remain fitted
-at normal/compact message sizes. Source marks clear and focus returns to its list.
+at normal/compact message sizes. Focus returns to the source list. Cancellation
+keeps the source marks, while a successful transfer clears them.
 Inspect both-pane roles, EN/RU, table/icon on both panels, standard/alternative
 selection at980×620/640×400, including301-row asynchronous destination publication.
 Both views and addresses must be visible/enabled after terminal completion.
@@ -112,10 +113,10 @@ geometry before Refresh as well as after it, with selected rows and peer focus.
 Sorting those sections uses the first catalog PropID's raw flag. Clicking any
 section of the currently sorted PropID toggles the source direction, including
 switching between generic/raw sections or appended copies. Keep the indicator
-on the clicked section and map sort actions by PropID. Physical clicks focus the
-owning list; explicit programmatic sorts retain their requested direction and
-existing inactive-owner focus behavior. Inspect both panes EN/RU, empty raw data,
-selection/peer state and copies/Refresh at980×620/640×400.
+on the clicked section when changing direction and map sort actions by PropID.
+Physical clicks activate the owning pane and focus its list. Programmatic sorts
+retain their requested direction and existing focus. Inspect both panes EN/RU,
+empty raw data, selection/peer state and copies/Refresh at980×620/640×400.
 Re-enumerate a schema even for the same provider/type. Consume written generic/raw
 counts as upstream does, skip individual info errors and generic IsDir, and hide
 the reserved Qt Name section when no generic Name descriptor exists. A raw Name
@@ -253,6 +254,19 @@ Classify filesystem/ADS/archive/root/drives through source capabilities/prefixes
 preserving relative/direct/multiple-item normalization, path diagnostics and
 unsupported root/ADS refusals before publication. Original copy options, naming,
 selection/row refresh, title and source focus must survive the async continuation.
+The folder picker resolves a relative destination from the same base as Copy
+or Move. Cancelling the picker preserves the entered path and name.
+Relative path components are resolved before creating destination folders.
+A relative directory path resolving to the other panel's archive folder
+uses that panel as the destination.
+If a required destination directory is occupied by a file, the dialog keeps
+the entered destination available for correction.
+If the local transfer rejects a link as its destination directory, the
+dialog flags that path before starting the transfer.
+Copying or moving onto the same local item through a different path also
+keeps the dialog open for correction.
+Copy and Move also keep the dialog open for a destination inside a selected
+source folder, without creating the requested destination there.
 Accepted archive Move keeps its checked source Copy/Delete/rollback extension.
 Verify both panels, F5/F6 and Shift routes, success/failure/Cancel, Unicode/spaces,
 no unintended output/input changes and operation guards. Inspect EN/RU normal/
@@ -271,8 +285,13 @@ an enabled no-op; busy/read-only/provider restrictions still apply. Retained
 timer/notify guards must survive async handoff and release before terminal
 synchronous panel refresh.
 After Copy publication verify original source/destination saved states: ordinary
-Copy/Move clears source marks, preserves the captured current item and peer
-selection, updates the source title and restores source list focus. Shift keeps
+Copy/Move clears source marks on completion, preserves the captured current
+item and peer selection, updates the source title and restores source list focus.
+Cancelling a transfer between filesystem locations or between disk and an open
+archive keeps the original source marks. Copy with skipped items keeps the
+source selection. A partial filesystem Move keeps the
+remaining source items selected. A failed transfer between archives keeps the
+selection for items still present in the source. Shift keeps
 its source saved-selection semantics. Inspect both source-panel roles under
 EN/RU1100×640/640×400, including both address/list groups and toolbar. Do not
 let delayed progress destruction replace the restored title. Offscreen window
@@ -317,6 +336,8 @@ When a bound folder disappears, Refresh/timer must clear native items/operated
 indices as well as visible rows. Preserve provider/guards/command recovery and
 the existing missing-folder status; restoring the directory recovers control
 bytes. Inspect both panels/EN-RU/standard-alternative empty views at980×620/640×400.
+On Windows, automatic refresh also resumes tracking changes to existing files
+after a missing folder reappears.
 Typed missing descendants must publish the source closest existing ancestor,
 its prefix/title and list focus, preserving peer selection and input bytes.
 Verify both panels/EN-RU/absolute-relative/trailing separator at980×620/640×400;
@@ -397,11 +418,16 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   existing directory occupies that name; it must not silently become a container.
   Typed file paths and unsupported providers retain their existing path
   interpretation without an added name.
-- Empty or invalid input, a known unwritable destination and an unchanged source
+- Empty or invalid input, a known unwritable destination or parent folder,
+  and an unchanged source
   location disable acceptance with an inline explanation. Native operation checks
   remain authoritative. Cancel preserves the original value; accepted
   input preserves significant spaces and Unicode. Relative paths keep the caller's
-  existing base directory.
+  existing base directory. On Windows, relative navigation components such
+  as `..` resolve the same way in the dialog and in the file operation.
+- A link or a file/folder conflict at the final name keeps the filesystem
+  transfer dialog open. For multiple items, the dialog checks on confirmation.
+  After resolving a batch conflict, the user can confirm the same destination again.
 - The redesigned form uses the shared dialog margins/footer and sizes the
   initial summary by its content area rather than the old RC frame.
   Source NormalizeSize(true) applies once at first native

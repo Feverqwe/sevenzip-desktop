@@ -1,4 +1,5 @@
 #include "Common/StringConvert.h"
+#include "Windows/FileIO.h"
 #include "archive/codecs/archivecodelocation.h"
 #include "archive/operations/ZipRegistry.h"
 #include "archive/resources/qtarchivewritelease.h"
@@ -10,6 +11,8 @@
 #include "support/operation_temp_cleanup.h"
 #include "support/scoped_environment.h"
 #include <QEventLoop>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRandomGenerator>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -129,30 +132,57 @@ class OperationCreationTests final : public QObject {
         QVERIFY(writeFile(source, "protected native payload"));
         const QString initial = directory.filePath("initial.7z");
         const QString actual = directory.filePath("changed target 空.7z");
-        Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", cancel ? "cancel" : "accept");
         Environment target("SEVENZIP_OPERATION_CREATE_TARGET", actual);
         Environment password("SEVENZIP_OPERATION_CREATE_PASSWORD", "fixture password");
         auto job = Compress(initial, {source}, "7z");
         job.ShowDialog = true;
-        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
-        QCOMPARE(result.Status, cancel ? Outcome::Cancelled : Outcome::Success);
-        QVERIFY(!QFileInfo::exists(initial));
         if (cancel) {
+            Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", "cancel");
+            const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+            QCOMPARE(result.Status, Outcome::Cancelled);
+            QVERIFY(!QFileInfo::exists(initial));
             QVERIFY(!QFileInfo::exists(actual));
             QCOMPARE(readFile(source), QByteArray("protected native payload"));
             QVERIFY(result.ChangedDirectories.isEmpty());
-        } else {
-            QCOMPARE(readFile(source), QByteArray("protected native payload"));
-            Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", "fixture password");
-            const QString output = directory.filePath("decrypted");
-            auto extract = Extract(actual, output);
-            extract.YesToAll = false;
-            const auto extracted = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), extract);
-            QVERIFY2(extracted.Status == Outcome::Success, qPrintable(extracted.Error));
-            QCOMPARE(readFile(QDir(output).filePath("secret 空.txt")),
-                     QByteArray("protected native payload"));
         }
+        Environment decision("SEVENZIP_OPERATION_CREATE_DECISION", "accept");
+        const auto result = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), job);
+        QCOMPARE(result.Status, Outcome::Success);
+        QVERIFY(!QFileInfo::exists(initial));
+        QCOMPARE(readFile(source), QByteArray("protected native payload"));
+        Environment suppliedPassword("SEVENZIP_OPERATION_PASSWORD", "fixture password");
+        const QString output = directory.filePath("decrypted");
+        auto extract = Extract(actual, output);
+        extract.YesToAll = false;
+        const auto extracted = Run(QStringLiteral(SEVENZIP_OPERATION_HOST), extract);
+        QVERIFY2(extracted.Status == Outcome::Success, qPrintable(extracted.Error));
+        QCOMPARE(readFile(QDir(output).filePath("secret 空.txt")),
+                 QByteArray("protected native payload"));
     }
+    void missingSourceReportsPartialArchiveAndAllowsRetry() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString present = directory.filePath("present.txt");
+        const QString missing = directory.filePath("missing file.txt");
+        const QString archive = directory.filePath("partial.zip");
+        const QString program = QStringLiteral(SEVENZIP_OPERATION_HOST);
+        QVERIFY(writeFile(present, "present bytes"));
+        const auto job = Compress(archive, {present, missing});
+        const auto partial = Run(program, job);
+        QVERIFY2(partial.Status == Outcome::Warning, qPrintable(partial.Error));
+        QVERIFY(partial.ChangedArchives.contains(archive));
+        const QString first = directory.filePath("first output");
+        QCOMPARE(Run(program, Extract(archive, first)).Status, Outcome::Success);
+        QCOMPARE(readFile(QDir(first).filePath("present.txt")), QByteArray("present bytes"));
+        QVERIFY(!QFileInfo::exists(QDir(first).filePath("missing file.txt")));
+        QVERIFY(writeFile(missing, "restored bytes"));
+        QCOMPARE(Run(program, job).Status, Outcome::Success);
+        const QString second = directory.filePath("second output");
+        QCOMPARE(Run(program, Extract(archive, second)).Status, Outcome::Success);
+        QCOMPARE(readFile(QDir(second).filePath("present.txt")), QByteArray("present bytes"));
+        QCOMPARE(readFile(QDir(second).filePath("missing file.txt")), QByteArray("restored bytes"));
+    }
+
     void conflictingWriterPreservesArchiveAndCanRetry() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
@@ -212,6 +242,43 @@ class OperationCreationTests final : public QObject {
         QCOMPARE(readFile(QDir(output).filePath("source 空.txt")),
                  QByteArray("created after parent exit"));
     }
+#ifdef Q_OS_WIN
+    void lockedArchiveUpdateCanBeRetried() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto source = directory.filePath("source.txt");
+        const auto archive = directory.filePath(QStringLiteral("архив с пробелом.zip"));
+        const auto program = QStringLiteral(SEVENZIP_OPERATION_HOST);
+        const auto job = Compress(archive, {source});
+        QVERIFY(writeFile(source, "original"));
+        QCOMPARE(Run(program, job).Status, Outcome::Success);
+        const auto original = readFile(archive);
+        QVERIFY(!original.isEmpty());
+        QVERIFY(writeFile(source, "replacement bytes"));
+        {
+            const auto path = QDir::toNativeSeparators(archive).toStdWString();
+            const HANDLE locked =
+                ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+            QVERIFY(locked != INVALID_HANDLE_VALUE);
+            const auto close = qScopeGuard([&] { ::CloseHandle(locked); });
+            const auto report = directory.filePath("update-result");
+            const Environment capture("SEVENZIP_OPERATION_REPORT", report);
+            QCOMPARE(Run(program, job).Status, Outcome::Failure);
+            const auto diagnostic = QJsonDocument::fromJson(readFile(report + ".diagnostic"));
+            const auto messages = diagnostic.object().value("messages").toString();
+            QVERIFY2(messages.contains("Cannot replace the archive") &&
+                         messages.contains(QFileInfo(archive).fileName()),
+                     qPrintable(messages));
+        }
+        QCOMPARE(readFile(archive), original);
+        QCOMPARE(Run(program, job).Status, Outcome::Success);
+        const auto output = directory.filePath("output");
+        QCOMPARE(Run(program, Extract(archive, output)).Status, Outcome::Success);
+        QCOMPARE(readFile(QDir(output).filePath("source.txt")), QByteArray("replacement bytes"));
+    }
+#endif
+
     void killedWriterKeepsOriginalAndReleasesProcessOwnership() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());

@@ -77,7 +77,9 @@ class CDataObject : public std::enable_shared_from_this<CDataObject> {
     UString SrcDirPrefix_Temp, DestDirPrefix_FromTarget;
     bool IsRightButton = false, IsTempFiles = false, UsePreGlobal = false;
     bool DoNotProcessInTarget = false, NeedCall_Copy = false, Copy_WasCalled = false;
+    bool DeferredTempFiles = false;
     HRESULT Copy_HRESULT = S_OK;
+    bool CopyResultPresented = false;
     bool m_Transfer_WasSet = false;
     CDataObject_SetTransfer m_Transfer;
     std::shared_ptr<QtOwnedTempLease> OwnedTempLease;
@@ -88,7 +90,7 @@ class CDataObject : public std::enable_shared_from_this<CDataObject> {
     UInt32 GetTransferFlags() const;
     bool ReadTransferFlags(UInt32 &flags) const;
     HRESULT GetData(UStringVector &names);
-    void CopyFromPanelTo_Folder();
+    void CopyFromPanelTo_Folder(CPanel *source = nullptr);
     bool BeginExternalReceiver();
     void CompleteExternalDrag(bool cancellationConfirmed);
     void FinishExternalReceiver();
@@ -123,7 +125,7 @@ class IQtDropTargetPresentation {
     virtual void Highlight(unsigned panel, int item, bool enabled) = 0;
     virtual bool IsSameDrive(const UString &destination, const UStringVector &sources) const = 0;
     virtual bool ConfirmCopyToArchive(CPanel &, DWORD) { return false; }
-    virtual UInt32 Drag_OnContextMenu(int, int, UInt32) { return NDragMenu::k_Cancel; }
+    virtual UInt32 Drag_OnContextMenu(int, int, UInt32, DWORD) { return NDragMenu::k_Cancel; }
 };
 class CDropTarget {
     bool m_DropIsAllowed = false, m_PanelDropIsAllowed = false;
@@ -158,8 +160,10 @@ class CDropTarget {
     HRESULT DragOver(DWORD keyState, int x, int y, DWORD *effect);
     HRESULT DragLeave();
     HRESULT Drop(CDataObject *dataObject, DWORD keyState, int x, int y, DWORD *effect,
-                 std::optional<CSelectedState> *refreshSelection = nullptr);
+                 std::optional<CSelectedState> *refreshSelection = nullptr,
+                 bool *published = nullptr);
     CPanel *TargetPanel() const { return m_Panel; }
     bool IsAppTarget() const { return m_IsAppTarget; }
     bool IsMenuDrop() const { return m_IsRightButton; }
+    bool HasDragData() const { return m_DataObject != nullptr; }
 };

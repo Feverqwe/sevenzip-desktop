@@ -1,4 +1,5 @@
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
@@ -6,6 +7,9 @@
 #include "platform/support/external_editor_fixture.h"
 #include "platform/support/native_link_fixture.h"
 #include "support/panel_keys.h"
+#include "support/window_activation.h"
+#include <QClipboard>
+#include <QScrollBar>
 
 class AddressNavigationTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -15,11 +19,114 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void emptyAddressOpensLocationsAndBackRestoresTheFile_data() {
+        QTest::addColumn<bool>("repeatDuringRefresh");
+        QTest::newRow("immediate") << false;
+        QTest::newRow("repeat-during-refresh") << true;
+    }
+    void emptyAddressOpensLocationsAndBackRestoresTheFile() {
+        QFETCH(bool, repeatDuringRefresh);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(writeFile(fixture.filePath("selected.txt"), "source bytes"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 1);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        QVERIFY(writeFile(fixture.filePath("added.txt"), "new bytes"));
+        constexpr int extra = 257;
+        if (repeatDuringRefresh)
+            for (int i = 0; i < extra; ++i)
+                QVERIFY(writeFile(fixture.filePath(QString("item-%1.txt").arg(i)), "fixture"));
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(".");
+        QTest::keyClick(address, Qt::Key_Return);
+        if (repeatDuringRefresh) {
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
+            PanelKeys::focusAddress(address);
+            QVERIFY(address->hasFocus());
+            address->setText(fixture.path());
+            QTest::keyClick(address, Qt::Key_Return);
+        }
+        QTRY_VERIFY(view->hasFocus() && view->sourcePanel->IsFSFolder());
+        QTRY_COMPARE(view->rowCount(), repeatDuringRefresh ? extra + 2 : 2);
+        QCOMPARE(view->currentIndex().data().toString(), QString("selected.txt"));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->clear();
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->hasFocus() && view->sourcePanel->IsRootFolder());
+        QVERIFY(address->text().isEmpty());
+        QVERIFY(view->rowCount() > 0);
+        QTest::keySequence(view, action(window, "backAction")->shortcut());
+        QTRY_VERIFY(view->hasFocus() && view->sourcePanel->IsFSFolder());
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())),
+                 QFileInfo(fixture.path()).canonicalFilePath());
+        QCOMPARE(view->currentIndex().data().toString(), QString("selected.txt"));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+    }
+    void cancelledPasswordKeepsAddressReadyForRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath(QStringLiteral("архив с паролем.7z"));
+        const QString password = QStringLiteral("fixture secret");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"payload.txt", "payload"}}, "7z", password,
+                                            true));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(filesystemRow(window, QFileInfo(archive).fileName()) >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        address->setText(archive);
+        address->setSelection(archive.size() - 3, 3);
+        int prompts = 0;
+        bool accept = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            ++prompts;
+            if (accept) {
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                dialog->accept();
+            } else
+                dialog->reject();
+        });
+        responder.start(5);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(prompts, 1);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(address->text(), archive);
+        QCOMPARE(address->selectedText(), QString(".7z"));
+        QVERIFY(table(window)->sourcePanel->IsFSFolder());
+        accept = true;
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(rowWithPath(window, "payload.txt") >= 0);
+        QCOMPARE(prompts, 2);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(table(window)->hasFocus());
+    }
     void archiveLinkUsesNativeOpening_data() {
         QTest::addColumn<QString>("route");
         QTest::addColumn<QString>("kind");
-        for (const QString &route :
-             {QString("explicit"), QString("path"), QString("address"), QString("item")})
+        for (const QString &route : {QString("explicit"), QString("path"), QString("address"),
+                                     QString("relative-address"), QString("item")})
             for (const QString &kind :
                  {QString("archive"), QString("ordinary"), QString("missing")})
                 QTest::newRow(qPrintable(route + '-' + kind)) << route << kind;
@@ -53,6 +160,8 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled());
+        const bool typedAddress = route == "address" || route == "relative-address";
+        const QString entered = route == "relative-address" ? QFileInfo(link).fileName() : link;
         QTimer dismiss;
         connect(&dismiss, &QTimer::timeout, &window, [] {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
@@ -63,9 +172,11 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
             window.openArchive(link);
         else if (route == "path")
             window.openPath(link);
-        else if (route == "address") {
-            address->setFocus();
-            address->setText(link);
+        else if (typedAddress) {
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            address->setText(entered);
+            address->setModified(true);
             QTest::keyClick(address, Qt::Key_Return);
         } else {
             const int row = filesystemRow(window, QFileInfo(link).fileName());
@@ -94,20 +205,50 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QFileInfo(link).isSymLink());
         QCOMPARE(sourceBytes(), original);
         QCOMPARE(QFileInfo(target).exists(), kind != "missing");
+        if (typedAddress && kind == "ordinary") {
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), entered);
+            const QString repaired = fixture.filePath(QStringLiteral("corrected 空.zip"));
+            QVERIFY(NativeArchiveFixture::Write(repaired, {{"recovered.txt", payload}}, "zip"));
+            address->setText(route == "relative-address" ? QFileInfo(repaired).fileName()
+                                                         : repaired);
+            address->setModified(true);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Return);
+            QTRY_VERIFY(view->sourcePanel->IsArcFolder());
+            QTRY_COMPARE(view->model()->index(0, 0).data().toString(), QString("recovered.txt"));
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(view->hasFocus());
+        }
     }
     void rejectedArchiveAddressKeepsEditingFocus_data() {
         QTest::addColumn<qint32>("result");
-        QTest::newRow("refused") << qint32(S_FALSE);
-        QTest::newRow("failed") << qint32(E_FAIL);
-        QTest::newRow("cancelled") << qint32(E_ABORT);
+        QTest::addColumn<bool>("virtualPath");
+        QTest::addColumn<bool>("refreshing");
+        QTest::addColumn<bool>("leaveDraft");
+        QTest::newRow("refused") << qint32(S_FALSE) << false << false << false;
+        QTest::newRow("failed") << qint32(E_FAIL) << false << false << false;
+        QTest::newRow("cancelled") << qint32(E_ABORT) << false << false << false;
+        QTest::newRow("virtual-failed") << qint32(E_FAIL) << true << false << false;
+        QTest::newRow("virtual-cancelled") << qint32(E_ABORT) << true << false << false;
+        QTest::newRow("cancelled-during-refresh") << qint32(E_ABORT) << false << true << false;
+        QTest::newRow("virtual-failed-during-refresh") << qint32(E_FAIL) << true << true << false;
+        QTest::newRow("tab-after-error") << qint32(E_FAIL) << true << true << true;
     }
     void rejectedArchiveAddressKeepsEditingFocus() {
         QFETCH(qint32, result);
+        QFETCH(bool, virtualPath);
+        QFETCH(bool, refreshing);
+        QFETCH(bool, leaveDraft);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString path = fixture.filePath(QStringLiteral("архив с ошибкой 空.zip"));
+        const QString draft = virtualPath ? path + QStringLiteral("/вложенная папка") : path;
         const QByteArray bytes("unchanged archive bytes");
         QVERIFY(writeFile(path, bytes));
+        if (refreshing)
+            for (int i = 0; i < 270; ++i)
+                QVERIFY(writeFile(fixture.filePath(QString("item-%1.txt").arg(i)), "file"));
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -116,6 +257,19 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled());
+        int scroll = 0;
+        const QString selected = QStringLiteral("item-200.txt");
+        if (refreshing) {
+            const int row = filesystemRow(window, selected);
+            QVERIFY(row >= 0);
+            view->selectRow(row);
+            view->setCurrentCell(row, 0);
+            view->scrollTo(view->currentIndex(), QAbstractItemView::PositionAtCenter);
+            scroll = view->verticalScrollBar()->value();
+            QVERIFY(scroll > 0);
+            action(window, "refreshAction")->trigger();
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
+        }
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         backend.queueListAction([&] { backend.fail("Archive opening refused", HRESULT(result)); });
@@ -125,7 +279,14 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
                 warning->accept();
         });
         dismiss.start(5);
-        address->setText(path);
+        address->selectAll();
+        QApplication::clipboard()->setText(draft);
+        QTest::keySequence(address, QKeySequence::Paste);
+        QApplication::clipboard()->clear();
+        QCOMPARE(address->text(), draft);
+        const int selectionStart = draft.lastIndexOf(QStringLiteral("архив"));
+        QVERIFY(selectionStart >= 0);
+        address->setSelection(selectionStart + 5, -5);
         QTest::keyClick(address, Qt::Key_Return);
         dismiss.stop();
         QApplication::processEvents();
@@ -133,19 +294,43 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QTest::qWaitForWindowActive(&window));
         QCOMPARE(backend.listCalls, 1);
         QTRY_VERIFY(address->hasFocus());
-        QVERIFY(view->isEnabled());
-        QVERIFY(address->isVisible());
-        QCOMPARE(address->text(), path);
-        view->sourcePanel->OnReload(true);
         QTRY_VERIFY(view->isEnabled());
-        QCOMPARE(address->text(), path);
-        QVERIFY(action(window, "twoPanelsAction")->isEnabled());
+        if (refreshing) {
+            QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), selected);
+            QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+            QTRY_COMPARE(view->verticalScrollBar()->value(), scroll);
+        }
+        QVERIFY(address->isVisible());
+        QCOMPARE(address->text(), draft);
+        QCOMPARE(address->selectedText(), QStringLiteral("архив"));
+        QCOMPARE(address->cursorPosition(), selectionStart);
+        if (virtualPath && result != E_ABORT)
+            QVERIFY(window.statusBar()->currentMessage().contains(draft));
+        if (virtualPath && result == E_ABORT)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        action(window, "refreshAction")->trigger();
+        QTRY_VERIFY(action(window, "twoPanelsAction")->isEnabled());
+        QCOMPARE(address->text(), draft);
+        QCOMPARE(address->selectedText(), QStringLiteral("архив"));
         QFile source(path);
         QVERIFY(source.open(QIODevice::ReadOnly));
         QCOMPARE(source.readAll(), bytes);
+        if (leaveDraft) {
+            QTRY_VERIFY(address->hasFocus());
+            QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+            QTRY_VERIFY(view->hasFocus());
+            const int row = view->currentRow();
+            QVERIFY(row >= 0 && row + 1 < view->rowCount());
+            QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+            QCOMPARE(view->currentRow(), row + 1);
+            PanelKeys::focusAddress(address);
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), draft);
+        }
         address->setText(fixture.path());
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(view->hasFocus());
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(backend.listCalls, 1);
     }
     void completedAddressNavigationFocusesLargeList_data() {
@@ -413,8 +598,13 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
+#ifdef Q_OS_UNIX
+        const QString parent = fixture.filePath(QStringLiteral(" ancestor space δ "));
+        const QString child = QDir(parent).filePath(QStringLiteral(" inside 文件 "));
+#else
         const QString parent = fixture.filePath(QStringLiteral("ancestor space δ"));
         const QString child = QDir(parent).filePath(QStringLiteral("inside 文件"));
+#endif
         const QString peer = fixture.filePath("peer");
         QVERIFY(QDir().mkpath(child) && QDir().mkpath(peer));
         const QString control = QDir(parent).filePath(QStringLiteral("control δ.txt"));
@@ -440,9 +630,13 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         auto *address = ui->findChild<QLineEdit *>("archivePath");
         auto *view = static_cast<FileTable *>(ui->findChild<FileTable *>("archiveTable"));
         PanelKeys::focusAddress(address);
-        address->setText(child);
+        address->selectAll();
+        QApplication::clipboard()->setText(child);
+        QTest::keySequence(address, QKeySequence::Paste);
+        QCOMPARE(address->text(), child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_COMPARE(view->rowCount(), 1);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), child);
         QString input = relative ? QStringLiteral("../missing 文件/deeper")
                                  : QDir(parent).filePath(QStringLiteral("missing 文件/deeper"));
         if (trailing)

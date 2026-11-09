@@ -20,8 +20,55 @@ if(BUILD_TESTING)
     target_include_directories(drag_drop_ui_tests PRIVATE src tests)
     target_link_libraries(drag_drop_ui_tests PRIVATE Qt6::Test sevenzip_location sevenzip_folder_loader)
     add_test(NAME drag_drop_ui COMMAND drag_drop_ui_tests -silent)
+    add_test(NAME archive_clipboard_paste COMMAND drag_drop_ui_tests -silent
+        archiveClipboardPastesBothSelectedEntriesIntoPeer)
+    set_tests_properties(archive_clipboard_paste PROPERTIES TIMEOUT 60 ENVIRONMENT
+        "QT_QPA_PLATFORM=offscreen;SEVENZIP_TEST_ARCHIVE_CLIPBOARD_PASTE=1")
     set_tests_properties(drag_drop_ui PROPERTIES TIMEOUT 60 RESOURCE_LOCK sevenzip_ui_artifacts ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/drag_drop_ui.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
+    if(WIN32)
+        add_test(NAME native_file_clipboard COMMAND drag_drop_ui_tests -silent
+            fileExportCanBeCopiedByRecipient:filesystem-clipboard
+            fileExportCanBeCopiedByRecipient:archive-clipboard
+            fileExportCanBeCopiedByRecipient:explorer-clipboard)
+        add_test(NAME native_file_drag COMMAND drag_drop_ui_tests -silent
+            archiveDragReachesNativeDropReceiver archiveDragCopiesIntoTheHighlightedPeerFolder
+            nativeSourceUsesActualTargetView:right-table-move)
+        set(sevenzip_clipboard_qpa windows)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_program(SEVENZIP_XVFB_RUN xvfb-run)
+        if(SEVENZIP_XVFB_RUN)
+            add_test(NAME native_file_clipboard COMMAND "${SEVENZIP_XVFB_RUN}" -a
+                "$<TARGET_FILE:drag_drop_ui_tests>" -silent
+                fileExportCanBeCopiedByRecipient:filesystem-clipboard
+                fileExportCanBeCopiedByRecipient:archive-clipboard)
+            add_test(NAME native_file_drag COMMAND "${SEVENZIP_XVFB_RUN}" -a
+                "$<TARGET_FILE:drag_drop_ui_tests>" -silent archiveDragReachesNativeDropReceiver)
+            set(sevenzip_clipboard_qpa xcb)
+        endif()
+        find_program(SEVENZIP_DOLPHIN dolphin)
+        find_program(SEVENZIP_WESTON weston)
+        find_program(SEVENZIP_WESTON_DEBUG weston-debug)
+        find_program(SEVENZIP_DBUS_RUN_SESSION dbus-run-session)
+        if(SEVENZIP_XVFB_RUN AND SEVENZIP_DOLPHIN AND SEVENZIP_WESTON
+           AND SEVENZIP_WESTON_DEBUG AND SEVENZIP_DBUS_RUN_SESSION)
+            add_test(NAME native_dolphin_drag
+                COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/support/run_dolphin_drag.sh"
+                    "$<TARGET_FILE:drag_drop_ui_tests>")
+            set_tests_properties(native_dolphin_drag PROPERTIES TIMEOUT 35
+                RESOURCE_LOCK sevenzip_native_ui)
+        endif()
+    endif()
+    if(TEST native_file_clipboard)
+        set_tests_properties(native_file_clipboard PROPERTIES TIMEOUT 60
+            RESOURCE_LOCK sevenzip_native_ui ENVIRONMENT
+            "QT_QPA_PLATFORM=${sevenzip_clipboard_qpa};SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-file-clipboard.ini")
+    endif()
+    if(TEST native_file_drag)
+        set_tests_properties(native_file_drag PROPERTIES TIMEOUT 30
+            RESOURCE_LOCK sevenzip_native_ui ENVIRONMENT
+            "QT_QPA_PLATFORM=${sevenzip_clipboard_qpa};SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/native-file-drag.ini")
+    endif()
     qt_add_executable(drag_drop_add_ui_tests tests/filemanager/drag_drop_add_ui_tests.cpp)
     target_link_libraries(drag_drop_add_ui_tests PRIVATE sevenzip_window)
     target_include_directories(drag_drop_add_ui_tests PRIVATE src tests)
@@ -328,7 +375,7 @@ if(BUILD_TESTING)
             repeatedArchiveTesting filesystemToolbarFailureRestoresSource archiveToolbarUsesSourceCopyTo
             filesystemShellCommandsUseIndependentOperations extractionRefreshUsesCurrentLocation -silent)
         add_test(NAME toolbar_archive_batch COMMAND toolbar_archive_workflow_tests
-            filesystemExtractRequiresOneArchive -silent)
+            filesystemExtractRequiresOneArchive mixedArchiveTestReportsFailureAndRetainsSelection -silent)
         set_tests_properties(toolbar_archive_workflow toolbar_archive_batch PROPERTIES TIMEOUT 120
             RESOURCE_LOCK "sevenzip_native_ui;sevenzip_ui_artifacts" ENVIRONMENT
             "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/toolbar-archive-workflow.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
@@ -390,7 +437,7 @@ if(BUILD_TESTING)
     set_tests_properties(panel_address_keys PROPERTIES TIMEOUT 30 RESOURCE_LOCK sevenzip_ui_artifacts ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;SEVENZIP_SETTINGS_PATH=${CMAKE_BINARY_DIR}/panel-address-keys.ini;SEVENZIP_UI_REPORT_DIR=${CMAKE_BINARY_DIR}/ui-reports")
     qt_add_executable(root_command_tests tests/filemanager/root_command_tests.cpp tests/platform/support/external_editor_fixture.cpp)
-    target_link_libraries(root_command_tests PRIVATE sevenzip_layout_inspection)
+    target_link_libraries(root_command_tests PRIVATE sevenzip_layout_inspection sevenzip_widget_dialog_fixtures)
     target_link_libraries(root_command_tests PRIVATE sevenzip_window)
     target_include_directories(root_command_tests PRIVATE src tests)
     target_link_libraries(root_command_tests PRIVATE Qt6::Test)

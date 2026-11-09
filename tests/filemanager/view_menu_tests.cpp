@@ -100,6 +100,8 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         QTRY_VERIFY(source->isEnabled() && source->rowCount() == 2);
         source->setFocus();
         QTRY_VERIFY(source->hasFocus());
+        source->setCurrentCell(0, 0);
+        source->selectRow(0);
         action(window, "sort2Action")->trigger();
         openView(window);
         auto *view = window.findChild<QMenu *>("viewMenu");
@@ -119,6 +121,15 @@ class ViewMenuTests final : public QObject, protected MainWindowTestSupport {
         QCOMPARE(peer->model()->index(0, 0).data().toString(), QString("a-small.txt"));
         QCOMPARE(source->horizontalHeader()->sortIndicatorOrder(), Qt::DescendingOrder);
         QCOMPARE(peer->horizontalHeader()->sortIndicatorOrder(), Qt::AscendingOrder);
+        QTRY_VERIFY(source->hasFocus());
+        QCOMPARE(source->currentIndex().data().toString(), QString("a-small.txt"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_F2);
+        QTRY_VERIFY(source->findChild<QLineEdit *>());
+        auto *editor = source->findChild<QLineEdit *>();
+        QCOMPARE(editor->text(), QString("a-small.txt"));
+        QVERIFY(!peer->findChild<QLineEdit *>());
+        QTest::keyClick(editor, Qt::Key_Escape);
+        QTRY_VERIFY(source->hasFocus());
     }
     void activationAndCommands_data() {
         QTest::addColumn<unsigned>("pane");

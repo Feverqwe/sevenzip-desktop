@@ -5,6 +5,7 @@
 #include "filemanager/SplitUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
+#include <QLineEdit>
 
 void CreateArchiveDialog::createVolumeOptions(QFormLayout *form) {
     volume_ = new QComboBox(this);
@@ -20,21 +21,24 @@ void CreateArchiveDialog::createVolumeOptions(QFormLayout *form) {
     form->addRow("Split to volumes, bytes:", volume_);
 }
 
-bool CreateArchiveDialog::checkVolumeSizes() {
-    if (!volume_->isEnabled())
-        return true;
-    NCompressDialog::CInfo info;
-    const auto result = CCompressDialog::OnOK(volume_->currentText(), info);
+bool CreateArchiveDialog::checkVolumeSizes(CCompressDialog::EVolumeResult result,
+                                           const NCompressDialog::CInfo &info) {
     if (result == CCompressDialog::kIncorrectVolumeSize) {
         additionalOptions_->setExpanded(true);
         ShowErrorMessageHwndResQt(this, IDS_INCORRECT_VOLUME_SIZE);
         volume_->setFocus();
+        volume_->lineEdit()->selectAll();
         return false;
     }
-    if (result == CCompressDialog::kConfirmSmallVolume)
-        return QMessageBox::question(
-                   this, "7-Zip",
-                   QString::fromWCharArray(MyFormatNew(IDS_SPLIT_CONFIRM, info.VolumeSizes.Back())),
-                   QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel) == QMessageBox::Yes;
+    if (result == CCompressDialog::kConfirmSmallVolume &&
+        QMessageBox::question(
+            this, "7-Zip",
+            QString::fromWCharArray(MyFormatNew(IDS_SPLIT_CONFIRM, info.VolumeSizes.Back())),
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel) != QMessageBox::Yes) {
+        additionalOptions_->setExpanded(true);
+        volume_->setFocus();
+        volume_->lineEdit()->selectAll();
+        return false;
+    }
     return true;
 }

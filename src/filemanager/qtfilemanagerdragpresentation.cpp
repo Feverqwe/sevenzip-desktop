@@ -38,11 +38,13 @@ bool QtFileManagerDrag::ConfirmCopyToArchive(CPanel &panel, DWORD effect) {
     s.Add_LF();
     AddLangString(s, IDS_WANT_TO_COPY_FILES);
     s += " ?";
-    return QMessageBox::question(
-               &window_, ToQString(LangString(IDS_CONFIRM_FILE_COPY)), ToQString(s),
-               QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel) == QMessageBox::Yes;
+    QMessageBox dialog(QMessageBox::Question, ToQString(LangString(IDS_CONFIRM_FILE_COPY)),
+                       ToQString(s), QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
+                       &window_);
+    dialog.setTextFormat(Qt::PlainText);
+    return dialog.exec() == QMessageBox::Yes;
 }
-UInt32 QtFileManagerDrag::Drag_OnContextMenu(int x, int y, UInt32 mask) {
+UInt32 QtFileManagerDrag::Drag_OnContextMenu(int x, int y, UInt32 mask, DWORD allowedEffects) {
     struct Pair {
         UInt32 command;
         unsigned language;
@@ -55,11 +57,14 @@ UInt32 QtFileManagerDrag::Drag_OnContextMenu(int x, int y, UInt32 mask) {
         {NDragMenu::k_Cancel, 402}};
     QMenu menu(&window_);
     menu.setObjectName("dragContextMenu");
-    window_.setFocus();
     for (const auto &pair : pairs) {
         const UInt32 cmd = pair.command & NDragMenu::k_MenuFlags_CmdMask;
-        if (cmd != NDragMenu::k_Cancel && !(mask & (UInt32(1) << cmd)))
-            continue;
+        if (cmd != NDragMenu::k_Cancel) {
+            const DWORD effect =
+                pair.command & NDragMenu::k_MenuFlag_Move ? DROPEFFECT_MOVE : DROPEFFECT_COPY;
+            if (!(mask & (UInt32(1) << cmd)) || !(allowedEffects & effect))
+                continue;
+        }
         UString name = LangString(pair.language);
         if (name.IsEmpty()) {
             if (cmd == NDragMenu::k_Cancel)

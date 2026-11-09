@@ -344,6 +344,9 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         openListedArchive(window, backend, "one.zip",
                           {ArchiveEntry{QStringLiteral("nested/file.txt"), 1, 1}});
         openRow(window, rowWithPath(window, QStringLiteral("nested")));
+        const int entry = rowWithPath(window, QStringLiteral("nested/file.txt"));
+        QVERIFY(entry >= 0);
+        table(window)->selectRow(entry);
         const QString beforeCanceledOpen = window.findChild<QLineEdit *>("archivePath")->text();
         QVERIFY(backend.prepareArchiveFixture("two.7z"));
         backend.queueListAction([&] {
@@ -353,6 +356,18 @@ class MainWindowNavigationTests : public QObject, protected MainWindowTestSuppor
         });
         window.openArchive("two.7z");
         QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), beforeCanceledOpen);
+        QCOMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(table(window)->selectionModel()->selectedRows().first().row(),
+                 rowWithPath(window, QStringLiteral("nested/file.txt")));
+        QVERIFY(action(window, "backAction")->isEnabled());
+        action(window, "backAction")->trigger();
+        QTRY_VERIFY(rowWithPath(window, QStringLiteral("nested")) >= 0);
+        QVERIFY(action(window, "forwardAction")->isEnabled());
+        action(window, "forwardAction")->trigger();
+        QTRY_COMPARE(window.findChild<QLineEdit *>("archivePath")->text(), beforeCanceledOpen);
+        QTRY_COMPARE(table(window)->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(table(window)->selectionModel()->selectedRows().first().row(),
+                 rowWithPath(window, QStringLiteral("nested/file.txt")));
         openListedArchive(window, backend, "three.zip", {});
         QCOMPARE(table(window)->rowCount(), 0);
         QVERIFY(action(window, "upAction")->isEnabled());

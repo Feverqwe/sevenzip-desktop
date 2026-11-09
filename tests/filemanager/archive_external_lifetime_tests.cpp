@@ -172,6 +172,7 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QTest::newRow("unknown-cancel-default") << false << true << true << false;
         QTest::newRow("native-unknown-cancel") << false << true << true << false;
         QTest::newRow("unknown-open") << false << true << true << true;
+        QTest::newRow("unknown-launch-fails") << false << true << true << true;
         QTest::newRow("known-opens-directly") << true << true << true << false;
         QTest::newRow("legacy-preference-ignored") << false << false << true << false;
         QTest::newRow("explicit-open-outside") << false << true << false << false;
@@ -192,6 +193,7 @@ class ArchiveExternalLifetimeTests final : public QObject {
         legacy.sync();
         QString opened;
         QString probed;
+        bool launchFails = QByteArray(QTest::currentDataTag()) == "unknown-launch-fails";
         const auto cleanup = qScopeGuard([&] {
             if (!opened.isEmpty())
                 QDir(QFileInfo(opened).absolutePath()).removeRecursively();
@@ -205,7 +207,7 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QtAssociatedFileServices service(
             [&](const QUrl &url) {
                 opened = url.toLocalFile();
-                return true;
+                return !launchFails;
             },
             {}, {}, probe);
         ArchiveBackend backend;
@@ -214,6 +216,7 @@ class ArchiveExternalLifetimeTests final : public QObject {
         QVERIFY(bind(panel, manager, service, archive));
         bool prompted = false;
         bool cancelDefault = false;
+        QString launchError;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
@@ -221,6 +224,9 @@ class ArchiveExternalLifetimeTests final : public QObject {
                     prompted = true;
                     cancelDefault = box->defaultButton() == box->button(QMessageBox::Cancel);
                     box->done(accept ? QMessageBox::Open : QMessageBox::Cancel);
+                } else if (box->objectName() == "externalFileOpenError") {
+                    launchError = box->text();
+                    box->accept();
                 }
             }
         });
@@ -232,7 +238,22 @@ class ArchiveExternalLifetimeTests final : public QObject {
         if (prompted)
             QVERIFY(cancelDefault);
         QCOMPARE(!opened.isEmpty(), !expectedPrompt || accept);
-        if (!opened.isEmpty())
+        if (launchFails) {
+            QVERIFY(launchError.contains(name));
+            QVERIFY(!QFileInfo::exists(opened));
+            QVERIFY(ownedDirectory(opened).key.isEmpty());
+            launchFails = false;
+            prompted = false;
+            launchError.clear();
+            opened.clear();
+            responder.start();
+            panel.OpenItem(0, internal, true);
+            responder.stop();
+            QVERIFY(prompted);
+            QVERIFY(launchError.isEmpty());
+            QVERIFY(!opened.isEmpty());
+            QCOMPARE(read(opened), contents);
+        } else if (!opened.isEmpty())
             QCOMPARE(read(opened), contents);
         else if (probe) {
             QVERIFY(!probed.isEmpty());

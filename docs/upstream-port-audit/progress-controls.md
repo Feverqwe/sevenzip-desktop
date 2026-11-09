@@ -463,3 +463,20 @@ translation, copying and direct native/command consumers; no source-structure
 test is added.
 All three suites passed on Linux. Platform adapters and rendered Windows
 parity were not revalidated for this shared Qt ownership change.
+
+## Successful archive test reports
+
+The existing baseline for `CPP/7zip/UI/FileManager/ProgressDialog2.cpp`
+covers `OnExternalCloseMessage`, which displays an explicit success report
+after a clean operation. The Qt adaptation presents that report inline in
+the completed progress window. Archive testing continues to use the existing
+native report from the panel or the standalone GUI operation. No source
+inventory or worker lifetime changes.
+
+## Stop confirmation while paused
+
+The original `CProgressDialog::OnButtonClicked` restores the previous pause
+state before dispatching `OnCancel`. The Qt dialog restores it when the user
+continues or the confirmation becomes obsolete. On confirmed Stop, the native
+checkpoint or Qt transport receives cancellation while still paused. Both can
+wake a paused worker on cancellation. This avoids resuming I/O before stopping.

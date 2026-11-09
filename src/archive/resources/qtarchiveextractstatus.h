@@ -22,6 +22,7 @@ struct QtArchiveExtractReport {
     std::optional<QtArchiveExtractStatus> Status;
     QStringList Diagnostics;
     bool HadErrors = false;
+    bool ResultPresented = false;
 };
 
 class QtArchiveExtractStatusReceiver {

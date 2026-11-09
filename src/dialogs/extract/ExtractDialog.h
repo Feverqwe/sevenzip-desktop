@@ -7,16 +7,20 @@
 #include <QDialog>
 #include <QLineEdit>
 #include <QStringList>
+#include <functional>
 
 class QtDisclosure;
 class QtSourceSummary;
 class QPlainTextEdit;
+class QLabel;
 
 class CExtractDialog : public QDialog {
     Q_OBJECT
     QComboBox *_path = nullptr;
+    QLabel *_destinationError = nullptr;
     QLineEdit *_pathName = nullptr;
     QCheckBox *_nameEnable = nullptr;
+    std::function<QString(const QString &)> _destinationErrorForPath;
     QLineEdit *_passwordControl = nullptr;
     QComboBox *_pathMode = nullptr;
     QComboBox *_overwriteMode = nullptr;
@@ -49,7 +53,8 @@ class CExtractDialog : public QDialog {
 
   public:
     CExtractDialog(const QString &initialPath, const QStringList &history,
-                   QWidget *parent = nullptr);
+                   QWidget *parent = nullptr,
+                   std::function<QString(const QString &)> destinationErrorForPath = {});
     QString DirPath;
     UString ArcPath;
     QString Password;

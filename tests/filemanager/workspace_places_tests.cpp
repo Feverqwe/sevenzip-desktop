@@ -4,13 +4,18 @@
 #include "filemanager/window/qtfavoritestore.h"
 #include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "fileops/scanner/filesystemscanner.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
 #include "settings/ViewSettings.h"
+#include "settings/qtfmoptionsdialog.h"
+#include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QDialogButtonBox>
 #include <QListView>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QScrollBar>
@@ -37,7 +42,12 @@ class WorkspacePlacesTests final : public QObject {
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
-        window.findChild<QAction *>("openRootAction")->trigger();
+        auto *root = window.findChild<QAction *>("openRootAction");
+        auto *save = window.findChild<QAction *>("saveBookmark3Action");
+        auto *bookmark = window.findChild<QAction *>("openBookmark3Action");
+        auto *settings = window.findChild<QAction *>("settingsAction");
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        QVERIFY(root && save && bookmark && settings && files);
         QtFavoriteStore *store = nullptr;
         for (auto *object : qApp->children())
             if (auto *favorites = dynamic_cast<QtFavoriteStore *>(object))
@@ -46,23 +56,96 @@ class WorkspacePlacesTests final : public QObject {
         store->Add(missing, "Unavailable target");
         auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
         QVERIFY(menu);
-        menu->popup(window.mapToGlobal(QPoint(20, 20)));
-        QTRY_VERIFY(menu->isVisible());
-        auto *target = [&]() -> QAction * {
+        const auto openUnavailable = [&] {
+            menu->popup(window.mapToGlobal(QPoint(20, 20)));
+            QTRY_VERIFY(menu->isVisible());
             for (auto *action : menu->actions())
-                if (action->toolTip() == missing)
-                    return action;
-            return nullptr;
-        }();
-        QVERIFY(target);
-        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
-                          menu->actionGeometry(target).center());
+                if (action->toolTip() == missing) {
+                    QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                                      menu->actionGeometry(action).center());
+                    return;
+                }
+            menu->hide();
+            QFAIL("Saved place is absent from the menu");
+        };
         const auto errorVisible = [&] {
             for (auto *label : window.findChildren<QLabel *>())
                 if (label->isVisible() && label->text().contains(missing))
                     return true;
             return false;
         };
+        auto *back = window.findChild<QAction *>("backAction");
+        auto *forward = window.findChild<QAction *>("forwardAction");
+        QVERIFY(back && forward);
+        QTRY_VERIFY(files->isEnabled());
+        QVERIFY(!back->isEnabled());
+        const UString startup = files->sourcePanel->GetCurrentFolderPrefix();
+        openUnavailable();
+        QTRY_VERIFY(errorVisible() && back->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled());
+        QCOMPARE(files->sourcePanel->GetCurrentFolderPrefix(), startup);
+        QVERIFY(!back->isEnabled() && !forward->isEnabled());
+
+        window.openPath(fixture.path());
+        save->trigger();
+        root->trigger();
+        openUnavailable();
+        QTRY_VERIFY(errorVisible());
+        QVERIFY(root->isEnabled() && bookmark->isEnabled() && settings->isEnabled());
+        QVERIFY(!save->isEnabled());
+        bool applied = false;
+        QTimer applySettings;
+        connect(&applySettings, &QTimer::timeout, &window, [&] {
+            auto *dialog = window.findChild<QtFmOptionsDialog *>("settingsDialog");
+            if (!dialog || !dialog->isVisible())
+                return;
+            auto *buttons = dialog->findChild<QDialogButtonBox *>("settingsButtons");
+            applySettings.stop();
+            if (buttons) {
+                QSignalSpy appliedSignal(dialog, &QtFmOptionsDialog::Applied);
+                buttons->button(QDialogButtonBox::Ok)->click();
+                applied = appliedSignal.size() == 1;
+            }
+            if (dialog->isVisible())
+                dialog->reject();
+        });
+        applySettings.start(5);
+        settings->trigger();
+        QVERIFY(applied);
+        QVERIFY(errorVisible());
+        QCOMPARE(files->rowCount(), 0);
+        QVERIFY(bookmark->isEnabled());
+        QVERIFY(WindowActivation::waitForActive(window));
+        bookmark->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), files);
+        QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                 QFileInfo(fixture.path()).canonicalFilePath());
+        openUnavailable();
+        QTRY_VERIFY(errorVisible());
+        root->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled() &&
+                    files->sourcePanel->IsFSDrivesFolder());
+        openUnavailable();
+        QTRY_VERIFY(errorVisible());
+        QVERIFY(back->isEnabled() && !forward->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(!errorVisible() && files->isEnabled() &&
+                    files->sourcePanel->IsFSDrivesFolder());
+        QVERIFY(back->isEnabled() && !forward->isEnabled());
+        back->trigger();
+        QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                     QFileInfo(fixture.path()).canonicalFilePath());
+        openUnavailable();
+        QTRY_VERIFY(errorVisible() && back->isEnabled() && !forward->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(!errorVisible() && forward->isEnabled());
+        QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                 QFileInfo(fixture.path()).canonicalFilePath());
+        forward->trigger();
+        QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());
+        openUnavailable();
         QTRY_VERIFY(errorVisible());
         QPushButton *retry = nullptr;
         for (auto *button : window.findChildren<QPushButton *>())
@@ -80,13 +163,113 @@ class WorkspacePlacesTests final : public QObject {
         QVERIFY(QDir().mkpath(missing));
         QTest::mouseClick(retry, Qt::LeftButton);
         QTRY_VERIFY(window.findChild<QAction *>("createFolderAction")->isEnabled());
-        auto *files = window.findChild<FileTable *>("archiveTable");
         QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), missing);
         window.findChild<QAction *>("backAction")->trigger();
         QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());
         window.findChild<QAction *>("forwardAction")->trigger();
         QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
                      missing);
+    }
+    void favoriteKeepsRetryTargetAfterBackgroundReadFailure_data() {
+        QTest::addColumn<bool>("editPeer");
+        QTest::newRow("retry-with-keyboard") << false;
+        QTest::newRow("keep-peer-address-draft") << true;
+    }
+    void favoriteKeepsRetryTargetAfterBackgroundReadFailure() {
+        QFETCH(bool, editPeer);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString origin = fixture.filePath("Original");
+        const QString target = fixture.filePath("Large папка");
+        QVERIFY(QDir().mkpath(origin));
+        QVERIFY(QDir().mkpath(target));
+        for (int i = 0; i < 301; ++i) {
+            QFile file(QDir(target).filePath(QString::number(i) + ".txt"));
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(origin);
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        auto *scanner = window.findChild<FilesystemScanner *>();
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(files && scanner && retry && address);
+        QTRY_VERIFY(files->isEnabled());
+        QtFavoriteStore *store = nullptr;
+        for (auto *object : qApp->children())
+            if (auto *favorites = dynamic_cast<QtFavoriteStore *>(object))
+                store = favorites;
+        QVERIFY(store);
+        store->Add(target, QStringLiteral("Large favorite"));
+
+        QLineEdit *peerAddress = nullptr;
+        const QString draft = QStringLiteral("unfinished peer path");
+        if (editPeer) {
+            window.findChild<QAction *>("twoPanelsAction")->trigger();
+            auto *peer = window.findChild<QWidget *>("filePanel1");
+            QVERIFY(peer);
+            peerAddress = peer->findChild<QLineEdit *>("archivePath");
+            QVERIFY(peerAddress);
+            files->setFocus();
+            QTRY_COMPARE(window.focusWidget(), files);
+        }
+
+        // Replace the pending scan at its public progress boundary with a
+        // real read failure. This avoids timing and filesystem permissions.
+        const auto restart = connect(
+            scanner, &FilesystemScanner::advanced, &window,
+            [&] {
+                if (peerAddress) {
+                    PanelKeys::focusAddress(peerAddress);
+                    peerAddress->selectAll();
+                    QTest::keyClicks(peerAddress, draft);
+                }
+                scanner->start(fixture.filePath("Missing"), false);
+            },
+            Qt::SingleShotConnection);
+        QSignalSpy failed(scanner, &FilesystemScanner::failed);
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                message->accept();
+        });
+        dismiss.start(1);
+        auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
+        QVERIFY(menu);
+        menu->popup(window.mapToGlobal(QPoint(20, 20)));
+        QTRY_VERIFY(menu->isVisible());
+        QAction *entry = nullptr;
+        for (auto *item : menu->actions())
+            if (item->toolTip() == target)
+                entry = item;
+        QVERIFY(entry);
+        menu->setActiveAction(entry);
+        QTest::keyClick(menu, Qt::Key_Return);
+        QTRY_COMPARE(failed.size(), 1);
+        QTRY_VERIFY(retry->isVisible());
+        QVERIFY(!files->isEnabled());
+        QCOMPARE(files->rowCount(), 0);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
+        disconnect(restart);
+        if (editPeer) {
+            QCOMPARE(peerAddress->text(), draft);
+            QVERIFY(window.focusWidget());
+            QTest::keyClick(window.focusWidget(), Qt::Key_X);
+            QCOMPARE(peerAddress->text(), draft + "x");
+            QTest::mouseClick(retry, Qt::LeftButton);
+        } else {
+            QTRY_COMPARE(window.focusWidget(), retry);
+            QTest::keyClick(window.focusWidget(), Qt::Key_Space);
+        }
+        QTRY_VERIFY(files->isEnabled() && !retry->isVisible());
+        QTRY_COMPARE(window.focusWidget(), files);
+        QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), target);
+        QVERIFY(files->rowCount() >= 301);
+        window.findChild<QAction *>("backAction")->trigger();
+        QTRY_COMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())),
+                     origin);
     }
     void computerMenuAndRootRowUseSameNamespace_data() {
         QTest::addColumn<QString>("language");
@@ -163,7 +346,8 @@ class WorkspacePlacesTests final : public QObject {
                 favorites = store;
         QVERIFY(favorites);
         favorites->Add(a, "A");
-        favorites->Add(b, "B");
+        const QString label = QStringLiteral("B & C\tD");
+        favorites->Add(b, label);
         const QString id = favorites->Favorite(1).id;
         QtWindowWorkspace *owner = nullptr;
         for (auto *object : window.children())
@@ -172,15 +356,26 @@ class WorkspacePlacesTests final : public QObject {
         QVERIFY(owner);
         window.openPath(a);
         QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), a);
+        auto *files = window.findChild<FileTable *>("archiveTable");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(files && address);
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
         auto *menu = window.findChild<QMenu *>("savedPlacesMenu");
         QVERIFY(menu);
         menu->popup(window.mapToGlobal(QPoint(20, 20)));
         QTRY_VERIFY(menu->isVisible());
         QAction *selected = nullptr;
         for (auto *action : menu->actions())
-            if (action->text() == "B")
+            if (action->toolTip() == b)
                 selected = action;
         QVERIFY(selected);
+        QCOMPARE(selected->text(), QStringLiteral("B && C D"));
+        QVERIFY(QKeySequence::mnemonic(selected->text()).isEmpty());
+        QCOMPARE(favorites->Favorite(1).label, label);
+        if (!remove)
+            QVERIFY(UiInspection::writeReport(*menu, "saved-places-literal-label"));
         if (remove)
             QVERIFY(favorites->removeRow(favorites->IndexForId(id).row()));
         else
@@ -189,6 +384,8 @@ class WorkspacePlacesTests final : public QObject {
                           menu->actionGeometry(selected).center());
         QTRY_VERIFY(!menu->isVisible());
         QTRY_COMPARE(QDir::cleanPath(owner->CurrentLocation()), remove ? a : b);
+        if (!remove)
+            QTRY_COMPARE(window.focusWidget(), files);
         QVERIFY(QFileInfo(b).isDir());
     }
 };

@@ -9,8 +9,12 @@
 bool g_DisableUserQuestions = false;
 
 void ShowErrorMessageQt(QWidget *parent, const wchar_t *message) {
-    if (!g_DisableUserQuestions)
-        QMessageBox::critical(parent, QStringLiteral("7-Zip"), QString::fromWCharArray(message));
+    if (!g_DisableUserQuestions) {
+        QMessageBox box(QMessageBox::Critical, QStringLiteral("7-Zip"),
+                        QString::fromWCharArray(message), QMessageBox::Ok, parent);
+        box.setTextFormat(Qt::PlainText);
+        box.exec();
+    }
 }
 
 void ShowErrorMessageHwndResQt(QWidget *parent, UInt32 resID) {

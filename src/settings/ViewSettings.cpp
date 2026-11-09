@@ -4,6 +4,7 @@
 // needs no Win32 critical section. Only upstream-named keys are read.
 #include "settings/ViewSettings.h"
 #include "Common/MyBuffer.h"
+#include "fileops/patterns/Wildcard.h"
 #include "platform/cpu/CpuArch.h"
 
 #include <QSettings>
@@ -210,7 +211,7 @@ void ReadFastFolders(UStringVector &folders, const QString &settingsPath) {
 
 void AddUniqueStringToHeadOfList(UStringVector &list, const UString &s) {
     for (unsigned i = 0; i < list.Size();) {
-        if (s.IsEqualTo_NoCase(list[i]))
+        if (CompareFileNames(s, list[i]) == 0)
             list.Delete(i);
         else
             i++;

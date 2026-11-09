@@ -244,6 +244,48 @@ class PanelColumnChangesTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(backend.listCalls, 0);
     }
   private slots:
+    void switchingViewsRevealsCurrentItemWithCustomColumns() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(640, 400);
+        window.show();
+        action(window, "openRootAction")->trigger();
+        action(window, "viewMode3Action")->trigger();
+
+        auto *view = table(window);
+        auto *icons = window.findChild<QListView *>("iconList");
+        QVERIFY(icons);
+        auto *schema = new SchemaFolder;
+        schema->properties = {{kpidCRC, VT_UI4}};
+        schema->rawEnabled = false;
+        schema->items->itemCount = 120;
+        CMyComPtr<IFolderFolder> provider = schema;
+        auto &panel = *view->sourcePanel;
+        panel.Set_AutoRefresh_Mode(false);
+        panel.SetNewFolder(provider);
+        panel.LoadFullPath();
+        panel.OnReload();
+        QTRY_COMPARE(view->rowCount(), 120);
+
+        const int column = view->columnForProperty(kpidCRC);
+        QVERIFY(column >= 0 && !view->isColumnHidden(column));
+        const QModelIndex last = view->model()->index(view->rowCount() - 1, column);
+        view->setCurrentCell(last.row(), last.column());
+        view->scrollTo(last);
+        action(window, "viewMode0Action")->trigger();
+        QVERIFY(icons->isVisible());
+        QTRY_VERIFY(icons->visualRect(last).intersects(icons->viewport()->rect()));
+        QCOMPARE(icons->currentIndex(), last);
+        QVERIFY(icons->selectionModel()->isRowSelected(last.row(), {}));
+
+        action(window, "viewMode3Action")->trigger();
+        QVERIFY(view->isVisible());
+        QCOMPARE(view->currentIndex(), last);
+        QVERIFY(view->selectionModel()->isRowSelected(last.row(), {}));
+        QTRY_VERIFY(view->visualRect(last).intersects(view->viewport()->rect()));
+    }
+
     void writtenCountRetainsNativeEnumeration_data() { dataRows(true); }
     void writtenCountRetainsNativeEnumeration() {
         QFETCH(unsigned, pane);

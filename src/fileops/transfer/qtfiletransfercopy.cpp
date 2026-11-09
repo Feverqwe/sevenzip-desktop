@@ -1,4 +1,3 @@
-#include "7zip/Common/FilePathAutoRename.h"
 #include "Common/StringConvert.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
@@ -62,25 +61,38 @@ bool QtFileTransferTransaction::copyEntry(const QString &source, const QString &
 bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString &stage,
                                            const QString &target, QStringList *writtenSources,
                                            QString *error) {
+    QString conflict;
     CFileTransferCopyCallback callback(
-        [this, &stage, &target](const OverwriteQuestion::File &incoming, const QString &requested)
-            -> CFileTransferCopyCallback::WriteDecision {
+        [this, &source, &stage, &conflict,
+         &target](const OverwriteQuestion::File &incoming,
+                  const QString &requested) -> CFileTransferCopyCallback::WriteDecision {
             if (worker_.canceled_)
                 return std::unexpected(E_ABORT);
             const QFileInfo existing(requested);
-            if (existing.isSymLink() || (existing.exists() && !existing.isFile()))
-                return std::unexpected(E_ABORT);
+            const QString visible = target + requested.mid(stage.size());
+            if (QtIsFileSystemLink(requested))
+                conflict = QCoreApplication::translate("qtfiletransfertransaction",
+                                                       "Destination is a symbolic link: %1")
+                               .arg(visible);
+            else if (existing.exists() && !existing.isFile())
+                conflict = QCoreApplication::translate(
+                               "qtfiletransfertransaction",
+                               "Cannot replace a file with a folder or a folder with a file: %1")
+                               .arg(visible);
+            if (!conflict.isEmpty())
+                return std::unexpected(E_FAIL);
             QString effective = requested;
             if (existing.exists()) {
-                const QString visible = target + requested.mid(stage.size());
                 switch (decideOverwrite({requested, visible, incoming})) {
                 case OverwriteDecision::Skip:
                     return std::nullopt;
                 case OverwriteDecision::Rename: {
-                    FString renamed = us2fs(requested.toStdWString().c_str());
-                    if (!AutoRenamePath(renamed))
+                    effective = availableName(requested, [&source, &stage](const QString &name) {
+                        const QString original = source + name.mid(stage.size());
+                        return QFileInfo::exists(original) || QtIsFileSystemLink(original);
+                    });
+                    if (effective.isEmpty())
                         return std::unexpected(E_ABORT);
-                    effective = QString::fromWCharArray(fs2us(renamed));
                     break;
                 }
                 case OverwriteDecision::Replace:
@@ -103,17 +115,24 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
     state.Callback = &callback;
     const bool merged = NFsFolder::CopyFolder(state, source, stage);
     *writtenSources = callback.writtenSources;
-    *error = !state.ErrorMessage.isEmpty() ? state.ErrorMessage : callback.errorMessage;
-    if (!merged && error->isEmpty())
-        *error =
-            QCoreApplication::translate("qtfiletransfertransaction", "Could not merge folders: %1")
-                .arg(target);
+    *error = !conflict.isEmpty()             ? conflict
+             : !state.ErrorMessage.isEmpty() ? state.ErrorMessage
+                                             : callback.errorMessage;
+    if (!merged && error->isEmpty()) {
+        if (worker_.canceled_)
+            *error =
+                QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+        else
+            *error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                 "Could not merge folders: %1")
+                         .arg(target);
+    }
     return merged;
 }
 
 bool QtFileTransferTransaction::removeMergedSource(const QString &source,
                                                    const QStringList &writtenSources,
-                                                   QString *error) {
+                                                   QString *error, bool &rootRemoved) {
     for (const QString &path : writtenSources) {
         if (worker_.canceled_) {
             *error =
@@ -142,7 +161,7 @@ bool QtFileTransferTransaction::removeMergedSource(const QString &source,
               [](const QString &a, const QString &b) { return a.size() > b.size(); });
     for (const QString &directory : directories)
         QDir().rmdir(directory);
-    QDir().rmdir(source); // Skipped files intentionally keep the source folder.
+    rootRemoved = QDir().rmdir(source); // Skipped files keep the source folder.
     if (worker_.canceled_) {
         *error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
         return false;

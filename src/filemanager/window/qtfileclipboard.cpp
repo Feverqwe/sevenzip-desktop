@@ -1,16 +1,66 @@
 #include "filemanager/window/qtfileclipboard.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
+#include "filemanager/window/qtwindowworkspace.h"
+#include "fileops/transfer/qtlocalfileurl.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/temp/qtownedtempregistry.h"
 #include <QClipboard>
+#include <QFileInfo>
 #include <QScopedValueRollback>
+#include <QSet>
 #include <QtEndian>
 
 namespace {
-bool ClipboardMovesFiles(const QMimeData &mime) {
-    bool move = mime.data("application/x-kde-cutselection") == "1" ||
-                mime.data("x-special/gnome-copied-files").startsWith("cut\n");
+constexpr auto gnomeFilesFormat = "x-special/gnome-copied-files";
+
+QString MissingClipboardSource(const QFileInfo &entry) {
+    if (entry.exists() || entry.isSymLink() || entry.isJunction())
+        return {};
+    return QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
+        .arg(entry.filePath());
+}
+
+QStringList LocalFilePaths(const QList<QUrl> &urls) {
+    QStringList paths;
+    for (const auto &url : urls) {
+        const QString path = QtLocalFileUrlPath(url);
+        if (path.isEmpty())
+            return {};
+        paths.append(path);
+    }
+    paths.removeDuplicates();
+    return paths;
+}
+
+QStringList GnomeFilePaths(const QByteArray &data) {
+    auto lines = data.split('\n');
+    if (!lines.isEmpty() && lines.back().isEmpty())
+        lines.removeLast();
+    if (lines.size() < 2 || (lines.front() != "cut" && lines.front() != "copy"))
+        return {};
+    QList<QUrl> urls;
+    for (qsizetype i = 1; i < lines.size(); ++i)
+        urls.append(QUrl::fromEncoded(lines[i], QUrl::StrictMode));
+    return LocalFilePaths(urls);
+}
+
+QStringList ClipboardFilePaths(const QMimeData *mime) {
+    if (!mime)
+        return {};
+    const auto urls = mime->urls();
+    return urls.isEmpty() && !mime->hasUrls() ? GnomeFilePaths(mime->data(gnomeFilesFormat))
+                                              : LocalFilePaths(urls);
+}
+
+bool ClipboardMovesFiles(const QMimeData &mime, const QStringList &paths) {
+    bool move = mime.data("application/x-kde-cutselection") == "1";
+    const auto gnome = mime.data(gnomeFilesFormat);
+    if (!move && !paths.isEmpty() && gnome.startsWith("cut\n")) {
+        const auto gnomePaths = GnomeFilePaths(gnome);
+        move = QSet<QString>(paths.cbegin(), paths.cend()) ==
+               QSet<QString>(gnomePaths.cbegin(), gnomePaths.cend());
+    }
 #ifdef Q_OS_WIN
     const QByteArray preferred =
         mime.data("application/x-qt-windows-mime;value=\"Preferred DropEffect\"");
@@ -18,6 +68,21 @@ bool ClipboardMovesFiles(const QMimeData &mime) {
         move |= qFromLittleEndian<quint32>(preferred.constData()) == 2;
 #endif
     return move;
+}
+
+void PublishFileClipboard(const QList<QUrl> &urls, bool move) {
+    auto *mime = new QMimeData;
+    mime->setUrls(urls);
+    QByteArray gnome = move ? QByteArray("cut") : QByteArray("copy");
+    for (const auto &url : urls)
+        gnome += '\n' + url.toEncoded();
+    mime->setData(gnomeFilesFormat, gnome);
+    mime->setData("application/x-kde-cutselection", move ? "1" : "0");
+#ifdef Q_OS_WIN
+    mime->setData("application/x-qt-windows-mime;value=\"Preferred DropEffect\"",
+                  QByteArray(move ? "\x02\x00\x00\x00" : "\x01\x00\x00\x00", 4));
+#endif
+    QApplication::clipboard()->setMimeData(mime);
 }
 } // namespace
 
@@ -35,50 +100,58 @@ QtFileClipboard::QtFileClipboard(MainWindow &window) : QObject(&window), window_
     connect(copy, &QAction::triggered, this, [this] { Copy(false); });
     connect(paste, &QAction::triggered, this, &QtFileClipboard::Paste);
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {
-        cutDirty_ = true;
-        window_.refreshActions();
+        ++revision_;
+        clipboardDirty_ = true;
+        Refresh();
+        window_.workspace_->RefreshChrome();
     });
 }
 
-QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned panel) const {
+QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned panel) {
     const auto &ui = window_.panelUi_[panel];
     if (!ui.table)
         return {};
     auto &source = window_.app_.Panels[panel];
     const bool ready = !window_.app_.QtOperations().closed() &&
-                       !window_.app_.QtOperations().active() && !window_.sourceArchiveProgress_ &&
-                       !ui.locationUnavailable;
+                       !window_.app_.QtOperations().blocking() && !window_.sourceArchiveProgress_ &&
+                       !ui.locationUnavailable && !ui.scanningDisk && !ui.scanningArchive;
     CRecordVector<UInt32> indices;
     if (ready)
         source.Get_ItemIndices_Operated(indices);
     Availability available;
     available.copy = ready && !indices.IsEmpty() && source.DoesItSupportOperations();
-    available.cut = available.copy && source.IsFSFolder() && !source.IsThereReadOnlyFolder();
-    const QMimeData *mime = QApplication::clipboard()->mimeData();
-    available.paste = ready && source.GetFolder() && source.IsFSFolder() &&
-                      !source.IsThereReadOnlyFolder() && mime && mime->hasUrls();
+    const QFileInfo destination(ui.directory);
+    const bool writableFolder = ready && source.GetFolder() && source.IsFSFolder() &&
+                                !source.IsThereReadOnlyFolder() && destination.isDir() &&
+                                destination.isWritable();
+    available.cut = available.copy && writableFolder;
+    UpdateClipboardSnapshot();
+    available.paste = writableFolder && !destination.isSymLink() && !destination.isJunction() &&
+                      hasClipboardFiles_;
     return available;
 }
 
+void QtFileClipboard::UpdateClipboardSnapshot() {
+    const auto *mime = QApplication::clipboard()->mimeData();
+    if (!clipboardDirty_ && clipboardMime_ == mime)
+        return;
+    clipboardDirty_ = false;
+    clipboardMime_ = mime;
+    cutPaths_.clear();
+    const auto paths = ClipboardFilePaths(mime);
+    hasClipboardFiles_ = !paths.isEmpty();
+    if (hasClipboardFiles_ && ClipboardMovesFiles(*mime, paths))
+        for (const auto &path : paths)
+            cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(path)));
+}
+
 void QtFileClipboard::Refresh() {
-    if (cutDirty_) {
-        cutDirty_ = false;
-        cutPaths_.clear();
-        const auto *mime = QApplication::clipboard()->mimeData();
-        if (mime && ClipboardMovesFiles(*mime))
-            for (const auto &url : mime->urls()) {
-                if (!url.isLocalFile()) {
-                    cutPaths_.clear();
-                    break;
-                }
-                cutPaths_.insert(QDir::cleanPath(QDir::fromNativeSeparators(url.toLocalFile())));
-            }
-    }
+    UpdateClipboardSnapshot();
     // Hidden tabs retain their model; every window observes clipboard changes.
     // New/restored models receive the same snapshot at their next publication.
     for (auto *table : window_.findChildren<FileTable *>())
         table->panelModel()->setCutPaths(cutPaths_);
-    const auto available = AvailabilityForPanel(window_.projectedPanel_);
+    const auto available = AvailabilityForPanel(window_.statusPanel_);
     copy->setEnabled(available.copy);
     cut->setEnabled(available.cut);
     paste->setEnabled(available.paste);
@@ -86,7 +159,8 @@ void QtFileClipboard::Refresh() {
 
 void QtFileClipboard::Copy(bool move) {
     Refresh();
-    if (!(move ? cut : copy)->isEnabled())
+    const auto available = AvailabilityForPanel(window_.projectedPanel_);
+    if (!(move ? available.cut : available.copy))
         return;
     auto &source = window_.app_.GetFocusedPanel();
     QtAppOperationState::CallScope call(window_.app_.QtOperations());
@@ -96,14 +170,24 @@ void QtFileClipboard::Copy(bool move) {
     if (source.IsFSFolder()) {
         UStringVector paths;
         source.GetFilePaths(indices, paths);
-        FOR_VECTOR(i, paths)
-        urls.append(QUrl::fromLocalFile(ToQString(paths[i])));
+        FOR_VECTOR(i, paths) {
+            const QString path = ToQString(paths[i]);
+            if (const QString error = MissingClipboardSource(QFileInfo(path)); !error.isEmpty()) {
+                window_.showStatusMessage(error);
+                return;
+            }
+            urls.append(QUrl::fromLocalFile(path));
+        }
     } else {
         // Materialize with the same native copy owner as drag/export. Never
         // expose URLs until the engine reports a complete successful copy.
+        const auto revision = revision_;
         NWindows::NFile::NDir::CTempDir temporary;
-        if (!temporary.Create(FTEXT("7zClipboard")))
+        if (!temporary.Create(FTEXT("7zClipboard"))) {
+            window_.showStatusMessage(
+                QCoreApplication::translate("SevenZipDiagnostics", "Can't create temp folder"));
             return;
+        }
         const QString directory = ToQString(fs2us(temporary.GetPath()));
         CCopyToOptions options;
         options.folder = ToUString(QDir::fromNativeSeparators(directory) + '/');
@@ -115,9 +199,15 @@ void QtFileClipboard::Copy(bool move) {
             QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
             result = source.CopyTo(options, indices, &messages, &report);
         }
-        if (result != S_OK || !messages.IsEmpty())
+        if (revision_ != revision)
             return;
-        if (source.IsArcFolder() && (!report.Status || !report.Status->Complete)) {
+        if (result == E_ABORT) {
+            window_.showStatusMessage(
+                QCoreApplication::translate("mainwindow_archivecommands", "Operation canceled."));
+            return;
+        }
+        if (result != S_OK || !messages.IsEmpty() ||
+            (source.IsArcFolder() && (!report.Status || !report.Status->Complete))) {
             window_.showStatusMessage(tr(
                 "Complete extraction could not be confirmed. The clipboard was kept unchanged."));
             return;
@@ -125,49 +215,61 @@ void QtFileClipboard::Copy(bool move) {
         for (const auto &file : QDir(directory).entryInfoList(
                  QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System))
             urls.append(QUrl::fromLocalFile(file.absoluteFilePath()));
-        if (urls.isEmpty() || !temporary.OwnedLease() || !temporary.OwnedLease()->ProtectExternal())
+        if (urls.isEmpty()) {
+            window_.showStatusMessage(tr("No extracted files to copy."));
             return;
+        }
+        if (!temporary.OwnedLease() || !temporary.OwnedLease()->ProtectExternal()) {
+            window_.showStatusMessage(tr("Could not keep temporary files for pasting."));
+            return;
+        }
         // Clipboard consumers may still copy after replacing the clipboard.
         // Retain the existing protected-temp registry's cleanup contract.
         temporary.DisableDeleting();
     }
     if (urls.isEmpty())
         return;
-    auto *mime = new QMimeData;
-    mime->setUrls(urls);
-    QByteArray gnome = move ? QByteArray("cut") : QByteArray("copy");
-    for (const auto &url : urls)
-        gnome += '\n' + url.toEncoded();
-    mime->setData("x-special/gnome-copied-files", gnome);
-    mime->setData("application/x-kde-cutselection", move ? "1" : "0");
-#ifdef Q_OS_WIN
-    mime->setData("application/x-qt-windows-mime;value=\"Preferred DropEffect\"",
-                  QByteArray(move ? "\x02\x00\x00\x00" : "\x01\x00\x00\x00", 4));
-#endif
-    QApplication::clipboard()->setMimeData(mime);
+    PublishFileClipboard(urls, move);
+    window_.clearStatusMessage();
 }
 
 void QtFileClipboard::Paste() {
     Refresh();
-    if (!paste->isEnabled())
+    if (!AvailabilityForPanel(window_.projectedPanel_).paste)
         return;
     const QMimeData *mime = QApplication::clipboard()->mimeData();
-    QStringList paths;
-    for (const auto &url : mime->urls()) {
-        if (!url.isLocalFile())
-            return;
-        paths.append(url.toLocalFile());
-    }
-    const bool move = ClipboardMovesFiles(*mime);
+    const QStringList paths = ClipboardFilePaths(mime);
     if (paths.isEmpty())
         return;
+    const QString destination = window_.projectedUi().directory;
+    if (const QString error = FileTransferOperation::checkDirectoryPaths(paths, destination);
+        !error.isEmpty()) {
+        window_.showStatusMessage(error);
+        return;
+    }
+    const bool move = ClipboardMovesFiles(*mime, paths);
     // Existing transfer owns collisions, path validation, cancellation,
     // metadata and progress; clipboard only supplies source URLs/destination.
     const QPointer<const QMimeData> original(mime);
-    window_.transferFiles(
-        paths, window_.projectedUi().directory, move, false, [original, move](bool success) {
-            if (move && success && original && QApplication::clipboard()->mimeData() == original)
-                QApplication::clipboard()->clear();
-        });
-    window_.app_.Panels[window_.projectedPanel_].MarkPortableFolderChanged();
+    const QPointer<QtFileClipboard> owner(this);
+    const auto revision = revision_;
+    window_.transferFiles(paths, destination, move, false,
+                          [owner, original, paths, revision](const QStringList &movedSources) {
+                              if (!owner)
+                                  return;
+                              if (movedSources.isEmpty() || owner->revision_ != revision ||
+                                  !original || QApplication::clipboard()->mimeData() != original ||
+                                  ClipboardFilePaths(original) != paths ||
+                                  !ClipboardMovesFiles(*original, paths))
+                                  return;
+                              const QSet<QString> moved(movedSources.cbegin(), movedSources.cend());
+                              QList<QUrl> remaining;
+                              for (const auto &path : paths)
+                                  if (!moved.contains(path))
+                                      remaining.append(QUrl::fromLocalFile(path));
+                              if (remaining.isEmpty())
+                                  QApplication::clipboard()->clear();
+                              else
+                                  PublishFileClipboard(remaining, true);
+                          });
 }

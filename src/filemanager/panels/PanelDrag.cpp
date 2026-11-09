@@ -38,6 +38,8 @@ void CDropTarget::PositionCursor(int x, int y) {
                 m_IsAppTarget = false;
                 if ((int)i == SrcPanelIndex)
                     return;
+                if (panel->IsArcFolder() && panel->IsThereReadOnlyFolder())
+                    return;
                 break;
             }
         }
@@ -116,6 +118,8 @@ static DWORD GetEffect_ForKeys(DWORD keyState) {
 DWORD CDropTarget::GetEffect(DWORD keyState, DWORD allowedEffect) const {
     if (!m_DropIsAllowed || !m_PanelDropIsAllowed)
         return 0;
+    if (m_IsRightButton && !IsFsFolderPath())
+        allowedEffect &= DROPEFFECT_COPY;
     if (!IsFsFolderPath() || !m_TargetPath_WasSent_ToDataObject) {
         // Original source leaves this disabled: allowedEffect &= ~DROPEFFECT_MOVE;
     }
@@ -130,7 +134,7 @@ DWORD CDropTarget::GetEffect(DWORD keyState, DWORD allowedEffect) const {
         if (allowedEffect & DROPEFFECT_COPY)
             effect = DROPEFFECT_COPY;
         if (allowedEffect & DROPEFFECT_MOVE)
-            if (IsItSameDrive())
+            if (m_IsRightButton || IsItSameDrive())
                 effect = DROPEFFECT_MOVE;
     }
     return effect;
@@ -276,9 +280,11 @@ HRESULT CDropTarget::DragLeave() {
     }
 }
 HRESULT CDropTarget::Drop(CDataObject *dataObject, DWORD keyState, int x, int y, DWORD *effect,
-                          std::optional<CSelectedState> *refreshSelection) {
+                          std::optional<CSelectedState> *refreshSelection, bool *published) {
     if (refreshSelection)
         refreshSelection->reset();
+    if (published)
+        *published = false;
     HRESULT hres = S_OK;
     bool needDrop_by_Source = false;
     DWORD opEffect = DROPEFFECT_NONE;
@@ -308,8 +314,9 @@ HRESULT CDropTarget::Drop(CDataObject *dataObject, DWORD keyState, int x, int y,
                 if (IsFsFolderPath())
                     flagsMask |= UInt32(1) << NDragMenu::k_Copy_Base;
             }
-            const UInt32 cmd32 = presentation_ ? presentation_->Drag_OnContextMenu(x, y, flagsMask)
-                                               : NDragMenu::k_Cancel;
+            const UInt32 cmd32 = presentation_
+                                     ? presentation_->Drag_OnContextMenu(x, y, flagsMask, *effect)
+                                     : NDragMenu::k_Cancel;
             cmd = cmd32 & NDragMenu::k_MenuFlags_CmdMask;
             if (cmd32 & NDragMenu::k_MenuFlag_Copy)
                 cmdEffect = DROPEFFECT_COPY;
@@ -401,7 +408,7 @@ HRESULT CDropTarget::Drop(CDataObject *dataObject, DWORD keyState, int x, int y,
                     RemoveSelection();
                     hres = m_Panel->CompressDropFiles(
                         m_SourcePaths, path, cmd == NDragMenu::k_AddToArc, moveMode, transferFlags,
-                        target.Flags, refreshSelection);
+                        target.Flags, refreshSelection, published);
                 }
             }
         }
@@ -455,7 +462,8 @@ static bool AreThereNamesFromTemp(const UStringVector &filePaths) {
 HRESULT CPanel::CompressDropFiles(const UStringVector &filePaths, const UString &folderPath,
                                   bool createNewArchive, bool moveMode, UInt32 sourceFlags,
                                   UInt32 &targetFlags,
-                                  std::optional<CSelectedState> *refreshSelection) {
+                                  std::optional<CSelectedState> *refreshSelection,
+                                  bool *published) {
     if (filePaths.Size() == 0)
         return S_OK;
     if (createNewArchive) {
@@ -493,7 +501,7 @@ HRESULT CPanel::CompressDropFiles(const UStringVector &filePaths, const UString 
             options.ZoneIdMode = NExtract::NZoneIdMode::kNone;
             return CopyFsItems(options, filePaths, NULL);
         } else
-            return CopyFromNoAsk(moveMode, filePaths, refreshSelection);
+            return CopyFromNoAsk(moveMode, filePaths, refreshSelection, published);
     }
 }
 void CApp::CreateDragTarget() {

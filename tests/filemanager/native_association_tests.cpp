@@ -74,10 +74,26 @@ class NativeAssociationTests final : public QObject {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString program = fixture.filePath(QStringLiteral("процесс 空 with spaces.exe"));
-        QVERIFY(QFile::copy(QString::fromUtf8(SEVENZIP_ASSOC_HELPER), program));
-        ProcessControl control(fixture.filePath("native shell control"));
         QtAssociatedFileServices service({});
         IQtProcessHandle *raw = nullptr;
+        QString reportedPath;
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, this, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                reportedPath = box->text();
+                box->accept();
+            }
+        });
+        answer.start(5);
+        const HRESULT failure = service.StartApplicationKnown(ToUString(fixture.path()),
+                                                              ToUString(program), nullptr, raw);
+        answer.stop();
+        std::unique_ptr<IQtProcessHandle> failedProcess(raw);
+        QCOMPARE(failure, E_FAIL);
+        QVERIFY(!failedProcess);
+        QVERIFY(reportedPath.contains(program));
+        QVERIFY(QFile::copy(QString::fromUtf8(SEVENZIP_ASSOC_HELPER), program));
+        ProcessControl control(fixture.filePath("native shell control"));
         const HRESULT result = service.StartApplicationKnown(ToUString(fixture.path()),
                                                              ToUString(program), nullptr, raw);
         std::unique_ptr<IQtProcessHandle> process(raw);

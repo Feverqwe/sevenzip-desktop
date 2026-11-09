@@ -56,6 +56,19 @@ remain effective when Advanced settings is collapsed. A short Modified indicator
 identifies nondefault hidden options; expanded fields have no value summary.
 Windows security is shown only on Windows.
 The form body scrolls at compact heights while Extract/Cancel remain visible.
+An invalid destination keeps the form open and focuses the destination or
+subfolder field that needs correction. If the extraction policy disallows a
+link in the destination path, the dialog shows the error before extraction.
+For a concrete destination, it also reports a known lack of write access in
+the destination or in the folder where it would be created.
+Spaces in the name of an existing destination or subfolder are preserved.
+Choosing a history entry restores the saved destination, including its own
+subfolder when the split fields are enabled. If the fields are disabled,
+choosing a history entry discards the previous subfolder draft.
+New relative destinations are saved as resolved paths so they can be reused
+from a different working directory.
+The history can retain separately addressable folders whose names differ only
+in case.
 The caller supplies the actual source archive names. One archive shows its name;
 multiple archives show a translated count and an optional read-only list. Full
 paths remain available in the source tooltip and accessibility description.
@@ -167,12 +180,12 @@ checkbox changes only the current conflict; the existing native auto-name algori
 chooses an available name. Operation policy must not leak into another operation.
 
 Existing/incoming metadata stays in separate areas, side by side when readable
-and stacked at narrower widths. Full filenames/locations wrap in the modern form;
+and stacked at narrower widths. Full filenames and locations wrap in both forms;
 unknown size/time is explicit. Known byte sizes and timestamps retain source
 formatting. The three decisions sit on the right of the same footer. The body
 scrolls independently of the footer. Native minimum button sizes remain fitted.
 The restricted Revert caller retains its original Yes/No/Cancel result contract,
-source default preference and bounded name formatting; Keep both and the scope
+source default preference; Keep both and the scope
 checkbox are unavailable there. Existing native result values are preserved;
 the one-conflict rename answer is a separate project extension.
 `overwrite_layout` covers EN/RU, normal/compact widths, extra-action availability

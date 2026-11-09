@@ -11,6 +11,8 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPalette>
+#include <QPointer>
+#include <QWidget>
 
 namespace {
 QPainterPath geometry(QtCommandIcon command) {
@@ -253,10 +255,12 @@ QPainterPath geometry(QtCommandIcon command) {
 
 class CommandIconEngine final : public QIconEngine {
     QtCommandIcon command_;
+    QPointer<const QWidget> surface_;
 
   public:
-    explicit CommandIconEngine(QtCommandIcon command) : command_(command) {}
-    QIconEngine *clone() const override { return new CommandIconEngine(command_); }
+    CommandIconEngine(QtCommandIcon command, const QWidget *surface)
+        : command_(command), surface_(surface) {}
+    QIconEngine *clone() const override { return new CommandIconEngine(command_, surface_); }
     void paint(QPainter *painter, const QRect &rect, QIcon::Mode mode, QIcon::State) override {
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
@@ -266,8 +270,9 @@ class CommandIconEngine final : public QIconEngine {
         const auto group = mode == QIcon::Disabled ? QPalette::Disabled : QPalette::Active;
         const auto role =
             mode == QIcon::Selected ? QPalette::HighlightedText : QPalette::ButtonText;
-        painter->setPen(QPen(QApplication::palette().color(group, role), 2, Qt::SolidLine,
-                             Qt::RoundCap, Qt::RoundJoin));
+        const auto palette = surface_ ? surface_->palette() : QApplication::palette();
+        painter->setPen(
+            QPen(palette.color(group, role), 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         painter->setBrush(Qt::NoBrush);
         painter->drawPath(geometry(command_));
         painter->restore();
@@ -288,4 +293,6 @@ class CommandIconEngine final : public QIconEngine {
 };
 } // namespace
 
-QIcon QtCommandSymbol(QtCommandIcon command) { return QIcon(new CommandIconEngine(command)); }
+QIcon QtCommandSymbol(QtCommandIcon command, const QWidget *surface) {
+    return QIcon(new CommandIconEngine(command, surface));
+}

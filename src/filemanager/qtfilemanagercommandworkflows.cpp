@@ -4,17 +4,22 @@
 #include "dialogs/browse/BrowseDialog.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtprogramfilemenu.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtexternalfiletask.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
 #include "ui/controls/qtinlinefoldername.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
+#include <QScrollBar>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <utility>
 
 void QtFileManagerCommands::OpenNative(bool internal, bool external, const wchar_t *type) {
     RunNativeOpen([=](CPanel &panel) {
@@ -87,77 +92,172 @@ void QtFileManagerCommands::MoveTo() {
 }
 void QtFileManagerCommands::MoveToTrash() {
     const unsigned index = window_.app_.GetFocusedPanelIndex();
+    auto &panel = window_.app_.Panels[index];
+    const QString directory = ToQString(panel.GetFsPath());
     CSelectedState selection;
-    window_.app_.Panels[index].MoveItemsToTrash(*window_.trashService_, selection);
+    unsigned moved = 0;
+    std::optional<QStringList> review;
+    const HRESULT result =
+        panel.MoveItemsToTrash(*window_.trashService_, selection, nullptr, true, &moved, &review);
     window_.app_.QtOperations().ContinueScanAfterSourceCall(index);
+    if (moved && !directory.isEmpty()) {
+        if (auto *application = QtWorkspaceApplication::Find())
+            application->FilesystemPublished({directory}, &window_);
+        window_.guiOutputRefresh_->Enqueue({directory}, {}, int(index));
+    }
+    if (review) {
+        window_.workspace_->WhenReady(
+            [this, directory, result, moved, diagnostics = std::move(*review)] {
+                CProgressDialog::PresentResult(&window_, {.title = QtLangText(IDS_DELETING),
+                                                          .result = result,
+                                                          .diagnostics = diagnostics,
+                                                          .source = directory,
+                                                          .partial = moved != 0});
+            });
+    }
 }
 void QtFileManagerCommands::CalculateCrc(const char *method) {
     window_.calculateHash(QString::fromLatin1(method));
 }
 void QtFileManagerCommands::Properties() { window_.showSelectedProperties(); }
+void QtFileManagerCommands::DiscardStaleFolderDraft(unsigned index) {
+    const auto draft = folderDrafts_.find(index);
+    if (draft == folderDrafts_.end())
+        return;
+    const auto &panel = window_.app_.Panels[index];
+    const auto editor = draft->editor;
+    if (editor && panel.GetFolder() == draft->folder.Interface() &&
+        panel.GetCurrentFolderPrefix() == draft->prefix)
+        return;
+    folderDrafts_.erase(draft);
+    if (editor) {
+        editor->hide();
+        editor->deleteLater();
+    }
+}
+
 void QtFileManagerCommands::CreateFolder() {
     const unsigned index = window_.app_.GetFocusedPanelIndex();
+    DiscardStaleFolderDraft(index);
+    if (auto *editor = folderDrafts_.value(index).editor.data()) {
+        editor->NameField()->setFocus();
+        return;
+    }
     auto &panel = window_.app_.Panels[index];
     auto *view = window_.panelUi_[index].viewStack;
     auto *parent = view->parentWidget();
-    if (auto *name = parent->findChild<QLineEdit *>("inlineFolderName");
-        name && name->isVisible()) {
-        name->setFocus();
-        return;
-    }
 
     auto *editor = new QtInlineFolderName(parent);
     auto *name = editor->NameField();
     auto *layout = static_cast<QVBoxLayout *>(parent->layout());
     layout->insertWidget(layout->indexOf(view), editor);
-    const auto finish = [view, editor] {
+    const UString prefix = panel.GetCurrentFolderPrefix();
+    folderDrafts_.insert(index, FolderDraft{editor, panel.GetFolder(), prefix});
+    const auto finish = [this, index, editor] {
+        folderDrafts_.remove(index);
         editor->hide();
         editor->deleteLater();
-        view->currentWidget()->setFocus();
     };
 
-    editor->OnCancel(finish);
-    const CMyComPtr<IFolderFolder> source = panel.GetFolder();
-    const UString prefix = panel.GetCurrentFolderPrefix();
-    QObject::connect(
-        name, &QLineEdit::returnPressed, editor,
-        [this, index, source, prefix, name, editor, finish] {
-            auto &panel = window_.app_.Panels[index];
-            if (!window_.app_.IsPanelVisible(index) || panel.GetFolder() != source.Interface() ||
-                panel.GetCurrentFolderPrefix() != prefix) {
-                finish();
-                return;
-            }
-            auto &operations = window_.app_.QtOperations();
-            if (operations.closed() || operations.blocking() || operations.callActive())
-                return;
-            // The context menu may have temporarily projected this pane while
-            // creating the inline editor. Submit against the editor's owner.
+    editor->OnCancel([this, index, finish] {
+        finish();
+        window_.workspace_->RequestListFocus(index);
+    });
+    const auto submit = [this, index, editor, finish](const QString &value, bool focusOwner) {
+        auto &panel = window_.app_.Panels[index];
+        DiscardStaleFolderDraft(index);
+        if (editor->isHidden())
+            return;
+        if (!window_.app_.IsPanelVisible(index)) {
+            finish();
+            return;
+        }
+        auto &operations = window_.app_.QtOperations();
+        if (operations.closed() || operations.blocking() || operations.callActive())
+            return;
+        // The context menu may have temporarily projected this pane while
+        // creating the inline editor. Submit against the editor's owner.
+        if (focusOwner)
             window_.activatePanelUi(index);
-            QString detail;
-            HRESULT result = E_INVALIDARG;
-            const QString value = name->text();
-            if (!value.isEmpty() && !value.contains(QChar::Null)) {
-                const QPointer<QWidget> alive(editor);
-                editor->setEnabled(false);
+        QString detail = value.isEmpty() ? QCoreApplication::translate("InlineCreateFolder",
+                                                                       "Enter a folder name.")
+                                         : QString();
+        QString destinationDirectory;
+        QString publishedArchive;
+        HRESULT result = E_INVALIDARG;
+        if (!value.isEmpty() && !value.contains(QChar::Null)) {
+            const QPointer<QWidget> alive(editor);
+            editor->setEnabled(false);
+            {
+                QtAppOperationState::CallScope call(operations);
                 {
-                    QtAppOperationState::CallScope call(operations);
-                    {
-                        QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
-                        result = panel.CreateFolder(ToUString(value), detail);
-                    }
-                    operations.ContinueScanAfterSourceCall(index);
+                    QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+                    result = panel.CreateFolder(ToUString(value), detail, &destinationDirectory,
+                                                &publishedArchive);
                 }
-                if (!alive || operations.closed())
-                    return;
-                editor->setEnabled(true);
+                operations.ContinueScanAfterSourceCall(index);
             }
-            if (result == S_OK) {
-                finish();
+            if (!alive || operations.closed())
                 return;
+            editor->setEnabled(true);
+        }
+        if (!publishedArchive.isEmpty()) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->ArchivePublished(publishedArchive, &panel);
+            else
+                window_.ArchivePublished(publishedArchive, &panel);
+        }
+        if (result == S_OK) {
+            finish();
+            if (!destinationDirectory.isEmpty()) {
+                if (auto *application = QtWorkspaceApplication::Find())
+                    application->FilesystemPublished({destinationDirectory}, &window_);
+                window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
             }
-            editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail);
+            if (focusOwner) {
+                window_.workspace_->RequestListFocus(index);
+                window_.refreshSelectionActions();
+            }
+            return;
+        }
+        editor->ShowError(detail.isEmpty() ? ToQString(HResultToMessage(result)) : detail,
+                          focusOwner);
+    };
+    QObject::connect(name, &QLineEdit::textEdited, editor, [this, index, editor] {
+        auto draft = folderDrafts_.find(index);
+        if (draft != folderDrafts_.end() && draft->editor == editor && draft->pending)
+            draft->pending->edited = true;
+    });
+    QObject::connect(name, &QLineEdit::returnPressed, editor, [this, index, name, editor, submit] {
+        auto draft = folderDrafts_.find(index);
+        if (draft == folderDrafts_.end() || draft->editor != editor)
+            return;
+        const bool queued = draft->pending.has_value();
+        if (!queued && !(window_.scanningPanelMask() & (1u << index))) {
+            submit(name->text(), true);
+            return;
+        }
+        draft->pending =
+            FolderDraft::Submission{name->text(), window_.workspace_->InteractionRevision()};
+        if (queued)
+            return;
+        window_.workspace_->WhenReady([this, index, owner = QPointer(editor), submit] {
+            auto draft = folderDrafts_.find(index);
+            if (!owner || draft == folderDrafts_.end() || draft->editor != owner)
+                return;
+            const auto pending = std::exchange(draft->pending, std::nullopt);
+            if (pending && !pending->edited && owner->NameField()->text() == pending->name) {
+                const QPointer<MainWindow> window(&window_);
+                const QPointer<QWidget> focused = window_.focusWidget();
+                const bool focusOwner =
+                    focused == owner->NameField() ||
+                    pending->interaction == window_.workspace_->InteractionRevision();
+                window_.withPanelProjection(index, [&] { submit(pending->name, focusOwner); });
+                if (window && !focusOwner)
+                    window->appPresentation_->RestoreWidgetFocus(focused);
+            }
         });
+    });
     editor->setToolTip(ToQString(prefix));
     editor->show();
     name->setFocus();
@@ -189,9 +289,13 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
         break;
     case OpenArchivePicker: {
         const unsigned owner = window_.app_.GetFocusedPanelIndex();
-        const QString directory = window_.projectedUi().state == MainWindow::State::Viewing
-                                      ? QFileInfo(window_.projectedUi().archive).absolutePath()
-                                      : window_.projectedUi().directory;
+        const auto &ui = window_.projectedUi();
+        const auto &parents = window_.app_.Panels[owner].GetParentFolders();
+        const QString directory =
+            ui.state == MainWindow::State::Viewing
+                ? QFileInfo(parents.IsEmpty() ? ui.archive : ToQString(parents.Front().VirtualPath))
+                      .absolutePath()
+                : ui.directory;
         const QString path = BrowseForExistingFile(
             &window_, QCoreApplication::translate("qtfilemanagercommandworkflows", "Open archive"),
             directory, window_.backend_->openDialogFilter());
@@ -225,10 +329,33 @@ void QtFileManagerCommands::OpenRootFolder() {
 void QtFileManagerCommands::OpenParentFolder() { window_.goParent(); }
 void QtFileManagerCommands::FoldersHistory() { window_.showFoldersHistory(); }
 void QtFileManagerCommands::RefreshView() {
-    if (window_.app_.GetFocusedPanel().ArchiveContextOutdated())
-        window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true);
-    else
-        window_.app_.RefreshView();
+    auto &panel = window_.app_.GetFocusedPanel();
+    const unsigned owner = window_.projectedPanel_;
+    if (window_.renameController_->PendingFor(owner)) {
+        const auto binding = panel.FolderBindingRevision();
+        window_.renameController_->AfterEdit(owner, [this, owner, binding] {
+            window_.workspace_->WhenReady([this, owner, binding] {
+                if (window_.app_.IsPanelVisible(owner) &&
+                    window_.app_.Panels[owner].FolderBindingRevision() == binding)
+                    window_.withPanelProjection(owner, [this] { RefreshView(); });
+            });
+        });
+        return;
+    }
+    if (panel.IsArcFolder() &&
+        window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true))
+        return;
+    auto &ui = window_.projectedUi();
+    const QPointer<QAbstractItemView> view =
+        panel.IsArcFolder() ? qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget())
+                            : nullptr;
+    const QPoint position =
+        view ? QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value())
+             : QPoint();
+    const auto binding = panel.FolderBindingRevision();
+    panel.OnReload(ui.path->isModified());
+    if (view && panel.FolderBindingRevision() == binding)
+        window_.workspace_->RestoreViewPosition(panel, *view, position);
 }
 void QtFileManagerCommands::OptionsDialog() { window_.showSettings(); }
 void QtFileManagerCommands::OpenBookmark(unsigned index) { window_.openBookmark(index); }

@@ -5,6 +5,7 @@
 #include "ui/progress/archiveprogresstransport.h"
 #include "ui/support/layout_inspection.h"
 #include <QLabel>
+#include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QtTest>
@@ -15,6 +16,7 @@ class CControlledTransport : public ArchiveBackend {
     bool Active = false;
     bool Paused = false;
     bool Cancelled = false;
+    bool CancelledWhilePaused = false;
     HRESULT PauseResult = S_OK;
     bool busy() const override { return Active; }
     HRESULT setPaused(bool value) override {
@@ -22,7 +24,10 @@ class CControlledTransport : public ArchiveBackend {
             Paused = value;
         return PauseResult;
     }
-    void cancel() override { Cancelled = true; }
+    void cancel() override {
+        Cancelled = true;
+        CancelledWhilePaused = Paused;
+    }
     void Start() {
         Active = true;
         emit progress(42, QStringLiteral("папка/файл с пробелом.txt"));
@@ -38,6 +43,23 @@ class ArchiveProgressTests : public QObject {
     Q_OBJECT
     WidgetDialogFixture widgetDialogs_;
   private slots:
+    void confirmingStopCancelsThePausedEngine() {
+        CControlledTransport backend;
+        CProgressDialog dialog;
+        ArchiveProgressTransport transport(dialog, backend);
+        QVERIFY(dialog.OnInit());
+        dialog.show();
+        backend.Start();
+        widgetDialogs_.respond(dialog, [this](QDialog &) {
+            auto *question = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog());
+            QVERIFY(question);
+            question->button(QMessageBox::Yes)->click();
+        });
+        dialog.findChild<QPushButton *>("IDCANCEL")->click();
+        QVERIFY(backend.Cancelled);
+        QVERIFY(backend.CancelledWhilePaused);
+    }
+
     void unknownTransportProgressClearsThePreviousPhase() {
         CControlledTransport backend;
         CProgressDialog dialog;
@@ -46,17 +68,26 @@ class ArchiveProgressTests : public QObject {
         backend.Start();
         auto *bar = dialog.findChild<QProgressBar *>("IDC_PROGRESS1");
         auto *percent = dialog.findChild<QLabel *>("progressPercent");
+        auto *file = dialog.findChild<QLabel *>("IDT_PROGRESS_FILE_NAME");
         QTRY_COMPARE(percent->text(), QString("42%"));
         emit backend.progress(-1, QStringLiteral("чтение метаданных 空"));
         QTRY_COMPARE(bar->maximum(), 0);
         QTRY_VERIFY(percent->text().isEmpty());
         emit backend.progress(73, QStringLiteral("запись файла 空"));
         QTRY_COMPARE(percent->text(), QString("73%"));
+        QTRY_COMPARE(file->text(), QStringLiteral("запись файла 空"));
         dialog.Sync.Set_NumBytesTotal(100);
         dialog.Sync.Set_NumBytesCur(100);
         emit backend.phaseStarted();
         QTRY_COMPARE(bar->maximum(), 0);
         QTRY_VERIFY(percent->text().isEmpty());
+        QTRY_VERIFY(!file->isVisible());
+        QVERIFY(file->accessibleDescription().isEmpty());
+        auto *status = dialog.findChild<QLabel *>("IDT_PROGRESS_STATUS");
+        QCOMPARE(status->text(), QCoreApplication::translate("ProgressRedesign", "Preparing…"));
+        emit backend.progress(12, QStringLiteral("новая папка/новый файл 空"));
+        QTRY_COMPARE(percent->text(), QString("12%"));
+        QCOMPARE(file->text(), QStringLiteral("новый файл 空"));
     }
     void newEngineRetainsPauseOrReportsFailure_data() {
         QTest::addColumn<bool>("failure");

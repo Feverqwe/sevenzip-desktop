@@ -91,6 +91,26 @@ class PanelSelectionTests final : public QObject {
         panel.Get_ItemIndices_Operated(indices);
         QVERIFY(indices.IsEmpty());
     }
+
+    void refreshKeepsParentFocusSeparateFromSelection() {
+        CPanel panel(QStringLiteral("/tmp/"), items());
+        QTableWidget view;
+        populate(view);
+        panel.AttachSelectionView(&view);
+        panel._showDots = true;
+        view.selectRow(1);
+        view.setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
+        QVERIFY(!selected(view, 0));
+
+        CSelectedState state;
+        panel.SaveSelectedState(state);
+        QCOMPARE(panel.RefreshListCtrl(state), S_OK);
+        QCOMPARE(view.currentRow(), 0);
+        QVERIFY(!selected(view, 0));
+        QCOMPARE(view.selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(view.selectionModel()->selectedRows().first().data().toString(),
+                 QString("a.tar.gz"));
+    }
 };
 QTEST_MAIN(PanelSelectionTests)
 #include "panel_selection_tests.moc"

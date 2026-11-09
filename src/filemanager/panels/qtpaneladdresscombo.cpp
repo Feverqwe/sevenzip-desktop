@@ -61,6 +61,16 @@ QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
         if (panel_)
             panel_->OnNotifyComboBoxEndEdit(QtAddressEditReason::Return, *this);
     });
+    connect(lineEdit(), &QLineEdit::textEdited, &callbacks_, [this] {
+        ++userEditRevision_;
+        lastUserDraft_.emplace(*lineEdit());
+    });
+    const auto updateSelection = [this] {
+        if (lastUserDraft_ && lastUserDraft_->text == lineEdit()->text())
+            lastUserDraft_.emplace(*lineEdit());
+    };
+    connect(lineEdit(), &QLineEdit::selectionChanged, &callbacks_, updateSelection);
+    connect(lineEdit(), &QLineEdit::cursorPositionChanged, &callbacks_, updateSelection);
 }
 
 QtPanelAddressCombo::~QtPanelAddressCombo() {
@@ -72,6 +82,7 @@ QtPanelAddressCombo::~QtPanelAddressCombo() {
 void QtPanelAddressCombo::showPopup() {
     if (!panel_)
         return;
+    CancelPendingListFocus();
     const QString text = currentText();
     {
         const QSignalBlocker blocker(this);
@@ -157,11 +168,12 @@ void QtPanelAddressCombo::ReloadCurrentPath() {
     if (!panel_)
         return;
     const QString previousPrefix = ToQString(panel_->GetCurrentFolderPrefix());
-    const QString previousText = currentText();
+    const bool editing = currentText() != previousPrefix;
     panel_->LoadFullPath();
-    ShowCurrentPath(ToQString(panel_->GetCurrentFolderPrefix()));
-    if (previousText != previousPrefix)
-        lineEdit()->setText(previousText);
+    if (editing)
+        panel_->LoadFullPathAndShow(*this, std::nullopt);
+    else
+        ShowCurrentPath(ToQString(panel_->GetCurrentFolderPrefix()));
 }
 const std::vector<QtAddressSegment> &QtPanelAddressCombo::LocationSegments() {
     if (panel_) {
@@ -189,16 +201,36 @@ void QtPanelAddressCombo::GetLogicalDriveStrings(FStringVector &paths) {
 }
 UString QtPanelAddressCombo::GetText() const { return ToUString(currentText()); }
 void QtPanelAddressCombo::SetText(const UString &text) { lineEdit()->setText(ToQString(text)); }
+void QtPanelAddressCombo::DiscardDraft(const UString &path) {
+    ++userEditRevision_;
+    lastUserDraft_.reset();
+    SetText(path);
+}
+QtAddressDraft::QtAddressDraft(const QLineEdit &edit)
+    : text(edit.text()), cursor_(edit.cursorPosition()), anchor_(cursor_),
+      modified_(edit.isModified()) {
+    if (edit.hasSelectedText())
+        anchor_ = edit.selectionStart() == cursor_ ? edit.selectionEnd() : edit.selectionStart();
+}
+
+void QtAddressDraft::Restore(QLineEdit &edit) const {
+    if (edit.text() != text)
+        edit.setText(text);
+    edit.setModified(modified_);
+    if (anchor_ == cursor_)
+        edit.setCursorPosition(cursor_);
+    else
+        edit.setSelection(anchor_, cursor_ - anchor_);
+}
+
 HRESULT QtPanelAddressCombo::BindToPathAndRefresh(const UString &path, bool sourcePath) {
-    const QString draft = currentText();
-    const int cursor = lineEdit()->cursorPosition();
+    const QtAddressDraft draft(*lineEdit());
     const HRESULT result =
         panel_ ? navigate_(ToQString(CPanel::PrepareBindPath(path)), sourcePath) : E_ABORT;
     if (result != S_OK) {
-        lineEdit()->setText(draft);
-        lineEdit()->setCursorPosition(cursor);
         if (window()->isActiveWindow())
             lineEdit()->setFocus();
+        draft.Restore(*lineEdit());
     }
     return result;
 }

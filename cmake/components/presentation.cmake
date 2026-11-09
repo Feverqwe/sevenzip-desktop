@@ -363,7 +363,13 @@ if(WIN32)
 endif()
 if(APPLE)
     target_sources(sevenzip_panel PRIVATE src/ui/progress/qttaskbarprogress_mac.mm src/ui/progress/qttaskbarprogress.h)
-    target_link_libraries(sevenzip_panel PUBLIC "-framework AppKit")
+    target_sources(sevenzip_panel PRIVATE src/filemanager/panels/qtmacfilepromisedrag.mm
+        src/filemanager/panels/qtmacfilepromisedrag.h)
+    target_link_libraries(sevenzip_panel PUBLIC "-framework AppKit"
+        PRIVATE Qt6::GuiPrivate "-framework UniformTypeIdentifiers")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(sevenzip_panel PUBLIC sevenzip_linux_taskbar)
+    target_sources(sevenzip_panel PRIVATE src/filemanager/panels/qtpaneldolphindrag.cpp
+        src/filemanager/panels/qtpaneldolphindrag.h)
+    target_link_libraries(sevenzip_panel PRIVATE Qt6::DBus)
 endif()

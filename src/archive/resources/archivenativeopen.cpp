@@ -6,6 +6,7 @@
 #include "platform/temp/qtownedtempidentity.h"
 #include <QFileInfo>
 #include <QScopeGuard>
+#include <algorithm>
 
 ArchiveNativeReadScope::ArchiveNativeReadScope(std::shared_ptr<ArchiveNativeOpen> reader,
                                                IProgress *request)
@@ -34,6 +35,28 @@ CMyComPtr<IProgress> CreateArchiveOpenReadRequest(IOpenCallbackUI *callback) {
 
 ArchiveNativeOpen::~ArchiveNativeOpen() { Close(); }
 
+ArchiveNativeOpen::SourceFile::SourceFile(const QString &file) {
+    if (file.isEmpty())
+        return;
+    path = QFileInfo(file).absoluteFilePath();
+    identity = QtOwnedTempIdentity(QFileInfo(path).canonicalFilePath());
+    NWindows::NFile::NFind::CFileInfo info;
+    if (!info.Find_FollowLink(us2fs(path.toStdWString().c_str()))) {
+        identity.clear();
+        return;
+    }
+    size = info.Size;
+    modified = info.MTime;
+}
+
+bool ArchiveNativeOpen::SourceFile::IsCurrent() const {
+    if (identity.isEmpty() || identity != QtOwnedTempIdentity(QFileInfo(path).canonicalFilePath()))
+        return false;
+    NWindows::NFile::NFind::CFileInfo current;
+    return current.Find_FollowLink(us2fs(path.toStdWString().c_str())) && current.Size == size &&
+           Compare_FiTime(&current.MTime, &modified) == 0;
+}
+
 const CCodecs &ArchiveNativeOpen::nativeCodecs() const { return catalog_->nativeCodecs(); }
 
 QString ArchiveNativeOpen::resolvedOpenType() const {
@@ -55,15 +78,10 @@ HRESULT ArchiveNativeOpen::Open(const QString &path, const QString &type, IOpenC
     transportType_ = type.isEmpty() ? QStringLiteral("*:r") : type;
     const auto detach = qScopeGuard([&] { callback_ = nullptr; });
     input_ = requested ? requested->stream : nullptr;
-    sourcePath_.clear();
-    sourceIdentity_.clear();
-    sourceStable_ = false;
-    if (!requested || (!requested->stream && !requested->stdInMode)) {
-        sourcePath_ = QFileInfo(path).absoluteFilePath();
-        sourceIdentity_ = QtOwnedTempIdentity(QFileInfo(sourcePath_).canonicalFilePath());
-        sourceStable_ = !sourceIdentity_.isEmpty() &&
-                        sourceInfo_.Find_FollowLink(us2fs(sourcePath_.toStdWString().c_str()));
-    }
+    source_ =
+        SourceFile(!requested || (!requested->stream && !requested->stdInMode) ? path : QString());
+    volumes_.clear();
+    sourceStable_ = !source_.identity.isEmpty();
     CMyComPtr<IProgress> readRequest = CreateArchiveOpenReadRequest(callback);
     ArchiveInputReadRequestScope inputRequest(input_, readRequest);
     // Volume streams can retain the source COpenCallbackImp beyond opening.
@@ -108,21 +126,22 @@ HRESULT ArchiveNativeOpen::Open(const QString &path, const QString &type, IOpenC
             RINOK(link_.ReOpen(options))
         }
     }
+    if (!source_.path.isEmpty()) {
+        FOR_VECTOR(i, link_.VolumePaths) {
+            volumes_.emplace_back(QString::fromWCharArray(link_.VolumePaths[i]));
+        }
+    }
     if (!sourceIsCurrent())
         sourceStable_ = false;
     return S_OK;
 }
 
 bool ArchiveNativeOpen::sourceIsCurrent() const {
-    if (sourcePath_.isEmpty())
+    if (source_.path.isEmpty())
         return true; // Explicit stream/device input keeps its existing owner policy.
-    if (!sourceStable_ ||
-        sourceIdentity_ != QtOwnedTempIdentity(QFileInfo(sourcePath_).canonicalFilePath()))
-        return false;
-    NWindows::NFile::NFind::CFileInfo current;
-    return current.Find_FollowLink(us2fs(sourcePath_.toStdWString().c_str())) &&
-           current.Size == sourceInfo_.Size &&
-           Compare_FiTime(&current.MTime, &sourceInfo_.MTime) == 0;
+    return sourceStable_ && source_.IsCurrent() &&
+           std::all_of(volumes_.cbegin(), volumes_.cend(),
+                       [](const SourceFile &volume) { return volume.IsCurrent(); });
 }
 
 HRESULT ArchiveNativeOpen::Open_CheckBreak() {

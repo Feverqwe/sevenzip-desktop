@@ -203,20 +203,20 @@ HRESULT CPanel::RefreshListCtrl() {
     return RefreshListCtrl(state);
 }
 
-HRESULT CPanel::RefreshListCtrl_SaveFocused(bool onTimer) {
+HRESULT CPanel::RefreshListCtrl_SaveFocused(bool preserveAddress) {
     CSelectedState state;
     SaveSelectedState(state);
-    state.CalledFromTimer = onTimer;
+    state.PreserveAddress = preserveAddress;
     return RefreshListCtrl(state);
 }
 
-void CPanel::OnReload(bool onTimer) {
+void CPanel::OnReload(bool preserveAddress) {
     const auto completed = [this](HRESULT result) {
         if (result != S_OK)
             MessageBox_Error_HRESULT(result);
     };
     QScopedValueRollback<std::function<void(HRESULT)>> completion(_reloadCompletion, completed);
-    const HRESULT result = RefreshListCtrl_SaveFocused(onTimer);
+    const HRESULT result = RefreshListCtrl_SaveFocused(preserveAddress);
     completed(result);
 }
 

@@ -19,11 +19,19 @@ struct QtCopyDestinationContext {
     QString SourceDirectory;
     QString SourceName;
     QString PeerDestination;
-    bool PeerWritable = false;
+    bool PeerSupportsWriting = false;
     std::function<bool(const QString &)> CanRename;
     // Null uses the caller's ordinary process-relative filesystem contract.
     QString RelativeBase = {};
+    std::function<bool(const QString &)> IsInsideSourceDirectory = {};
+    bool PeerIsFilesystem = false;
+    bool PeerIsArchive = false;
+    bool LocalFileTransfer = false;
+    bool IsPeerWritable() const;
 };
+
+bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath);
+QString NormalizeCopyDestination(const QString &path);
 
 const int kCopyDialog_NumInfoLines = 11;
 
@@ -64,10 +72,10 @@ class CCopyDialog : public QDialog {
     QLabel *_nameLabel = nullptr;
     QLabel *_destinationMessage = nullptr;
     QPushButton *_peer = nullptr;
-    bool _canAccept = true;
+    bool _canSubmit = true;
     bool _useName = false;
     void BuildDestinationOptions(QVBoxLayout &layout);
-    void UpdateDestination();
+    bool UpdateDestination(bool checkBatch = false, QLineEdit **correctionField = nullptr);
     QString DraftDestination() const;
     QString PreviewDestination(const QString &value) const;
     void RefreshSourceSummary();

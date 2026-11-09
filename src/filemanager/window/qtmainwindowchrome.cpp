@@ -54,8 +54,10 @@ class PanelChromeStyle final : public QProxyStyle {
 };
 
 class MainChromeStyle final : public QProxyStyle {
+    const QToolBar &toolbar_;
+
   public:
-    explicit MainChromeStyle(QWidget &owner) { setParent(&owner); }
+    explicit MainChromeStyle(QToolBar &toolbar) : toolbar_(toolbar) { setParent(&toolbar); }
 
     int pixelMetric(PixelMetric metric, const QStyleOption *option,
                     const QWidget *widget) const override {
@@ -122,8 +124,11 @@ class MainChromeStyle final : public QProxyStyle {
             const QRect label = visualRect(
                 tool->direction, tool->rect,
                 QRect(row.left() + tool->iconSize.width() + 6, row.top(), textWidth, row.height()));
-            drawItemText(painter, label, Qt::AlignVCenter | Qt::AlignLeft, tool->palette, enabled,
-                         tool->text, QPalette::ButtonText);
+            const auto group = !enabled                     ? QPalette::Disabled
+                               : tool->state & State_Active ? QPalette::Active
+                                                            : QPalette::Inactive;
+            painter->setPen(toolbar_.palette().color(group, QPalette::ButtonText));
+            painter->drawText(label, Qt::AlignVCenter | Qt::AlignLeft, tool->text);
         }
         painter->restore();
     }

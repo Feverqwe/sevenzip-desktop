@@ -114,7 +114,7 @@ class SourcePropertiesTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(), nullptr),
+                                              UString(), UString(), nullptr),
                  HRESULT(S_OK));
         CPanel panel(opening.Folder);
         CRecordVector<UInt32> indices;

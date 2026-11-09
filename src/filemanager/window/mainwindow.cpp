@@ -79,10 +79,9 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
     statusPanel_ = focusedPanel;
     renameController_ = std::make_unique<QtRenameController>(*this);
     guiOutputRefresh_ = std::make_unique<QtGuiOutputRefresh>(
-        [this] {
-            const auto &operations = app_.QtOperations();
-            return !operations.closed() && !operations.active() && !operations.callActive() &&
-                   workspace_->CanRefreshPublishedArchives();
+        [this](unsigned panel) {
+            return !renameController_->PendingFor(panel) &&
+                   workspace_->CanRefreshPublishedOutput(panel);
         },
         [this](unsigned index, const QtGuiOutputRefresh::Outputs &output) {
             refreshGuiOutputPanel(index, output);
@@ -124,13 +123,13 @@ void MainWindow::createFileManagerWindow(const QtFileManagerStartup *startup, bo
         activatePanelUi(focusedPanel);
     app_.SetFocusedPanel(focusedPanel);
     statusPanel_ = focusedPanel;
-    appPresentation_->RequestInitialFocus(focusedPanel);
+    workspace_->RequestInitialFocus(focusedPanel);
     if (layout())
         layout()->activate();
     workspace_->Refresh();
     panelSplitter_->Initialize(panelsDefined, splitterPos);
     QTimer::singleShot(0, this, [this] {
-        appPresentation_->CompleteInitialFocusIfReady();
+        workspace_->CompleteListFocusIfReady();
         panelSplitter_->UpdateSourceLayout();
     });
     autoRefreshTimer_ = new QTimer(this);
@@ -147,6 +146,14 @@ void MainWindow::cancelListPublication() {
     projectedUi().listProjection->cancel();
     projectedUi().scanningDisk = false;
     projectedUi().scanningArchive = false;
+    auto &operations = app_.QtOperations();
+    if (operations.kind() == QtAppOperationState::Kind::Scan) {
+        const unsigned remaining = scanningPanelMask();
+        if (remaining)
+            operations.Begin(QtAppOperationState::Kind::Scan, remaining);
+        else
+            operations.End();
+    }
     panelUi_[projectedPanel_].pendingSelection.reset();
     panelUi_[projectedPanel_].pendingViewport.reset();
     if (workspace_)

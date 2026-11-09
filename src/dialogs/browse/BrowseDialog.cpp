@@ -12,6 +12,7 @@
 #include "Windows/FileName.h"
 #include "Windows/PropVariantConv.h"
 #include "Windows/TimeUtils.h"
+#include "archive/opening/archivecontainerpath.h"
 #include "dialogs/browse/qtsourcebrowsedialog_p.h"
 #include "filemanager/FormatUtils.h"
 #include "fileops/native/FileDir.h"
@@ -27,6 +28,7 @@
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -60,6 +62,21 @@ bool NeedsSourceBrowser(const UString &path) {
         return true;
 #endif
     return path.Len() >= 260;
+}
+
+QString ExistingPickerDirectory(const QString &requested) {
+    if (requested.isEmpty())
+        return {};
+    QString path = QDir::cleanPath(QFileInfo(requested).absoluteFilePath());
+    for (;;) {
+        const QFileInfo entry(path);
+        if (entry.isDir())
+            return path;
+        const QString parent = entry.absolutePath();
+        if (parent == path)
+            return {};
+        path = parent;
+    }
 }
 
 void MessageBox_HResError(QWidget *wnd, HRESULT errorCode, const UString &name) {
@@ -151,7 +168,9 @@ bool CBrowseDialog::OnKeyDown(QKeyEvent *keyDownInfo) {
         return true;
     case Qt::Key_R:
         if (ctrl) {
-            Reload();
+            const HRESULT result = Reload();
+            if (result != S_OK)
+                ShowReloadError(result);
             return true;
         }
         return false;
@@ -306,12 +325,23 @@ HRESULT CBrowseDialog::Reload() {
     return Reload(DirPrefix, selected);
 }
 
+void CBrowseDialog::ShowReloadError(HRESULT result) {
+    MessageBox_HResError(this, result, DirPrefix);
+}
+
+void CBrowseDialog::NavigateFolder(const UString &path, const UString &selectedName) {
+    const HRESULT result = Reload(path, selectedName);
+    if (result != S_OK) {
+        MessageBox_HResError(this, result, path);
+        return;
+    }
+    SetPathEditText();
+}
+
 void CBrowseDialog::OpenParentFolder() {
     UString parent, selected;
-    if (GetParentPath(DirPrefix, parent, selected)) {
-        Reload(parent, selected);
-        SetPathEditText();
-    }
+    if (GetParentPath(DirPrefix, parent, selected))
+        NavigateFolder(parent, selected);
 }
 
 void CBrowseDialog::SetPathEditText() {
@@ -348,11 +378,13 @@ void CBrowseDialog::OnCreateDir() {
 
 void CBrowseDialog::CreateDirFromDraft() {
     const QString value = _folderDraft->NameField()->text();
+    const UString entered = ToUString(value);
     UString name;
     FString destPath;
     if (value.isEmpty() || value.contains(QChar::Null) ||
-        !CorrectFsPath(DirPrefix, ToUString(value), name) || name.IsEmpty() ||
-        !GetFullPath(us2fs(DirPrefix), us2fs(name), destPath)) {
+        !CorrectFsPath(DirPrefix, entered, name) || name.IsEmpty() ||
+        !GetFullPath(us2fs(DirPrefix), us2fs(name), destPath) ||
+        HasEmptyWindowsPathComponent(entered, fs2us(destPath))) {
         _folderDraft->ShowError(ToQString(HResultToMessage(kInvalidNameError)));
         return;
     }
@@ -368,9 +400,11 @@ void CBrowseDialog::CreateDirFromDraft() {
     _folderDraft->hide();
     Reload(DirPrefix, name);
     SetPathEditText();
-    if (FolderMode)
+    if (FolderMode) {
         _pathEdit->setText(ToQString(fs2us(destPath)));
-    _list->setFocus();
+        _pathEdit->setFocus();
+    } else
+        _list->setFocus();
 }
 
 void CBrowseDialog::OnItemEnter() {
@@ -390,10 +424,7 @@ void CBrowseDialog::OnItemEnter() {
         UString s = DirPrefix;
         s += fs2us(file.Name);
         s.Add_PathSepar();
-        const HRESULT res = Reload(s, UString());
-        if (res != S_OK)
-            MessageBox_HResError(this, res, s);
-        SetPathEditText();
+        NavigateFolder(s, UString());
     }
 }
 
@@ -409,6 +440,40 @@ void CBrowseDialog::FinishOnOK() {
     if (!GetFullPath(us2fs(DirPrefix), us2fs(s), destPath)) {
         MessageBox_HResError(this, kInvalidNameError, s);
         return;
+    }
+    if (FolderMode || SaveMode) {
+        QString candidate = QDir::cleanPath(ToQString(fs2us(destPath)));
+        if (!FolderMode)
+            candidate = QFileInfo(candidate).absolutePath();
+        for (;;) {
+            const QFileInfo entry(candidate);
+            if (entry.isDir())
+                break;
+            if (entry.exists() || entry.isSymLink()) {
+                MessageBox_HResError(this, kInvalidNameError,
+                                     ToUString(QDir::toNativeSeparators(candidate)));
+                _pathEdit->setFocus();
+                return;
+            }
+            const QString parent = entry.absolutePath();
+            if (parent == candidate)
+                break;
+            candidate = parent;
+        }
+    }
+    if (ExistingArchiveOnly) {
+        CFileInfo file;
+        HRESULT error = S_OK;
+        if (!file.Find_FollowLink(destPath))
+            error = GetLastError_noZero_HRESULT();
+        else if (file.IsDir() ? !IsSparseBundleName(fs2us(file.Name))
+                              : !MY_LIN_S_ISREG(file.GetPosixAttrib()))
+            error = kInvalidNameError;
+        if (error != S_OK) {
+            MessageBox_HResError(this, error, s);
+            _pathEdit->setFocus();
+            return;
+        }
     }
     FilePath = fs2us(destPath);
     if (FolderMode)
@@ -428,14 +493,20 @@ bool MyBrowseForFolder(QWidget *owner, const UString &title, const UString &path
     if (NeedsSourceBrowser(path)) {
         CBrowseDialog dialog(owner);
         dialog.FolderMode = true;
+        dialog.StartInDirectory = QFileInfo(ToQString(path)).isDir();
         dialog.Title = title;
         dialog.FilePath = path;
+        if (dialog.StartInDirectory) {
+            dialog.FilePath = ToUString(QDir::toNativeSeparators(ToQString(path)));
+            NormalizeDirPathPrefix(dialog.FilePath);
+        }
         if (dialog.Create() != QDialog::Accepted)
             return false;
         resultPath = dialog.FilePath;
         return true;
     }
-    QFileDialog dialog(owner, ToQString(title), ToQString(path));
+    QFileDialog dialog(owner, ToQString(title),
+                       NSourceBrowse::ExistingPickerDirectory(ToQString(path)));
     dialog.setFileMode(QFileDialog::Directory);
     dialog.setOption(QFileDialog::ShowDirsOnly);
     QtUseContextDialogModality(dialog);
@@ -456,6 +527,7 @@ QString BrowseForExistingFile(QWidget *owner, const QString &title, const QStrin
     CBrowseDialog dialog(owner);
     dialog.Title = ToUString(title);
     dialog.StartInDirectory = true;
+    dialog.ExistingArchiveOnly = true;
     NormalizeDirPathPrefix(path);
     dialog.FilePath = path;
     dialog.FilterIndex = 0;

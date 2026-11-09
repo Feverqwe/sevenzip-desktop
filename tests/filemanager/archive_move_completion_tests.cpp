@@ -41,8 +41,11 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
             << false << QString("overwriteYes") << QString("7z") << false;
         QTest::newRow("published-removal-reopen-failure")
             << false << QString("overwriteYes") << QString("7z") << true;
-        QTest::newRow("overwrite-cancel")
-            << false << QString("overwriteCancel") << QString("zip") << false;
+        QTest::newRow("overwrite-escape") << false << QString("escape") << QString("zip") << false;
+        QTest::newRow("copy-overwrite-escape")
+            << false << QString("copy-escape") << QString("zip") << false;
+        QTest::newRow("copy-directory-no")
+            << true << QString("copy-overwriteNo") << QString("zip") << false;
         QTest::newRow("host-and-stream-overwrite-yes")
             << false << QString("overwriteYes") << QString("wim") << false;
         QTest::newRow("directory-streams-overwrite-yes")
@@ -53,6 +56,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
         QFETCH(QString, answer);
         const bool noToAll = answer == "overwriteNoAll";
         const bool accept = answer == "overwriteYes";
+        const bool copy = answer.startsWith("copy-");
         QFETCH(QString, format);
         QFETCH(bool, lateFailure);
         const bool streams = format == "wim";
@@ -196,8 +200,10 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
                 ++overwriteQuestions;
                 if (noToAll)
                     ReplyOverwrite(*overwrite, IDB_NO_TO_ALL);
+                else if (answer.endsWith("escape"))
+                    QTest::keyClick(overwrite, Qt::Key_Escape);
                 else
-                    overwrite->findChild<QPushButton *>(answer)->click();
+                    ReplyOverwrite(*overwrite, accept ? IDYES : IDNO);
             } else if (auto *confirmation = dynamic_cast<QtDeleteConfirmation *>(modal)) {
                 deletionAsked = true;
                 ReplyDelete(*confirmation);
@@ -221,7 +227,7 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
             }
         });
         responder.start(2);
-        action(window, "moveAction")->trigger();
+        action(window, copy ? "copyAction" : "moveAction")->trigger();
         responder.stop();
         QVERIFY(submitted);
         int expectedQuestions = directory && !noToAll ? 2 : 1;
@@ -238,9 +244,17 @@ class ArchiveMoveCompletionTests final : public QObject, protected MainWindowTes
             QVERIFY2(window.statusBar()->currentMessage().contains("Check the source archive"),
                      qPrintable(window.statusBar()->currentMessage()));
             QVERIFY(runtime.clear());
+        } else if (copy && directory) {
+            QVERIFY(errors.join('\n').contains(collision));
+            QVERIFY(errors.join('\n').contains(secondCollision));
         } else
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QCOMPARE(overwriteQuestions, expectedQuestions);
+        if (!accept) {
+            QTRY_COMPARE(window.focusWidget(), views[0]);
+            QCOMPARE(views[0]->currentIndex().siblingAtColumn(0).data().toString(), selection);
+            QVERIFY(views[0]->selectionModel()->isRowSelected(views[0]->currentRow(), {}));
+        }
         QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath(collision)),
                  QByteArray(accept ? "archive bytes" : "existing bytes"));
         if (streams)

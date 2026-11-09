@@ -155,6 +155,52 @@ class PanelRefreshDropTests final : public QObject, protected MainWindowTestSupp
                                                           .arg(size.width())));
         }
     }
+    void dragHoverResumesAfterRefresh() {
+        QTemporaryDir root, source;
+        QVERIFY(root.isValid() && source.isValid());
+        QVERIFY(QDir().mkdir(root.filePath("destination")));
+        QFile input(source.filePath("input.txt"));
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        input.close();
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(root.path());
+        auto *files = table(window);
+        QTRY_VERIFY(row(*files, "destination") >= 0);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 257; ++i) {
+            QFile file(root.filePath(QString("entry-%1.txt").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        const auto targetPoint = [&] {
+            return files->visualRect(files->model()->index(row(*files, "destination"), 0)).center();
+        };
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(input.fileName())});
+        const QPoint point = targetPoint();
+        QDragEnterEvent enter(DragEventPosition(point), Qt::CopyAction, &mime, Qt::LeftButton,
+                              Qt::NoModifier);
+        QCoreApplication::sendEvent(files->viewport(), &enter);
+        QVERIFY(enter.isAccepted());
+        auto *refresh = action(window, "refreshAction");
+        refresh->trigger();
+        QVERIFY(!refresh->isEnabled());
+        QDragMoveEvent blocked(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(files->viewport(), &blocked);
+        QVERIFY(!blocked.isAccepted());
+        QTRY_VERIFY(refresh->isEnabled() && row(*files, "destination") >= 0);
+        QDragMoveEvent resumed(targetPoint(), Qt::CopyAction, &mime, Qt::LeftButton,
+                               Qt::NoModifier);
+        QCoreApplication::sendEvent(files->viewport(), &resumed);
+        QVERIFY(resumed.isAccepted());
+        QVERIFY(files->model()
+                    ->index(row(*files, "destination"), 0)
+                    .data(QtPanelList::DropHighlightedRole)
+                    .toBool());
+        QDragLeaveEvent leave;
+        QCoreApplication::sendEvent(files->viewport(), &leave);
+    }
     void sourceRefreshClearsTarget_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<int>("stage");

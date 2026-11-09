@@ -11,6 +11,7 @@
 #include "filemanager/panels/qtpanelpluginservices.h"
 #include "filemanager/qtfilemenuservices.h"
 #include "localization/LangUtils.h"
+#include "ui/controls/qtmenutext.h"
 #include <QAction>
 #include <QMenu>
 #include <QMenuBar>
@@ -174,7 +175,7 @@ void MyReloadFileMenu(const QList<QAction *> &sourceActions) {
 }
 
 // Source OnMenuActivating bookmark branch; keep the existing Qt actions.
-void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CApp &app) {
+void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CFastFolders paths) {
     unsigned i;
     for (i = 0; i < 10; i++) {
         UString s = LangString(IDS_BOOKMARK);
@@ -186,7 +187,8 @@ void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CA
         setActions[i]->setText(QString::fromWCharArray(s));
     }
     for (i = 0; i < 10; i++) {
-        UString s = app.AppState.FastFolders.GetString(i);
+        const UString fullPath = paths.GetString(i);
+        UString s = fullPath;
         const int kMaxSize = 100;
         const int kFirstPartSize = kMaxSize / 2;
         if (s.Len() > kMaxSize) {
@@ -195,10 +197,8 @@ void MyLoadBookmarks(QAction *const *openActions, QAction *const *setActions, CA
         }
         if (s.IsEmpty())
             s = '-';
-        s += "\tAlt+";
-        s.Add_Char((char)('0' + i));
-        openActions[i]->setText(QString::fromWCharArray(s));
-        const UString fullPath = app.AppState.FastFolders.GetString(i);
+        openActions[i]->setText(QtLiteralMenuText(QString::fromWCharArray(s)) +
+                                QStringLiteral("\tAlt+") + QLatin1Char(char('0' + i)));
         openActions[i]->setToolTip(fullPath.IsEmpty() ? QString("-")
                                                       : QString::fromWCharArray(fullPath));
     }

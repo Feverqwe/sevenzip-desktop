@@ -122,7 +122,9 @@ void CPanel::Properties() {
 
 void CPanel::ShowProperties(QtPropertyReport report) {
     auto *window =
-        new QtPropertiesWindow(std::move(report), GetParent(), _selectionList.FocusTarget());
+        new QtPropertiesWindow(std::move(report), GetParent(), [panel = QPointer<CPanel>(this)] {
+            return panel ? panel->_selectionList.FocusTarget() : nullptr;
+        });
     window->setAttribute(Qt::WA_DeleteOnClose);
     window->show();
 }
@@ -212,12 +214,31 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         UInt64 unpackSize = 0;
         UInt64 numFiles = 0;
         UInt64 numDirs = 0;
+        bool completeFileSize = true;
+        bool hasReportedSize = false;
+        bool hasPackedSize = false;
         FOR_VECTOR(i, operatedIndices) {
             const UInt32 index = operatedIndices[i];
-            AddReportedTotal(unpackSize, GetItemSize(index), kpidSize, message);
-            AddReportedTotal(packSize, GetItem_UInt64Prop(index, kpidPackSize), kpidPackSize,
-                             message);
+            NWindows::NCOM::CPropVariant size;
+            UInt64 bytes = 0;
+            if (_folder->GetProperty(index, kpidSize, &size) == S_OK &&
+                ConvertPropVariantToUInt64(size, bytes)) {
+                hasReportedSize = true;
+                AddReportedTotal(unpackSize, bytes, kpidSize, message);
+            } else {
+                completeFileSize = false;
+                const UInt64 fallback = GetItemSize(index);
+                hasReportedSize |= fallback != 0;
+                AddReportedTotal(unpackSize, fallback, kpidSize, message);
+            }
+            NWindows::NCOM::CPropVariant packed;
+            if (_folder->GetProperty(index, kpidPackSize, &packed) == S_OK &&
+                ConvertPropVariantToUInt64(packed, bytes)) {
+                hasPackedSize = true;
+                AddReportedTotal(packSize, bytes, kpidPackSize, message);
+            }
             if (IsItem_Folder(index)) {
+                completeFileSize = false;
                 AddReportedTotal(numDirs, 1, kpidNumSubDirs, message);
                 AddReportedTotal(numDirs, GetItem_UInt64Prop(index, kpidNumSubDirs), kpidNumSubDirs,
                                  message);
@@ -237,7 +258,19 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         if (numFiles != 0)
             AddPropertyString(kpidNumSubFiles, numFiles, message);
         AddPropertyString(kpidSize, unpackSize, message);
+        auto size = message.nativeValues.find(message.Strings.Size() - 1);
+        if (size != message.nativeValues.end() && size->id == kpidSize) {
+            if (!hasReportedSize)
+                size->availability = QtPropertyReport::Availability::Unknown;
+            else if (completeFileSize && !message.overflowedTotals.contains(kpidSize))
+                size->availability = QtPropertyReport::Availability::Known;
+        }
         AddPropertyString(kpidPackSize, packSize, message);
+        if (!hasPackedSize) {
+            auto packed = message.nativeValues.find(message.Strings.Size() - 1);
+            if (packed != message.nativeValues.end() && packed->id == kpidPackSize)
+                packed->availability = QtPropertyReport::Availability::Unknown;
+        }
         AddSeparator(message);
     }
     message.BeginGroup(QtPropertyReport::Scope::Folder);

@@ -1,15 +1,24 @@
 #include "filemanager/window/qtworkspaceapplication.h"
 
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagerstartup.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 
-void QtWorkspaceApplication::ArchivePublished(const QString &archive) {
+void QtWorkspaceApplication::ArchivePublished(const QString &archive, const CPanel *updated) {
     for (const auto &window : windows_)
         if (window && !window->app_.QtOperations().closed())
-            window->ArchivePublished(archive);
+            window->ArchivePublished(archive, updated);
+}
+
+void QtWorkspaceApplication::FilesystemPublished(const QStringList &directories,
+                                                 const MainWindow *exclude) {
+    for (const auto &window : windows_)
+        if (window && window != exclude && !window->app_.QtOperations().closed() &&
+            window->guiOutputRefresh_)
+            window->guiOutputRefresh_->Enqueue(directories, {});
 }
 
 QtWorkspaceApplication::QtWorkspaceApplication(QApplication &application) : QObject(&application) {
@@ -63,7 +72,7 @@ void QtWorkspaceApplication::Closing(MainWindow &window) {
 }
 
 void QtWorkspaceApplication::ApplyWhenReady(MainWindow &window, const QJsonObject &state,
-                                            std::function<void()> ready) {
+                                            const QtArchiveLocation &archive) {
     ++pendingRestores_;
     restoring_ = true;
     const auto completed = std::make_shared<bool>(false);
@@ -75,7 +84,7 @@ void QtWorkspaceApplication::ApplyWhenReady(MainWindow &window, const QJsonObjec
     connect(&window, &QObject::destroyed, this, finish);
     auto *timer = new QTimer(&window);
     timer->setInterval(25);
-    connect(timer, &QTimer::timeout, &window, [&window, state, timer, finish, ready] {
+    connect(timer, &QTimer::timeout, &window, [&window, state, timer, finish, archive] {
         if (window.app_.QtOperations().closed()) {
             finish();
             timer->deleteLater();
@@ -86,20 +95,36 @@ void QtWorkspaceApplication::ApplyWhenReady(MainWindow &window, const QJsonObjec
             return;
         timer->stop();
         timer->deleteLater();
-        window.workspace_->Restore(
-            state,
-            [finish, ready] {
-                finish();
-                if (ready)
-                    ready();
-            },
-            finish);
+        window.workspace_->Restore(state, finish, finish, archive);
     });
     timer->start();
 }
 
-MainWindow *QtWorkspaceApplication::NewWindow(const QString &path, const QJsonObject &session,
-                                              std::function<void(MainWindow &)> ready) {
+void QtWorkspaceApplication::NewWindowFrom(MainWindow &source) {
+    const auto &ui = source.projectedUi();
+    if (ui.scanningDisk) {
+        const QJsonObject panel{{"path", ui.directory}};
+        OpenWindow({{"panels", QJsonArray{panel}}, {"count", 1}}, {});
+        return;
+    }
+    if (ui.scanningArchive) {
+        auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+        const auto &panel = source.app_.GetFocusedPanel();
+        const auto archive = QtArchiveLocation::Capture(panel, address->LocationSegments());
+        if (!archive.physicalPath.isEmpty()) {
+            const QJsonObject location{{"path", ToQString(panel.GetCurrentFolderPrefix())}};
+            OpenWindow({{"panels", QJsonArray{location}}, {"count", 1}}, archive);
+            return;
+        }
+    }
+    auto &workspace = *source.workspace_;
+    const QString path = workspace.CurrentLocation();
+    const auto &location = workspace.panels_[source.projectedPanel_].location;
+    const QJsonObject panel{{"path", path}, {"nativePlace", location.nativePlaceIdentity}};
+    OpenWindow({{"panels", QJsonArray{panel}}, {"count", 1}}, location.archiveLocation);
+}
+
+void QtWorkspaceApplication::OpenWindow(const QJsonObject &state, QtArchiveLocation archive) {
     QtFileManagerStartup startup;
     startup.FullPath = ToUString(QDir::homePath());
     std::unique_ptr<ArchiveBackend> backend;
@@ -114,38 +139,26 @@ MainWindow *QtWorkspaceApplication::NewWindow(const QString &path, const QJsonOb
     backend->setParent(window);
     backend.release();
     window->setAttribute(Qt::WA_DeleteOnClose);
-    const QJsonObject state =
-        session.isEmpty()
-            ? QJsonObject{{"panels", QJsonArray{QJsonObject{{"path", path}, {"view", 3}}}},
-                          {"count", 1}}
-            : session;
     if (window->backend_->codecCatalog())
-        ApplyWhenReady(*window, state, [window, ready] {
-            if (ready)
-                ready(*window);
-        });
+        ApplyWhenReady(*window, state, archive);
     else {
         connect(
             window->backend_, &ArchiveBackend::codecCatalogReady, this,
-            [this, window, state, ready](bool, const QString &) {
-                ApplyWhenReady(*window, state, [window, ready] {
-                    if (ready)
-                        ready(*window);
-                });
+            [this, window, state, archive](bool, const QString &) {
+                ApplyWhenReady(*window, state, archive);
             },
             Qt::SingleShotConnection);
         window->backend_->discoverCodecCatalog();
     }
     window->show();
-    return window;
 }
 
 void QtWorkspaceApplication::Restore(MainWindow &first) {
     const auto session = ReadSession();
     if (session.isEmpty())
         return;
-    ApplyWhenReady(first, session.first().toObject());
+    ApplyWhenReady(first, session.first().toObject(), {});
     for (int i = 1; i < session.size(); ++i) {
-        NewWindow({}, session[i].toObject());
+        OpenWindow(session[i].toObject(), {});
     }
 }

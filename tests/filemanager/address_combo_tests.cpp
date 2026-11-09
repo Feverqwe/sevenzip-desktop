@@ -74,6 +74,33 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QFile::remove(settings);
         ReloadLang(settings);
     }
+    void openingHierarchySupersedesPendingReturnToFiles() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *combo = window.findChild<QComboBox *>("pathCombo");
+        auto *address = combo->lineEdit();
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+
+        QTest::keyClick(address, Qt::Key_Escape);
+        combo->showPopup();
+        QVERIFY(combo->view()->isVisible());
+        combo->hidePopup();
+        QVERIFY(WindowActivation::waitForActive(window));
+        QApplication::processEvents();
+        QVERIFY(address->hasFocus());
+
+        QTest::keyClick(address, Qt::Key_Escape);
+        QTRY_VERIFY(files->hasFocus());
+    }
+
     void matchingHierarchyCaptionDoesNotNavigateOnBlur() {
         QTemporaryDir fixture;
         const QString child = fixture.filePath("kept location");
@@ -249,11 +276,8 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(computer >= 0);
         AddressPopupSupport::selectRow(*combo, computer);
         QVERIFY(!QTest::currentTestFailed());
-#ifdef Q_OS_WIN
+        QTRY_VERIFY(table(window)->sourcePanel->IsFSDrivesFolder());
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
-#else
-        QTRY_COMPARE(address->text(), QStringLiteral("/"));
-#endif
         QVERIFY(payload.open(QIODevice::ReadOnly));
         QCOMPARE(payload.readAll(), QByteArray("unchanged"));
         QCOMPARE(backend.listCalls, 0);

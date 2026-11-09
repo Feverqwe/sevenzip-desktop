@@ -1,5 +1,6 @@
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/qtfilemanagershellmenu.h"
 #include "filemanager/qtfilemenuprojection.h"
 #include "filemanager/qtprogramfilemenu.h"
@@ -9,6 +10,7 @@
 #include "localization/qtlangcontrols.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/dialogs/qtdialogscreenservices.h"
+#include <QClipboard>
 
 struct QtPanelContextMenu::Impl {
     MainWindow &window;
@@ -91,7 +93,7 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
     menu.exec(QPoint(x, y));
 }
 bool QtPanelContextMenu::GetItemRect(int index, QRect &rect) const {
-    const QModelIndex item = impl_->view.model()->index(index, 0);
+    const QModelIndex item = impl_->view.currentIndex().siblingAtRow(index);
     if (!item.isValid())
         return false;
     rect = impl_->view.visualRect(item);
@@ -134,6 +136,11 @@ static QAction *AppendCommand(QMenu &menu, const QAction &source, bool enabled) 
 
 unsigned QtPanelContextMenu::Track(int x, int y) {
     auto &state = *impl_;
+    const unsigned owner = state.window.app_.GetFocusedPanelIndex();
+    const auto availability = state.window.commands_->AvailabilityForPanel(owner);
+    const auto enabled = [&availability](const QAction &action) {
+        return availability.value(action.property("nativeCommandID").toUInt());
+    };
     // Native TrackPopupMenu owns separate rows and returns only a command ID.
     // Keep their state independent of the main-menu projection during popup
     // focus events, while source notification guards are held.
@@ -148,32 +155,38 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
             QtBindLocalText(hash->menuAction(), "CommandMenus",
                             QT_TRANSLATE_NOOP("CommandMenus", "Checksums"));
             for (QAction *action : state.window.findChild<QMenu *>("hashMenu")->actions())
-                AppendCommand(*hash, *action, action->isEnabled());
+                AppendCommand(*hash, *action, enabled(*action));
             continue;
         }
         if (QAction *action = state.actions.value(entry.source.wID)) {
-            AppendCommand(state.popup, *action, action->isEnabled() && entry.enabled);
+            AppendCommand(state.popup, *action, enabled(*action) && entry.enabled);
         }
     }
     QtClarifyOpenCommands(state.popup);
     QtGroupFileCommands(state.popup, true);
-    state.window.clipboard_->Refresh();
+    auto &clipboard = *state.window.clipboard_;
+    const auto clipboardAvailability = clipboard.AvailabilityForPanel(owner);
     auto *before = state.popup.actions().isEmpty() ? nullptr : state.popup.actions().first();
-    for (auto *source : {state.window.clipboard_->cut, state.window.clipboard_->copy,
-                         state.window.clipboard_->paste}) {
+    for (auto *source : {clipboard.cut, clipboard.copy, clipboard.paste}) {
         auto *local = new QAction(source->text(), &state.popup);
-        local->setEnabled(source->isEnabled());
+        local->setEnabled(source == clipboard.cut    ? clipboardAvailability.cut
+                          : source == clipboard.copy ? clipboardAvailability.copy
+                                                     : clipboardAvailability.paste);
         local->setProperty("fileClipboard", QVariant::fromValue(source));
         state.popup.insertAction(before, local);
+        if (source == clipboard.paste)
+            QObject::connect(QApplication::clipboard(), &QClipboard::dataChanged, local,
+                             [clipboard = &clipboard, local, owner] {
+                                 local->setEnabled(clipboard->AvailabilityForPanel(owner).paste);
+                             });
     }
     auto *archives =
         state.popup.addMenu(QCoreApplication::translate("QtWindowWorkspace", "Archive"));
     archives->setObjectName("contextArchiveMenu");
     for (auto *action : {state.window.toolbarAdd_, state.window.extract_, state.window.test_})
-        AppendCommand(*archives, *action, action->isEnabled());
+        AppendCommand(*archives, *action, enabled(*action));
     // OnContextMenu dispatches the chosen ID after the popup guards restore.
     QAction *chosen;
-    const unsigned owner = state.window.app_.GetFocusedPanelIndex();
     {
         // Closing a Qt popup restores the previously focused peer widget.
         // Its synchronous FocusIn must not retarget this source command.
@@ -184,7 +197,10 @@ unsigned QtPanelContextMenu::Track(int x, int y) {
     state.window.app_.SetFocusedPanel(owner);
     if (chosen)
         if (auto *source = chosen->property("fileClipboard").value<QAction *>()) {
-            source->trigger();
+            if (source == clipboard.paste)
+                clipboard.Paste();
+            else
+                clipboard.Copy(source == clipboard.cut);
             return 0;
         }
     return state.pluginID ? state.pluginID

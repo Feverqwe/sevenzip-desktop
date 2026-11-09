@@ -4,14 +4,17 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QPointer>
+#include <QStringList>
 #include <QUuid>
 #include <functional>
 #include <vector>
 
 class MainWindow;
+class CPanel;
 class QApplication;
 class QtTaskResultDialog;
 class QWidget;
+struct QtArchiveLocation;
 
 // One application owner writes the complete window session, so closing one
 // window cannot overwrite its neighbours' tabs with legacy panel preferences.
@@ -23,15 +26,16 @@ class QtWorkspaceApplication final : public QObject {
     void Register(MainWindow &window);
     void Closing(MainWindow &window);
     void Restore(MainWindow &first);
-    MainWindow *NewWindow(const QString &path, const QJsonObject &session = {},
-                          std::function<void(MainWindow &)> ready = {});
+    void NewWindowFrom(MainWindow &source);
     void Save();
-    void ArchivePublished(const QString &archive);
+    void ArchivePublished(const QString &archive, const CPanel *updated = nullptr);
+    void FilesystemPublished(const QStringList &directories, const MainWindow *exclude = nullptr);
     void Quit();
 
   private:
+    void OpenWindow(const QJsonObject &state, QtArchiveLocation archive);
     void ApplyWhenReady(MainWindow &window, const QJsonObject &state,
-                        std::function<void()> ready = {});
+                        const QtArchiveLocation &archive);
     std::vector<QPointer<MainWindow>> windows_;
     QJsonArray ReadSession() const;
     bool restoring_ = false;

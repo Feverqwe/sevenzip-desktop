@@ -89,6 +89,7 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                 view->popup(window.mapToGlobal(QPoint(20, 40)));
                 QApplication::processEvents();
                 view->hide();
+                QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
                 QCOMPARE(panels->text(),
                          language == "ru" ? QStringLiteral("Две панели") : QString("Two panels"));
                 QCOMPARE(panels->isChecked(), checked);

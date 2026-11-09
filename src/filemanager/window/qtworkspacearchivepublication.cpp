@@ -6,11 +6,11 @@
 #include "localization/qtlangcontrols.h"
 #include "operations/qtoperationlauncher.h"
 #include "platform/temp/qtownedtempidentity.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include "ui/lifecycle/qttaskpresentation.h"
 #include <QFileInfo>
 #include <QScopeGuard>
 #include <QScopedValueRollback>
-#include <QScrollBar>
 
 namespace {
 bool SameArchive(const QString &left, const QString &right) {
@@ -33,6 +33,15 @@ QtArchiveFileResource *LayerResource(const CPanel &source, unsigned level) {
 }
 } // namespace
 
+bool QtWindowWorkspace::CanRefreshPublishedOutput(unsigned panel) const {
+    if (!Ready())
+        return false;
+    const auto &source = window_.app_.Panels[panel];
+    if (source.GetFolder() && source.IsArcFolder())
+        return CanRefreshPublishedArchives();
+    return true;
+}
+
 bool QtWindowWorkspace::CanRefreshPublishedArchives() const {
     if (!Ready() || !QtTaskPresentation::CanPresent())
         return false;
@@ -45,9 +54,9 @@ bool QtWindowWorkspace::CanRefreshPublishedArchives() const {
     return true;
 }
 
-void QtWindowWorkspace::InvalidateArchive(const QString &path) {
+void QtWindowWorkspace::InvalidateArchive(const QString &path, int skipPanel) {
     for (unsigned slot = 0; slot < panels_.size(); ++slot) {
-        if (!window_.panelUi_[slot].table)
+        if (int(slot) == skipPanel || !window_.panelUi_[slot].table)
             continue;
         auto &location = panels_[slot].location;
         auto &source = window_.app_.Panels[slot];
@@ -68,17 +77,43 @@ void QtWindowWorkspace::ShowArchiveChangeNotice(unsigned panel) {
     ui.navigationNotice->show();
 }
 
-bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive) {
+bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive,
+                                                bool checkSource) {
     if (!window_.panelUi_[panel].container)
         return false;
     auto &locationState = panels_[panel].location;
+    auto &source = window_.app_.Panels[panel];
+    if ((interactive || checkSource) &&
+        locationState.archiveRevision == locationState.archiveApplied && source.IsArcFolder() &&
+        !source.GetParentFolders().IsEmpty()) {
+        auto *resource = LayerResource(source, 0);
+        const auto reader = resource ? resource->NativeReaderLease() : nullptr;
+        if (reader && !reader->sourceIsCurrent()) {
+            source.MarkArchiveOutdated();
+            ++locationState.archiveRevision;
+        }
+    }
     if (locationState.archiveRevision == locationState.archiveApplied)
         return false;
-    if (!Ready() || (!interactive && !CanRefreshPublishedArchives())) {
+    if (interactive) {
+        const auto request = ++panels_[panel].archiveRetryRequest;
+        if (!Ready(true)) {
+            const auto binding = source.FolderBindingRevision();
+            const auto interaction = interactionRevision_;
+            WhenReady(
+                [this, panel, request, binding, interaction, owner = QPointer<CPanel>(&source)] {
+                    if (owner && owner == &window_.app_.Panels[panel] &&
+                        owner->FolderBindingRevision() == binding &&
+                        panels_[panel].archiveRetryRequest == request &&
+                        interactionRevision_ == interaction)
+                        RefreshPublishedArchive(panel, true);
+                });
+            return true;
+        }
+    } else if (!CanRefreshPublishedArchives()) {
         window_.guiOutputRefresh_->Enqueue({}, {locationState.archiveLocation.physicalPath});
         return true;
     }
-    auto &source = window_.app_.Panels[panel];
     if (!source.IsArcFolder() || source.GetParentFolders().IsEmpty()) {
         locationState.archiveApplied = locationState.archiveRevision;
         return false;
@@ -122,25 +157,28 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
         return true;
     }
     locationState.archiveLocation = location;
+    auto &ui = window_.panelUi_[panel];
+    auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+    const auto editRevision = address->UserEditRevision();
+    const auto draft =
+        ui.path->isModified() ? std::optional(QtAddressDraft(*ui.path)) : std::nullopt;
     CSelectedState selection;
     source.SaveSelectedState(selection);
     const auto previousState = window_.panelUi_[panel].state;
     const QPointer<QWidget> focus = QApplication::focusWidget();
     const QPointer<QWidget> active = QApplication::activeWindow();
     const quint64 focusGeneration = focusRequest_;
-    auto *view =
-        qobject_cast<QAbstractItemView *>(window_.panelUi_[panel].viewStack->currentWidget());
-    const QPoint scroll =
-        view ? QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value())
-             : QPoint();
+    QString failure;
+    HRESULT result = E_FAIL;
     window_.withPanelProjection(panel, [&] {
+        const auto viewport = window_.captureListViewport();
         const QScopedValueRollback<bool> changing(changing_, true);
         const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
         QtAppOperationState::CallScope call(window_.app_.QtOperations());
         QtPanelLocationTransaction transaction(source);
         const bool dialogs = source.SetArchiveOpenDialogs(interactive);
         const auto restoreDialogs = qScopeGuard([&] { source.SetArchiveOpenDialogs(dialogs); });
-        HRESULT result = OpenArchiveLocation(panel, location, &layers, interactive);
+        result = OpenArchiveLocation(panel, location, &layers, interactive, &failure);
         auto *root = source.GetParentFolders().IsEmpty() ? nullptr : LayerResource(source, 0);
         const auto reader = root ? root->NativeReaderLease() : nullptr;
         if (result == S_OK &&
@@ -159,13 +197,19 @@ bool QtWindowWorkspace::RefreshPublishedArchive(unsigned panel, bool interactive
                 window_.panelUi_[panel].listProjection->waitForFinished();
         }
         window_.restoreListSelection(selection);
-        if (view) {
-            view->horizontalScrollBar()->setValue(scroll.x());
-            view->verticalScrollBar()->setValue(scroll.y());
-        }
+        if (focusRequest_ == focusGeneration)
+            window_.restoreListViewport(viewport);
     });
+    const auto restored =
+        address->UserEditRevision() == editRevision ? draft : address->LastUserDraft();
+    if (restored) {
+        restored->Restore(*ui.path);
+        ui.path->setModified(true);
+    }
     if (locationState.archiveRevision != locationState.archiveApplied)
         pending();
+    if (interactive && (result == S_OK || (result != E_ABORT && !failure.isEmpty())))
+        window_.statusStrip_->SetMessage(&source, result == S_OK ? QString() : failure);
     auto *currentWindow = QApplication::activeWindow();
     if (focusRequest_ == focusGeneration && !QApplication::activeModalWidget() &&
         !qobject_cast<QLineEdit *>(QApplication::focusWidget()) &&

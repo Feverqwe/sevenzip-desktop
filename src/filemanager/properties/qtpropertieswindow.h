@@ -2,7 +2,7 @@
 #include "filemanager/properties/qtpropertyreport.h"
 #include "ui/controls/qtmetadatarows.h"
 #include <QDialog>
-#include <QPointer>
+#include <functional>
 
 class QLabel;
 class QtSourceSummary;
@@ -13,7 +13,7 @@ class QtPropertiesWindow final : public QDialog {
     Q_OBJECT
   public:
     explicit QtPropertiesWindow(QtPropertyReport report, QWidget *parent = nullptr,
-                                QWidget *returnFocus = nullptr);
+                                std::function<QWidget *()> returnFocus = {});
     QString Information() const;
     void done(int result) override;
 
@@ -33,7 +33,7 @@ class QtPropertiesWindow final : public QDialog {
         QtDisclosure *control;
     };
     QtPropertyReport report_;
-    QPointer<QWidget> returnFocus_;
+    std::function<QWidget *()> returnFocus_;
     QtSourceSummary *summary_ = nullptr;
     QLabel *location_ = nullptr, *size_ = nullptr, *modified_ = nullptr, *selectedNames_ = nullptr;
     QList<ValueRow> rows_;

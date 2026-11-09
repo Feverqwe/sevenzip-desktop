@@ -4,6 +4,7 @@
 #include "window_operations.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
+#include <QStatusBar>
 
 void MainWindowOperationsTests::backendOverwriteDisplaysNativeMetadata_data() {
     QTest::addColumn<bool>("defined");
@@ -150,13 +151,18 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QCOMPARE(old.write("preserved"), qint64(9));
     old.close();
     choice = "overwriteNo";
-    answered = false;
     table(window)->selectRow(0);
-    window.extractTo(temp.filePath("destination"), true, {}, options);
-    QVERIFY(answered);
-    QVERIFY(old.open(QIODevice::ReadOnly));
-    QCOMPARE(old.readAll(), QByteArray("preserved"));
-    old.close();
+    for (bool selected : {false, true}) {
+        answered = false;
+        window.extractTo(temp.filePath("destination"), selected, {}, options);
+        QVERIFY(answered);
+        QVERIFY(old.open(QIODevice::ReadOnly));
+        QCOMPARE(old.readAll(), QByteArray("preserved"));
+        old.close();
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("ProgressRedesign",
+                                             "Completed with skipped items or messages"));
+    }
 
     choice = "overwriteRename";
     answered = false;
@@ -174,11 +180,36 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     choice = "overwriteCancel";
     answered = false;
     window.extractTo(temp.filePath("destination"), true, {}, options);
-    answer.stop();
     QVERIFY(answered);
     QCOMPARE(preflight.size(), 0);
+    QCOMPARE(window.statusBar()->currentMessage(),
+             QCoreApplication::translate("mainwindow_archivecommands", "Operation canceled."));
     QVERIFY(old.open(QIODevice::ReadOnly));
     QCOMPARE(old.readAll(), QByteArray("preserved"));
+    old.close();
+
+    answered = false;
+    ExtractionOptions skip = options;
+    skip.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
+    window.extractTo(temp.filePath("destination"), true, {}, skip);
+    QVERIFY(!answered);
+    QCOMPARE(preflight.size(), 0);
+    QCOMPARE(window.statusBar()->currentMessage(),
+             QCoreApplication::translate("ProgressRedesign",
+                                         "Completed with skipped items or messages"));
+    QVERIFY(old.open(QIODevice::ReadOnly));
+    QCOMPARE(old.readAll(), QByteArray("preserved"));
+    old.close();
+
+    choice = "overwriteYes";
+    answered = false;
+    window.extractTo(temp.filePath("destination"), true, {}, options);
+    answer.stop();
+    QVERIFY(answered);
+    QCOMPARE(window.statusBar()->currentMessage(),
+             QCoreApplication::translate("mainwindow_archivecommands", "Extraction completed."));
+    QVERIFY(old.open(QIODevice::ReadOnly));
+    QCOMPARE(old.readAll(), QByteArray("archive"));
 }
 
 void MainWindowOperationsTests::skippedArchiveMoveKeepsSourceAndShowsPartialResult() {
@@ -504,16 +535,13 @@ void MainWindowOperationsTests::encryptedAskUsesSourceCallback() {
     dismissFailure.stop();
     QVERIFY(sawFailure);
     QVERIFY(occupied.open(QIODevice::ReadOnly));
-    QVERIFY(occupied.readAll() != QByteArray("new secret"));
+    QCOMPARE(occupied.readAll(), QByteArray("old secret"));
     occupied.close();
+    QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden),
+             QStringList{QFileInfo(target).fileName()});
     QVERIFY(archiveInput.open(QIODevice::ReadOnly));
     QCOMPARE(archiveInput.readAll(), archiveBytes);
     archiveInput.close();
-    // The source ZIP callback can create/truncate the destination before
-    // detecting a bad password. Restore the occupied-file retry fixture.
-    QVERIFY(occupied.open(QIODevice::WriteOnly | QIODevice::Truncate));
-    QCOMPARE(occupied.write("old secret"), qint64(10));
-    occupied.close();
     answered = false;
     window.extractTo(output, false, password, options);
     answer.stop();
@@ -521,4 +549,6 @@ void MainWindowOperationsTests::encryptedAskUsesSourceCallback() {
     QCOMPARE(preflight.size(), 0);
     QVERIFY(occupied.open(QIODevice::ReadOnly));
     QCOMPARE(occupied.readAll(), QByteArray("new secret"));
+    QCOMPARE(QDir(output).entryList(QDir::Files | QDir::Hidden),
+             QStringList{QFileInfo(target).fileName()});
 }

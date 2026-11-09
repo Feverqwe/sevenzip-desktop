@@ -1,4 +1,5 @@
 #include "filemanager/properties/qtpropertieswindow.h"
+#include "filemanager/properties/qtpropertyformat.h"
 #include "filemanager/providers/FSFolder.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/support/panel_model_support.h"
@@ -7,6 +8,7 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/LangUtils.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QTreeWidget>
@@ -105,8 +107,8 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
             const auto closeDialog = qScopeGuard([dialog] { dialog->reject(); });
             QCOMPARE(value(*dialog, "Файлов"), QString("2"));
             QCOMPARE(value(*dialog, "Папок"), QString("1"));
-            QCOMPARE(value(*dialog, "Размер"), QString("20"));
-            QCOMPARE(value(*dialog, "Сжатый"), QString("8"));
+            QCOMPARE(value(*dialog, "Размер"), QtRegionalFormat::exactBytes(20));
+            QCOMPARE(value(*dialog, "Сжатый"), QtRegionalFormat::exactBytes(8));
             dialog->reject();
         }
     }
@@ -168,12 +170,14 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
         QVERIFY(QDir::setCurrent(original));
     }
 
-    void archivePropertiesUsePresenceAndRetainSuppliedTimestampText() {
+    void archivePropertiesUsePresenceAndTheNativeTimestamp() {
         ControlledBackend backend;
         MainWindow window(&backend);
-        openListedArchive(window, backend, "metadata.7z",
-                          {ArchiveEntry{"unknown.txt", -1, -1, "2026-09-28 12:34:56.1234567"},
-                           ArchiveEntry{"zero.txt", 0, 0}});
+        ArchiveEntry unknown{"unknown.txt", -1, -1};
+        unknown.modifiedTime.emplace();
+        unknown.modifiedTime->SetAsTimeFrom_Ft64_Prec(134000000001234567ULL,
+                                                      k_PropVar_TimePrec_100ns);
+        openListedArchive(window, backend, "metadata.7z", {unknown, {"zero.txt", 0, 0}});
         auto *table = window.findChild<FileTable *>("archiveTable");
         auto *action = window.findChild<QAction *>("selectedPropertiesAction");
         QVERIFY(table && action);
@@ -193,8 +197,8 @@ class PropertiesTests : public QObject, protected MainWindowTestSupport {
             QVERIFY(dialog);
             const auto closeDialog = qScopeGuard([dialog] { dialog->reject(); });
             QCOMPARE(value(*dialog, "Имя"), QString("unknown.txt"));
-            QCOMPARE(dialog->findChild<QLabel *>("propertiesSize")->text(), QString("Недоступно"));
-            QCOMPARE(value(*dialog, "Изменен"), QString("2026-09-28 12:34:56.1234567"));
+            QCOMPARE(dialog->findChild<QLabel *>("propertiesSize")->text(), QStringLiteral("—"));
+            QCOMPARE(value(*dialog, "Изменен"), QtFormatPropertyTime(*unknown.modifiedTime).detail);
             dialog->reject();
         }
     }

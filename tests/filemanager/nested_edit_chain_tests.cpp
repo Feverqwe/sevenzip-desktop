@@ -12,7 +12,9 @@
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QToolButton>
 #include <QTreeWidget>
+#include <algorithm>
 
 using namespace ExternalEditorFixture;
 
@@ -116,7 +118,8 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
                 if (box->objectName() == "modifiedArchiveQuestion") {
                     parentPrompt = true;
-                    box->button(QMessageBox::No)->click();
+                    auto *discard = box->button(QMessageBox::Discard);
+                    (discard ? discard : box->button(QMessageBox::No))->click();
                 } else {
                     error = true;
                     openingMessage += box->text() + '\n';
@@ -420,35 +423,74 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(read(outer), original);
         responder.stop();
     }
+    void nestedSourceMutationsPublishThroughParent_data() {
+        QTest::addColumn<bool>("failSave");
+        QTest::newRow("saved") << false;
+        QTest::newRow("write-failure") << true;
+    }
     void nestedSourceMutationsPublishThroughParent() {
+        QFETCH(bool, failSave);
         QTemporaryDir fixture;
+        const auto oldRegistry = qgetenv("SEVENZIP_OWNED_TEMP_REGISTRY");
+        qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", fixture.filePath("registry").toUtf8());
+        const auto restoreRegistry = qScopeGuard([&] {
+            QtOwnedTempRegistry registry;
+            for (const auto &entry : registry.Entries())
+                if (auto lease = registry.ClaimForDeletion(entry))
+                    lease->RemoveIfUnused(entry.path,
+                                          [&] { QDir(entry.path).removeRecursively(); });
+            qputenv("SEVENZIP_OWNED_TEMP_REGISTRY", oldRegistry);
+        });
         const QString source = fixture.filePath("source");
         QVERIFY(QDir().mkpath(source));
         const QString innerName = QStringLiteral("inner.7z");
         const QString inner = fixture.filePath(innerName);
-        const QString outer = fixture.filePath("outer.zip");
+        const QString outer = fixture.filePath(failSave ? "outer.fixture7z" : "outer.zip");
         QVERIFY(write(QDir(source).filePath("rename.txt"), "keep bytes"));
         QVERIFY(write(QDir(source).filePath("delete.txt"), "remove bytes"));
         QVERIFY(createArchive(source, inner, ".", "7z"));
-        QVERIFY(createArchive(fixture.path(), outer, innerName));
+        QVERIFY(createArchive(fixture.path(), outer, innerName, failSave ? "7z" : "zip"));
         const QByteArray original = read(outer);
-        ArchiveBackend backend;
+        ArchiveBackend backend(nullptr, failSave ? runtime_.engine() : QString());
         MainWindow window(&backend);
+        window.resize(1100, 620);
         window.show();
         bool unexpectedError = false, parentPrompt = false;
+        bool cancelParent = true;
+        bool closing = false;
         QTimer responder;
         widgetDialogs_.connectResponder(responder, this, [&] {
-            if (auto *box = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
+            auto *dialog = widgetDialogs_.activeDialog();
+            if (auto *box = qobject_cast<QMessageBox *>(dialog)) {
                 unexpectedError |=
                     box->icon() == QMessageBox::Critical || box->icon() == QMessageBox::Warning;
                 parentPrompt |= box->objectName() == "modifiedArchiveQuestion";
+                if (closing && box->objectName() == "modifiedArchiveQuestion") {
+                    box->button(QMessageBox::Discard)->click();
+                    return;
+                }
+                if (cancelParent && box->objectName() == "modifiedArchiveQuestion") {
+                    QTest::keyClick(box, Qt::Key_Escape);
+                    return;
+                }
                 if (auto *yes = box->button(QMessageBox::Yes))
                     yes->click();
                 else
                     box->accept();
+            } else if (auto *progress = dynamic_cast<CProgressDialog *>(dialog)) {
+                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
+                if (close && close->text() == ToQString(LangString(IDS_CLOSE)))
+                    QTimer::singleShot(0, progress, [this, progress, close] {
+                        if (widgetDialogs_.activeDialog() == progress)
+                            close->click();
+                    });
             }
         });
         responder.start(1);
+        const auto closeWindow = qScopeGuard([&] {
+            closing = true;
+            window.close();
+        });
         window.openArchive(outer);
         QTRY_COMPARE(table(window)->rowCount(), 1);
         QTRY_COMPARE(table(window)->model()->index(0, 0).data().toString().normalized(
@@ -479,10 +521,59 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(folderName, Qt::Key_Return);
         QTRY_COMPARE(table(window)->rowCount(), 3);
         QCOMPARE(read(outer), original);
-        action(window, "upAction")->trigger();
-        QVERIFY(parentPrompt);
-        QVERIFY(!unexpectedError);
+        QTRY_VERIFY(action(window, "upAction")->isEnabled());
+        auto *view = table(window);
+        const int selected = filesystemRow(window, QStringLiteral("renamed файл.txt"));
+        QVERIFY(selected >= 0);
+        view->setCurrentCell(selected, 0);
+        view->selectRow(selected);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        const auto clickOuterBreadcrumb = [&] {
+            auto *bar = window.findChild<QWidget *>("panelNavigation0");
+            for (auto *button : bar->findChildren<QToolButton *>())
+                if (button->isVisible() && QDir::cleanPath(button->toolTip()) == outer) {
+                    QTest::mouseClick(button, Qt::LeftButton);
+                    return true;
+                }
+            return false;
+        };
+        QVERIFY(clickOuterBreadcrumb());
+        QTRY_VERIFY(parentPrompt);
+        QCOMPARE(read(outer), original);
+        QTRY_COMPARE(table(window)->rowCount(), 3);
+        QCOMPARE(view->currentIndex().data().toString(), QStringLiteral("renamed файл.txt"));
+        QCOMPARE(view->selectionModel()->selectedRows(), QModelIndexList{view->currentIndex()});
+        QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(view));
+        cancelParent = false;
+        parentPrompt = false;
+        const auto &nested = view->sourcePanel->GetParentFolders().Back();
+        const QString retained = ToQString(fs2us(nested.FilePath));
+        if (failSave)
+            QVERIFY(runtime_.armWriter(E_FAIL, false));
+        QTRY_VERIFY(action(window, "upAction")->isEnabled());
+        QVERIFY(clickOuterBreadcrumb());
+        QTRY_VERIFY(parentPrompt);
+        QCOMPARE(unexpectedError, failSave);
         QTRY_COMPARE(table(window)->rowCount(), 1);
+        QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), innerName);
+        if (failSave) {
+            QCOMPARE(read(outer), original);
+            QVERIFY(window.close());
+            QtOwnedTempRegistry registry;
+            registry.CleanUnusedSystemTemporaryObjects();
+            const auto entries = registry.Entries();
+            const auto entry = std::ranges::find(entries, QFileInfo(retained).absolutePath(),
+                                                 &QtOwnedTempEntry::path);
+            QVERIFY(entry != entries.end());
+            const auto record = QtExternalFileRecord::Restore(entry->context);
+            QVERIFY(record);
+            QCOMPARE(record->entry, innerName);
+            QCOMPARE(record->fileName, QFileInfo(retained).fileName());
+            QCOMPARE(contents(retained, QStringLiteral("renamed файл.txt")),
+                     QByteArray("keep bytes"));
+            return;
+        }
         const QString updated = fixture.filePath("updated.7z");
         QVERIFY(write(updated, contents(outer, innerName)));
         QCOMPARE(contents(updated, QStringLiteral("renamed файл.txt")), QByteArray("keep bytes"));
@@ -493,7 +584,6 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
         const QByteArray metadata = listing.readAllStandardOutput();
         QVERIFY(metadata.contains("Path = new folder"));
         QCOMPARE(contents(updated, QStringLiteral("delete.txt")), QByteArray("remove bytes"));
-        responder.stop();
     }
 };
 int main(int argc, char **argv) {

@@ -16,6 +16,8 @@
 #include "gui/UpdateCallbackGUI.h"
 #include "gui/UpdateGUI.h"
 #include "platform/temp/WorkDir.h"
+#include "settings/RegistryUtils.h"
+#include "support/scoped_environment.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/progress/archiveprogresstransport.h"
 #include <QDateTime>
@@ -117,14 +119,17 @@ class CNativeUpdateWorker final : public CProgressThreadVirt {
             const HRESULT result =
                 operations->CopyFromFile(selected, _disk.toStdWString().c_str(), ui);
             Published = ui->Published;
-            RINOK(result)
-            RINOK(inside->LoadItems())
+            const HRESULT reload = inside->LoadItems();
+            if (reload != S_OK)
+                return result == S_OK ? reload : result;
             NWindows::NCOM::CPropVariant size;
-            RINOK(inside->GetProperty(0, kpidSize, &size))
+            const HRESULT property = inside->GetProperty(0, kpidSize, &size);
+            if (property != S_OK)
+                return result == S_OK ? property : result;
             if (size.vt != VT_UI8)
                 return E_FAIL;
             ReopenedSize = size.uhVal.QuadPart;
-            return S_OK;
+            return result;
         }
         auto *outputSpec = new COutFileStream;
         CMyComPtr<ISequentialOutStream> output = outputSpec;
@@ -403,7 +408,8 @@ class SourceUpdateBackendTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString(), nullptr),
+                                              UString(), UString(archive.toStdWString().c_str()),
+                                              nullptr),
                  S_OK);
         auto *opened = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(opened);
@@ -851,6 +857,58 @@ class SourceUpdateBackendTests final : public QObject {
         QCOMPARE(readFile(QDir(extracted).filePath("untouched.bin")), QByteArray("keep"));
         QVERIFY(!QFile::exists(QDir(extracted).filePath("different disk name.bin")));
     }
+#ifdef Q_OS_WIN
+    void lockedNativeUpdateReopensTheOriginalAndCanBeRetried() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString root = fixture.filePath("original");
+        const QString archive = fixture.filePath(QStringLiteral("архив с пробелом.zip"));
+        const QString disk = fixture.filePath("replacement.bin");
+        QVERIFY(writeFile(QDir(root).filePath("inside/entry.bin"), "old"));
+        QVERIFY(runEngine(root, {"a", "-tzip", "--", archive, "inside/entry.bin"}));
+        const auto original = readFile(archive);
+        QVERIFY(writeFile(disk, "replacement"));
+        const auto settings = fixture.filePath("settings.ini");
+        const ScopedTestEnvironment settingsPath("SEVENZIP_SETTINGS_PATH", settings);
+        NWorkDir::CInfo work;
+        work.SetDefault();
+        work.Mode = NWorkDir::NMode::kSpecified;
+        work.Path =
+            us2fs(QDir::toNativeSeparators(fixture.filePath("work")).toStdWString().c_str());
+        work.Save(settings);
+        ArchiveBackend backend(nullptr, enginePath());
+        {
+            const auto path = QDir::toNativeSeparators(archive).toStdWString();
+            const HANDLE locked =
+                ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+            QVERIFY(locked != INVALID_HANDLE_VALUE);
+            const auto close = qScopeGuard([&] { ::CloseHandle(locked); });
+            CNativeUpdateWorker worker(backend, archive, disk, {});
+            worker.Publish = true;
+            auto transport = worker.CreateProgressTransport();
+            QCOMPARE(worker.Create(L"Source update", nullptr), S_OK);
+            QVERIFY(worker.Result != S_OK);
+            QCOMPARE(worker.Published, std::optional(false));
+            QCOMPARE(worker.ReopenedSize, UInt64(3));
+            QStringList messages;
+            FOR_VECTOR(i, worker.Sync.Messages)
+            messages.append(QString::fromWCharArray(worker.Sync.Messages[i]));
+            const auto details = messages.join('\n');
+            QVERIFY2(details.contains("Cannot replace the archive") &&
+                         details.contains(QFileInfo(archive).fileName()),
+                     qPrintable(details));
+        }
+        QCOMPARE(readFile(archive), original);
+        CNativeUpdateWorker retry(backend, archive, disk, {});
+        retry.Publish = true;
+        auto transport = retry.CreateProgressTransport();
+        QCOMPARE(retry.Create(L"Source update", nullptr), S_OK);
+        QCOMPARE(retry.Result, S_OK);
+        QCOMPARE(retry.ReopenedSize, UInt64(11));
+    }
+#endif
+
     void cancellationInNativeTransactionKeepsOriginalArchive() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -873,7 +931,7 @@ class SourceUpdateBackendTests final : public QObject {
         QCOMPARE(worker.Result, E_ABORT);
         QVERIFY(!backend.busy());
         QCOMPARE(readFile(archive), original);
-        QCOMPARE(worker.ReopenedSize, UInt64(0));
+        QCOMPARE(worker.ReopenedSize, UInt64(3));
     }
     void panelChangedFileUsesNativeFolderTransaction() {
         QTemporaryDir fixture;
@@ -890,7 +948,8 @@ class SourceUpdateBackendTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(archive.toStdWString().c_str()),
-                                              UString("zip"), nullptr),
+                                              UString("zip"),
+                                              UString(archive.toStdWString().c_str()), nullptr),
                  S_OK);
         CMyComPtr<IFolderFolder> inside;
         QCOMPARE(opening.Folder->BindToFolder(L"inside", &inside), S_OK);

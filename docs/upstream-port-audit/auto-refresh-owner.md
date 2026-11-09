@@ -77,6 +77,14 @@ changed source and completion order without duplicating runtime validation.
 Windows/macOS were not run; native platform services and view geometry settings
 are unchanged, and this is Linux runtime evidence only.
 
+### Icon position after filesystem refresh
+
+The Qt icon view keeps the first visible file at its previous vertical offset
+when new files sort above it. If that file is gone, the view restores the saved
+scroll position. The native refresh, sort and selection bodies are unchanged.
+Linux checks cover insertion and content edits in both synchronous and deferred
+lists.
+
 ## Filesystem publication ownership — 2026-11-01
 
 Compared original FSFolder `LoadSubItems`/`LoadItems`, their folder types and

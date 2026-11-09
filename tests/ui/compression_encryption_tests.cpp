@@ -143,6 +143,32 @@ class CompressionEncryptionTests final : public QObject {
         QCOMPARE(restored.findChild<QComboBox *>("archiveFormat")->currentText(), QString("7z"));
         QVERIFY(!restored.findChild<QCheckBox *>("archiveShowPassword")->isChecked());
     }
+    void passwordMismatchReturnsToConfirmation() {
+        CreateArchiveDialog dialog(directory_.path(), {source_});
+        auto *confirmation = dialog.findChild<QLineEdit *>("archivePasswordConfirmation");
+        dialog.findChild<QCheckBox *>("archivePasswordEnabled")->setChecked(true);
+        setPassword(dialog, "correct password");
+        confirmation->setText("mistyped password");
+        dialog.show();
+        dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->setFocus();
+        bool refused = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                refused = true;
+                warning->accept();
+            }
+        });
+        submit(dialog);
+        QVERIFY(refused && dialog.isVisible());
+        QCOMPARE(dialog.focusWidget(), confirmation);
+        QCOMPARE(confirmation->text(), QString("mistyped password"));
+        QCOMPARE(confirmation->selectionLength(), confirmation->text().size());
+        QTest::keyClicks(confirmation, "correct password");
+        QCOMPARE(confirmation->text(), QString("correct password"));
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(dialog.password(), QString("correct password"));
+    }
     void disabledPasswordDraftDoesNotBlockSubmission() {
         const auto catalog = NativeArchiveFixture::Catalog();
         QVERIFY(catalog && catalog->result() == S_OK);

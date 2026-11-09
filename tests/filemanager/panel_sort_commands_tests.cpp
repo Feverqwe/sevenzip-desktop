@@ -2,6 +2,7 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QHeaderView>
 #include <QScrollBar>
@@ -73,6 +74,58 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                  selected);
     }
+    void headerSortWaitsForTheRefreshedList() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto write = [&](const QString &name, const QByteArray &bytes) {
+            QFile file(fixture.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(bytes), bytes.size());
+        };
+        const QString selected = QStringLiteral("a selected.txt");
+        write(selected, "a");
+        write("z largest.txt", QByteArray(128, 'z'));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 2);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        const int row = filesystemRow(window, selected);
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        for (int i = 0; i < 257; ++i)
+            write(QString("item-%1.txt").arg(i), "item");
+
+        auto *header = view->horizontalHeader();
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        const auto clickSize = [&] {
+            QTest::mouseClick(
+                header->viewport(), Qt::LeftButton, Qt::NoModifier,
+                QPoint(header->sectionViewportPosition(sizeColumn) + 10, header->height() / 2));
+        };
+        const int initialSort = header->sortIndicatorSection();
+        auto *refresh = action(window, "refreshAction");
+        QTest::keySequence(view, refresh->shortcut());
+        QVERIFY(!refresh->isEnabled());
+        QVERIFY(view->hasFocus());
+        clickSize();
+        QTRY_VERIFY(refresh->isEnabled() && view->rowCount() == 259);
+        QCOMPARE(header->sortIndicatorSection(), initialSort);
+        QVERIFY(view->hasFocus());
+        clickSize();
+        QTRY_COMPARE(view->model()->index(0, 0).data(QtPanelList::NameRole).toString(),
+                     QString("z largest.txt"));
+        QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+    }
     void rawCommandUsesSourceColumnFlag() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -108,6 +161,10 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("control"), qint64(7));
         file.close();
+        QFile larger(fixture.filePath("z larger.txt"));
+        QVERIFY(larger.open(QIODevice::WriteOnly));
+        QCOMPARE(larger.write("larger payload"), qint64(14));
+        larger.close();
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -134,7 +191,20 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         const bool peerAscending = views[0]->sourcePanel->_ascending;
         QVERIFY(action(window, "sort0Action")->isChecked());
         CMyComPtr<IFolderFolder> peer = views[0]->sourcePanel->GetFolder();
+        const auto firstName = [](FileTable &view) {
+            return view.model()->index(0, 0).data(QtPanelList::NameRole).toString();
+        };
+        const QString control = QStringLiteral("control 文件.txt");
+        QCOMPARE(firstName(*views[0]), control);
+        QCOMPARE(firstName(*views[1]), control);
+        views[1]->setCurrentCell(0, 0);
+        views[1]->selectRow(0);
         views[1]->sortItems(2, Qt::DescendingOrder);
+        QCOMPARE(firstName(*views[1]), QString("z larger.txt"));
+        QCOMPARE(firstName(*views[0]), control);
+        const auto selected = views[1]->selectionModel()->selectedRows();
+        QCOMPARE(selected.size(), 1);
+        QCOMPARE(selected.front().data(QtPanelList::NameRole).toString(), control);
         QCOMPARE(views[1]->sourcePanel->_sortID, PROPID(kpidSize));
         QVERIFY(!views[1]->sourcePanel->_ascending);
         QCOMPARE(views[0]->sourcePanel->_sortID, peerSort);
@@ -152,6 +222,41 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QTRY_VERIFY(addresses[0]->hasFocus());
         QVERIFY(action(window, "sort0Action")->isChecked());
         QVERIFY(action(window, "viewMode0Action")->isChecked());
+        QCOMPARE(views[0]->sourcePanel->GetFolder(), peer.Interface());
+        auto *details = action(window, "viewMode3Action");
+        QSignalSpy detailsChanges(details, &QAction::toggled);
+        views[1]->sourcePanel->SetListViewMode(3);
+        QVERIFY(views[1]->isVisible());
+        QVERIFY(addresses[0]->hasFocus());
+        QVERIFY(action(window, "viewMode0Action")->isChecked());
+        QVERIFY(!details->isChecked());
+        QVERIFY(detailsChanges.isEmpty());
+
+        auto *header = views[1]->horizontalHeader();
+        const int sizeColumn = views[1]->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0);
+        QTest::mouseClick(
+            header->viewport(), Qt::LeftButton, Qt::NoModifier,
+            QPoint(header->sectionViewportPosition(sizeColumn) + 10, header->height() / 2));
+        QTRY_COMPARE(firstName(*views[1]), control);
+        QTRY_VERIFY(views[1]->hasFocus());
+        QCOMPARE(views[1]->currentIndex().data(QtPanelList::NameRole).toString(), control);
+        QCOMPARE(views[1]->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(views[1]
+                     ->selectionModel()
+                     ->selectedRows()
+                     .front()
+                     .data(QtPanelList::NameRole)
+                     .toString(),
+                 control);
+        views[1]->setCurrentCell(views[1]->currentRow(), sizeColumn, QItemSelectionModel::NoUpdate);
+        QTest::keyClick(window.focusWidget(), Qt::Key_End);
+        QCOMPARE(views[1]->currentIndex().data(QtPanelList::NameRole).toString(),
+                 QString("z larger.txt"));
+        QCOMPARE(views[1]->currentIndex().column(), sizeColumn);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Home);
+        QCOMPARE(views[1]->currentIndex().data(QtPanelList::NameRole).toString(), control);
+        QCOMPARE(views[1]->currentIndex().column(), sizeColumn);
         QCOMPARE(views[0]->sourcePanel->GetFolder(), peer.Interface());
     }
     void headerDefaults_data() {
@@ -217,7 +322,19 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         window.show();
         QApplication::processEvents();
         auto *view = static_cast<FileTable *>(table(window));
-        view->selectRow(0);
+        view->clearSelection();
+        for (const int row : {1, 3})
+            view->selectionModel()->select(view->model()->index(row, 0),
+                                           QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        view->setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
+        const auto selectedNames = [view] {
+            QStringList names;
+            for (const auto &index : view->selectionModel()->selectedRows())
+                names.append(index.data(QtPanelList::NameRole).toString());
+            names.sort();
+            return names;
+        };
+        const QStringList marked{entries[1].path, entries[3].path};
         view->verticalScrollBar()->setValue(0);
         action(window, "sort3Action")->trigger();
         QCOMPARE(view->sourcePanel->_sortID, PROPID(kpidSize));
@@ -226,10 +343,8 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
                  entries[0].path);
         const QRect focused = view->visualRect(view->currentIndex());
         QVERIFY(view->viewport()->rect().contains(focused));
-        CRecordVector<UInt32> selected;
-        view->sourcePanel->Get_ItemIndices_Selected(selected);
-        QCOMPARE(selected.Size(), 1u);
-        QCOMPARE(selected[0], UInt32(0));
+        QCOMPARE(selectedNames(), marked);
+        QVERIFY(!view->selectionModel()->isRowSelected(view->currentRow(), {}));
         action(window, "sort3Action")->trigger();
         QVERIFY(view->sourcePanel->_ascending);
         QVERIFY(view->viewport()->rect().contains(view->visualRect(view->currentIndex())));
@@ -239,6 +354,8 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QVERIFY(view->sourcePanel->_ascending);
         QCOMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                  entries[0].path);
+        QCOMPARE(selectedNames(), marked);
+        QVERIFY(!view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(view->viewport()->rect().contains(view->visualRect(view->currentIndex())));
     }
 };

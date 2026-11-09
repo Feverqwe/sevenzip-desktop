@@ -1,8 +1,10 @@
+#include "7zip/UI/FileManager/resourceGui.h"
 #include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
+#include "localization/LangUtils.h"
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
@@ -53,16 +55,16 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
                 ++overwrites;
                 dialog->reject();
             } else if (auto *progress = dynamic_cast<CProgressDialog *>(modal)) {
-                auto *close = progress->findChild<QPushButton *>("IDCANCEL");
-                if (TestProgressDialog::IsCloseButton(close))
-                    close->click();
+                if (auto *result = TestProgressDialog::ResultWindow(progress)) {
+                    const QString report = TestProgressDialog::ReportText(*result);
+                    if (report.contains(QString::fromWCharArray(LangString(IDS_MESSAGE_NO_ERRORS))))
+                        ++testResults;
+                    else if (!report.isEmpty())
+                        errors.append(report);
+                    TestProgressDialog::CloseResult(*result);
+                }
             } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
-                if ((box->icon() == QMessageBox::Information ||
-                     box->icon() == QMessageBox::NoIcon) &&
-                    box->standardButtons() == QMessageBox::Ok)
-                    ++testResults;
-                else
-                    errors.append(box->text());
+                errors.append(box->text());
                 if (auto *yes = box->button(QMessageBox::Yes))
                     yes->click();
                 else
@@ -126,6 +128,95 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(testResults, 2);
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
     }
+    void encryptedArchiveOpenCanBeRetried_data() {
+        QTest::addColumn<bool>("typedFolder");
+        QTest::newRow("file-list") << false;
+        QTest::newRow("address-to-inner-folder") << true;
+    }
+    void encryptedArchiveOpenCanBeRetried() {
+        QFETCH(bool, typedFolder);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("payload 空.txt");
+        const QString archive = fixture.filePath("protected archive.7z");
+        const QString password = QStringLiteral("пароль 密碼");
+        const QString innerPath = QStringLiteral("inner folder/") + name;
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{name, "root payload"}, {innerPath, "nested payload"}}, "7z", password));
+        ArchiveBackend backend;
+        int externalCalls = 0;
+        MainWindow window(&backend, [&](const QUrl &) {
+            ++externalCalls;
+            return true;
+        });
+        window.show();
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        const int row = filesystemRow(window, QFileInfo(archive).fileName());
+        QVERIFY(row >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        if (!typedFolder)
+            view->setFocus();
+        const auto open = [&] {
+            if (!typedFolder) {
+                openRow(window, row);
+                return;
+            }
+            address->setFocus();
+            address->setText(archive + "/inner folder");
+            QTest::keyClick(address, Qt::Key_Return);
+        };
+        WidgetDialogFixture dialogs;
+        enum class Answer { Cancel, Incorrect, Correct };
+        Answer answer = Answer::Cancel;
+        int prompts = 0;
+        int errors = 0;
+        QTimer drive;
+        dialogs.connectResponder(drive, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs.activeDialog())) {
+                ++prompts;
+                if (answer == Answer::Cancel)
+                    QTest::keyClick(dialog->findChild<QLineEdit *>("passwordEdit"), Qt::Key_Escape);
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")
+                        ->setText(answer == Answer::Correct ? password : QString("incorrect"));
+                    dialog->accept();
+                }
+            } else if (auto *warning = qobject_cast<QMessageBox *>(dialogs.activeDialog())) {
+                ++errors;
+                warning->accept();
+            }
+        });
+        drive.start(5);
+        open();
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
+        QCOMPARE(prompts, 1);
+        QCOMPARE(errors, 0);
+        QCOMPARE(externalCalls, 0);
+        if (!typedFolder) {
+            QTRY_COMPARE(window.focusWidget(), view);
+            if (window.isActiveWindow())
+                QVERIFY(view->hasFocus());
+        }
+        answer = Answer::Incorrect;
+        open();
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsFSFolder());
+        QCOMPARE(prompts, 2);
+        QCOMPARE(errors, typedFolder ? 0 : 1);
+        if (typedFolder)
+            QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(archive).fileName()));
+        QCOMPARE(externalCalls, 0);
+        answer = Answer::Correct;
+        open();
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder());
+        QCOMPARE(prompts, 3);
+        QCOMPARE(externalCalls, 0);
+        QVERIFY(rowWithPath(window, typedFolder ? innerPath : name) >= 0);
+    }
+
     void passwordPromptCancellationAndReopen() {
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -214,7 +305,7 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
             auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
             QVERIFY(dialog);
             transportPrompt = true;
-            dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+            dialog->findChild<QLineEdit *>("passwordEdit")->setText(password + "-retry");
             dialog->accept();
         });
         // This asynchronous process prompt has no source modal owner. Opening
@@ -224,13 +315,22 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         QCOMPARE(backend.cancelCalls, 0);
         QVERIFY(!action(window, "openInsideAction")->isEnabled());
         backend.fail(QStringLiteral("Операция отменена."), E_ABORT);
+        auto *result = TestProgressDialog::ResultWindow(QApplication::activeModalWidget());
+        QVERIFY(result);
+        TestProgressDialog::CloseResult(*result);
+        QVERIFY(!QApplication::activeModalWidget());
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
+        window.extractTo("/temporary/destination");
+        QCOMPARE(backend.extractCalls, 1);
+        QCOMPARE(backend.lastExtractPassword, password);
+        backend.cancel();
+        QVERIFY(TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget()));
         openListedArchive(window, backend, "empty.zip", {});
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
         QVERIFY(action(window, "extractArchiveAction")->isEnabled());
         action(window, "extractArchiveAction")->trigger();
         QVERIFY(!QApplication::activeModalWidget());
-        QCOMPARE(backend.extractCalls, 0);
+        QCOMPARE(backend.extractCalls, 1);
         window.testArchive();
         QVERIFY(backend.lastTestPassword.isEmpty());
     }

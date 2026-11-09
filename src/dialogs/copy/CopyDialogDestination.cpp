@@ -1,6 +1,9 @@
 #include "Windows/FileName.h"
 #include "dialogs/copy/CopyDialog.h"
+#include "fileops/links/qtlinkservices.h"
+#include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
+#include "fileops/transfer/qttransfertargetname.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/ViewSettings.h"
 #include "ui/dialogs/qtdialoglayout.h"
@@ -12,6 +15,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSet>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -30,7 +34,18 @@ bool SameDirectory(const QString &first, const QString &second) {
                             DirectoryPrefix(QDir::cleanPath(second))) == 0;
 }
 
-bool IsName(const QString &name) {
+bool SameExistingPath(const QFileInfo &first, const QFileInfo &second) {
+    const QString canonical = first.canonicalFilePath();
+    return !canonical.isEmpty() && canonical == second.canonicalFilePath();
+}
+
+bool IsValidWindowsPath(const QString &path, const QString &resolved) {
+    const UString native = ToUString(QDir::toNativeSeparators(path));
+    return FindInvalidWindowsPathCharacter(native) < 0 &&
+           !HasEmptyWindowsPathComponent(native, ToUString(QDir::toNativeSeparators(resolved)));
+}
+
+bool IsName(const QString &name, const QString &directory) {
     if (name.isEmpty() || name == "." || name == ".." || name.contains(QChar::Null) ||
         name.contains('/'))
         return false;
@@ -38,9 +53,48 @@ bool IsName(const QString &name) {
     if (name.contains('\\'))
         return false;
 #endif
-    return true;
+    return IsValidWindowsPath(name, directory);
+}
+
+QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory) {
+    QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
+    for (;;) {
+        const QFileInfo directory(path);
+        if (directory.exists() || directory.isSymLink()) {
+            if (!directory.isDir())
+                return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Not a folder: %1")).arg(path);
+            return directory.isWritable()
+                       ? QString()
+                       : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The folder is read-only: %1"))
+                             .arg(path);
+        }
+        const QString parent = directory.absolutePath();
+        if (parent == path)
+            return {};
+        path = parent;
+    }
 }
 } // namespace
+
+bool QtCopyDestinationContext::IsPeerWritable() const {
+    if (!PeerSupportsWriting || !PeerIsFilesystem)
+        return PeerSupportsWriting;
+    const QFileInfo directory(QDir::cleanPath(PeerDestination));
+    return directory.isDir() && directory.isWritable() &&
+           (!LocalFileTransfer || (!directory.isSymLink() && !directory.isJunction()));
+}
+
+bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath) {
+    return (path.endsWith('/') || path.endsWith(QDir::separator())) &&
+           SameDirectory(path, panelPath);
+}
+
+QString NormalizeCopyDestination(const QString &path) {
+    QString normalized = QDir::cleanPath(path);
+    if ((path.endsWith('/') || path.endsWith(QDir::separator())) && !normalized.endsWith('/'))
+        normalized += '/';
+    return normalized;
+}
 
 void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
     _peer = new QPushButton(this);
@@ -50,7 +104,7 @@ void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
     _peer->hide();
     layout.addWidget(_peer, 0, Qt::AlignRight);
     connect(_peer, &QPushButton::clicked, this, [this] {
-        if (!_destinationContext || !_destinationContext->PeerWritable)
+        if (!_destinationContext || !_destinationContext->IsPeerWritable())
             return;
         SetPathText(_destinationContext->PeerDestination);
         _pathEdit->setFocus();
@@ -71,7 +125,7 @@ void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
         layout.addWidget(_name);
         _nameLabel->hide();
         _name->hide();
-        connect(_name, &QLineEdit::textChanged, this, &CCopyDialog::UpdateDestination);
+        connect(_name, &QLineEdit::textChanged, this, [this] { UpdateDestination(); });
     }
     _destinationMessage = new QtWrappingLabel(this);
     _destinationMessage->setObjectName("copyDestinationMessage");
@@ -87,7 +141,6 @@ void CCopyDialog::ConfigureDestination(QtCopyDestinationContext context) {
         _name->setText(_destinationContext->SourceName);
     if (_peer) {
         _peer->setVisible(!_destinationContext->PeerDestination.isNull());
-        _peer->setEnabled(_destinationContext->PeerWritable);
         _peer->setToolTip(_destinationContext->PeerDestination);
     }
     UpdateDestination();
@@ -116,22 +169,33 @@ QString CCopyDialog::DraftDestination() const {
 QString CCopyDialog::PreviewDestination(const QString &value) const {
     if (!_destinationContext || _destinationContext->RelativeBase.isNull() ||
         NWindows::NFile::NName::IsAbsolutePath(ToUString(value)))
-        return value;
+        return NormalizeCopyDestination(value);
     // CApp adds its native panel prefix to a relative Value. This preview
     // never replaces that raw Value or the native normalization step.
-    return _destinationContext->RelativeBase + value;
+    return NormalizeCopyDestination(_destinationContext->RelativeBase + value);
 }
 
-void CCopyDialog::UpdateDestination() {
+bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField) {
     if (!_copyMove || !_pathEdit || !_destinationMessage)
-        return;
+        return true;
+    const bool peerWritable = _destinationContext && _destinationContext->IsPeerWritable();
+    if (_peer)
+        _peer->setEnabled(peerWritable);
     const QString path = _pathEdit->text();
     const QString preview = PreviewDestination(path);
     const QFileInfo destination(preview);
     const bool directory =
         !path.isEmpty() &&
         (path.endsWith('/') || path.endsWith(QDir::separator()) || destination.isDir());
+    const bool needsDirectory = directory || _sources.size() > 1;
+    const bool peerDestination =
+        _destinationContext &&
+        (_destinationContext->PeerIsArchive
+             ? CopyPathMatchesArchivePanel(preview, _destinationContext->PeerDestination)
+             : (!_destinationContext->PeerIsFilesystem || needsDirectory) &&
+                   SameDirectory(preview, _destinationContext->PeerDestination));
     const bool nameAvailable = _destinationContext && _name && directory &&
+                               !(peerDestination && _destinationContext->PeerIsArchive) &&
                                _destinationContext->CanRename &&
                                _destinationContext->CanRename(path);
     if (_name) {
@@ -139,33 +203,98 @@ void CCopyDialog::UpdateDestination() {
         _nameLabel->setVisible(nameAvailable);
     }
     _useName = nameAvailable && _name->text() != _destinationContext->SourceName;
+    const bool filesystemDestination = !peerDestination || _destinationContext->PeerIsFilesystem;
+    const bool localTransfer =
+        _destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination;
+    const QString draft = PreviewDestination(DraftDestination());
+    const QString directoryError =
+        path.isEmpty() || path.contains(QChar::Null) || !filesystemDestination
+            ? QString()
+            : DestinationDirectoryError(destination, needsDirectory);
+    bool linkedTransferDirectory = false;
+    if (localTransfer && directoryError.isEmpty() && !path.isEmpty() &&
+        !path.contains(QChar::Null)) {
+        const QFileInfo transferDirectory(
+            needsDirectory && !_useName ? preview : QFileInfo(draft).absolutePath());
+        linkedTransferDirectory = transferDirectory.isSymLink() || transferDirectory.isJunction();
+    }
     QString error;
+    bool batchConflict = false;
+    bool nameError = false;
     if (_sources.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
     else if (path.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Choose a destination."));
-    else if (path.contains(QChar::Null))
+    else if (path.contains(QChar::Null) ||
+             (filesystemDestination && !IsValidWindowsPath(path, preview)))
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
-    else if (nameAvailable && !IsName(_name->text()))
+    else if (nameAvailable && !IsName(_name->text(), preview)) {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
-    else if (destination.isDir() && !destination.isWritable())
+        nameError = true;
+    } else if (!directoryError.isEmpty())
+        error = directoryError;
+    else if (peerDestination && !peerWritable)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
-    else if (_destinationContext && !_destinationContext->PeerWritable &&
-             !_destinationContext->PeerDestination.isEmpty() &&
-             SameDirectory(preview, _destinationContext->PeerDestination))
-        error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
+    else if (linkedTransferDirectory)
+        error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
     else if (_destinationContext && !_useName &&
-             SameDirectory(preview, _destinationContext->SourceDirectory))
+             (SameDirectory(preview, _destinationContext->SourceDirectory) ||
+              (localTransfer && needsDirectory &&
+               SameExistingPath(destination, QFileInfo(_destinationContext->SourceDirectory)))))
         error = Text(
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
     else if (_sources.size() == 1 &&
-             CompareFileNames(ToUString(PreviewDestination(DraftDestination())),
-                              ToUString(_sources.first())) == 0)
+             (CompareFileNames(ToUString(draft), ToUString(_sources.first())) == 0 ||
+              (localTransfer && (!needsDirectory || _useName) &&
+               !QtIsFileSystemLink(_sources.first()) &&
+               SameExistingPath(QFileInfo(_sources.first()), QFileInfo(draft))))) {
         error = Text(
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
-    _canAccept = error.isEmpty();
+        nameError = _useName;
+    } else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
+               (!peerDestination || _destinationContext->PeerIsFilesystem) &&
+               _destinationContext->IsInsideSourceDirectory(draft))
+        error = QCoreApplication::translate("qtfiletransfertransaction",
+                                            "Destination is inside the source folder: %1")
+                    .arg(draft);
+    else if (localTransfer && (_sources.size() == 1 || checkBatch)) {
+        // Check a batch on submit so editing the path does not stat every item.
+        const QDir targetDirectory(preview);
+        QSet<QString> targets;
+        for (const auto &sourcePath : _sources) {
+            const QFileInfo source(sourcePath);
+            const QFileInfo target(
+                needsDirectory && !_useName ? targetDirectory.filePath(source.fileName()) : draft);
+            if (targets.contains(QtTransferTargetKey(target.filePath())))
+                error =
+                    QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Multiple items would use the same destination: %1")
+                        .arg(target.filePath());
+            else if (QtIsFileSystemLink(target.filePath()))
+                error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                    "Destination is a symbolic link: %1")
+                            .arg(target.filePath());
+            else if (target.exists() && target.isDir() != source.isDir())
+                error = QCoreApplication::translate(
+                            "qtfiletransfertransaction",
+                            "Cannot replace a file with a folder or a folder with a file: %1")
+                            .arg(target.filePath());
+            if (!error.isEmpty()) {
+                batchConflict = _sources.size() > 1;
+                nameError = _useName;
+                break;
+            }
+            targets.insert(QtTransferTargetKey(target.filePath()));
+        }
+    }
+    // A batch conflict can be removed outside the dialog. Keep OK available
+    // so the same destination can be checked again without editing the path.
+    _canSubmit = error.isEmpty() || batchConflict;
+    if (correctionField)
+        *correctionField = nameError ? _name : _pathEdit;
     _destinationMessage->setText(error);
     _destinationMessage->setVisible(!error.isEmpty());
     if (auto *buttons = findChild<QDialogButtonBox *>("copyButtons"))
-        buttons->button(QDialogButtonBox::Ok)->setEnabled(_canAccept);
+        buttons->button(QDialogButtonBox::Ok)->setEnabled(_canSubmit);
+    return error.isEmpty();
 }

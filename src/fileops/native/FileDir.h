@@ -82,6 +82,7 @@ bool MyMoveFile_NoReplace(CFSTR oldFile, CFSTR newFile);
 // published records replacement even if later temporary-file cleanup fails.
 bool MyPublishFile_with_Progress(CFSTR oldFile, CFSTR newFile, ICopyFileProgress *progress,
                                  bool replaceExisting, bool *published = nullptr);
+bool MyPublishExtractedReplacement(CFSTR stagedFile, CFSTR destination);
 
 #ifndef UNDER_CE
 bool MyCreateHardLink(CFSTR newFileName, CFSTR existFileName);
@@ -130,11 +131,11 @@ class CTempFile MY_UNCOPYABLE {
     bool _mustBeDeleted;
     FString _path;
     std::shared_ptr<QtOwnedTempLease> _ownedLease;
-    void DisableDeleting() { _mustBeDeleted = false; }
 
   public:
     CTempFile() : _mustBeDeleted(false) {}
     ~CTempFile() { Remove(); }
+    void DisableDeleting() { _mustBeDeleted = false; }
     const FString &GetPath() const Z7_lifetimebound { return _path; }
     bool Create(CFSTR pathPrefix, NIO::COutFile *outFile); // pathPrefix is not folder prefix
     const std::shared_ptr<QtOwnedTempLease> &OwnedLease() const { return _ownedLease; }

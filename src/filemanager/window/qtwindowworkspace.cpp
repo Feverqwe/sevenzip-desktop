@@ -43,13 +43,44 @@ QtWindowWorkspace::QtWindowWorkspace(MainWindow &window) : QObject(&window), win
     }
 }
 
-void QtWindowWorkspace::SetBookmark(unsigned index, const UString &path) {
-    fastFolders_->Set(index, path);
+void QtWindowWorkspace::SetBookmark(unsigned index) {
+    auto &source = window_.app_.GetFocusedPanel();
+    source.LoadFullPath();
+    fastFolders_->Set(index, source.GetCurrentFolderPrefix(), QtNativePlaces::RootIdentity(source));
 }
 
-bool QtWindowWorkspace::Ready() const {
+void QtWindowWorkspace::OpenBookmark(unsigned index) {
+    const UString stored = CPanel::OpenBookmark(window_.app_.AppState.FastFolders, index);
+    const QString path = ToQString(stored);
+    const QString identity = fastFolders_->NativeIdentity(index, stored);
+    const unsigned panel = window_.projectedPanel_;
+    NavigateToList([&] {
+        if (identity.isEmpty())
+            return window_.navigateTo(window_.sourcePathFromDisplayPath(path), true);
+        const HRESULT result = OpenRecordedLocation(panel, path, identity, {});
+        if (result != S_OK && result != E_ABORT)
+            ReportNavigationFailure(tr("Location unavailable: %1").arg(path));
+        return result;
+    });
+}
+
+CFastFolders QtWindowWorkspace::BookmarkDisplayPaths() {
+    auto paths = window_.app_.AppState.FastFolders;
+    nativePlaces_->Refresh();
+    for (unsigned index = 0; index < 10; ++index) {
+        const QString identity = fastFolders_->NativeIdentity(index, paths.GetString(index));
+        if (identity == "locations")
+            paths.SetString(index, ToUString(tr("Locations")));
+        else if (const auto place = nativePlaces_->FindIdentity(identity); place.isValid())
+            paths.SetString(index, ToUString(place.data(QtPlaceRoles::Path).toString()));
+    }
+    return paths;
+}
+
+bool QtWindowWorkspace::Ready(bool allowSourceCall) const {
     return !changing_ && !window_.app_.QtOperations().closed() &&
-           !window_.app_.QtOperations().active() && !window_.app_.QtOperations().callActive() &&
+           !window_.app_.QtOperations().active() &&
+           (allowSourceCall || !window_.app_.QtOperations().callActive()) &&
            !window_.sourceArchiveProgress_ && !QApplication::activeModalWidget() &&
            !window_.backend_->busy() && (!window_.drag_ || !window_.drag_->Active()) &&
            (!window_.appPresentation_ || !window_.appPresentation_->IsCopyPending());
@@ -73,6 +104,7 @@ void QtWindowWorkspace::Capture(unsigned panel, bool retainView) {
         locationState.archiveApplied = locationState.archiveRevision;
     if (!window_.panelUi_[panel].locationUnavailable && source.ShouldProcessNotifications()) {
         locationState.unavailable = false;
+        locationState.diskFolder = source.IsFSFolder();
         source.LoadFullPath();
         locationState.path = ToQString(source.GetCurrentFolderPrefix());
         locationState.nativePlaceIdentity = QtNativePlaces::RootIdentity(source);

@@ -1,5 +1,124 @@
 # Location history and address presentation — 2026-10-31
 
+## Canceling password entry for an archive favorite — 2026-11-07
+
+The Qt favorite action uses the native archive binding and password result.
+Canceling leaves the current folder, selection and history available. A
+subsequent attempt can open the same favorite. A failed open still presents
+the unavailable-location notice.
+
+Linux workspace archive, places and history checks passed. A real encrypted
+fixture verified cancel, retry with the password and extraction of the
+original payload.
+
+## Back from an unavailable favorite — 2026-11-07
+
+Reviewed the original folder-history selection and binding flow. Back and
+Forward are Qt workspace commands. The unavailable-favorite notice now lets
+Back return to the last open location, including a directory in the retained
+archive reader. The failed destination does not become a history entry, and
+ordinary Back and Forward are available after returning.
+
+Linux workspace places, history, session and recent places passed. The cases
+cover returning before the first explicit visit, preserving an existing
+Forward branch and restoring a previously open archive subfolder.
+
+## Window commands when a location cannot be opened — 2026-11-07
+
+Reviewed the original main-window command dispatch and root, bookmark and
+settings handlers. The Qt unavailable-location notice permits opening the
+drive list, opening a numbered bookmark and changing settings. List reloads
+do not publish the retained folder behind the notice. A successful root or
+bookmark transition restores the normal file view and command availability.
+
+Linux workspace-place and settings checks passed, including applying settings
+in an unavailable pane, opening a bookmark immediately afterward, leaving via
+the drive list and retrying the original location. Workspace session, root
+commands and shared numbered bookmarks also passed in the preceding batch.
+
+## Numeric bookmarks for system places across languages — 2026-11-07
+
+Reviewed the original PanelFolderChange.cpp bookmark save/open bodies,
+MyLoadMenu.cpp bookmark captions and RootFolder.cpp name binding. The Qt
+numbered bookmark store retains the native path value and records a system
+place identity when available. System bookmarks resolve through the shared
+native places model so the destination and menu caption follow the active
+language. Path-only settings retain native binding and fallback behavior.
+
+Linux checks covered saving in one window, opening in another after changing
+language, reloading persisted settings and replacing the slot with a regular
+directory. Existing bookmarks, root commands, workspace places and recent
+places also passed.
+
+## Diagnostics for a rejected address — 2026-11-07
+
+Reviewed the recorded address Enter, native BindToPath and RefreshListCtrl
+flow. The Qt navigation request publishes its path diagnostic after rollback
+and list restoration. Cancellation and the native fallback to an existing
+ancestor retain their results. The native binder and archive opening are
+unchanged.
+
+Linux address navigation, address lifetime, workspace history and filesystem
+reload checks passed. Address coverage includes a failed and canceled read
+of a typed archive subfolder, the editable draft and a subsequent transition.
+
+## Recent-place failure after changing panels — 2026-11-07
+
+Reviewed the original PanelFolderChange.cpp history selection and bind flow.
+The Qt recent-place menu uses that binding boundary and can complete a folder
+read in the background. Failure feedback now belongs to the initiating pane
+and appears when that pane is active. The other pane keeps its own feedback.
+There is no change to the native binding or saved history.
+
+Linux recent-place and main-shell checks passed. The recent-place regression
+switches panels during the background scan, forces a read failure, verifies
+both status contexts and retries the same entry successfully.
+
+## Back and Forward to an unavailable location — 2026-11-07
+
+Reviewed the recorded PanelFolderChange.cpp binding, refresh and folder-history
+callers. The native binder can fall back to an existing parent. The Qt
+Back/Forward workspace already requires the recorded destination to match.
+It now reports the unavailable destination after rolling back to the current
+folder. Completing a background list rebuild preserves newer status feedback.
+The native binder and original folder-history dialog retain their behavior.
+
+Linux history checks covered Back and Forward to a deleted directory, including
+background restoration of the current list, retained selection and successful
+retry. Existing archive cancellation, workspace navigation, root commands,
+filesystem and archive reload, and recent-place checks passed.
+
+## Address editing while applying a language change — 2026-11-07
+
+Compared the recorded OptionsDialog.cpp and App.cpp language-apply and
+panel-refresh flow with the Qt settings and address owners. Qt updates the
+bound namespace label without replacing an unsubmitted edit. Applying list
+settings still reloads the bound folders and keeps the address editor intact.
+Namespace operations use the provider path even when the editor contains a
+draft. No upstream source import or revision change.
+
+On Linux, both live-language cases passed, including saving through Options
+with a backwards selection in an address. The options dialog, panel address
+keys, filesystem reload and quick archive reload suites passed. The full
+root-command suite timed out on its earlier Back-history expectation, so its
+language cases were run directly with the same built QtTest executable.
+
+## Address retry after a deferred read failure — 2026-11-07
+
+Reviewed original Panel.cpp address Enter and PanelFolderChange.cpp binding
+against the existing 7-Zip baseline and the Qt address, filesystem publication
+and workspace rollback owners. The original requests list focus after a
+successful synchronous bind. After a deferred failure rolls back the source
+location, Qt restores the address draft, including edits made while the
+folder was loading, and returns editing focus to the initiating pane if it
+is still current. The native binding and
+error result are unchanged. No source import or baseline revision changes.
+
+Focused Linux checks passed for filesystem reload, address navigation,
+address lifetime and workspace navigation. The filesystem worker failure
+cases check the diagnostic, restored location, address and caret, and a retry
+using keyboard focus in either pane.
+
 ## Display-address return to directory archive packages — 2026-11-05
 
 Reviewed native address Enter/BindToPath, the current source/display conversion,

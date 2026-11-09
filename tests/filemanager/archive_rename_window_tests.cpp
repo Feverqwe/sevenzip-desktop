@@ -158,6 +158,8 @@ class ArchiveRenameWindowTests final : public QObject, protected MainWindowTestS
         QVERIFY2(message.isEmpty(), qPrintable(message));
         QCOMPARE(view->rowCount(), 1);
         QCOMPARE(view->model()->index(0, 0).data(Qt::UserRole + 3).toString(), directory);
+        QCOMPARE(view->currentRow(), 0);
+        QVERIFY(view->selectionModel()->isRowSelected(0, {}));
         QCOMPARE(view->sourcePanel->GetFolder(), provider.Interface());
         QCOMPARE(view->sourcePanel->GetCurrentFolderPrefix(), prefix);
         QCOMPARE(ExternalEditorFixture::contents(archive, renamed + (folder ? "/item.txt" : "")),
@@ -175,7 +177,7 @@ class ArchiveRenameWindowTests final : public QObject, protected MainWindowTestS
 
     void unsafeArchiveRenameKeepsOriginal_data() {
         QTest::addColumn<QString>("kind");
-        for (const char *kind : {"parent", "absolute", "embedded-null"})
+        for (const char *kind : {"parent", "absolute", "embedded-null", "empty"})
             QTest::newRow(kind) << QString::fromLatin1(kind);
     }
     void unsafeArchiveRenameKeepsOriginal() {
@@ -214,13 +216,16 @@ class ArchiveRenameWindowTests final : public QObject, protected MainWindowTestS
                 }
         });
         responder.start(2);
-        editor->setText(kind == "absolute"        ? sentinel
+        editor->setText(kind == "empty"           ? QString()
+                        : kind == "absolute"      ? sentinel
                         : kind == "embedded-null" ? QString("truncated.txt") + QChar::Null + "tail"
                                                   : QString("../escape.txt"));
         QTest::keyClick(editor, Qt::Key_Return);
         QTimer::singleShot(5000, &completion, &QEventLoop::quit);
         completion.exec();
         QVERIFY(!message.isEmpty());
+        if (kind == "empty")
+            QCOMPARE(message, ToQString(HResultToMessage(E_INVALIDARG)));
         QCOMPARE(ExternalEditorFixture::read(archive), archiveBytes);
         QCOMPARE(ExternalEditorFixture::read(sentinel), QByteArray("sentinel"));
         QCOMPARE(ExternalEditorFixture::read(fixture.filePath(original)), QByteArray("control"));

@@ -40,8 +40,11 @@ class FsProviderCommandTests final : public QObject, protected MainWindowTestSup
             QApplication::processEvents();
             QVERIFY(UiInspection::fullyVisible(source, window));
             QVERIFY(UiInspection::fullyVisible(peer, window));
-            for (auto *address : window.findChildren<QLineEdit *>("archivePath"))
-                QVERIFY(UiInspection::fullyVisible(*address, window));
+            for (unsigned pane : {0u, 1u}) {
+                auto *navigation =
+                    window.findChild<QWidget *>(QString("panelNavigation%1").arg(pane));
+                QVERIFY(navigation && UiInspection::fullyVisible(*navigation, window));
+            }
             QVERIFY(UiInspection::writeReport(
                 window,
                 QString("fs-provider-%1-%2x%3").arg(tag).arg(size.width()).arg(size.height())));

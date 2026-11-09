@@ -212,7 +212,15 @@ class UiUpdateModesTests final : public QObject, protected MainWindowTestSupport
         file.close();
         ArchiveBackend backend;
         QSignalSpy finished(&backend, &ArchiveBackend::finished);
-        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        const QString unselected = fixture.filePath(QStringLiteral("не выбран.txt"));
+        QFile untouched(unselected);
+        QVERIFY(untouched.open(QIODevice::WriteOnly));
+        QCOMPARE(untouched.write("archived only"), qint64(13));
+        QVERIFY(untouched.flush());
+        QVERIFY(untouched.setFileTime(entryTime.addDays(-1), QFileDevice::FileModificationTime));
+        untouched.close();
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source, unselected}));
+        QVERIFY(untouched.remove());
         QFile archiveFile(archive);
         QVERIFY(archiveFile.open(QIODevice::ReadWrite));
         QVERIFY(archiveFile.setFileTime(entryTime.addDays(1), QFileDevice::FileModificationTime));
@@ -259,7 +267,7 @@ class UiUpdateModesTests final : public QObject, protected MainWindowTestSupport
         });
         create.exec();
         if (create.result() == QDialog::Accepted)
-            QCOMPARE(SourceCreationFixture::Create(backend, archive, create.sources(),
+            QCOMPARE(SourceCreationFixture::Create(backend, create.target(), create.sources(),
                                                    create.password(), create.encryptHeaders(),
                                                    create.compressionOptions()),
                      S_OK);
@@ -273,6 +281,9 @@ class UiUpdateModesTests final : public QObject, protected MainWindowTestSupport
         QFile updated(QDir(extracted).filePath(QStringLiteral("source file.txt")));
         QVERIFY(updated.open(QIODevice::ReadOnly));
         QCOMPARE(updated.readAll(), QByteArray(freshenUnchanged ? "old bytes" : "new bytes"));
+        QFile retained(QDir(extracted).filePath(QFileInfo(unselected).fileName()));
+        QVERIFY(retained.open(QIODevice::ReadOnly));
+        QCOMPARE(retained.readAll(), QByteArray("archived only"));
         QByteArray listing;
         QVERIFY(runEngine(fixture.path(), {"l", "-slt", "-sccUTF-8", "--", archive}, &listing));
         if (!freshenUnchanged)

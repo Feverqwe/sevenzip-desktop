@@ -10,12 +10,15 @@
 #include "dialogs/copy/CopyDialog.h"
 #include "filemanager/App.h"
 #include "filemanager/panels/PanelInfo.h"
+#include "filemanager/providers/FSFolder.h"
+#include "fileops/links/qtlinkservices.h"
 #include "fileops/native/FileDir.h"
 #include "fileops/patterns/Wildcard.h"
 #include "settings/ViewSettings.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QScopedValueRollback>
 
 struct CApp::CopyRequest {
@@ -25,9 +28,35 @@ struct CApp::CopyRequest {
     const unsigned Destination;
     const bool Move;
     const bool CopyToSame;
+    UString SourcePath;
+    UString DestinationPath;
     CSelectedState SourceSelection;
     CSelectedState DestinationSelection;
 };
+
+static bool IsInsideCopySource(const QStringList &directories, const QString &destination) {
+    QString path = QDir::cleanPath(QDir::fromNativeSeparators(destination));
+    for (const QString &directory : directories)
+        if (NFsFolder::IsDestChild(directory, path))
+            return true;
+
+    // An existing ancestor can lead into a source through a directory alias
+    // even when the destination itself does not exist yet.
+    for (;;) {
+        const QFileInfo info(path);
+        const QString canonical = info.canonicalFilePath();
+        if (!canonical.isEmpty()) {
+            for (const QString &directory : directories)
+                if (NFsFolder::IsDestChild(directory, canonical))
+                    return true;
+            return false;
+        }
+        const QString parent = info.absolutePath();
+        if (parent == path)
+            return false;
+        path = parent;
+    }
+}
 
 // Reduces path to the part that exists on disk (or the root prefix).
 // The source helper normalizes the result with WCHAR_PATH_SEPARATOR.
@@ -94,10 +123,21 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     FOR_VECTOR(i, indices)
     sourcePaths << ToQString(srcPanel.GetItemFullPath(indices[i]));
     const bool renameSource = srcPanel.IsFSFolder() || srcPanel.IsAltStreamsFolder();
-    const bool peerWritable = NumPanels == 2 && destPanel.DoesItSupportOperations() &&
-                              !destPanel.IsThereReadOnlyFolder() && !destPanel.IsRootFolder() &&
-                              !destPanel.IsFSDrivesFolder();
-    if ((copyToSame && renameSource) || (!copyToSame && NumPanels == 2 && !peerWritable)) {
+    const bool peerAvailable =
+        NumPanels == 2 && _presentation->IsCopyDestinationAvailable(destPanelIndex);
+    const UString peerPath = peerAvailable ? destPanel.GetFsPath() : UString();
+    QtCopyDestinationContext destinationContext;
+    if (NumPanels == 2)
+        destinationContext.PeerDestination =
+            peerAvailable ? ToQString(peerPath) : QStringLiteral("");
+    destinationContext.PeerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
+    destinationContext.LocalFileTransfer = srcPanel.IsFSFolder();
+    destinationContext.PeerSupportsWriting = peerAvailable && destPanel.DoesItSupportOperations() &&
+                                             !destPanel.IsThereReadOnlyFolder() &&
+                                             !destPanel.IsRootFolder() &&
+                                             !destPanel.IsFSDrivesFolder();
+    if ((copyToSame && renameSource) ||
+        (!copyToSame && NumPanels == 2 && !destinationContext.IsPeerWritable())) {
         destPath = srcPanel.GetFsPath();
         if (!copyToSame)
             Reduce_Path_To_RealFileSystemPath(destPath);
@@ -111,18 +151,32 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         totals.filesSize == unknown || totals.foldersSize == unknown
             ? std::nullopt
             : std::optional<quint64>(totals.filesSize + totals.foldersSize));
-    QtCopyDestinationContext destinationContext;
     destinationContext.SourceDirectory = ToQString(srcPanel.GetFsPath());
     destinationContext.RelativeBase = ToQString(srcPanel.GetFsPath());
     if (indices.Size() == 1)
         destinationContext.SourceName = ToQString(srcPanel.GetItemName(indices[0]));
-    if (NumPanels == 2) {
-        destinationContext.PeerDestination = ToQString(destPanel.GetFsPath());
-        destinationContext.PeerWritable = peerWritable;
+    const bool peerIsArchive = NumPanels == 2 && destPanel.IsArcFolder();
+    destinationContext.PeerIsArchive = peerIsArchive;
+    if (srcPanel.IsFSFolder()) {
+        QStringList directories;
+        for (const QString &path : sourcePaths) {
+            const QFileInfo source(path);
+            if (!source.isDir() || QtIsFileSystemLink(path))
+                continue;
+            const QString absolute = QDir::cleanPath(source.absoluteFilePath());
+            directories.append(absolute);
+            const QString canonical = source.canonicalFilePath();
+            if (!canonical.isEmpty() && canonical != absolute)
+                directories.append(canonical);
+        }
+        if (!directories.isEmpty())
+            destinationContext.IsInsideSourceDirectory = [directories](const QString &path) {
+                return IsInsideCopySource(directories, path);
+            };
     }
-    const UString peerPath = NumPanels == 2 ? destPanel.GetFsPath() : UString();
-    const bool peerIsFilesystem = NumPanels == 2 && destPanel.IsFSFolder();
-    destinationContext.CanRename = [renameSource, peerPath, peerIsFilesystem](const QString &path) {
+    destinationContext.CanRename = [renameSource, peerPath,
+                                    peerIsFilesystem =
+                                        destinationContext.PeerIsFilesystem](const QString &path) {
         const UString native = ToUString(path);
         bool alternate = false;
 #ifdef _WIN32
@@ -160,8 +214,11 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         }
 #endif
 
+    if (peerIsArchive && CopyPathMatchesArchivePanel(ToQString(destPath), ToQString(peerPath)))
+        destPath = peerPath;
     bool possibleToUseDestPanel = false;
-    if (CompareFileNames(destPath, destPanel.GetFsPath()) == 0) {
+    if ((NumPanels == 1 || _presentation->IsCopyDestinationAvailable(destPanelIndex)) &&
+        CompareFileNames(destPath, destPanel.GetFsPath()) == 0) {
         if (NumPanels == 1 || CompareFileNames(destPath, srcPanel.GetFsPath()) == 0) {
             srcPanel.MessageBox_Error(QtDiagnosticText(
                 QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot copy files onto itself")));
@@ -188,6 +245,8 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         } else
 #endif
         {
+            destPath =
+                ToUString(QDir::toNativeSeparators(NormalizeCopyDestination(ToQString(destPath))));
             if (indices.Size() == 1 && !destPath.IsEmpty() && !IsPathSepar(destPath.Back())) {
                 const int pos = destPath.ReverseFind_PathSepar();
                 if (pos < 0) {
@@ -220,9 +279,7 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
 
     // Qt filesystem execution consumes portable slashes; classification above
     // retains the source path and provider rules before this string boundary.
-    QString output = QDir::cleanPath(ToQString(destPath));
-    if (!destPath.IsEmpty() && IsPathSepar(destPath.Back()) && !output.endsWith('/'))
-        output += '/';
+    const QString output = NormalizeCopyDestination(ToQString(destPath));
 
     const bool useSrcPanel = !useDestPanel || !srcPanel.Is_IO_FS_Folder();
     const bool useTemp = useSrcPanel && useDestPanel;
@@ -231,8 +288,12 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
         return;
     }
     auto request = std::make_shared<CopyRequest>(srcPanelIndex, destPanelIndex, move, copyToSame);
+    request->SourcePath = srcPanel.GetCurrentFolderPrefix();
+    request->DestinationPath = destPanel.GetCurrentFolderPrefix();
     srcPanel.SaveSelectedState(request->SourceSelection);
     destPanel.SaveSelectedState(request->DestinationSelection);
+    request->SourceSelection.PreserveAddress = true;
+    request->DestinationSelection.PreserveAddress = true;
     // Keep the original RefreshListCtrl caller and its saved state across the
     // asynchronous presentation boundary. OnCopy ignores reload HRESULTs.
     _copyRequest = std::move(request);
@@ -247,25 +308,30 @@ void CApp::OnCopy(bool move, bool copyToSame, unsigned srcPanelIndex) {
     _presentation->ExecuteCopy(move, copyToSame, srcPanelIndex, output, indices, route);
 }
 
-void CApp::CompleteCopy() {
+void CApp::CompleteCopy(bool preserveSourceSelection, bool restoreSourceFocus) {
     auto request = std::move(_copyRequest);
     if (!request || _qtOperations.closed())
         return;
     // The original post-operation body runs after Qt publishes both panels.
     CPanel &srcPanel = Panels[request->Source];
     CPanel &destPanel = Panels[request->Destination];
+    const bool sameSource = srcPanel.GetCurrentFolderPrefix() == request->SourcePath;
+    const bool sameDestination = destPanel.GetCurrentFolderPrefix() == request->DestinationPath;
     CPanel::CDisableNotify disableNotify1(destPanel);
     CPanel::CDisableNotify disableNotify2(srcPanel);
     RefreshTitleAlways();
-    if (request->CopyToSame || request->Move)
+    if (sameSource && (request->CopyToSame || request->Move || preserveSourceSelection))
         srcPanel.RestoreLoadedSelection(request->SourceSelection);
     if (!request->CopyToSame) {
-        destPanel.RestoreLoadedSelection(request->DestinationSelection);
-        srcPanel.KillSelection();
+        if (sameDestination)
+            destPanel.RestoreLoadedSelection(request->DestinationSelection);
+        if (sameSource && !preserveSourceSelection)
+            srcPanel.KillSelection();
     }
     disableNotify1.Restore();
     disableNotify2.Restore();
-    srcPanel.SetFocusToList();
+    if (sameSource && restoreSourceFocus)
+        srcPanel.SetFocusToList();
 }
 
 bool CApp::RefreshCopyPanel(unsigned index) {
@@ -273,9 +339,10 @@ bool CApp::RefreshCopyPanel(unsigned index) {
     if (!request || _qtOperations.closed() || index >= kNumPanelsMax)
         return false;
     // Synchronous publication can re-enter completion and release the owner.
-    if (index == request->Source)
+    if (index == request->Source && Panels[index].GetCurrentFolderPrefix() == request->SourcePath)
         Panels[index].RefreshListCtrl(request->SourceSelection);
-    else if (index == request->Destination)
+    else if (index == request->Destination &&
+             Panels[index].GetCurrentFolderPrefix() == request->DestinationPath)
         Panels[index].RefreshListCtrl(request->DestinationSelection);
     return true;
 }
@@ -308,6 +375,7 @@ QtArchiveTransferResult CApp::CopyArchiveToArchive(unsigned srcPanelIndex,
     QtArchiveExtractReport report;
     report.Purpose = QtArchiveExtractPurpose::ArchiveStaging;
     HRESULT result = srcPanel.CopyTo(options, indices, messages, &report);
+    bool published = false;
     if (result == S_OK && report.HadErrors)
         result = E_FAIL;
 
@@ -340,7 +408,8 @@ QtArchiveTransferResult CApp::CopyArchiveToArchive(unsigned srcPanelIndex,
         std::optional<QScopedValueRollback<std::optional<QtArchiveTransferInputs>>> transferInputs;
         if (resource)
             transferInputs.emplace(resource->TransferInputs(), inputs);
-        result = destPanel.CopyFrom(false, fs2us(tempDirPrefix), filePaths, false, messages);
+        result = destPanel.CopyFrom(false, fs2us(tempDirPrefix), filePaths, false, messages,
+                                    nullptr, std::nullopt, &published);
     }
-    return {result, {}};
+    return {result, {}, published};
 }

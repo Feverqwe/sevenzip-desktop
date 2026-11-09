@@ -19,6 +19,7 @@
 #include "operations/CompressCall.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QEvent>
 #include <QMessageBox>
 #include <QTimer>
@@ -265,16 +266,12 @@ void CPanel::AddToArchive(IQtCompressCallServices &services) {
                                               false,   // isHash
                                               nullptr, // CFileInfo *fi
                                               baseName);
-    const HRESULT res = services.CompressSelection(destCurDirPrefix, arcName, L"",
-                                                   true, // addExtension
-                                                   names,
-                                                   false,  // email
-                                                   true,   // showDialog
-                                                   false); // waitFinish
-    if (res != S_OK) {
-        if (destCurDirPrefix.Len() >= MAX_PATH)
-            MessageBox_Error_LangID(IDS_MESSAGE_UNSUPPORTED_OPERATION_FOR_LONG_PATH_FOLDER);
-    }
+    services.CompressSelection(destCurDirPrefix, arcName, L"",
+                               true, // addExtension
+                               names,
+                               false,  // email
+                               true,   // showDialog
+                               false); // waitFinish
     // KillSelection();
 }
 
@@ -378,6 +375,14 @@ void CPanel::TestArchives(IQtCompressCallServices *services) {
         options.streamMode = true;
         options.showErrorMessages = true;
         options.testMode = true;
+        UInt32 folderItems = 0;
+        const char *scope = QT_TRANSLATE_NOOP("ArchiveTest", "Scope: selected items");
+        if (_folder->GetNumberOfItems(&folderItems) == S_OK && indices.Size() == folderItems) {
+            scope = GetFolderPath(_folder).IsEmpty()
+                        ? QT_TRANSLATE_NOOP("ArchiveTest", "Scope: entire archive")
+                        : QT_TRANSLATE_NOOP("ArchiveTest", "Scope: current folder");
+        }
+        options.TestScope = ToUString(QCoreApplication::translate("ArchiveTest", scope));
 
         UStringVector messages;
         HRESULT res = CopyTo(options, indices, &messages);

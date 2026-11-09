@@ -8,7 +8,7 @@
 #include <QScopedValueRollback>
 
 HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourceAlreadyBound,
-                                  bool updateAddress) {
+                                  bool updateAddress, bool refreshing) {
     if (app_.QtOperations().closed())
         return E_ABORT;
     QtAppOperationState::CallScope call(app_.QtOperations());
@@ -21,12 +21,17 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
         return E_FAIL;
     }
     const QString next = info.canonicalFilePath();
+    auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
+    const auto previous = snapshot.constFind(next);
+    if (projectedUi().state != State::Filesystem || projectedUi().directory != next ||
+        (previous != snapshot.cend() && !previous->directory))
+        clearStatusMessage();
     Q_UNUSED(remember);
     cancelListPublication();
+    projectedUi().refreshingDisk = refreshing;
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     projectedUi().directory = next;
-    auto &snapshot = panelUi_[projectedPanel_].autoRefreshSnapshot;
     snapshot.clear();
     snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
     projectedUi().archive.clear();
@@ -49,6 +54,12 @@ HRESULT MainWindow::navigateTo(const QString &path, bool sourceAddress) {
     return workspace_->Navigate([&] { return navigateToImpl(path, sourceAddress); });
 }
 
+QString MainWindow::resolveFilesystemAddress(const QString &path) const {
+    if (!path.isEmpty() && projectedUi().state == State::Filesystem && QDir::isRelativePath(path))
+        return QDir(projectedUi().directory).filePath(path);
+    return path;
+}
+
 HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
     if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
         return E_ABORT;
@@ -58,12 +69,16 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
         return S_OK;
     // A typed relative address belongs to the displayed filesystem folder.
     // CPanel::BindToPath still resolves the resulting native path.
-    const QString nativeAddress =
-        !sourceAddress && projectedUi().state == State::Filesystem && QDir::isRelativePath(path)
-            ? QDir(projectedUi().directory).filePath(path)
-            : path;
+    const QString nativeAddress = sourceAddress ? path : resolveFilesystemAddress(path);
     const QFileInfo info(nativeAddress);
     if (!sourceAddress && info.isDir() && !IsSparseBundleName(ToUString(nativeAddress))) {
+        auto &panel = app_.GetFocusedPanel();
+        if (projectedUi().state == State::Filesystem && !projectedUi().scanningDisk &&
+            panel.IsFSFolder() && info.canonicalFilePath() == projectedUi().directory) {
+            CSelectedState selection;
+            panel.SaveSelectedState(selection);
+            return refreshFilesystem(selection, true, captureListViewport());
+        }
         workspace_->ProtectNavigation(nativeAddress);
         return showDirectory(nativeAddress, true);
     } else if (!sourceAddress && IsArchiveFileOrPackage(info))
@@ -75,17 +90,19 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
         auto &panel = app_.GetFocusedPanel();
         workspace_->ProtectNavigation(nativePath);
         HRESULT result;
+        COpenResult opened;
         {
             QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
-            COpenResult opened;
             result = panel.BindToPath(ToUString(nativePath), UString(), opened);
         }
         const HRESULT rendered = renderBoundFolder();
         if (result == S_OK)
             result = rendered;
         if (result != S_OK && result != E_ABORT)
-            showStatusMessage(
-                QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
+            workspace_->ReportNavigationFailure(
+                opened.ErrorMessage.IsEmpty()
+                    ? QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path
+                    : ToQString(opened.ErrorMessage));
         return result;
     }
 }

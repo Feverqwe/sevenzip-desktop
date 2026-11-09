@@ -11,6 +11,8 @@
 #include "filemanager/qtfilemanagercommandservices.h"
 #include "localization/LangUtils.h"
 #include "settings/ViewSettings.h"
+#include <QDir>
+#include <QFileInfo>
 #include <QWidget>
 
 static const unsigned kParentIndex = (unsigned)(int)-1;
@@ -94,7 +96,8 @@ void CApp::NotifyPanelFocus(unsigned index) {
 }
 
 void CApp::RefreshTitle(bool always) {
-    if (_qtOperations.closed())
+    if (_qtOperations.closed() ||
+        (_presentation && !_presentation->AllowPanelTitleChange(GetFocusedPanelIndex())))
         return;
     UString path = GetFocusedPanel().GetCurrentFolderPrefix();
     if (path.IsEmpty())
@@ -117,6 +120,8 @@ void CApp::OnSetSameFolder(unsigned srcPanelIndex) {
         return;
     if (NumPanels <= 1)
         return;
+    if (_presentation && _presentation->OpenFolderInPeer(srcPanelIndex))
+        return;
     const CPanel &srcPanel = Panels[srcPanelIndex];
     CPanel &destPanel = Panels[1 - srcPanelIndex];
     if (_presentation)
@@ -138,6 +143,10 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
     const unsigned realIndex = srcPanel.GetRealItemIndex(focusedItem);
     if (!srcPanel.IsItem_Folder(realIndex))
         return;
+    const bool diskFolder = realIndex != kParentIndex && srcPanel.IsFSFolder();
+    if ((srcPanel.IsArcFolder() || diskFolder) && _presentation &&
+        _presentation->OpenFolderInPeer(srcPanelIndex, realIndex))
+        return;
 
     CMyComPtr<IFolderFolder> newFolder;
     if (realIndex == kParentIndex) {
@@ -146,6 +155,9 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
         if (!newFolder) {
             {
                 const UString parentPrefix = srcPanel.GetParentDirPrefix();
+                if (_presentation &&
+                    _presentation->OpenBoundFolderInPeer(srcPanelIndex, nullptr, parentPrefix))
+                    return;
                 COpenResult openRes;
                 if (_presentation)
                     _presentation->PrepareFolderChange(1 - srcPanelIndex);
@@ -159,6 +171,8 @@ void CApp::OnSetSubFolder(unsigned srcPanelIndex) {
             return;
     }
     if (!newFolder)
+        return;
+    if (_presentation && _presentation->OpenBoundFolderInPeer(srcPanelIndex, newFolder))
         return;
     if (_presentation)
         _presentation->PrepareFolderChange(1 - srcPanelIndex);
@@ -178,6 +192,11 @@ HRESULT CApp::CreateOnePanel(unsigned panelIndex, const UString &mainPath, const
     if (mainPath.IsEmpty()) {
         if (!ReadPanelPath(panelIndex, path, _settingsPath))
             path.Empty();
+        else if (!path.IsEmpty()) {
+            const QFileInfo saved(QDir::cleanPath(ToQString(path)));
+            if (saved.isFile())
+                path = ToUString(saved.absolutePath());
+        }
     } else
         path = mainPath;
     const unsigned id = 1000 + 100 * panelIndex; // check it

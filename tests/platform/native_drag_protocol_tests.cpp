@@ -45,7 +45,7 @@ class Target final : public IQtDropTargetPresentation {
     int FolderAtPoint(unsigned, int, int, UString &) const override { return -1; }
     void Highlight(unsigned, int, bool) override {}
     bool IsSameDrive(const UString &, const UStringVector &) const override { return true; }
-    UInt32 Drag_OnContextMenu(int, int, UInt32) override { return NDragMenu::k_Cancel; }
+    UInt32 Drag_OnContextMenu(int, int, UInt32, DWORD) override { return NDragMenu::k_Cancel; }
 };
 class DataTap final : public IDataObject {
     CMyComPtr<IDataObject> source_;
@@ -314,9 +314,21 @@ class NativeDragProtocolTests final : public QObject {
         CMyComPtr<IDataObject> data;
         QCOMPARE(CreatePanelDragDataObject(model, &data), S_OK);
         STGMEDIUM medium{};
+        auto unsupported = Format(CF_UNICODETEXT);
+        QCOMPARE(data->GetData(&unsupported, &medium), DV_E_FORMATETC);
+        QCOMPARE(model->Copy_HRESULT, S_OK);
+        QCOMPARE(medium.tymed, DWORD(TYMED_NULL));
+        const auto receiver = ReadPanelDragDataObject(data);
+        QVERIFY(receiver);
+        UInt32 flags = 0;
+        QVERIFY(receiver->ReadTransferFlags(flags));
+        QVERIFY(!(flags & k_SourceFlags_Copy_WasCalled));
+        QCOMPARE(model->Copy_HRESULT, S_OK);
         auto format = Format(CF_HDROP);
         QCOMPARE(data->GetData(&format, &medium), E_ABORT);
+        QCOMPARE(medium.tymed, DWORD(TYMED_NULL));
         QCOMPARE(model->Copy_HRESULT, E_ABORT);
+        QVERIFY(receiver->ReadTransferFlags(flags));
         QVERIFY(!model->Copy_WasCalled);
     }
 };

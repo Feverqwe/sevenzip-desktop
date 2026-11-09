@@ -377,6 +377,14 @@ bool CCompressDialog::OnButtonSetArchive(QWidget *parent, const BrowseFileHandle
 
 void CCompressDialog::SetArchiveName2() {
     UString fileName(m_ArchivePath.toStdWString().c_str());
+    UString draft = fileName;
+    draft.Trim();
+    const UString leaf(draft.Ptr(unsigned(draft.ReverseFind_PathSepar() + 1)));
+    if (m_ArchivePath.contains(QChar::Null) || leaf.IsEmpty() || leaf.IsEqualTo(".") ||
+        leaf.IsEqualTo("..")) {
+        m_PrevFormat = Info.FormatIndex;
+        return;
+    }
     if (ArcFormats && m_PrevFormat >= 0) {
         const CArcInfoEx &prevArchiverInfo = (*ArcFormats)[unsigned(m_PrevFormat)];
         if (prevArchiverInfo.Flags_KeepName() || Info.KeepName) {
@@ -396,9 +404,10 @@ void CCompressDialog::SetArchiveName(const QString &name) {
     Info.FormatIndex = (int)GetFormatIndex();
     const CArcInfoEx &ai = Get_ArcInfoEx();
     m_PrevFormat = Info.FormatIndex;
-    if (ai.Flags_KeepName())
-        fileName = OriginalFileName;
-    else if (!Info.KeepName) {
+    if (ai.Flags_KeepName()) {
+        fileName.DeleteFrom(unsigned(fileName.ReverseFind_PathSepar() + 1));
+        fileName += OriginalFileName;
+    } else if (!Info.KeepName) {
         const int dotPos = GetExtDotPos(fileName);
         if (dotPos >= 0)
             fileName.DeleteFrom(unsigned(dotPos));
@@ -465,6 +474,15 @@ bool CCompressDialog::GetFinalPath_Smart(QString &resPath) const {
     UString dirPrefx(DirPrefix.toStdWString().c_str());
     if (dirPrefx.IsEmpty())
         dirPrefx = StartDirPrefix.toStdWString().c_str();
+    else if (NWindows::NFile::NName::GetRootPrefixSize(dirPrefx) == 0 &&
+             NWindows::NFile::NName::GetRootPrefixSize(name) == 0) {
+        const UString start(StartDirPrefix.toStdWString().c_str());
+        FString directory;
+        if (!NWindows::NFile::NName::GetFullPath(start.IsEmpty() ? nullptr : us2fs(start).Ptr(),
+                                                 us2fs(dirPrefx), directory))
+            return false;
+        dirPrefx = fs2us(directory);
+    }
     const bool res =
         !dirPrefx.IsEmpty()
             ? NWindows::NFile::NName::GetFullPath(us2fs(dirPrefx), us2fs(name), fullPath)
@@ -517,14 +535,14 @@ void CCompressDialog::OnOK(NCompression::CInfo &registry) const {
     QString s;
     if (!GetFinalPath_Smart(s))
         return;
-    AddUniqueString(arcPaths, s);
+    AddUniqueArchivePath(arcPaths, s);
     registry.EncryptHeaders = EncryptHeaders;
     registry.ArcType = Format;
     registry.ShowPassword = ShowPassword;
     FOR_VECTOR(i, registry.ArcPaths) {
         if (arcPaths.Size() >= kHistorySize)
             break;
-        AddUniqueString(arcPaths, registry.ArcPaths[i]);
+        AddUniqueArchivePath(arcPaths, registry.ArcPaths[i]);
     }
     registry.ArcPaths = arcPaths;
 }

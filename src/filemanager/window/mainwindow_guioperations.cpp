@@ -3,6 +3,7 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
+#include "fileops/links/qtlinkservices.h"
 #include "operations/qtoperationlauncher.h"
 #include "operations/qtoperationregistry.h"
 #include "platform/temp/qtownedtempidentity.h"
@@ -10,10 +11,14 @@
 #include <QFileInfo>
 #include <algorithm>
 
-void MainWindow::ArchivePublished(const QString &archive) {
+void MainWindow::ArchivePublished(const QString &archive, const CPanel *updated) {
     if (!app_.QtOperations().closed() && guiOutputRefresh_) {
-        workspace_->InvalidateArchive(archive);
-        guiOutputRefresh_->Enqueue({}, {archive});
+        int skipPanel = -1;
+        for (unsigned panel = 0; updated && panel < kNumPanelsMax; ++panel)
+            if (updated == &app_.Panels[panel])
+                skipPanel = int(panel);
+        workspace_->InvalidateArchive(archive, skipPanel);
+        guiOutputRefresh_->Enqueue({}, {archive}, skipPanel);
     }
 }
 
@@ -27,6 +32,10 @@ QString NormalPath(const QString &path) {
     const QFileInfo info(path);
     const QString canonical = info.canonicalFilePath();
     return canonical.isEmpty() ? info.absoluteFilePath() : canonical;
+}
+QString MissingInputMessage(const QString &path) {
+    return QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+           QDir::toNativeSeparators(path);
 }
 bool ContainsDirectory(const QString &parent, const QString &child) {
     const QString relative = QDir(parent).relativeFilePath(child);
@@ -67,18 +76,33 @@ HRESULT MainWindow::launchGuiArchiveCompress(const UString &folder, const UStrin
                                              const UStringVector &paths, bool email,
                                              bool showDialog) {
     QString error;
+    const QStringList sources = ArchivePaths(paths);
+    if (sources.size() == 1 && !QFileInfo::exists(sources.front()) &&
+        !QtIsFileSystemLink(sources.front())) {
+        showStatusMessage(MissingInputMessage(sources.front()));
+        return E_FAIL;
+    }
     auto *operation = backend_->startGuiCompress(
         QFileInfo(QString::fromWCharArray(folder + name)).absoluteFilePath(),
-        QString::fromWCharArray(type), addExtension, ArchivePaths(paths), email, showDialog, error);
+        QString::fromWCharArray(type), addExtension, sources, email, showDialog, error);
+    if (operation)
+        clearStatusMessage();
     return observeGuiArchiveOperation(operation, error);
 }
 
 HRESULT MainWindow::launchGuiArchiveExtract(const UStringVector &paths, const UString &folder,
                                             bool showDialog, bool elimDup, UInt32 writeZone) {
+    const QStringList archives = ArchivePaths(paths);
+    for (const auto &path : archives)
+        if (!QFileInfo::exists(path)) {
+            showStatusMessage(MissingInputMessage(path));
+            return E_FAIL;
+        }
     QString error;
-    auto *operation =
-        backend_->startGuiExtract(ArchivePaths(paths), QString::fromWCharArray(folder), showDialog,
-                                  elimDup, writeZone, error);
+    auto *operation = backend_->startGuiExtract(archives, QString::fromWCharArray(folder),
+                                                showDialog, elimDup, writeZone, error);
+    if (operation)
+        clearStatusMessage();
     return observeGuiArchiveOperation(operation, error);
 }
 
@@ -90,13 +114,23 @@ HRESULT MainWindow::observeGuiArchiveOperation(QtOperationLauncher *operation,
         return E_FAIL;
     }
     const QUuid review = QtOperationRegistry::Application().Registration(*operation);
+    auto *application = QtWorkspaceApplication::Find();
+    if (application)
+        connect(operation, &QtOperationLauncher::finished, application,
+                [application](const QtOperationResult &result) {
+                    for (const auto &archive : result.ChangedArchives)
+                        application->ArchivePublished(archive);
+                    application->FilesystemPublished(result.ChangedDirectories);
+                });
     connect(operation, &QtOperationLauncher::finished, this,
-            [this, source, review](const QtOperationResult &result) {
+            [this, source, review, publishLocally = !application](const QtOperationResult &result) {
                 if (app_.QtOperations().closed())
                     return;
-                for (const auto &archive : result.ChangedArchives)
-                    ArchivePublished(archive);
-                guiOutputRefresh_->Enqueue(result.ChangedDirectories, {});
+                if (publishLocally) {
+                    for (const auto &archive : result.ChangedArchives)
+                        ArchivePublished(archive);
+                    guiOutputRefresh_->Enqueue(result.ChangedDirectories, {});
+                }
                 using Outcome = QtOperationResult::Outcome;
                 if (!QtWorkspaceApplication::Find())
                     for (const auto &pending : QtOperationRegistry::Application().Reviews())
@@ -127,6 +161,17 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
     if (!panel.PanelCreated)
         return;
     if (panel.IsArcFolder()) {
+        const auto &parents = panel.GetParentFolders();
+        if (parents.Size() > 1 && !output.directories.isEmpty()) {
+            const QString outer = ToQString(parents.Front().VirtualPath);
+            if (!QFileInfo::exists(outer) &&
+                std::any_of(output.directories.cbegin(), output.directories.cend(),
+                            [&](const QString &directory) {
+                                return ContainsDirectory(NormalPath(directory), NormalPath(outer));
+                            }) &&
+                workspace_->RefreshPublishedArchive(index, false, true))
+                return;
+        }
         auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
         auto *resource =
             folder ? dynamic_cast<QtArchiveFileResource *>(folder->GetEngineResource()) : nullptr;
@@ -152,7 +197,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
             if (changed)
                 refreshCurrent();
             else
-                showDirectory(parent, false);
+                navigateToImpl(parent, true);
         });
         // ReOpen retains modal source guards while restoring the original
         // projection. Publish its resulting idle/scan state before focus.
@@ -168,7 +213,7 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
     for (const auto &directory : output.directories) {
         const QString changed = NormalPath(directory);
         if (ContainsDirectory(current, changed) || ContainsDirectory(changed, current)) {
-            panel.OnReload();
+            panel.OnReload(true);
             return;
         }
     }

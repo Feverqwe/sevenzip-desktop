@@ -35,11 +35,13 @@ static int Find_FileExtension_DotPos_in_path(const wchar_t *path) {
     }
 }
 
-void CPanel::LoadFullPathAndShow(IQtPanelAddressCombo &header, const UString &displayPath) {
+void CPanel::LoadFullPathAndShow(IQtPanelAddressCombo &header,
+                                 const std::optional<UString> &displayPath) {
     using namespace NWindows::NFile;
     using namespace NFind;
     LoadFullPath();
-    header.SetText(displayPath);
+    if (displayPath)
+        header.SetText(*displayPath);
 
 #ifndef UNDER_CE
 
@@ -148,7 +150,7 @@ bool CPanel::OnNotifyComboBoxEnter(const UString &s, IQtPanelAddressCombo &heade
 
 bool CPanel::OnNotifyComboBoxEndEdit(QtAddressEditReason reason, IQtPanelAddressCombo &header) {
     if (reason == QtAddressEditReason::Escape) {
-        header.SetText(_currentFolderPrefix);
+        header.DiscardDraft(_currentFolderPrefix);
         header.SetFocusToList();
         return true;
     }

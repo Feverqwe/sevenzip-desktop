@@ -10,6 +10,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QScopedValueRollback>
+#include <QScrollBar>
 #include <QStyleOptionViewItem>
 #include <QUrl>
 
@@ -49,6 +50,34 @@ class FileColumnHeader final : public QHeaderView {
 };
 
 } // namespace
+
+QModelIndex FileTable::moveCursor(CursorAction action, Qt::KeyboardModifiers modifiers) {
+    if (action != MoveHome && action != MoveEnd)
+        return QTableView::moveCursor(action, modifiers);
+
+    const QModelIndex current = currentIndex();
+    const QModelIndex target = QTableView::moveCursor(action, modifiers | Qt::ControlModifier);
+    return current.isValid() && target.isValid() ? target.siblingAtColumn(current.column())
+                                                 : target;
+}
+
+void FileTable::keyboardSearch(const QString &search) {
+    const QModelIndex current = currentIndex();
+    const int nameColumn = columnForProperty(kpidName);
+    if (search.isEmpty() || !current.isValid() || nameColumn < 0 ||
+        current.column() == nameColumn) {
+        QTableView::keyboardSearch(search);
+        return;
+    }
+
+    const QModelIndex name = current.siblingAtColumn(nameColumn);
+    const int horizontalPosition = horizontalScrollBar()->value();
+    selectionModel()->setCurrentIndex(name, QItemSelectionModel::NoUpdate);
+    QTableView::keyboardSearch(search);
+    selectionModel()->setCurrentIndex(currentIndex().siblingAtColumn(current.column()),
+                                      QItemSelectionModel::NoUpdate);
+    horizontalScrollBar()->setValue(horizontalPosition);
+}
 
 FileTable::FileTable(int columns, QWidget *parent)
     : QTableView(parent), model_(new FilePanelModel(*this)) {
@@ -131,19 +160,27 @@ void FileIconList::InstallSelectionGesture(std::function<bool()> activate) {
              QListView::setSelection(area, flags);
              setState(previous);
          },
-         [this](QPoint point) {
-             const auto index = indexAt(point);
-             if (!index.isValid())
-                 return false;
-             QStyleOptionViewItem option;
-             initViewItemOption(&option);
-             option.rect = visualRect(index);
-             return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
-         },
+         [this](QPoint point) { return containsItemAt(point); },
          [this] { return QPoint(horizontalOffset(), verticalOffset()); },
          {}},
         std::move(activate));
 }
+
+bool FileIconList::containsItemAt(QPoint point) const {
+    const auto index = indexAt(point);
+    if (!index.isValid())
+        return false;
+    QStyleOptionViewItem option;
+    initViewItemOption(&option);
+    option.rect = visualRect(index);
+    return FileRowContainsPoint(*itemDelegateForIndex(index), option, index, point);
+}
+
+void FileIconList::mouseDoubleClickEvent(QMouseEvent *event) {
+    if (containsItemAt(event->position().toPoint()))
+        QListView::mouseDoubleClickEvent(event);
+}
+
 void FileIconList::startDrag(Qt::DropActions actions) {
     if (dragStarter)
         dragStarter();

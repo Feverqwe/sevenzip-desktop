@@ -2,6 +2,7 @@
 #include "filemanager/window/qtmainwindowchrome.h"
 #include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtmenutext.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QAbstractItemView>
 #include <QApplication>
@@ -22,18 +23,21 @@ class QtNavigationBar::CrumbButton final : public QToolButton {
     int Padding() const { return 12 + (icon().isNull() ? 0 : 20); }
 
   public:
-    CrumbButton(const QString &label, QWidget *parent) : QToolButton(parent), label_(label) {
-        setText(label);
+    CrumbButton(const QString &label, QWidget *parent)
+        : QToolButton(parent), label_(QtSingleLineCaption(label)) {
+        setText(QtLiteralMenuText(label_));
         QtConfigureChromeToolButton(*this);
+        setFocusPolicy(Qt::TabFocus);
     }
     int FullWidth() const { return qMax(20, fontMetrics().horizontalAdvance(label_) + Padding()); }
     void FitWidth(int available) {
         const int width = qBound(20, available, FullWidth());
         setFixedWidth(width);
-        const QString text =
+        const QString caption =
             width == FullWidth()
                 ? label_
                 : fontMetrics().elidedText(label_, Qt::ElideMiddle, qMax(0, width - Padding()));
+        const QString text = QtLiteralMenuText(caption);
         if (this->text() != text)
             setText(text);
     }
@@ -111,6 +115,10 @@ void QtNavigationBar::Rebuild() {
     ancestors_->setText(QStringLiteral("…"));
     ancestors_->setAutoRaise(true);
     QtConfigureChromeToolButton(*ancestors_);
+    ancestors_->setFocusPolicy(Qt::TabFocus);
+    ancestors_->setProperty("languageToolTip", true);
+    QtBindLocalText(ancestors_, "QtNavigationBar",
+                    QT_TRANSLATE_NOOP("QtNavigationBar", "Parent folders"), true);
     ancestors_->setPopupMode(QToolButton::InstantPopup);
     auto *menu = new QMenu(ancestors_);
     ancestors_->setMenu(menu);
@@ -126,12 +134,12 @@ void QtNavigationBar::Rebuild() {
         button->setAccessibleName(target);
         connect(button, &QToolButton::clicked, this, [this, target] { navigate_(target); });
         layout_->addWidget(button);
-        auto *ancestor = menu->addAction(label);
+        auto *ancestor = menu->addAction(QtLiteralMenuText(label));
         ancestor->setToolTip(target);
         connect(ancestor, &QAction::triggered, this, [this, target] { navigate_(target); });
         if (archive) {
             ancestor->setIcon(QtCommandSymbol(QtCommandIcon::Archive));
-            button->setIcon(ancestor->icon());
+            button->setIcon(QtCommandSymbol(QtCommandIcon::Archive, this));
             button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         }
         crumbButtons_.push_back({button, separator, ancestor});
@@ -146,9 +154,10 @@ void QtNavigationBar::Rebuild() {
     }
     auto *edit = new QToolButton(crumbs_);
     edit->setObjectName("editLocationButton");
-    edit->setIcon(QtCommandSymbol(QtCommandIcon::EditLocation));
+    edit->setIcon(QtCommandSymbol(QtCommandIcon::EditLocation, this));
     edit->setAutoRaise(true);
     QtConfigureChromeToolButton(*edit);
+    edit->setFocusPolicy(Qt::TabFocus);
     edit->setToolTip(tr("Edit location"));
     QtBindLocalText(edit, "QtNavigationBar", QT_TRANSLATE_NOOP("QtNavigationBar", "Edit location"),
                     true);
@@ -195,7 +204,6 @@ void QtNavigationBar::FitCrumbs() {
         }
     }
     ancestors_->setIcon(hiddenArchive);
-    ancestors_->setToolTip(hiddenArchive.isNull() ? QString() : path_);
     ancestors_->setVisible(first != 0);
     for (size_t i = 0; i < crumbButtons_.size(); ++i) {
         const auto &crumb = crumbButtons_[i];

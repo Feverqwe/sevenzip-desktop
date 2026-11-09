@@ -7,6 +7,7 @@ ArchiveProgressTransport::ArchiveProgressTransport(CProgressDialog &dialog, Arch
     : _dialog(dialog), _backend(&backend), _nativeWorker(nativeWorker) {
     _dialog.AttachTransport(this);
     connect(&backend, &ArchiveBackend::phaseStarted, this, [this] {
+        _dialog.Sync.Set_FilePath(nullptr);
         _dialog.SetTransportPercent(-1);
         if (!_backend)
             return;

@@ -1,8 +1,12 @@
 #include "filemanager/support/window_state_support.h"
+#include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QImage>
+#include <QScopeGuard>
+#include <QStatusBar>
 
 class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -28,6 +32,221 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QApplication::clipboard()->clear();
     }
     void cleanup() { QApplication::clipboard()->clear(); }
+
+    void copyFollowsFocusBetweenAddressAndFiles() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("selected 文件.txt");
+        const QString source = fixture.filePath(name);
+        write(source);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        files->selectRow(rowFor(*files, name));
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        const QString draft = QStringLiteral("unsubmitted folder");
+        address->selectAll();
+        QTest::keyClicks(address, draft);
+        address->setSelection(12, 6);
+        auto *clipboard = QApplication::clipboard();
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QCOMPARE(clipboard->text(), QString("folder"));
+        QVERIFY(!clipboard->mimeData()->hasUrls());
+
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(source)});
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(address->text(), draft);
+    }
+
+    void duplicateClipboardTargetsAreRejectedWithoutStartingPaste() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const QString &directory : {"first", "second", "output"})
+            QVERIFY(QDir().mkpath(fixture.filePath(directory)));
+        const QString first = fixture.filePath("first/file.txt");
+        const QString second = fixture.filePath("second/file.txt");
+        const QString output = fixture.filePath("output");
+        write(first);
+        write(second);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(output);
+        auto *files = table(window);
+        files->setFocus();
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        const QList<QUrl> urls{QUrl::fromLocalFile(first), QUrl::fromLocalFile(second)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        QApplication::clipboard()->setMimeData(mime);
+        QVERIFY(action(window, "pasteFilesAction")->isEnabled());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Multiple items would use the same destination: %1")
+                     .arg(QDir(output).filePath("file.txt")));
+        QVERIFY(!QFileInfo::exists(QDir(output).filePath("file.txt")));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+    }
+
+    void cutFolderCanBePastedAfterRejectingItsOwnSubfolder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source folder");
+        const QString child = QDir(source).filePath("child");
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkpath(child) && QDir().mkpath(output));
+        write(QDir(child).filePath("keep.txt"));
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "source folder") >= 0);
+        files->setFocus();
+        files->selectRow(rowFor(*files, "source folder"));
+        QTest::keySequence(files, QKeySequence::Cut);
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+
+        window.openPath(child);
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Destination is inside the source folder: %1")
+                     .arg(QDir(child).filePath("source folder")));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QVERIFY(!QFileInfo::exists(QDir(child).filePath("source folder")));
+
+        window.openPath(output);
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "source folder") >= 0);
+        QFile moved(QDir(output).filePath("source folder/child/keep.txt"));
+        QVERIFY(moved.open(QIODevice::ReadOnly));
+        QCOMPARE(moved.readAll(), QByteArray("file state fixture"));
+        QVERIFY(!QFileInfo::exists(source));
+        const auto *remaining = QApplication::clipboard()->mimeData();
+        QVERIFY(!remaining || !remaining->hasUrls());
+    }
+
+    void keyboardClipboardWorksWhileThePeerRefreshes_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("cut") << true;
+    }
+    void keyboardClipboardWorksWhileThePeerRefreshes() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString target = fixture.filePath("target");
+        const QString peerPath = fixture.filePath("peer");
+        for (const auto &path : {source, target, peerPath})
+            QVERIFY(QDir().mkpath(path));
+        const QString input = QDir(source).filePath("item.txt");
+        write(input);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(source);
+        auto *files = table(window);
+        QTRY_COMPARE(files->rowCount(), 1);
+        files->selectRow(0);
+        action(window, "twoPanelsAction")->trigger();
+        auto *peerPane = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peerPane && peerPane->isVisible());
+        auto *peer = peerPane->findChild<FileTable *>("archiveTable");
+        auto *address = peerPane->findChild<QLineEdit *>("archivePath");
+        QVERIFY(peer && address);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        window.openPath(peerPath);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 0);
+        peer->sourcePanel->Set_AutoRefresh_Mode(false);
+        for (int i = 0; i < 301; ++i)
+            write(QDir(peerPath).filePath(QString("peer-%1.txt").arg(i)));
+
+        const auto startPeerRefresh = [&] {
+            peer->setFocus();
+            QVERIFY(peer->hasFocus());
+            QTest::keySequence(peer, action(window, "refreshAction")->shortcut());
+            QVERIFY(peer->hasFocus());
+            QVERIFY(!action(window, "refreshAction")->isEnabled());
+            QTest::keyClick(peer, Qt::Key_Tab);
+            QVERIFY(files->hasFocus());
+        };
+        startPeerRefresh();
+        QTest::keySequence(files, move ? QKeySequence::Cut : QKeySequence::Copy);
+        const auto *copied = QApplication::clipboard()->mimeData();
+        QVERIFY(copied);
+        QCOMPARE(copied->urls(), QList{QUrl::fromLocalFile(input)});
+        QCOMPARE(cut(*files, "item.txt"), move);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 301);
+
+        QString report;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *result =
+                    TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                report = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
+            }
+        });
+        dismiss.start(5);
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY((!report.isEmpty() || !window.statusBar()->currentMessage().isEmpty()) &&
+                    files->isEnabled());
+        dismiss.stop();
+        QVERIFY(report.isEmpty());
+        QVERIFY(window.statusBar()->currentMessage().contains(
+            QStringLiteral("Source and destination are the same:")));
+        QCOMPARE(files->rowCount(), 1);
+        QVERIFY(QFileInfo::exists(input));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), QList{QUrl::fromLocalFile(input)});
+        QCOMPARE(cut(*files, "item.txt"), move);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(files->hasFocus());
+
+        window.openPath(target);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 0);
+        write(QDir(peerPath).filePath("new.txt"));
+        startPeerRefresh();
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "item.txt") >= 0);
+        QTRY_VERIFY(peer->isEnabled() && peer->rowCount() == 302);
+        QFile output(QDir(target).filePath("item.txt"));
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("file state fixture"));
+        QCOMPARE(QFileInfo::exists(input), !move);
+        if (move) {
+            const auto *mime = QApplication::clipboard()->mimeData();
+            QVERIFY(!mime || !mime->hasUrls());
+        }
+        QVERIFY(WindowActivation::waitForActive(window));
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        action(window, "twoPanelsAction")->trigger();
+        QVERIFY(!peerPane->isVisible());
+    }
 
     void cutFollowsFilesystemEntryAcrossViewsLocationsAndWindows() {
         QTemporaryDir fixture;
@@ -78,6 +297,24 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(!cut(*files, "Alpha.txt"));
         window.openPath(source);
         QTRY_VERIFY(files->isEnabled() && cut(*files, "Alpha.txt"));
+        const QString original = source + "/Alpha.txt";
+        const QString renamed = source + "/Renamed.txt";
+        QVERIFY(QFile::rename(original, renamed));
+        for (auto *owner : {&window, &other})
+            action(*owner, "refreshAction")->trigger();
+        for (auto *view : {files, otherFiles}) {
+            QTRY_VERIFY(rowFor(*view, "Renamed.txt") >= 0);
+            QCOMPARE(rowFor(*view, "Alpha.txt"), -1);
+            QVERIFY(!cut(*view, "Renamed.txt"));
+            QVERIFY(!cut(*view, "Beta.txt"));
+        }
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList{QUrl::fromLocalFile(original)});
+        QVERIFY(QFile::rename(renamed, original));
+        for (auto *owner : {&window, &other})
+            action(*owner, "refreshAction")->trigger();
+        QTRY_VERIFY(cut(*files, "Alpha.txt"));
+        QTRY_VERIFY(cut(*otherFiles, "Alpha.txt"));
         auto *mime = new QMimeData;
         mime->setUrls({QUrl::fromLocalFile(source + "/Alpha.txt")});
         mime->setData("x-special/gnome-copied-files", "copy\n");
@@ -85,6 +322,131 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QTRY_VERIFY(!cut(*files, "Alpha.txt"));
         QTRY_VERIFY(!cut(*otherFiles, "Alpha.txt"));
         QVERIFY(QFileInfo::exists(source + "/Alpha.txt"));
+    }
+
+    void fileMutationsRequireWritableFolder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString writable = fixture.filePath("writable");
+        const QString blocked = fixture.filePath("blocked");
+        const QString source = fixture.filePath("incoming.txt");
+        QVERIFY(QDir().mkpath(writable));
+        QVERIFY(QDir().mkpath(blocked));
+        write(source);
+        write(QDir(blocked).filePath("existing.txt"));
+        write(QDir(writable).filePath("existing.txt"));
+        const auto restore = qScopeGuard([&] {
+            QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+        });
+        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
+            QFileInfo(blocked).isWritable())
+            QSKIP("Cannot make the destination folder read-only");
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(writable);
+        auto *mime = new QMimeData;
+        mime->setUrls({QUrl::fromLocalFile(source)});
+        QApplication::clipboard()->setMimeData(mime);
+        auto *paste = action(window, "pasteFilesAction");
+        auto *cut = action(window, "cutFilesAction");
+        auto *copy = action(window, "copyFilesAction");
+        const QList<QAction *> mutations{
+            action(window, "moveAction"), action(window, "deleteAction"),
+            action(window, "renameAction"), action(window, "createFolderAction")};
+        QTRY_VERIFY(paste->isEnabled());
+
+        window.openPath(blocked);
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "existing.txt") >= 0);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        QVERIFY(WindowActivation::waitForActive(window));
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(files, QKeySequence::SelectAll);
+        QVERIFY(copy->isEnabled());
+        QVERIFY(!cut->isEnabled());
+        QVERIFY(!paste->isEnabled());
+        for (auto *mutation : mutations)
+            QVERIFY2(!mutation->isEnabled(), qPrintable(mutation->objectName()));
+        const QString target = QDir(blocked).filePath("incoming.txt");
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(!QFileInfo::exists(target));
+        const QList<QUrl> original{QUrl::fromLocalFile(source)};
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
+        QVERIFY(
+            QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+        QVERIFY(!paste->isEnabled());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(rowFor(*files, "incoming.txt") >= 0);
+        QFile received(target);
+        QVERIFY(received.open(QIODevice::ReadOnly));
+        QCOMPARE(received.readAll(), QByteArray("file state fixture"));
+        received.close();
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(writable);
+        QTRY_VERIFY(paste->isEnabled());
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(files, QKeySequence::SelectAll);
+        files->setCurrentCell(rowFor(*files, "existing.txt"), 0, QItemSelectionModel::NoUpdate);
+        QVERIFY(copy->isEnabled());
+        QVERIFY(cut->isEnabled());
+        for (auto *mutation : mutations)
+            QVERIFY2(mutation->isEnabled(), qPrintable(mutation->objectName()));
+    }
+
+    void pasteWaitsForTheDestinationListing() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("incoming.txt");
+        const QString destination = fixture.filePath("large destination");
+        write(source);
+        QVERIFY(QDir().mkpath(destination));
+        for (int i = 0; i < 257; ++i) {
+            QFile entry(QDir(destination).filePath(QString::number(i)));
+            QVERIFY(entry.open(QIODevice::WriteOnly));
+        }
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        auto *paste = action(window, "pasteFilesAction");
+        auto *mime = new QMimeData;
+        mime->setUrls({QUrl::fromLocalFile(source)});
+        QApplication::clipboard()->setMimeData(mime);
+        QTRY_VERIFY(paste->isEnabled());
+        openListedArchive(window, backend, fixture.filePath("view.zip"),
+                          {ArchiveEntry{"inside.txt", 1, 1}});
+        QTRY_VERIFY(files->isEnabled() && files->sourcePanel->IsArcFolder());
+        QVERIFY(WindowActivation::waitForActive(window));
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        const int entry = rowFor(*files, "inside.txt");
+        QVERIFY(entry >= 0);
+        files->selectRow(entry);
+        QVERIFY(action(window, "copyFilesAction")->isEnabled());
+        QVERIFY(!action(window, "cutFilesAction")->isEnabled());
+        QVERIFY(!paste->isEnabled());
+        QTest::keySequence(files, QKeySequence::Cut);
+        QTest::keySequence(files, QKeySequence::Paste);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList<QUrl>{QUrl::fromLocalFile(source)});
+        QCOMPARE(rowFor(*files, "incoming.txt"), -1);
+        window.openPath(destination);
+        QVERIFY(!files->isEnabled());
+        QVERIFY(!paste->isEnabled());
+        QTRY_VERIFY(files->isEnabled() && paste->isEnabled());
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList<QUrl>{QUrl::fromLocalFile(source)});
+        QTRY_VERIFY(files->hasFocus());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QFile output(QDir(destination).filePath("incoming.txt"));
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "incoming.txt") >= 0);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), QByteArray("file state fixture"));
     }
 
     void externalCutHints_data() {
@@ -98,6 +460,41 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
             << QByteArray("\x02\x00\x00\x00", 4);
 #endif
     }
+
+    void gnomeFileListKeepsCopyAndCutDistinct() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.filePath(QStringLiteral("External 空 cut.txt"));
+        write(path);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        const QString name = QFileInfo(path).fileName();
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        auto *paste = action(window, "pasteFilesAction");
+        const auto putFiles = [](const QByteArray &data) {
+            auto *mime = new QMimeData;
+            mime->setData("x-special/gnome-copied-files", data);
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        const QByteArray url = QUrl::fromLocalFile(path).toEncoded();
+        putFiles("copy\n" + url);
+        QTRY_VERIFY(paste->isEnabled());
+        putFiles("copy\n" + url + '\n');
+        QTRY_VERIFY(paste->isEnabled());
+        QVERIFY(!cut(*files, name));
+        putFiles("cut\n" + url + '\n');
+        QTRY_VERIFY(paste->isEnabled());
+        QVERIFY(cut(*files, name));
+        putFiles("cut\n" + url + "\n\n" + url);
+        QTRY_VERIFY(!paste->isEnabled());
+        QVERIFY(!cut(*files, name));
+        putFiles("cut\n" + url + "\nhttps://example.invalid/file");
+        QTRY_VERIFY(!paste->isEnabled());
+        QVERIFY(!cut(*files, name));
+    }
     void externalCutHints() {
         QFETCH(QByteArray, format);
         QFETCH(QByteArray, hint);
@@ -110,18 +507,152 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         window.openPath(fixture.path());
         auto *files = table(window);
         QTRY_VERIFY(files->isEnabled() && rowFor(*files, "External cut.txt") >= 0);
-        auto *mime = new QMimeData;
-        mime->setUrls({QUrl::fromLocalFile(path)});
-        mime->setData(format, hint);
-        QApplication::clipboard()->setMimeData(mime);
+        const QUrl local = QUrl::fromLocalFile(path);
+        const auto putFilesOnClipboard = [&](const QList<QUrl> &urls) {
+            auto *mime = new QMimeData;
+            mime->setUrls(urls);
+            mime->setData(
+                format, format == "x-special/gnome-copied-files" ? hint + local.toEncoded() : hint);
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        auto *paste = action(window, "pasteFilesAction");
+        putFilesOnClipboard({local});
         QTRY_VERIFY(cut(*files, "External cut.txt"));
-        auto *mixed = new QMimeData;
-        mixed->setUrls({QUrl::fromLocalFile(path), QUrl("https://example.invalid/file")});
-        mixed->setData(format, hint);
-        QApplication::clipboard()->setMimeData(mixed);
-        QTRY_VERIFY(!cut(*files, "External cut.txt"));
+        QTRY_VERIFY(paste->isEnabled());
+        for (const QUrl &invalid :
+             {QUrl("https://example.invalid/file"), QUrl::fromLocalFile("relative.txt")}) {
+            putFilesOnClipboard({local, invalid});
+            QTRY_VERIFY(!cut(*files, "External cut.txt"));
+            QTRY_VERIFY(!paste->isEnabled());
+            putFilesOnClipboard({local});
+            QTRY_VERIFY(cut(*files, "External cut.txt"));
+            QTRY_VERIFY(paste->isEnabled());
+        }
         QApplication::clipboard()->clear();
         QTRY_VERIFY(!cut(*files, "External cut.txt"));
+        QTRY_VERIFY(!paste->isEnabled());
+    }
+
+    void copyingAMissingFileKeepsThePreviousClipboard() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("selected file.txt");
+        const QString path = fixture.filePath(name);
+        const QString other = fixture.filePath("another file.txt");
+        write(path);
+        write(other);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        const int otherRow = rowFor(*files, "another file.txt");
+        QVERIFY(otherRow >= 0);
+        files->selectRow(otherRow);
+        files->selectionModel()->select(files->model()->index(rowFor(*files, name), 0),
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        auto *clipboard = QApplication::clipboard();
+        clipboard->setText("previous clipboard text");
+        auto *copy = action(window, "copyFilesAction");
+        QTRY_VERIFY(copy->isEnabled());
+        QVERIFY(QFile::remove(path));
+        copy->trigger();
+        QCOMPARE(clipboard->text(), QString("previous clipboard text"));
+        QVERIFY(window.statusBar()->currentMessage().contains(name));
+        write(path);
+        copy->trigger();
+        const auto urls = clipboard->mimeData()->urls();
+        QCOMPARE(urls.size(), 2);
+        QVERIFY(urls.contains(QUrl::fromLocalFile(path)));
+        QVERIFY(urls.contains(QUrl::fromLocalFile(other)));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
+    void pasteRetriesAfterRemovingDestinationLink() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires filesystem symbolic links");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(output));
+        const QString source = fixture.filePath("payload.txt");
+        const QString target = QDir(output).filePath("payload.txt");
+        const QString outside = fixture.filePath("protected.txt");
+        write(source);
+        QVERIFY(QFile::link(outside, target));
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(output);
+        auto *files = table(window);
+        files->setFocus();
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        QApplication::clipboard()->setMimeData(mime);
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Destination is a symbolic link: %1")
+                     .arg(target));
+        QVERIFY(QFileInfo(target).isSymLink());
+        QVERIFY(!QFileInfo::exists(outside));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+
+        QVERIFY(QFile::remove(target));
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && QFileInfo(target).isFile());
+        QFile copied(target);
+        QVERIFY(copied.open(QIODevice::ReadOnly));
+        QCOMPARE(copied.readAll(), QByteArray("file state fixture"));
+        QVERIFY(!QFileInfo::exists(outside));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+    }
+
+    void pasteRejectsAnOpenedFolderReplacedByALink() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires filesystem symbolic links");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString original = fixture.filePath("original");
+        const QString parked = fixture.filePath("parked");
+        const QString target = fixture.filePath("target");
+        QVERIFY(QDir().mkdir(original) && QDir().mkdir(target));
+        const QString source = fixture.filePath("payload.txt");
+        write(source);
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(original);
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        auto *paste = action(window, "pasteFilesAction");
+        const auto publish = [&] {
+            auto *mime = new QMimeData;
+            mime->setUrls({QUrl::fromLocalFile(source)});
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        publish();
+        QTRY_VERIFY(paste->isEnabled());
+        QVERIFY(QDir().rename(original, parked));
+        QVERIFY(QFile::link(target, original));
+        QVERIFY(QFileInfo(original).isSymLink());
+        publish();
+        QTRY_VERIFY(!paste->isEnabled());
+        QVERIFY(QFile::remove(original));
+        QVERIFY(QDir().rename(parked, original));
+        publish();
+        QTRY_VERIFY(paste->isEnabled());
     }
 
     void cutLinkKeepsTargetAndOtherNamesUnmarked() {

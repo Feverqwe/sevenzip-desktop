@@ -2,7 +2,7 @@
 #include "dialogs/compress/createarchivedialog.h"
 #include "localization/LangUtils.h"
 #include "settings/RegistryUtils.h"
-#include "support/archive_sections.h"
+#include "support/archive_expert.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -140,22 +140,30 @@ class CompressionProfileSelectionTests final : public QObject {
                 QCOMPARE(solid->currentIndex(), -1);
             }
             if (restart == 0) {
-                ExpandArchiveSections(dialog);
                 dialog.show();
-                for (const QSize size : {QSize(760, 720), QSize(640, 480)}) {
-                    dialog.resize(size);
-                    QApplication::processEvents();
-                    for (const char *name : {"compressionDictionary", "compressionWordSize",
-                                             "compressionSolidBlock"}) {
-                        auto *combo = dialog.findChild<QComboBox *>(name);
-                        dialog.findChild<QScrollArea *>()->ensureWidgetVisible(combo, 0, 80);
+                QVERIFY(EditArchiveExpert(dialog, false, [&](QDialog &editor) {
+                    auto *scroll = editor.findChild<QScrollArea *>("dialogContentScroll");
+                    QVERIFY(scroll);
+                    for (const QSize size : {QSize(760, 720), QSize(640, 480)}) {
+                        editor.resize(size);
                         QApplication::processEvents();
-                        QVERIFY(UiInspection::fullyVisible(*combo, dialog));
+                        for (const char *name : {"compressionDictionary", "compressionWordSize",
+                                                 "compressionSolidBlock"}) {
+                            auto *combo = editor.findChild<QComboBox *>(name);
+                            QVERIFY(combo);
+                            if (combo->count() == 0) {
+                                QVERIFY(!combo->isVisible());
+                                continue;
+                            }
+                            scroll->ensureWidgetVisible(combo, 0, 80);
+                            QTRY_VERIFY_WITH_TIMEOUT(UiInspection::fullyVisible(*combo, editor),
+                                                     1000);
+                        }
+                        QVERIFY(UiInspection::writeReport(editor, QString("profile-selection-%1-%2")
+                                                                      .arg(QTest::currentDataTag())
+                                                                      .arg(size.width())));
                     }
-                    QVERIFY(UiInspection::writeReport(dialog, QString("profile-selection-%1-%2")
-                                                                  .arg(QTest::currentDataTag())
-                                                                  .arg(size.width())));
-                }
+                }));
             }
             dialog.reject();
             QVERIFY(dialog.target().isEmpty());

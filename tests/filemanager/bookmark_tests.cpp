@@ -85,7 +85,7 @@ class BookmarkTests : public QObject, protected MainWindowTestSupport {
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
         QTemporaryDir temp;
-        const QString directory = temp.filePath(QStringLiteral("папка с пробелом"));
+        const QString directory = temp.filePath(QStringLiteral("папка & данные"));
         QVERIFY(QDir().mkpath(directory));
         {
             QSettings settings(settingsPath, QSettings::IniFormat);
@@ -96,7 +96,11 @@ class BookmarkTests : public QObject, protected MainWindowTestSupport {
         }
         ControlledBackend backend;
         MainWindow window(&backend);
-        action(window, "openBookmark3Action")->trigger();
+        auto *bookmark = action(window, "openBookmark3Action");
+        QVERIFY(QKeySequence::mnemonic(bookmark->text()).isEmpty());
+        QCOMPARE(bookmark->toolTip(), directory);
+        QVERIFY(bookmark->text().endsWith(QStringLiteral("папка && данные\tAlt+3")));
+        bookmark->trigger();
         auto *address = window.findChild<QLineEdit *>("archivePath");
         QCOMPARE(address->text(), QFileInfo(directory).canonicalFilePath());
         const QString archivePath = temp.filePath(QStringLiteral("архив 😀.zip"));

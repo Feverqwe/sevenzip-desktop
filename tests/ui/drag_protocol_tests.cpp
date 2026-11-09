@@ -30,7 +30,7 @@ class Target final : public IQtDropTargetPresentation {
     int FolderAtPoint(unsigned, int, int, UString &) const override { return -1; }
     void Highlight(unsigned, int, bool) override {}
     bool IsSameDrive(const UString &, const UStringVector &) const override { return true; }
-    UInt32 Drag_OnContextMenu(int, int, UInt32) override {
+    UInt32 Drag_OnContextMenu(int, int, UInt32, DWORD) override {
         ++menus;
         return NDragMenu::k_Cancel;
     }

@@ -75,7 +75,7 @@ bool CPasswordDialog::OnInit(const QString &archive, bool opening) {
     return true;
 }
 
-void CPasswordDialog::OnButtonClicked() { ReadControls(); }
+void CPasswordDialog::OnButtonClicked() { ShowPassword = _showPassword->isChecked(); }
 
 void CPasswordDialog::OnOK() {
     ReadControls();

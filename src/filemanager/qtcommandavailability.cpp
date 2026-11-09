@@ -71,15 +71,18 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     if (panel.IsItem_Folder(operated[i]))
         c.folderSize = true;
     c.oneFile = c.one && !panel.IsItem_Folder(operated[0]);
-    c.filesystem = panel.GetFolder() && panel.IsFSFolder();
-    c.trash = c.filesystem && !panel.IsThereReadOnlyFolder();
+    const QFileInfo directory(w.projectedUi().directory);
+    const bool filesystem = panel.GetFolder() && panel.IsFSFolder();
+    c.filesystem = filesystem && directory.isDir();
+    const bool sourceAvailable = !filesystem || c.filesystem;
+    c.filesystemWritable = c.filesystem && !panel.IsThereReadOnlyFolder() && directory.isWritable();
     c.filesystemStreams = panel.GetFolder() && panel.IsAltStreamsFolder();
-    c.copy = panel.DoesItSupportOperations() &&
+    c.copy = sourceAvailable && panel.DoesItSupportOperations() &&
              (!panel.IsFSDrivesFolder() || panel.IsDeviceDrivesPrefix());
     c.root = panel.GetFolder() && panel.IsRootFolder();
     {
         const auto catalog = w.backend_->codecCatalog();
-        c.batchArchives = catalog && catalog->result() == S_OK;
+        c.batchArchives = sourceAvailable && catalog && catalog->result() == S_OK;
     }
     if (panel.DoesItSupportOperations()) {
         QHash<unsigned, QString> requested;
@@ -117,12 +120,15 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     const bool safeFolderQueries =
         navigating && !w.projectedUi().locationUnavailable && panel.ShouldProcessNotifications();
     const bool windowCommands = navigating && !QApplication::activeModalWidget();
+    if (w.projectedUi().scanningDisk || w.projectedUi().scanningArchive) {
+        // Switching the view does not query the folder being loaded.
+        availability[IDM_VIEW_LARGE_ICONS] = windowCommands;
+        availability[IDM_VIEW_DETAILS] = windowCommands;
+    }
     availability[IDM_ABOUT] = windowCommands;
     availability[OpenArchivePicker] = windowCommands && !w.backend_->busy();
     availability[ManageMounts] = windowCommands;
-    availability[IDM_FOLDERS_HISTORY] = navigating && !w.projectedUi().scanningDisk &&
-                                        !w.projectedUi().scanningArchive &&
-                                        !QApplication::activeModalWidget();
+    availability[IDM_FOLDERS_HISTORY] = windowCommands && !w.app_.QtOperations().active();
     if (availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningArchive &&
         !w.projectedUi().scanningDisk) {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
@@ -138,13 +144,22 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     const bool namespaceChild = safeFolderQueries &&
                                 w.projectedUi().state == MainWindow::State::Namespace &&
                                 hasFolder && !panel.IsRootFolder();
-    availability[Back] = safeFolderQueries && w.workspace_->CanTravel(w.projectedPanel_, -1);
+    availability[Back] =
+        (safeFolderQueries || (windowCommands && w.projectedUi().locationUnavailable)) &&
+        w.workspace_->CanTravel(w.projectedPanel_, -1);
     availability[Forward] = safeFolderQueries && w.workspace_->CanTravel(w.projectedPanel_, 1);
     availability[IDM_OPEN_PARENT_FOLDER] = safeFolderQueries && hasFolder &&
                                            !panel.IsRootFolder() &&
                                            (w.projectedUi().state == MainWindow::State::Viewing ||
                                             panel.IsFSFolder() || namespaceChild);
     availability[8] = CanExit();
+    if (w.projectedUi().locationUnavailable) {
+        availability[IDM_OPTIONS] = windowCommands;
+        availability[IDM_OPEN_ROOT_FOLDER] = windowCommands;
+        for (const auto *bookmark : w.openBookmarks_)
+            if (bookmark)
+                availability[bookmark->property("nativeCommandID").toUInt()] = windowCommands;
+    }
     if (!safeFolderQueries || w.projectedUi().scanningDisk || !hasFolder)
         return availability;
     const TransportCapabilities capabilities = ReadTransportCapabilities();
@@ -191,13 +206,14 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_PROPERTIES:
         return c.archive || (c.operated && !c.root);
     case IDM_MOVE_TO:
-        return c.filesystem || c.filesystemStreams || c.writable;
+        return c.filesystemWritable || c.filesystemStreams || c.writable;
     case IDM_DELETE:
-        return c.operated && c.trash;
+        return c.operated && c.filesystemWritable;
     case IDM_RENAME:
-        return c.focusedNonParent && (c.filesystem || c.filesystemStreams || c.mutationWritable);
+        return c.focusedNonParent &&
+               (c.filesystemWritable || c.filesystemStreams || c.mutationWritable);
     case IDM_CREATE_FOLDER:
-        return c.filesystem || c.mutationWritable;
+        return c.filesystemWritable || c.mutationWritable;
     case IDM_CRC32:
     case IDM_CRC64:
     case IDM_XXH64:

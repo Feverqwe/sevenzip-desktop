@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QTimer>
+#include <functional>
 #include <memory>
 
 class MainWindow;
@@ -15,7 +16,9 @@ class QtRenameController final : public QObject {
     void Begin(int row);
     void Cancel(unsigned panel);
     void Stop();
-    bool Pending() const { return bool(request_); }
+    bool Pending() const;
+    bool PendingFor(unsigned panel) const;
+    void AfterEdit(unsigned panel, std::function<void()> refresh);
 
   private:
     struct Request;

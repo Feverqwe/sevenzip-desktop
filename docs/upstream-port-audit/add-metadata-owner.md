@@ -150,3 +150,18 @@ were not repeated. Selected fixture directories were empty before and after
 the runs. Existing incremental outputs, configured four jobs and compiler caches
 were retained. No platform branch changed; no secondary OS, full/slow gate or
 appearance check was selected.
+
+## XZ block size and automatic threads — 2026-11-07
+
+The pinned `CompressDialog.cpp` handler for `IDC_COMPRESS_SOLID` updates the
+estimate using the last automatic thread count. With XZ, block size affects
+both that estimate and the automatic thread choice. Refresh both when the
+block size changes so dialog admission agrees with the backend estimate.
+An explicit thread count still takes precedence. The native estimator, Auto
+request and encoder properties retain their existing semantics.
+
+Linux verification covered the block-size transition, explicit-limit refusal
+without saving, profile reload, and XZ creation, testing and extraction through
+the native engine. `compression_event`, `compression_limit`,
+`compression_resources` and `compression_preferences` passed. The EN/RU
+expert controls were checked at 760 × 720 and 640 × 480.

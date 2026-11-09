@@ -102,10 +102,11 @@ QtLocalFileTask::QtLocalFileTask(FileTransferOperation &worker, const QString &t
         },
         Qt::DirectConnection);
     connect(&worker, &FileTransferOperation::result, this,
-            [this, &worker](bool success, const QString &message) {
+            [this, &worker](bool success, const QString &message, const QStringList &movedSources) {
                 Finish(success, worker.resultKind() == FileTransferOperation::ResultKind::Canceled,
                        message,
-                       worker.resultKind() == FileTransferOperation::ResultKind::PartialSuccess);
+                       worker.resultKind() == FileTransferOperation::ResultKind::PartialSuccess,
+                       movedSources, worker.hasRetainedOutput());
             });
 }
 
@@ -210,11 +211,16 @@ void QtLocalFileTask::AskOverwrite(FileTransferOperation &worker,
         operation->submitOverwriteAnswer(answer);
 }
 
-void QtLocalFileTask::Finish(bool success, bool cancelled, const QString &message, bool partial) {
+void QtLocalFileTask::Finish(bool success, bool cancelled, const QString &message, bool partial,
+                             const QStringList &movedSources, bool retainedOutput) {
     if (stopped_)
         return;
     worker_.wait();
     const QPointer<QtLocalFileTask> self(this);
+    if (retainedOutput || !movedSources.isEmpty())
+        emit transferOutput(movedSources);
+    if (!self || stopped_)
+        return;
     emit transferCompleted(success && !partial);
     if (!self || stopped_)
         return;
@@ -251,12 +257,13 @@ void QtLocalFileTask::PresentFinish(bool success, bool cancelled, const QString 
     QCoreApplication::sendPostedEvents(progress_, QEvent::MetaCall);
     if (guard && !stopped_) {
         if (progress_->isVisible()) {
-            connect(progress_, &QDialog::finished, this, [this, success, cancelled, message] {
-                if (!stopped_)
-                    emit finished(success, cancelled, message);
-            });
+            connect(progress_, &QDialog::finished, this,
+                    [this, success, cancelled, message, partial] {
+                        if (!stopped_)
+                            emit finished(success, cancelled, message, partial);
+                    });
         } else
-            emit finished(success, cancelled, message);
+            emit finished(success, cancelled, message, partial);
     }
 }
 

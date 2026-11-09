@@ -2,8 +2,14 @@
 #include "archive/support/native_archive_fixture.h"
 #include "dialogs/extract/alias.h"
 #include "fileops/patterns/Wildcard.h"
+#include "ui/controls/qtdisclosure.h"
+#include <QAbstractItemView>
+#include <QAccessible>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
+#include <QLabel>
+#include <QScopeGuard>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -24,6 +30,279 @@ class SplitDestinationTests final : public QObject {
         qputenv("SEVENZIP_SETTINGS_PATH", settings_.toUtf8());
     }
     void init() { QFile::remove(settings_); }
+    void historyRestoresTheCompleteExtractionDestination_data() {
+        QTest::addColumn<bool>("relative");
+        QTest::newRow("saved-absolute") << false;
+        QTest::newRow("relative-from-another-working-directory") << true;
+    }
+    void historyRestoresTheCompleteExtractionDestination() {
+        QFETCH(bool, relative);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("payload"), qint64(7));
+        file.close();
+        const QString archive = fixture.filePath("current.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        const QString previous = fixture.filePath(QStringLiteral("вывод/прошлый результат"));
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        const QString cwd = QDir::currentPath();
+        const auto restore = qScopeGuard([&] { QDir::setCurrent(cwd); });
+        if (relative) {
+            QVERIFY(QDir::setCurrent(fixture.path()));
+            const auto first = ExtractDialogFixture::Run(
+                backend, archive, fixture.filePath("current"), [&](CExtractDialog &dialog) {
+                    enabled(dialog)->setChecked(true);
+                    path(dialog)->setEditText(QStringLiteral("вывод"));
+                    name(dialog)->setText(QStringLiteral("прошлый результат"));
+                    dialog.accept();
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+            QCOMPARE(first.Result, S_OK);
+            QVERIFY(first.CallbackOK);
+            QVERIFY(QFile::remove(QDir(previous).filePath("payload.txt")));
+            const QString otherDirectory = fixture.filePath("different working directory");
+            QVERIFY(QDir().mkdir(otherDirectory));
+            QVERIFY(QDir::setCurrent(otherDirectory));
+        } else {
+            NExtract::CInfo settings;
+            settings.Load(settings_);
+            settings.Paths.Add(previous + '/');
+            settings.Save(settings_);
+        }
+        const auto result = ExtractDialogFixture::Run(
+            backend, archive, fixture.filePath("current"), [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                QVERIFY(enabled(dialog)->isChecked());
+                auto *history = path(dialog);
+                history->showPopup();
+                auto *items = history->view();
+                const QModelIndex first = history->model()->index(0, 0);
+                QVERIFY(first.isValid());
+                QTRY_VERIFY(items->isVisible());
+                items->setCurrentIndex(first);
+                QTest::keyClick(items, Qt::Key_Return);
+                QCOMPARE(QDir::cleanPath(dialog.destination()), previous);
+                dialog.accept();
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QFile extracted(QDir(previous).filePath("payload.txt"));
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("payload"));
+    }
+    void selectingHistoryWithSubfolderDisabledReplacesTheOldDraft() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("current/old name/");
+        const QString saved = fixture.filePath("history/saved output/");
+        CExtractDialog dialog(initial, {saved});
+        dialog.show();
+        QVERIFY(enabled(dialog)->isChecked());
+        QVERIFY(!name(dialog)->text().isEmpty());
+        enabled(dialog)->setChecked(false);
+
+        auto *history = path(dialog);
+        history->showPopup();
+        auto *items = history->view();
+        QTRY_VERIFY(items->isVisible());
+        items->setCurrentIndex(history->model()->index(0, 0));
+        QTest::keyClick(items, Qt::Key_Return);
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
+        enabled(dialog)->setChecked(true);
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(dialog.destination()), QDir::cleanPath(saved));
+    }
+
+    void historyDeduplicatesEquivalentAbsolutePaths() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir().mkpath(fixture.filePath("nested")));
+        const QString destination = fixture.filePath("output");
+        const QString alias = fixture.filePath("nested/../output");
+        CExtractDialog dialog(alias, {destination + '/', alias + '/'});
+        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), alias);
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), destination + '/');
+
+        CExtractDialog reopened(fixture.path(), {});
+        auto *history = path(reopened);
+        QCOMPARE(history->count(), 1);
+        QCOMPARE(QDir::fromNativeSeparators(history->itemText(0)), destination + '/');
+    }
+
+    void historyKeepsCaseDistinctDestinations() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString upper = fixture.filePath("Output");
+        const QString lower = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(upper));
+        if (QFileInfo::exists(lower))
+            QSKIP("The test filesystem folds these directory names");
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("payload"), qint64(7));
+        file.close();
+        const QString archive = fixture.filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        ArchiveBackend backend;
+        for (const QString &destination : {upper, lower}) {
+            const auto result = ExtractDialogFixture::Run(
+                backend, archive, destination, [&](CExtractDialog &dialog) {
+                    enabled(dialog)->setChecked(false);
+                    path(dialog)->setEditText(destination);
+                    dialog.accept();
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+            QCOMPARE(result.Result, S_OK);
+            QVERIFY(result.CallbackOK);
+        }
+        CExtractDialog reopened(fixture.path(), {});
+        auto *history = path(reopened);
+        QCOMPARE(history->count(), 2);
+        QCOMPARE(QDir::cleanPath(history->itemText(0)), lower);
+        QCOMPARE(QDir::cleanPath(history->itemText(1)), upper);
+        history->setCurrentIndex(1);
+        reopened.accept();
+        QCOMPARE(reopened.result(), int(QDialog::Accepted));
+        CExtractDialog latest(fixture.path(), {});
+        QCOMPARE(path(latest)->count(), 2);
+        QCOMPARE(QDir::cleanPath(path(latest)->itemText(0)), upper);
+        QCOMPARE(QDir::cleanPath(path(latest)->itemText(1)), lower);
+    }
+
+    void browsingUsesTheSameDestinationAsExtraction_data() {
+        QTest::addColumn<bool>("invalidDraft");
+        QTest::addColumn<bool>("missingDirectory");
+        QTest::newRow("resolved-path") << false << false;
+        QTest::newRow("replace-invalid-path") << true << false;
+        QTest::newRow("nearest-existing-directory") << false << true;
+    }
+    void browsingUsesTheSameDestinationAsExtraction() {
+        QFETCH(bool, invalidDraft);
+        QFETCH(bool, missingDirectory);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString start = fixture.filePath(QStringLiteral("папка с пробелом"));
+        const QString selected = fixture.filePath(QStringLiteral("другая папка"));
+        QVERIFY(QDir().mkpath(start));
+        QVERIFY(QDir().mkpath(selected));
+        const bool nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restore = qScopeGuard(
+            [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled); });
+        CExtractDialog dialog(start, {start});
+        auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
+        QVERIFY(browse);
+        const QString requested = missingDirectory ? start + "/not created/deeper" : start;
+        const QString draft = invalidDraft ? requested + QChar::Null : "  " + requested + "  ";
+        path(dialog)->setCurrentIndex(0);
+        path(dialog)->setEditText(draft);
+        enabled(dialog)->setChecked(true);
+        name(dialog)->setText(QStringLiteral("подпапка"));
+        auto *overwrite = dialog.findChild<QComboBox *>("extractOverwriteMode");
+        QVERIFY(overwrite);
+        const auto overwriteMode = NExtract::NOverwriteMode::kSkip;
+        overwrite->setCurrentIndex(overwrite->findData(overwriteMode));
+        dialog.show();
+        auto *field = path(dialog)->lineEdit();
+        field->setFocus();
+        field->setSelection(6, -4);
+        for (const bool accept : {false, true}) {
+            QString openedDirectory;
+            QTimer answer;
+            connect(&answer, &QTimer::timeout, &dialog, [&] {
+                auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+                if (!picker)
+                    return;
+                answer.stop();
+                openedDirectory = picker->directory().canonicalPath();
+                const auto close = qScopeGuard([&] {
+                    if (picker->isVisible())
+                        picker->reject();
+                });
+                if (accept) {
+                    picker->setDirectory(selected);
+                    picker->selectFile(selected);
+                    QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
+                }
+            });
+            answer.start(1);
+            QTest::mouseClick(browse, Qt::LeftButton);
+            QVERIFY(!openedDirectory.isEmpty());
+            if (!invalidDraft)
+                QCOMPARE(openedDirectory, QFileInfo(start).canonicalFilePath());
+            QCOMPARE(name(dialog)->text(), QStringLiteral("подпапка"));
+            QCOMPARE(overwrite->currentData().toInt(), int(overwriteMode));
+            if (accept) {
+                QCOMPARE(QFileInfo(path(dialog)->currentText()).canonicalFilePath(),
+                         QFileInfo(selected).canonicalFilePath());
+                QCOMPARE(path(dialog)->currentIndex(), -1);
+            } else {
+                QCOMPARE(path(dialog)->currentText(), draft);
+                QCOMPARE(path(dialog)->currentIndex(), 0);
+                QCOMPARE(field->selectedText(), draft.mid(2, 4));
+                QCOMPARE(field->cursorPosition(), 2);
+            }
+        }
+        const QString destination = QDir(selected).filePath(QStringLiteral("подпапка"));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), destination);
+        QTest::keyClick(field, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(dialog.OverwriteMode, overwriteMode);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.DirPath)), destination);
+        if (missingDirectory)
+            QVERIFY(!QFileInfo::exists(start + "/not created"));
+    }
+    void relativeLongDestinationUsesSourceBrowser() {
+#ifdef Q_OS_WIN
+        QSKIP("This fixture uses a long working directory without a device prefix");
+#else
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString component(95, 'a');
+        const QString base = fixture.filePath(component + '/' + component + '/' + component);
+        const QString start = QDir(base).filePath("output");
+        QVERIFY(QDir().mkpath(start));
+        const QString originalDirectory = QDir::currentPath();
+        const bool nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restore = qScopeGuard([&] {
+            QDir::setCurrent(originalDirectory);
+            QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled);
+        });
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        QVERIFY(QDir::setCurrent(base));
+        CExtractDialog dialog(start, {});
+        enabled(dialog)->setChecked(false);
+        path(dialog)->setEditText("output/");
+        dialog.show();
+        bool sourceBrowser = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            auto *picker = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!picker)
+                return;
+            sourceBrowser = picker->objectName() == "browseDialog";
+            picker->reject();
+        });
+        dialog.findChild<QPushButton *>("extractBrowseButton")->click();
+        QVERIFY(sourceBrowser);
+        QCOMPARE(path(dialog)->currentText(), QString("output/"));
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+#endif
+    }
     void cleanupTestCase() {
         if (oldSettings_.isNull())
             qunsetenv("SEVENZIP_SETTINGS_PATH");
@@ -62,32 +341,32 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(actualLeaf, leaf);
     }
     void originalSplitControlsAndPersistence() {
-        const QString initial = QStringLiteral("/папка с пробелом/вложенная/");
+        const QString base = dir_.filePath(QStringLiteral("папка с пробелом/"));
+        const QString initial = base + QStringLiteral("вложенная/");
+        const QString other = dir_.filePath(QStringLiteral("другое место"));
         {
             CExtractDialog dialog(initial, {});
             QVERIFY(enabled(dialog)->isChecked());
-            QCOMPARE(path(dialog)->currentText(), QStringLiteral("/папка с пробелом/"));
+            QCOMPARE(path(dialog)->currentText(), base);
             QCOMPARE(name(dialog)->text(), QStringLiteral("вложенная/"));
             QVERIFY(!name(dialog)->isHidden());
             name(dialog)->setText(QStringLiteral("  δ результат  "));
-            QCOMPARE(dialog.destination(), QStringLiteral("/папка с пробелом/δ результат"));
+            QCOMPARE(dialog.destination(), base + QStringLiteral("δ результат"));
             dialog.accept();
             QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                     QStringLiteral("/папка с пробелом/δ результат/"));
+                     base + QStringLiteral("δ результат/"));
         }
         NExtract::CInfo saved;
         saved.Load(settings_);
-        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]),
-                 QStringLiteral("/папка с пробелом/δ результат/"));
+        QCOMPARE(QDir::fromNativeSeparators(saved.Paths[0]), base + QStringLiteral("δ результат/"));
         {
             CExtractDialog dialog(initial, {});
             enabled(dialog)->setChecked(false);
             QVERIFY(!name(dialog)->isHidden());
             QVERIFY(!name(dialog)->isEnabled());
-            path(dialog)->setEditText(QStringLiteral("/другое место"));
+            path(dialog)->setEditText(other);
             dialog.accept();
-            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                     QStringLiteral("/другое место/"));
+            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()), other + '/');
         }
         {
             CExtractDialog restarted(initial, {});
@@ -102,14 +381,14 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(!enabled(afterCancel)->isChecked());
     }
     void rootAndLeafDoNotDuplicate() {
-        for (QString initial : {QString("/"), QString("name"), QString("name/")}) {
+        for (const QString &initial : {QDir::rootPath(), QString("name"), QString("name/")}) {
             QFile::remove(settings_);
             CExtractDialog dialog(initial, {});
             QCOMPARE(path(dialog)->currentText(), initial);
             QVERIFY(name(dialog)->text().isEmpty());
             dialog.accept();
-            QCOMPARE(QDir::fromNativeSeparators(dialog.destination()),
-                     initial.endsWith('/') ? initial : initial + "/");
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())),
+                     QDir::cleanPath(QDir::current().absoluteFilePath(initial)));
         }
     }
     void extractionSuccessFailureAndCancel() {
@@ -146,8 +425,95 @@ class SplitDestinationTests final : public QObject {
         QVERIFY(occupied.open(QIODevice::WriteOnly));
         QCOMPARE(occupied.write("preserve"), qint64(8));
         occupied.close();
-        const auto failure = extract("occupied", true);
-        QVERIFY(failure.Result != S_OK || !failure.CallbackOK);
+        const QString corrected = base + "/corrected";
+        const auto recovered = ExtractDialogFixture::Run(
+            backend, archive, base + "/initial", [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error);
+                enabled(dialog)->setChecked(true);
+                name(dialog)->setText("occupied/child");
+                const auto selectedMode = NExtract::NOverwriteMode::kSkip;
+                auto *overwrite = dialog.findChild<QComboBox *>("extractOverwriteMode");
+                overwrite->setCurrentIndex(overwrite->findData(selectedMode));
+                auto *advanced = dialog.findChild<QtDisclosure *>("extractAdvancedSection");
+                QVERIFY(advanced);
+                advanced->setExpanded(false);
+                QVERIFY(name(dialog)->isVisible());
+                path(dialog)->setEditText("  ");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(!advanced->isExpanded());
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
+                const QString aboveRoot =
+                    QString("../").repeated(QDir::currentPath().count('/') + 2) + "output";
+                path(dialog)->setEditText(aboveRoot);
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                path(dialog)->setEditText(base);
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(!advanced->isExpanded() && name(dialog)->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+                QCOMPARE(overwrite->currentData().toInt(), int(selectedMode));
+                QCOMPARE(name(dialog)->text(), QString("occupied/child"));
+                path(dialog)->setEditText(base + "/occupied");
+                name(dialog)->setText("../corrected");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(error->text().contains(base + "/occupied"));
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
+                QVERIFY(!QFileInfo::exists(corrected));
+#ifdef Q_OS_WIN
+                path(dialog)->setEditText(base + "/ ... /child");
+                name(dialog)->clear();
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
+                path(dialog)->setEditText(base);
+                name(dialog)->setText(" ... /../child");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+                name(dialog)->setText("wrong*");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+                QCOMPARE(name(dialog)->selectedText(), QString("wrong*"));
+#endif
+                const QString invalidBase = base + "/truncated base" + QChar::Null + "suffix";
+                path(dialog)->setEditText(invalidBase);
+                name(dialog)->clear();
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_VERIFY(dialog.focusWidget() == path(dialog) ||
+                            dialog.focusWidget() == path(dialog)->lineEdit());
+                QCOMPARE(path(dialog)->currentText(), invalidBase);
+
+                path(dialog)->setEditText(base);
+                const QString invalidName = QString("truncated subfolder") + QChar::Null + "suffix";
+                name(dialog)->setText(invalidName);
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QTRY_COMPARE(dialog.focusWidget(), name(dialog));
+                QCOMPARE(name(dialog)->text(), invalidName);
+                name(dialog)->setText("corrected");
+                QVERIFY(!error->isVisible());
+                dialog.accept();
+            });
+        QCOMPARE(recovered.Result, S_OK);
+        QVERIFY(recovered.CallbackOK);
+        QVERIFY(!QFileInfo::exists(base + "/truncated base"));
+        QVERIFY(!QFileInfo::exists(base + "/truncated subfolder"));
+        QFile retried(QDir(corrected).filePath(QFileInfo(source).fileName()));
+        QVERIFY(retried.open(QIODevice::ReadOnly));
+        QCOMPARE(retried.readAll(), QByteArray("source bytes"));
         QVERIFY(occupied.open(QIODevice::ReadOnly));
         QCOMPARE(occupied.readAll(), QByteArray("preserve"));
         const QString cancelledPath = base + "/cancelled";
@@ -155,6 +521,114 @@ class SplitDestinationTests final : public QObject {
         QCOMPARE(cancelled.Result, E_ABORT);
         QVERIFY(!QFileInfo::exists(cancelledPath));
     }
+#ifndef Q_OS_WIN
+    void readOnlyDestinationCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString blocked = fixture.filePath("read only");
+        const QString writable = blocked + "/writable";
+        QVERIFY(QDir().mkpath(writable));
+        const auto permissions = QFile::permissions(blocked);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
+        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
+            QFileInfo(blocked).isWritable())
+            QSKIP("The test filesystem does not enforce this directory permission");
+
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("source bytes"), qint64(12));
+        file.close();
+        const QString archive = fixture.filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        ArchiveBackend backend;
+        const auto result = ExtractDialogFixture::Run(
+            backend, archive, fixture.path(), [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error);
+                enabled(dialog)->setChecked(true);
+                path(dialog)->setEditText(fixture.path());
+                name(dialog)->setText("read only/missing/deeper");
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QCOMPARE(error->text(), QString("The folder is read-only: %1").arg(blocked));
+                QCOMPARE(dialog.focusWidget(), name(dialog));
+                QCOMPARE(name(dialog)->text(), QString("read only/missing/deeper"));
+
+                path(dialog)->setEditText(blocked);
+                name(dialog)->clear();
+                dialog.accept();
+                QVERIFY(dialog.isVisible() && error->isVisible());
+                QVERIFY(dialog.focusWidget() == path(dialog) ||
+                        dialog.focusWidget() == path(dialog)->lineEdit());
+                name(dialog)->setText("writable");
+                dialog.accept();
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QVERIFY(!QFileInfo::exists(blocked + "/missing"));
+        QFile extracted(writable + "/payload.txt");
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("source bytes"));
+    }
+
+    void destinationLinkCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("payload.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("source bytes"), qint64(12));
+        file.close();
+        const QString archive = fixture.filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::WriteFiles(archive, {source}));
+        const QString missing = fixture.filePath("deleted folder");
+        const QString dangling = fixture.filePath("old <b>shortcut");
+        const QString output = fixture.filePath("output folder");
+        const QString linked = fixture.filePath("current shortcut");
+        QVERIFY(QDir().mkpath(output + "/nested"));
+        QVERIFY(QFile::link(missing, dangling));
+        QVERIFY(QFile::link(output, linked));
+
+        ArchiveBackend backend;
+        const auto result =
+            ExtractDialogFixture::Run(backend, archive, dangling, [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error);
+                enabled(dialog)->setChecked(false);
+                for (const QString &blocked :
+                     {dangling, dangling + "/nested/output", linked, linked + "/nested"}) {
+                    path(dialog)->setEditText(blocked);
+                    dialog.accept();
+                    QVERIFY(dialog.isVisible() && error->isVisible());
+                    QCOMPARE(path(dialog)->currentText(), blocked);
+                    if (blocked == dangling) {
+                        auto *accessible = QAccessible::queryAccessibleInterface(error);
+                        QVERIFY(accessible);
+                        QVERIFY(accessible->text(QAccessible::Name).contains(dangling));
+                    }
+                }
+                QVERIFY(!QFileInfo::exists(output + "/nested/payload.txt"));
+                path(dialog)->setEditText(output + "/nested");
+                dialog.accept();
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QVERIFY(QFileInfo(dangling).isSymLink());
+        QVERIFY(!QFileInfo::exists(missing));
+        QFile extracted(output + "/nested/payload.txt");
+        QVERIFY(extracted.open(QIODevice::ReadOnly));
+        QCOMPARE(extracted.readAll(), QByteArray("source bytes"));
+    }
+#endif
 };
 QTEST_MAIN(SplitDestinationTests)
 #include "split_destination_tests.moc"

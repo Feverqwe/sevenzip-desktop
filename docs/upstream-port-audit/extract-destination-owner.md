@@ -1,5 +1,18 @@
 # Extract destination preparation — 2026-11-01
 
+## Correcting an invalid destination in the Extract dialog — 2026-11-07
+
+Reviewed the original ExtractDialog.cpp acceptance and ExtractGUI.cpp caller.
+The Qt dialog keeps the pending options and shows a destination error when
+the folder field is blank or the path passes through an existing file. Users
+can correct the draft and extract from the same dialog. The extraction worker
+still validates and creates its output through the existing native path.
+
+Linux extract_dialog, split_destination, dialog_path_rules and
+toolbar_archive_workflow passed. The real archive case checks rejection of
+both drafts, retained overwrite selection, extraction after correction and
+Cancel without creating the requested folder.
+
 ## One memory/spill stream owner through nested opening — 2026-11-05
 
 Reviewed complete native memory growth/spill/close bodies, output metadata and

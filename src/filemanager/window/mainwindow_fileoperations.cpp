@@ -10,23 +10,26 @@
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtlocalfiletask.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/trash/qttrashservice.h"
 #include "settings/ViewSettings.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QFile>
 #include <QScopedValueRollback>
 
 void MainWindow::transferFiles(const QStringList &sources, const QString &destination, bool move,
-                               bool directPath, std::function<void(bool)> completed) {
+                               bool directPath,
+                               std::function<void(const QStringList &)> transferOutput) {
     if (app_.QtOperations().closed())
         return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     const QString destinationDirectory =
         directPath ? QFileInfo(destination).absolutePath() : destination;
-    if (projectedUi().state != State::Filesystem || !QFileInfo(destinationDirectory).isDir() ||
-        QFileInfo(destinationDirectory).isSymLink() || sources.isEmpty() ||
-        (directPath && sources.size() != 1)) {
+    const QFileInfo directory(destinationDirectory);
+    if (projectedUi().state != State::Filesystem || !directory.isDir() || directory.isSymLink() ||
+        directory.isJunction() || sources.isEmpty() || (directPath && sources.size() != 1)) {
         QMessageBox::warning(this, "Sevenzip",
                              QCoreApplication::translate("mainwindow_fileoperations",
                                                          "The destination folder is unavailable."));
@@ -38,13 +41,33 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                                              : FileTransferOperation::DestinationKind::Directory);
     auto *task =
         new QtLocalFileTask(*operation, QtLangText(move ? IDS_MOVING : IDS_COPYING), destination);
+    const unsigned owner = projectedPanel_;
+    statusStrip_->SetMessage(&app_.Panels[owner], {});
     fileTask_ = task;
     task->SetLocations(sources.join('\n'), destination);
-    task->BindOwner(app_.Panels[projectedPanel_], *this);
-    if (completed)
-        connect(task, &QtLocalFileTask::transferCompleted, task, std::move(completed));
+    task->BindOwner(app_.Panels[owner], *this);
+    const bool refreshesLocally = appPresentation_->IsCopyPending();
+    connect(task, &QtLocalFileTask::transferOutput, this,
+            [this, sources, destinationDirectory, move, refreshesLocally, owner] {
+                QStringList changed{destinationDirectory};
+                // A merge can move children while leaving their source folder.
+                if (move)
+                    for (const auto &source : sources)
+                        changed.append(QFileInfo(source).absolutePath());
+                if (auto *application = QtWorkspaceApplication::Find())
+                    application->FilesystemPublished(changed, refreshesLocally ? this : nullptr);
+                else if (!refreshesLocally)
+                    guiOutputRefresh_->Enqueue(changed, {});
+                // The copy continuation reloads the peer's current provider.
+                // An archive provider also needs to check whether its file moved.
+                if (refreshesLocally && move && app_.NumPanels == 2 &&
+                    app_.Panels[1 - owner].IsArcFolder())
+                    guiOutputRefresh_->Enqueue(changed, {}, int(owner));
+            });
+    if (transferOutput)
+        connect(task, &QtLocalFileTask::transferOutput, task, std::move(transferOutput));
     connect(task, &QtLocalFileTask::finished, this,
-            [this, task](bool success, bool, const QString &message) {
+            [this, task, owner](bool success, bool canceled, const QString &message, bool partial) {
                 if (app_.QtOperations().closed())
                     return;
                 const QPointer<MainWindow> guard(this);
@@ -52,12 +75,16 @@ void MainWindow::transferFiles(const QStringList &sources, const QString &destin
                     return;
                 if (fileTask_ == task)
                     fileTask_ = nullptr;
-                if (success)
-                    showStatusMessage(message);
                 // OnCopy's continuation owns both reloads, saved selections
                 // and final focus after this worker releases its operation.
-                setState(State::Filesystem);
-                appPresentation_->CopyFinished();
+                // A context-menu transfer may outlive its temporary panel projection.
+                // Release the operation before setState runs under a new projection.
+                if (projectedPanel_ != owner)
+                    app_.QtOperations().End();
+                withPanelProjection(owner, [this] { setState(State::Filesystem); });
+                appPresentation_->CopyFinished(!success || partial, !success && !canceled);
+                if (success && guard)
+                    statusStrip_->SetMessage(&app_.Panels[owner], message);
             });
     setState(State::Operating);
     task->Start();
@@ -137,6 +164,7 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
             this, QtLangText(IDS_COPYING),
             QCoreApplication::translate("mainwindow_fileoperations",
                                         "Writing to this archive folder is unavailable."));
+        appPresentation_->CopyFinished(true);
         return true;
     }
     UStringVector names;
@@ -145,27 +173,49 @@ bool MainWindow::transferToArchivePanel(const QString &destination, bool move,
         return true;
     CSelectedState destinationSelection;
     target.SaveSelectedState(destinationSelection);
+    const QString archive = ToQString(target.GetParentFolders().Front().VirtualPath);
     UStringVector messages;
     HRESULT result;
+    bool published = false;
     {
         QScopedValueRollback<bool> progressOwner(sourceArchiveProgress_, true);
-        result = target.CopyFrom(move, source.GetFsPath(), names, true, &messages);
+        result = target.CopyFrom(move, source.GetFsPath(), names, false, &messages, nullptr,
+                                 std::nullopt, &published);
     }
     // The native call has completed. Release its retained source guards before
     // changing the panel projection; source RefreshListCtrl can then own a scan.
     if (app_.QtOperations().kind() == QtAppOperationState::Kind::Operation)
         app_.QtOperations().End();
-    if (result == S_OK) {
+    if (result == S_OK || published)
         refreshArchiveTransferDestination(destinationIndex, destinationSelection);
+    if (published) {
+        if (auto *application = QtWorkspaceApplication::Find()) {
+            application->ArchivePublished(archive, &target);
+            if (move)
+                application->FilesystemPublished({ToQString(source.GetFsPath())}, this);
+        } else
+            ArchivePublished(archive, &target);
+    }
+    if (result == S_OK) {
         if (move)
             appPresentation_->RefreshCopyPanel(sourceIndex);
         showStatusMessage(move ? QCoreApplication::translate("mainwindow_fileoperations",
                                                              "Items moved into the archive.")
                                : QCoreApplication::translate("mainwindow_fileoperations",
                                                              "Items copied into the archive."));
-    } else if (result != E_ABORT) {
-        QMessageBox::warning(this, QtLangText(IDS_COPYING),
-                             QString::fromWCharArray(HResultToMessage(result).Ptr()));
+    } else {
+        appPresentation_->CopyFinished(true, move && published);
+    }
+    if (result != S_OK || !messages.IsEmpty()) {
+        QStringList diagnostics;
+        FOR_VECTOR(i, messages)
+        diagnostics.append(ToQString(messages[i]));
+        CProgressDialog::PresentResult(this, {.title = QtLangText(move ? IDS_MOVING : IDS_COPYING),
+                                              .result = result,
+                                              .diagnostics = diagnostics,
+                                              .source = ToQString(source.GetFsPath()),
+                                              .destination = destination,
+                                              .partial = published && result != S_OK});
     }
     return true;
 }

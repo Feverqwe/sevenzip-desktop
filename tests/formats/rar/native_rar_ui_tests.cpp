@@ -1,8 +1,10 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "filemanager/support/window_state_support.h"
 #include "formats/rar/support/rar_memory_fixture.h"
+#include "support/drag_event_position.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QDragEnterEvent>
 
 namespace {
 class CObservedBackend final : public ArchiveBackend {
@@ -103,6 +105,33 @@ class NativeRarUiTests final : public QObject, protected MainWindowTestSupport {
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join("; ")));
         QCOMPARE(read(archive), original);
     }
+    void readOnlyArchiveRejectsFileDrag() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("compressed.rar");
+        QVERIFY(QFile::copy(QString::fromUtf8(RAR_COMPRESSED_FIXTURE), archive));
+        QFile input(fixture.filePath("new entry.txt"));
+        QVERIFY(input.open(QIODevice::WriteOnly));
+        QCOMPARE(input.write("payload"), qint64(7));
+        input.close();
+
+        CObservedBackend backend(engine_);
+        QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(archive);
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 1);
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString("test.bin"));
+
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(input.fileName())});
+        QDragEnterEvent enter(DragEventPosition(QPoint(5, 5)), Qt::CopyAction, &mime,
+                              Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(files->viewport(), &enter);
+        QVERIFY(!enter.isAccepted());
+    }
+
     void unsafePathRefusedBeforeExtraction() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

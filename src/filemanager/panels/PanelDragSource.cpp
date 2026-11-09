@@ -26,6 +26,9 @@ void CDataObject::SetTransfer(const CTargetTransferInfo &target) {
             needProcessBySource = false;
     }
     DoNotProcessInTarget = needProcessBySource;
+    if (DeferredTempFiles && target.FuncType == k_DragTargetMode_Drop_Begin &&
+        !(target.Flags & k_TargetFlags_WasCanceled))
+        NeedCall_Copy = !needProcessBySource;
 }
 UInt32 CDataObject::GetTransferFlags() const {
     UInt32 flags = 0;
@@ -93,8 +96,10 @@ void CDataObject::CompleteExternalDrag(bool cancellationConfirmed) {
         FinishExternalReceiver();
 }
 
-void CDataObject::CopyFromPanelTo_Folder() {
-    if (!Panel) {
+void CDataObject::CopyFromPanelTo_Folder(CPanel *source) {
+    if (!source)
+        source = Panel;
+    if (!source) {
         Copy_HRESULT = E_ABORT;
         return;
     }
@@ -104,7 +109,13 @@ void CDataObject::CopyFromPanelTo_Folder() {
         // Qt owns mouse capture; CopyTo uses the existing progress adapter.
         Copy_WasCalled = true;
         Copy_HRESULT = E_FAIL;
-        Copy_HRESULT = Panel->CopyTo(options, Indices, &Messages);
+        QtArchiveExtractReport report;
+        Copy_HRESULT = source->CopyTo(options, Indices, &Messages, &report);
+        CopyResultPresented = report.ResultPresented;
+        if (Copy_HRESULT == S_OK && source->IsArcFolder() &&
+            (!Messages.IsEmpty() || report.HadErrors ||
+             (report.Status && !report.Status->Complete)))
+            Copy_HRESULT = E_FAIL;
     } catch (...) {
         Copy_HRESULT = E_FAIL;
     }
@@ -261,14 +272,22 @@ void CPanel::OnDrag(bool isRightButton) {
                     else
                         options.moveMode = effect == DROPEFFECT_MOVE;
                 }
-                res = CopyTo(options, indices, &dataObjectSpec->Messages);
+                QtArchiveExtractReport report;
+                res = CopyTo(options, indices, &dataObjectSpec->Messages, &report);
+                dataObjectSpec->CopyResultPresented = report.ResultPresented;
+                if (_filesystemPublication) {
+                    QStringList changed{ToQString(options.folder)};
+                    if (options.moveMode)
+                        changed.append(ToQString(GetFsPath()));
+                    _filesystemPublication(changed);
+                }
             }
     } else {
         if (res != DRAGDROP_S_CANCEL && res != S_OK && res != HRESULT(0x8000FFFFL))
             MessageBox_Error_HRESULT(res);
         res = dataObjectSpec->Copy_HRESULT;
     }
-    if (!dataObjectSpec->Messages.IsEmpty()) {
+    if (!dataObjectSpec->CopyResultPresented && !dataObjectSpec->Messages.IsEmpty()) {
         QStringList lines;
         FOR_VECTOR(i, dataObjectSpec->Messages)
         lines.append(ToQString(dataObjectSpec->Messages[i]));
@@ -284,7 +303,7 @@ void CPanel::OnDrag(bool isRightButton) {
         QtTaskResultDialog result(summary, lines.join('\n'), GetParent());
         result.setAttribute(Qt::WA_DeleteOnClose, false);
         result.exec();
-    } else if (res != S_OK && res != E_ABORT) {
+    } else if (!dataObjectSpec->CopyResultPresented && res != S_OK && res != E_ABORT) {
         disableNotify.Restore();
         MessageBox_Error_HRESULT(res);
     }

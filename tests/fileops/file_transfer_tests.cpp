@@ -21,19 +21,25 @@ class FileTransferTests : public QObject {
     void invalidBatchDoesNotAskToOverwrite_data() {
         QTest::addColumn<bool>("move");
         QTest::addColumn<bool>("duplicateName");
-        QTest::newRow("copy-missing-source") << false << false;
-        QTest::newRow("move-missing-source") << true << false;
-        QTest::newRow("copy-duplicate-target") << false << true;
-        QTest::newRow("move-duplicate-target") << true << true;
+        QTest::addColumn<bool>("differentCase");
+        QTest::newRow("copy-missing-source") << false << false << false;
+        QTest::newRow("move-missing-source") << true << false << false;
+        QTest::newRow("copy-duplicate-target") << false << true << false;
+        QTest::newRow("move-duplicate-target") << true << true << false;
+#ifdef Q_OS_WIN
+        QTest::newRow("move-duplicate-target-case") << true << true << true;
+#endif
     }
     void invalidBatchDoesNotAskToOverwrite() {
         QFETCH(bool, move);
         QFETCH(bool, duplicateName);
+        QFETCH(bool, differentCase);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("имя 空 с пробелом.txt");
         const QString first = fixture.filePath("first/" + name);
-        const QString last = fixture.filePath("last/" + name);
+        const QString lastName = differentCase ? name.toUpper() : name;
+        const QString last = fixture.filePath("last/" + lastName);
         const QString destination = fixture.filePath("destination");
         const QString target = QDir(destination).filePath(name);
         const auto write = [](const QString &path, const QByteArray &bytes) {
@@ -66,11 +72,14 @@ class FileTransferTests : public QObject {
             QCOMPARE(file.readAll(), expected.second);
         }
         if (duplicateName) {
+            QVERIFY(result.first().at(1).toString().contains(QDir(destination).filePath(lastName)));
             QFile file(last);
             QVERIFY(file.open(QIODevice::ReadOnly));
             QCOMPARE(file.readAll(), QByteArray("last bytes"));
-        } else
+        } else {
             QVERIFY(!QFileInfo::exists(last));
+            QVERIFY(result.first().at(1).toString().contains(last));
+        }
         QCOMPARE(
             QDir(destination).entryList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot),
             QStringList{name});
@@ -288,7 +297,8 @@ class FileTransferTests : public QObject {
         FileTransferOperation::FileSystemAdapter adapter;
         adapter.trySourceRename = [](const QString &, const QString &) { return false; };
         adapter.removeSource = [first](const QString &path) {
-            return path == first ? QFile::remove(path) : false;
+            return QFileInfo(path).fileName() == QFileInfo(first).fileName() ? QFile::remove(path)
+                                                                             : false;
         };
         const QString destination = temp.filePath("destination");
         FileTransferOperation move({first, second}, destination, true, nullptr, adapter);
@@ -339,7 +349,7 @@ class FileTransferTests : public QObject {
         };
         QStringList removed;
         adapter.removeSource = [&](const QString &source) {
-            removed << source;
+            removed << QFileInfo(source).fileName();
             if (!QFile::remove(source))
                 return false;
             if (cancelAfterRemoval)
@@ -358,7 +368,7 @@ class FileTransferTests : public QObject {
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(!result.first().first().toBool());
         QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
-        QCOMPARE(removed, QStringList{sources[1]});
+        QCOMPARE(removed, QStringList{QFileInfo(sources[1]).fileName()});
         for (int i = 0; i < sources.size(); ++i) {
             const bool untouched = i == 2;
             QCOMPARE(QFileInfo::exists(sources[i]), untouched);
@@ -523,6 +533,451 @@ class FileTransferTests : public QObject {
         QFile originalSource(sources.first());
         QVERIFY(originalSource.open(QIODevice::ReadOnly));
         QCOMPARE(originalSource.readAll(), QByteArray("again"));
+    }
+
+    void changedFileInvalidatesReplace_data() {
+        QTest::addColumn<bool>("duringStaging");
+        QTest::addColumn<bool>("incoming");
+        QTest::addColumn<bool>("move");
+        QTest::newRow("destination-replaced-while-asking") << false << false << true;
+        QTest::newRow("destination-edited-while-staging") << true << false << true;
+        QTest::newRow("incoming-replaced-before-move") << false << true << true;
+        QTest::newRow("incoming-replaced-before-copy") << false << true << false;
+    }
+    void changedFileInvalidatesReplace() {
+        QFETCH(bool, duringStaging);
+        QFETCH(bool, incoming);
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("конфликт 空.txt");
+        const QString source = fixture.filePath(name);
+        const QString output = fixture.filePath("output");
+        const QString target = QDir(output).filePath(name);
+        const QString changedPath = incoming ? source : target;
+        const QString previous = fixture.filePath("previous file.txt");
+        QVERIFY(QDir().mkdir(output));
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(source, "incoming bytes"));
+        QVERIFY(write(target, "old bytes"));
+        bool changed = false;
+        FileTransferOperation operation({source}, output, move);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
+            [&](const OverwriteQuestion &) {
+                if (!duringStaging)
+                    changed =
+                        QFile::rename(changedPath, previous) && write(changedPath, "new bytes");
+                operation.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        connect(
+            &operation, &FileTransferOperation::currentFile, &operation,
+            [&](const QString &) {
+                if (duringStaging)
+                    changed = write(target, "edited bytes");
+            },
+            Qt::DirectConnection);
+        operation.start();
+        QVERIFY(operation.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(changed);
+        QCOMPARE(operation.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(changedPath));
+        QCOMPARE(read(source), incoming ? QByteArray("new bytes") : QByteArray("incoming bytes"));
+        const QByteArray destinationBytes = incoming        ? QByteArray("old bytes")
+                                            : duringStaging ? QByteArray("edited bytes")
+                                                            : QByteArray("new bytes");
+        QCOMPARE(read(target), destinationBytes);
+        if (!duringStaging)
+            QCOMPARE(read(previous),
+                     incoming ? QByteArray("incoming bytes") : QByteArray("old bytes"));
+        QCOMPARE(QDir(output).entryList(QDir::Files), QStringList{name});
+    }
+
+    void laterBatchSourceChangedDuringFirstConflict() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(output));
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath(QStringLiteral("second 空.txt"));
+        const QString parked = fixture.filePath("parked.txt");
+        const QString target = QDir(output).filePath("first.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "first original"));
+        QVERIFY(write(second, "second original"));
+        QVERIFY(write(target, "previous destination"));
+        bool changed = false;
+        FileTransferOperation move({first, second}, output, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                changed = QFile::rename(second, parked) && write(second, "replacement");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(changed);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(second));
+        QCOMPARE(read(first), QByteArray("first original"));
+        QCOMPARE(read(second), QByteArray("replacement"));
+        QCOMPARE(read(parked), QByteArray("second original"));
+        QCOMPARE(read(target), QByteArray("previous destination"));
+        QCOMPARE(QDir(output).entryList(QDir::Files), QStringList{"first.txt"});
+    }
+
+    void replacedDestinationDirectoryIsNotTouchedDuringRollback() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        const QString original = fixture.filePath("renamed output");
+        QVERIFY(QDir().mkdir(output));
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath("second.txt");
+        const QString target = QDir(output).filePath("first.txt");
+        const QString conflict = QDir(output).filePath("second.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "first source"));
+        QVERIFY(write(second, "second source"));
+        QVERIFY(write(conflict, "existing conflict"));
+        bool replaced = false;
+        FileTransferOperation move({first, second}, output, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                replaced = QDir().rename(output, original) && QDir().mkdir(output) &&
+                           write(target, "unrelated first") && write(conflict, "unrelated second");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(replaced);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(output));
+        QVERIFY(!QFileInfo::exists(first));
+        QCOMPARE(read(second), QByteArray("second source"));
+        QCOMPARE(read(target), QByteArray("unrelated first"));
+        QCOMPARE(read(conflict), QByteArray("unrelated second"));
+        QCOMPARE(read(QDir(original).filePath("first.txt")), QByteArray("first source"));
+        QCOMPARE(read(QDir(original).filePath("second.txt")), QByteArray("existing conflict"));
+    }
+
+    void changedMergeDestinationKeepsBothTrees_data() {
+        QTest::addColumn<bool>("editConflict");
+        QTest::newRow("conflicting-file") << true;
+        QTest::newRow("unrelated-file") << false;
+    }
+    void changedMergeDestinationKeepsBothTrees() {
+        QFETCH(bool, editConflict);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("folder");
+        const QString output = fixture.filePath("output");
+        const QString destination = QDir(output).filePath("folder");
+        const QString child = QStringLiteral("/nested 空/конфликт.txt");
+        const QString sibling = QStringLiteral("/nested 空/сосед.txt");
+        QVERIFY(QDir().mkpath(QFileInfo(source + child).absolutePath()));
+        QVERIFY(QDir().mkpath(QFileInfo(destination + child).absolutePath()));
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(source + child, "incoming bytes"));
+        QVERIFY(write(destination + child, "existing bytes"));
+        QVERIFY(write(destination + sibling, "unrelated bytes"));
+        bool edited = false;
+        FileTransferOperation move({source}, output, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                edited = write(destination + (editConflict ? child : sibling), "external edit");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(edited);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(destination));
+        QCOMPARE(read(source + child), QByteArray("incoming bytes"));
+        QCOMPARE(read(destination + child),
+                 editConflict ? QByteArray("external edit") : QByteArray("existing bytes"));
+        QCOMPARE(read(destination + sibling),
+                 editConflict ? QByteArray("unrelated bytes") : QByteArray("external edit"));
+        QCOMPARE(QDir(output).entryList(QDir::Dirs | QDir::NoDotAndDotDot), QStringList{"folder"});
+    }
+
+    void backupEditedWhileMovingOtherItemsIsKept_data() {
+        QTest::addColumn<bool>("sourceRemovalFails");
+        QTest::newRow("completed-batch") << false;
+        QTest::newRow("failed-source-removal") << true;
+    }
+    void backupEditedWhileMovingOtherItemsIsKept() {
+#ifdef Q_OS_WIN
+        QSKIP("This fixture keeps a Qt file handle open across POSIX rename");
+#else
+        QFETCH(bool, sourceRemovalFails);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(destination));
+        const QString first = fixture.filePath("first.txt");
+        const QString second = fixture.filePath("second.txt");
+        const QString target = QDir(destination).filePath("first.txt");
+        const QString secondTarget = QDir(destination).filePath("second.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "incoming first"));
+        QVERIFY(write(second, "incoming second"));
+        QVERIFY(write(target, "old first"));
+        QVERIFY(write(secondTarget, "old second"));
+        QFile editor(target);
+        QVERIFY(editor.open(QIODevice::ReadWrite | QIODevice::Append));
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.trySourceRename = [&](const QString &source, const QString &stage) {
+            return source == first && QFile::rename(source, stage);
+        };
+        adapter.removeSource = [&](const QString &source) {
+            return !sourceRemovalFails && QFile::remove(source);
+        };
+        FileTransferOperation move({first, second}, destination, true, nullptr, adapter);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        bool edited = false;
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &question) {
+                if (question.Existing.Path == secondTarget)
+                    edited = editor.write(" external edit") == 14 && editor.flush();
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        editor.close();
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(edited);
+        QCOMPARE(move.resultKind(), sourceRemovalFails
+                                        ? FileTransferOperation::ResultKind::Failure
+                                        : FileTransferOperation::ResultKind::PartialSuccess);
+        QCOMPARE(read(target), QByteArray("incoming first"));
+        QCOMPARE(read(secondTarget), QByteArray("incoming second"));
+        QVERIFY(!QFileInfo::exists(first));
+        QCOMPARE(QFileInfo::exists(second), sourceRemovalFails);
+        const auto backups =
+            QDir(destination).entryList({QStringLiteral("*.sevenzip-*-backup")}, QDir::Files);
+        QCOMPARE(backups.size(), 1);
+        const QString backup = QDir(destination).filePath(backups.first());
+        QCOMPARE(read(backup), QByteArray("old first external edit"));
+        QVERIFY(result.first().at(1).toString().contains(backup));
+#endif
+    }
+
+    void changedSourceAfterCopyIsKept_data() {
+        QTest::addColumn<bool>("merge");
+        QTest::newRow("file") << false;
+        QTest::newRow("merged-child") << true;
+    }
+    void changedSourceAfterCopyIsKept() {
+        QFETCH(bool, merge);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        const QString source = fixture.filePath(merge ? "folder" : "first.txt");
+        const QString target = QDir(output).filePath(QFileInfo(source).fileName());
+        const QString firstFile = merge ? source + "/nested/first.txt" : source;
+        const QString published = merge ? target + "/nested/first.txt" : target;
+        const QString second = fixture.filePath("second.txt");
+        const QString conflict = QDir(output).filePath("second.txt");
+        const QString parked = fixture.filePath("old source.txt");
+        QVERIFY(QDir().mkpath(QFileInfo(firstFile).absolutePath()));
+        QVERIFY(QDir().mkpath(QFileInfo(published).absolutePath()));
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(firstFile, "first original"));
+        QVERIFY(write(second, "second original"));
+        QVERIFY(write(conflict, "second target"));
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.trySourceRename = [](const QString &, const QString &) { return false; };
+        FileTransferOperation move({source, second}, output, true, nullptr, adapter);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        bool changed = false;
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &) {
+                changed = QFile::rename(firstFile, parked) && write(firstFile, "new source");
+                move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(changed);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QVERIFY(result.first().at(1).toString().contains(source));
+        QVERIFY(result.first().at(2).toStringList().isEmpty());
+        QCOMPARE(read(firstFile), QByteArray("new source"));
+        QCOMPARE(read(parked), QByteArray("first original"));
+        QCOMPARE(read(published), QByteArray("first original"));
+        QCOMPARE(read(second), QByteArray("second original"));
+        QCOMPARE(read(conflict), QByteArray("second target"));
+    }
+
+    void fileCreatedAtOriginalPathDuringRemovalIsKept_data() {
+        QTest::addColumn<bool>("removalFails");
+        QTest::newRow("delete-checked-object") << false;
+        QTest::newRow("retain-on-restore-conflict") << true;
+    }
+    void fileCreatedAtOriginalPathDuringRemovalIsKept() {
+        QFETCH(bool, removalFails);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        const QString destination = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(destination));
+        QFile incoming(source);
+        QVERIFY(incoming.open(QIODevice::WriteOnly));
+        QCOMPARE(incoming.write("original"), 8);
+        incoming.close();
+        bool created = false;
+        QString checkedPath;
+        FileTransferOperation::FileSystemAdapter adapter;
+        adapter.trySourceRename = [](const QString &, const QString &) { return false; };
+        adapter.removeSource = [&](const QString &checked) {
+            checkedPath = checked;
+            QFile replacement(source);
+            created = replacement.open(QIODevice::WriteOnly | QIODevice::NewOnly) &&
+                      replacement.write("new file") == 8;
+            replacement.close();
+            return !removalFails && QFile::remove(checked);
+        };
+        FileTransferOperation move({source}, destination, true, nullptr, adapter);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(created);
+        QCOMPARE(move.resultKind(), removalFails ? FileTransferOperation::ResultKind::Failure
+                                                 : FileTransferOperation::ResultKind::Success);
+        QFile replacement(source);
+        QVERIFY(replacement.open(QIODevice::ReadOnly));
+        QCOMPARE(replacement.readAll(), QByteArray("new file"));
+        QFile published(QDir(destination).filePath("source.txt"));
+        QVERIFY(published.open(QIODevice::ReadOnly));
+        QCOMPARE(published.readAll(), QByteArray("original"));
+        if (removalFails) {
+            QFile retained(checkedPath);
+            QVERIFY(retained.open(QIODevice::ReadOnly));
+            QCOMPARE(retained.readAll(), QByteArray("original"));
+            QVERIFY(result.first().at(1).toString().contains(checkedPath));
+        } else {
+            QCOMPARE(
+                QDir(fixture.path()).entryList(QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot),
+                QStringList{"output"});
+        }
+    }
+
+    void blockedMoveRollbackReportsRetainedFiles() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkdir(destination));
+        const QString first = fixture.filePath(QStringLiteral("01 перенос 空.txt"));
+        const QString second = fixture.filePath("02 conflict.txt");
+        const QString target = QDir(destination).filePath(QFileInfo(first).fileName());
+        const QString secondTarget = QDir(destination).filePath(QFileInfo(second).fileName());
+        const auto write = [](const QString &path, const QByteArray &data) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly | QIODevice::NewOnly) &&
+                   file.write(data) == data.size();
+        };
+        const auto read = [](const QString &path) {
+            QFile file(path);
+            return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        };
+        QVERIFY(write(first, "incoming first"));
+        QVERIFY(write(second, "incoming second"));
+        QVERIFY(write(target, "old first"));
+        QVERIFY(write(secondTarget, "old second"));
+        bool recreated = false;
+        FileTransferOperation move({first, second}, destination, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        connect(
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&](const OverwriteQuestion &question) {
+                if (question.Existing.Path == target)
+                    move.submitOverwriteAnswer(NOverwriteAnswer::kYes);
+                else {
+                    recreated = write(first, "other application's file");
+                    move.cancel();
+                }
+            },
+            Qt::DirectConnection);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(recreated);
+        QVERIFY(!result.first().first().toBool());
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        QCOMPARE(read(first), QByteArray("other application's file"));
+        QCOMPARE(read(target), QByteArray("incoming first"));
+        QCOMPARE(read(second), QByteArray("incoming second"));
+        QCOMPARE(read(secondTarget), QByteArray("old second"));
+        const auto backups =
+            QDir(destination).entryList({QStringLiteral("*.sevenzip-*-backup")}, QDir::Files);
+        QCOMPARE(backups.size(), 1);
+        const auto backup = QDir(destination).filePath(backups.first());
+        QCOMPARE(read(backup), QByteArray("old first"));
+        const auto diagnostic = result.first().at(1).toString();
+        QVERIFY(diagnostic.contains(first) && diagnostic.contains(target) &&
+                diagnostic.contains(backup));
     }
 
     void overwriteDecisionAcrossFolderBoundary_data() {
@@ -710,7 +1165,113 @@ class FileTransferTests : public QObject {
         QVERIFY(QFileInfo::exists(sourceConflict.fileName()));
     }
 
+    void caseVariantsCannotOverwriteAnEarlierBatchResult_data() {
+        QTest::addColumn<bool>("move");
+        QTest::newRow("copy") << false;
+        QTest::newRow("move") << true;
+    }
+
+    void caseVariantsCannotOverwriteAnEarlierBatchResult() {
+        QFETCH(bool, move);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir(fixture.path()).mkdir("destination"));
+        const QString destination = fixture.filePath("destination");
+        const QString first = fixture.filePath("first/report.txt");
+        const QString second = fixture.filePath("second/REPORT.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return QDir().mkpath(QFileInfo(path).absolutePath()) &&
+                   file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        QVERIFY(write(first, "first"));
+        QVERIFY(write(second, "second"));
+        const QString probe = QDir(destination).filePath("case-probe");
+        QVERIFY(write(probe, "probe"));
+        const bool sameName = QFileInfo::exists(QDir(destination).filePath("CASE-PROBE"));
+        QVERIFY(QFile::remove(probe));
+        FileTransferOperation operation({first, second}, destination, move);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        QSignalSpy prompts(&operation, &FileTransferOperation::overwriteRequested);
+        connect(&operation, &FileTransferOperation::overwriteRequested, &operation,
+                [&] { operation.submitOverwriteAnswer(NOverwriteAnswer::kYes); });
+        operation.start();
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(operation.wait(30000));
+        QCOMPARE(prompts.size(), 0);
+        QCOMPARE(result.first().first().toBool(), !sameName);
+        if (sameName)
+            QVERIFY(result.first().at(1).toString().contains("same destination"));
+        for (const auto &[source, expected] :
+             {qMakePair(first, "first"), qMakePair(second, "second")}) {
+            const QString output = QDir(destination).filePath(QFileInfo(source).fileName());
+            QCOMPARE(QFileInfo::exists(output), !sameName);
+            QCOMPARE(QFileInfo::exists(source), sameName || !move);
+            QFile file(sameName ? source : output);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), QByteArray(expected));
+        }
+    }
+
+    void keepBothReservesTheNamesOfLaterFiles_data() {
+        QTest::addColumn<bool>("move");
+        QTest::addColumn<QString>("laterName");
+        QTest::newRow("copy") << false << QString("report_1.txt");
+        QTest::newRow("move") << true << QString("report_1.txt");
+#ifdef Q_OS_WIN
+        QTest::newRow("copy-with-different-case") << false << QString("REPORT_1.txt");
+        QTest::newRow("move-with-different-case") << true << QString("REPORT_1.txt");
+#endif
+    }
+
+    void keepBothReservesTheNamesOfLaterFiles() {
+        QFETCH(bool, move);
+        QFETCH(QString, laterName);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkdir(destination));
+        const QString first = fixture.filePath("report.txt");
+        const QString second = fixture.filePath(laterName);
+        const QString existing = QDir(destination).filePath("report.txt");
+        const auto write = [](const QString &path, const QByteArray &bytes) {
+            QFile file(path);
+            return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+        };
+        QVERIFY(write(first, "incoming"));
+        QVERIFY(write(second, "other source"));
+        QVERIFY(write(existing, "existing"));
+        FileTransferOperation operation({first, second}, destination, move);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        int prompts = 0;
+        connect(&operation, &FileTransferOperation::overwriteRequested, &operation, [&] {
+            operation.submitOverwriteAnswer(++prompts == 1 ? NOverwriteAnswer::kAutoRenameOnce
+                                                           : NOverwriteAnswer::kCancel);
+        });
+        operation.start();
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY(operation.wait(30000));
+        QCOMPARE(prompts, 1);
+        QVERIFY(result.first().first().toBool());
+        for (const auto &[name, expected] :
+             {qMakePair(QString("report.txt"), "existing"), qMakePair(laterName, "other source"),
+              qMakePair(QString("report_2.txt"), "incoming")}) {
+            QFile file(QDir(destination).filePath(name));
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(file.readAll(), QByteArray(expected));
+        }
+        QCOMPARE(QFileInfo::exists(first), !move);
+        QCOMPARE(QFileInfo::exists(second), !move);
+    }
+
+    void directoryMergeAutoRenamesNestedConflict_data() {
+        QTest::addColumn<bool>("reserveName");
+        QTest::newRow("free-name") << false;
+        QTest::newRow("name-in-source-folder") << true;
+    }
+
     void directoryMergeAutoRenamesNestedConflict() {
+        QFETCH(bool, reserveName);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         QVERIFY(QDir().mkpath(temp.filePath("incoming/folder")));
@@ -719,6 +1280,11 @@ class FileTransferTests : public QObject {
         QVERIFY(source.open(QIODevice::WriteOnly));
         QCOMPARE(source.write("incoming"), qint64(8));
         source.close();
+        if (reserveName) {
+            QFile other(temp.filePath("incoming/folder/same_1.txt"));
+            QVERIFY(other.open(QIODevice::WriteOnly));
+            QCOMPARE(other.write("other"), qint64(5));
+        }
         QFile target(temp.filePath("destination/folder/same.txt"));
         QVERIFY(target.open(QIODevice::WriteOnly));
         QCOMPARE(target.write("existing"), qint64(8));
@@ -726,25 +1292,88 @@ class FileTransferTests : public QObject {
         FileTransferOperation copy({temp.filePath("incoming/folder")}, temp.filePath("destination"),
                                    false);
         QSignalSpy result(&copy, &FileTransferOperation::result);
+        QSignalSpy prompts(&copy, &FileTransferOperation::overwriteRequested);
         connect(
             &copy, &FileTransferOperation::overwriteRequested, &copy,
-            [&copy]() { copy.submitOverwriteAnswer(NOverwriteAnswer::kAutoRename); },
+            [&copy]() { copy.submitOverwriteAnswer(NOverwriteAnswer::kAutoRenameOnce); },
             Qt::DirectConnection);
         copy.start();
         QVERIFY(copy.wait(30000));
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(result.first().first().toBool());
+        QCOMPARE(prompts.size(), 1);
         QVERIFY(target.open(QIODevice::ReadOnly));
         QCOMPARE(target.readAll(), QByteArray("existing"));
         const QStringList names =
             QDir(temp.filePath("destination/folder")).entryList(QDir::Files | QDir::NoDotAndDotDot);
-        QCOMPARE(names.size(), 2);
-        for (const QString &name : names) {
-            if (name == QStringLiteral("same.txt"))
-                continue;
-            QFile renamed(temp.filePath("destination/folder/" + name));
-            QVERIFY(renamed.open(QIODevice::ReadOnly));
-            QCOMPARE(renamed.readAll(), QByteArray("incoming"));
+        QCOMPARE(names.size(), reserveName ? 3 : 2);
+        QFile renamed(temp.filePath(reserveName ? "destination/folder/same_2.txt"
+                                                : "destination/folder/same_1.txt"));
+        QVERIFY(renamed.open(QIODevice::ReadOnly));
+        QCOMPARE(renamed.readAll(), QByteArray("incoming"));
+        if (reserveName) {
+            QFile other(temp.filePath("destination/folder/same_1.txt"));
+            QVERIFY(other.open(QIODevice::ReadOnly));
+            QCOMPARE(other.readAll(), QByteArray("other"));
+        }
+    }
+
+    void directoryMergeReportsTheConflictingDestination_data() {
+        QTest::addColumn<QString>("obstruction");
+        QTest::newRow("folder") << QString("folder");
+        QTest::newRow("dangling-link") << QString("link");
+        QTest::newRow("file-blocks-source-folder") << QString("file");
+    }
+
+    void directoryMergeReportsTheConflictingDestination() {
+        QFETCH(QString, obstruction);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("incoming/folder");
+        const QString destination = fixture.filePath("destination");
+        const QString target = QDir(destination).filePath("folder/conflict.txt");
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(QFileInfo(target).absolutePath()));
+        const QString missing = fixture.filePath("missing.txt");
+        const bool link = obstruction == "link";
+        const bool fileBlocksFolder = obstruction == "file";
+        if (link) {
+            if (!CreateNativeSymbolicLink(target, missing))
+                QSKIP("Native symbolic links are unavailable");
+        } else if (fileBlocksFolder) {
+            QFile existing(target);
+            QVERIFY(existing.open(QIODevice::WriteOnly));
+            QCOMPARE(existing.write("target bytes"), qint64(12));
+        } else {
+            QVERIFY(QDir().mkdir(target));
+        }
+        const QString incomingPath = QDir(source).filePath("conflict.txt");
+        if (fileBlocksFolder)
+            QVERIFY(QDir().mkdir(incomingPath));
+        QFile incoming(fileBlocksFolder ? QDir(incomingPath).filePath("child.txt") : incomingPath);
+        QVERIFY(incoming.open(QIODevice::WriteOnly));
+        QCOMPARE(incoming.write("source bytes"), qint64(12));
+        incoming.close();
+        FileTransferOperation move({source}, destination, true);
+        QSignalSpy result(&move, &FileTransferOperation::result);
+        move.start();
+        QVERIFY(move.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Failure);
+        const QString message = result.first().at(1).toString();
+        QVERIFY2(QDir::fromNativeSeparators(message).contains(target), qPrintable(message));
+        QVERIFY(!message.contains(".sevenzip-"));
+        QVERIFY(incoming.open(QIODevice::ReadOnly));
+        QCOMPARE(incoming.readAll(), QByteArray("source bytes"));
+        if (link) {
+            QVERIFY(QFileInfo(target).isSymLink());
+            QVERIFY(!QFileInfo::exists(missing));
+        } else if (fileBlocksFolder) {
+            QFile existing(target);
+            QVERIFY(existing.open(QIODevice::ReadOnly));
+            QCOMPARE(existing.readAll(), QByteArray("target bytes"));
+        } else {
+            QVERIFY(QFileInfo(target).isDir());
         }
     }
 
@@ -765,12 +1394,15 @@ class FileTransferTests : public QObject {
                                    true);
         QSignalSpy result(&move, &FileTransferOperation::result);
         connect(
-            &move, &FileTransferOperation::overwriteRequested, &move, [&move]() { move.cancel(); },
+            &move, &FileTransferOperation::overwriteRequested, &move,
+            [&move] { move.submitOverwriteAnswer(NOverwriteAnswer::kCancel); },
             Qt::DirectConnection);
         move.start();
         QVERIFY(move.wait(30000));
         QTRY_COMPARE(result.size(), 1);
         QVERIFY(!result.first().first().toBool());
+        QCOMPARE(move.resultKind(), FileTransferOperation::ResultKind::Canceled);
+        QCOMPARE(result.first().at(1).toString(), QStringLiteral("Operation canceled."));
         QVERIFY(source.open(QIODevice::ReadOnly));
         QCOMPARE(source.readAll(), QByteArray("new"));
         QVERIFY(target.open(QIODevice::ReadOnly));
@@ -810,15 +1442,18 @@ class FileTransferTests : public QObject {
     void noToAllAndCancelDuringPromptLeaveSourcesUntouched_data() {
         QTest::addColumn<bool>("cancel");
         QTest::addColumn<bool>("queued");
-        QTest::newRow("skip-before-wait") << false << false;
-        QTest::newRow("cancel-before-wait") << true << false;
-        QTest::newRow("skip-from-gui") << false << true;
-        QTest::newRow("cancel-from-gui") << true << true;
+        QTest::addColumn<bool>("move");
+        QTest::newRow("skip-before-wait") << false << false << false;
+        QTest::newRow("cancel-before-wait") << true << false << false;
+        QTest::newRow("skip-from-gui") << false << true << false;
+        QTest::newRow("cancel-from-gui") << true << true << false;
+        QTest::newRow("skip-move-from-gui") << false << true << true;
     }
 
     void noToAllAndCancelDuringPromptLeaveSourcesUntouched() {
         QFETCH(bool, cancel);
         QFETCH(bool, queued);
+        QFETCH(bool, move);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         QVERIFY(QDir(temp.path()).mkdir("destination"));
@@ -834,7 +1469,7 @@ class FileTransferTests : public QObject {
             target.close();
             sources << source.fileName();
         }
-        FileTransferOperation copy(sources, temp.filePath("destination"), false);
+        FileTransferOperation copy(sources, temp.filePath("destination"), move);
         QSignalSpy requested(&copy, &FileTransferOperation::overwriteRequested);
         QSignalSpy result(&copy, &FileTransferOperation::result);
         connect(
@@ -852,6 +1487,8 @@ class FileTransferTests : public QObject {
         QCOMPARE(result.first().first().toBool(), !cancel);
         QCOMPARE(copy.resultKind(), cancel ? FileTransferOperation::ResultKind::Canceled
                                            : FileTransferOperation::ResultKind::PartialSuccess);
+        if (!cancel)
+            QCOMPARE(result.first().at(1).toString(), QString("All items were skipped."));
         QCOMPARE(requested.size(), 1);
         for (const QString &source : sources) {
             QVERIFY(QFile::exists(source));

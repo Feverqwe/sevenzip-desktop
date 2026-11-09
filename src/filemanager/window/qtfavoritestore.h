@@ -1,10 +1,14 @@
 #pragma once
+#include "filemanager/window/qtsavedlocation.h"
 #include <QAbstractListModel>
 struct QtFavorite {
     QString id;
     QString label;
     QString path;
     QString defaultLabel;
+    QString nativeIdentity;
+    QtArchiveLocation archive;
+    bool diskFolder = false;
 };
 
 class QtFavoriteStore final : public QAbstractListModel {
@@ -22,7 +26,8 @@ class QtFavoriteStore final : public QAbstractListModel {
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
                       const QModelIndex &parent) override;
     Qt::DropActions supportedDropActions() const override;
-    void Add(const QString &path, const QString &label = {});
+    void Add(const QString &path, const QString &label = {}, const QString &nativeIdentity = {},
+             const QtArchiveLocation &archive = {}, bool diskFolder = false);
     QtFavorite Favorite(int row) const;
     QModelIndex IndexForId(const QString &id) const;
     void RefreshLabels();

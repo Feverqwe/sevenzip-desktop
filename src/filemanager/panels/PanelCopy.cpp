@@ -125,11 +125,18 @@ HRESULT CPanelCopyThread::ProcessVirt() {
     if (!options->hashMethods.IsEmpty()) {
         ResultsPending = !CompletedFiles.IsEmpty() ||
                          (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors);
-    } else if (result2 == S_OK && !ExtractCallback->ThereAreMessageErrors) {
-        if (options->testMode) {
+    } else if (options->testMode) {
+        if (result2 == S_OK && !FinalMessage.HadErrors) {
             CProgressMessageBoxPair &pair =
                 GetMessagePair(false); // GetMessagePair(ExtractCallback->Hash.NumErrors != 0);
+            if (!options->TestScope.IsEmpty()) {
+                pair.Message = options->TestScope;
+                pair.Message.Add_LF();
+            }
             AddHashBundleRes(pair.Message, Hash);
+        } else if (result2 != E_ABORT && (FAILED(result2) || FinalMessage.HadErrors) &&
+                   !options->TestScope.IsEmpty()) {
+            Sync.AddError_Message(options->TestScope);
         }
     }
 
@@ -171,8 +178,10 @@ void CPanel::Get_ZoneId_Stream_from_ParentFolders(CByteBuffer &buf) {
 HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &indices,
                        UStringVector *messages, bool &usePassword, UString &password,
                        const UStringVector *filePaths, QtArchiveExtractReport *report) {
-    if (report)
+    if (report) {
         report->Status.reset();
+        report->ResultPresented = false;
+    }
     if (options.NeedRegistryZone && !options.testMode) {
         CContextMenuInfo ci;
         ci.Load(_settingsPath);
@@ -330,6 +339,12 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
         }
 
         extracter.ShowFinalResults(GetParent());
+        if (report)
+            report->ResultPresented =
+                extracter.MessagesDisplayed && !extracter.DisableUserQuestions &&
+                !extracter.DeferResultReview &&
+                (res != S_OK || !extracter.Sync.Messages.IsEmpty() || report->HadErrors ||
+                 (report->Status && !report->Status->Complete));
     }
 
     RefreshTitleAlways();
@@ -337,14 +352,15 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 }
 
 HRESULT CPanel::CopyFromNoAsk(bool moveMode, const UStringVector &filePaths,
-                              std::optional<CSelectedState> *refreshSelection) {
+                              std::optional<CSelectedState> *refreshSelection, bool *published) {
     if (refreshSelection)
         refreshSelection->reset();
     CDisableTimerProcessing disableTimerProcessing(*this);
     CSelectedState srcSelState;
     SaveSelectedState(srcSelState);
     CDisableNotify disableNotify(*this);
-    const HRESULT result = CopyFrom(moveMode, L"", filePaths, true, NULL);
+    const HRESULT result =
+        CopyFrom(moveMode, L"", filePaths, true, NULL, nullptr, std::nullopt, published);
     if (result != S_OK) {
         disableNotify.Restore();
         SetFocusToList();
@@ -393,7 +409,9 @@ class CThreadUpdate final : public CProgressThreadVirt {
 HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStringVector &filePaths,
                          bool showErrorMessages, UStringVector *messages,
                          const NUpdateArchive::CActionSet *actionSet,
-                         std::optional<NWildcard::ECensorPathMode> pathMode) {
+                         std::optional<NWildcard::ECensorPathMode> pathMode, bool *published) {
+    if (published)
+        *published = false;
     if (IsHashFolder() && moveMode)
         return E_NOTIMPL;
 
@@ -431,6 +449,8 @@ HRESULT CPanel::CopyFrom(bool moveMode, const UString &folderPrefix, const UStri
                 dynamic_cast<IQtProgressServices *>((IFolderOperations *)_folderOperations))
             transport = services->CreateProgressTransport(updater);
         RINOK(updater.Create(title, GetParent()))
+        if (published)
+            *published = updater.UpdateCallback->Published == true;
         if (messages)
             *messages = updater.Sync.Messages;
         if (messages && updater.DeferResultReview &&

@@ -6,6 +6,9 @@
 #include "support/panel_keys.h"
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QClipboard>
+#include <QMimeData>
+#include <QScopeGuard>
 #include <QScrollBar>
 
 class FilesystemReloadTests final : public QObject, protected MainWindowTestSupport {
@@ -17,6 +20,42 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+    void refreshKeepsSurvivingFilesAvailableToCopy() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString removed = fixture.filePath("b removed.txt");
+        const QString survivor = fixture.filePath("c remaining.txt");
+        for (const QString &path : {fixture.filePath("a other.txt"), removed, survivor})
+            QVERIFY(writeControl(path));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        const QString removedName = QFileInfo(removed).fileName();
+        const QString survivorName = QFileInfo(survivor).fileName();
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, removedName) >= 0 &&
+                    filesystemRow(window, survivorName) >= 0);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->setCurrentCell(filesystemRow(window, removedName), 0);
+        view->selectRow(view->currentRow());
+        view->selectionModel()->select(view->model()->index(filesystemRow(window, survivorName), 0),
+                                       QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        QVERIFY(QFile::remove(removed));
+        QTest::keySequence(window.focusWidget(), action(window, "refreshAction")->shortcut());
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, removedName) < 0);
+        QTRY_COMPARE(window.focusWidget(), view);
+        QCOMPARE(view->currentRow(), filesystemRow(window, survivorName));
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData());
+        QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(survivor)});
+    }
+
     void navigationDuringReloadStartsAtTop() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -42,7 +81,7 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         bool scheduled = false;
         bool navigated = false;
         connect(view->model(), &QAbstractItemModel::rowsInserted, &window, [&] {
-            if (!scheduled && !view->isEnabled() && view->rowCount() > 1) {
+            if (!scheduled && view->rowCount() > 1) {
                 scheduled = true;
                 QTimer::singleShot(0, &window, [&] {
                     navigated = true;
@@ -129,19 +168,27 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("flat");
         QTest::addColumn<bool>("reload");
+        QTest::addColumn<bool>("newInput");
+        QTest::addColumn<bool>("discardDraft");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
                 for (bool flat : {false, true})
                     for (bool reload : {false, true})
                         QTest::newRow(qPrintable(
                             QString("%1-%2-%3-%4").arg(index).arg(language).arg(flat).arg(reload)))
-                            << index << language << flat << reload;
+                            << index << language << flat << reload << false << false;
+        QTest::newRow("edit-while-opening")
+            << 0u << QString("-") << false << false << true << false;
+        QTest::newRow("escape-while-opening")
+            << 0u << QString("-") << false << false << true << true;
     }
     void workerFailureRetainsSourceResult() {
         QFETCH(unsigned, sourceIndex);
         QFETCH(QString, language);
         QFETCH(bool, flat);
         QFETCH(bool, reload);
+        QFETCH(bool, newInput);
+        QFETCH(bool, discardDraft);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -194,11 +241,24 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
                 }
         });
         driver.start(0);
+        const int draftCursor = large.size() - 2;
+        const QString newerDraft = QStringLiteral("new folder draft");
         if (reload)
             action(window, "refreshAction")->trigger();
         else {
+            PanelKeys::focusAddress(address);
+            QVERIFY(address->hasFocus());
             address->setText(large);
+            address->setSelection(draftCursor - 2, 2);
             QTest::keyClick(address, Qt::Key_Return);
+            if (newInput) {
+                PanelKeys::focusAddress(address);
+                address->selectAll();
+                QTest::keyClicks(address, newerDraft);
+                address->setSelection(4, 6);
+                if (discardDraft)
+                    QTest::keyClick(address, Qt::Key_Escape);
+            }
         }
         QTRY_COMPARE(failed.size(), 1);
         driver.stop();
@@ -207,6 +267,23 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(result != S_OK);
         QCOMPARE(shown, ToQString(HResultToMessage(result)));
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        if (!reload) {
+            // The headless window system may leave the owner inactive after
+            // closing the modal error. Return to it before sending another key.
+            window.activateWindow();
+            QVERIFY(QTest::qWaitForWindowActive(&window));
+            if (discardDraft) {
+                QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), smallPath);
+                QTRY_VERIFY(view->hasFocus());
+                QVERIFY(!address->isVisible());
+            } else {
+                QCOMPARE(address->text(), newInput ? newerDraft : large);
+                QTRY_VERIFY_WITH_TIMEOUT(address->hasFocus(), 2000);
+                QCOMPARE(address->selectedText(),
+                         newInput ? QStringLiteral("folder") : large.mid(draftCursor - 2, 2));
+                QCOMPARE(address->cursorPosition(), newInput ? 10 : draftCursor);
+            }
+        }
         QCOMPARE(QFileInfo(ToQString(GetFolderPath(panel.GetFolder()))).canonicalFilePath(),
                  QFileInfo(reload ? large : smallPath).canonicalFilePath());
         QVERIFY(panel.IsFSFolder());
@@ -220,9 +297,11 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         if (reload)
             panel.OnReload();
         else {
-            PanelKeys::focusAddress(address);
-            address->setText(large);
-            QTest::keyClick(address, Qt::Key_Return);
+            if (discardDraft)
+                PanelKeys::focusAddress(address);
+            if (newInput)
+                address->setText(large);
+            QTest::keyClick(QApplication::focusWidget(), Qt::Key_Return);
         }
         QTRY_COMPARE(view->rowCount(), 301);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());

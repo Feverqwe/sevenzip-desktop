@@ -59,8 +59,10 @@ class FileTable : public QTableView {
     PROPID propertyId(int column) const;
     bool isRawProperty(int column) const;
     int columnForProperty(PROPID id) const;
+    void keyboardSearch(const QString &search) override;
 
   protected:
+    QModelIndex moveCursor(CursorAction action, Qt::KeyboardModifiers modifiers) override;
     void startDrag(Qt::DropActions actions) override;
     void changeEvent(QEvent *event) override;
 
@@ -85,9 +87,11 @@ class FileIconList final : public QListView {
     std::function<void()> dragStarter;
 
   protected:
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
     void startDrag(Qt::DropActions actions) override;
     void changeEvent(QEvent *event) override;
 
   private:
+    bool containsItemAt(QPoint point) const;
     bool largeIconsConfigured_ = false;
 };

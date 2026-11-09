@@ -359,7 +359,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     QTRY_VERIFY(action(window, "copyAction")->isEnabled());
     cancelTimer.stop();
     QVERIFY(cancelAnswered);
-    QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
+    QVERIFY(table(window)->selectionModel()->isRowSelected(
+        filesystemRow(window, QStringLiteral("имя с пробелом.txt")), {}));
     QVERIFY(QFileInfo::exists(source));
     QTimer moveErrorTimer;
     table(window)->selectRow(filesystemRow(window, QStringLiteral("имя с пробелом.txt")));
@@ -382,7 +383,8 @@ void MainWindowOperationsTests::stage7FilesystemCommands() {
     action(window, "moveAction")->trigger();
     QTRY_VERIFY(action(window, "moveAction")->isEnabled());
     moveErrorTimer.stop();
-    QVERIFY(table(window)->selectionModel()->selectedRows().isEmpty());
+    QVERIFY(table(window)->selectionModel()->isRowSelected(
+        filesystemRow(window, QStringLiteral("имя с пробелом.txt")), {}));
     QVERIFY(QFileInfo::exists(source));
     QVERIFY(QFileInfo::exists(copied));
 

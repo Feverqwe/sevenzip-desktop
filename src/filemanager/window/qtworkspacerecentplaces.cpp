@@ -1,8 +1,9 @@
 #include "filemanager/providers/RootFolder.h"
 #include "filemanager/window/mainwindow.h"
-#include "filemanager/window/qtnativeplaces.h"
 #include "filemanager/window/qtrecentplacesstore.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "ui/controls/qtmenutext.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QDir>
 #include <QFontMetrics>
@@ -24,7 +25,7 @@ QString PlaceLabel(const QtRecentPlace &place) {
 
 void QtWindowWorkspace::RecordVisit(const QString &path) {
     const auto visit = CaptureVisit(window_.projectedPanel_);
-    recentPlaces_->Visit({path, visit.nativePlaceIdentity, visit.archiveLocation});
+    recentPlaces_->Visit({path, visit.nativePlaceIdentity, visit.archiveLocation, visit.diskFolder});
 }
 
 void QtWindowWorkspace::ShowRecentPlaces(unsigned panel, QWidget &anchor) {
@@ -40,9 +41,8 @@ void QtWindowWorkspace::ShowRecentPlaces(unsigned panel, QWidget &anchor) {
     for (int row = 0; row < qMin(maxPlaces, recentPlaces_->Count()); ++row) {
         const auto place = recentPlaces_->Place(row);
         const QString label = PlaceLabel(place);
-        auto *item = menu->addAction(menu->fontMetrics()
-                                         .elidedText(label, Qt::ElideMiddle, maxLabelWidth)
-                                         .replace('&', "&&"));
+        auto *item = menu->addAction(QtLiteralMenuText(
+            menu->fontMetrics().elidedText(label, Qt::ElideMiddle, maxLabelWidth)));
         item->setToolTip(label);
         item->setData(place.path);
         connect(item, &QAction::triggered, this, [this, panel, place] {
@@ -61,33 +61,27 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
     window_.activatePanelUi(panel);
     if (window_.projectedPanel_ != panel)
         return;
+    const auto interaction = interactionRevision_;
     Navigate(
         [&]() -> HRESULT {
+            if (place.diskFolder && !QFileInfo(QDir::cleanPath(place.path)).isDir())
+                return S_FALSE;
             ProtectNavigation();
-            if (!place.archive.physicalPath.isEmpty())
-                return OpenArchiveLocation(panel, place.archive);
-            QString path = window_.sourcePathFromDisplayPath(place.path);
-            if (!place.nativeIdentity.isEmpty()) {
-                nativePlaces_->Refresh();
-                const auto native = nativePlaces_->FindIdentity(place.nativeIdentity);
-                if (place.nativeIdentity == "locations")
-                    path.clear();
-                else if (native.isValid())
-                    path = native.data(QtPlaceRoles::Path).toString();
-                else
-                    return E_FAIL;
-            }
-            const HRESULT opened = window_.navigateTo(path, true);
-            return opened == S_OK && !LocationMatches(panel, path) ? S_FALSE : opened;
+            return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive);
         },
-        [this](HRESULT result) {
-            if (result == S_OK || window_.app_.QtOperations().closed())
+        [this, panel, interaction, label = PlaceLabel(place)](HRESULT result) {
+            if (window_.app_.QtOperations().closed())
                 return;
-            const QString error = result == E_ABORT ? tr("Opening canceled.")
-                                  : result == S_FALSE
-                                      ? tr("The location is unavailable or disconnected.")
-                                      : tr("Could not open this location. %1")
-                                            .arg(ToQString(HResultToMessage(result)));
-            window_.statusBar()->showMessage(error, 6000);
+            if (result == S_OK) {
+                window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], {});
+                FocusListAfterLocationOpen(panel, interaction);
+                return;
+            }
+            const QString error =
+                result == E_ABORT ? tr("Opening canceled.")
+                : result == S_FALSE
+                    ? tr("Location unavailable: %1").arg(label)
+                    : tr("Could not open %1. %2").arg(label, ToQString(HResultToMessage(result)));
+            window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], error, 6000);
         });
 }
