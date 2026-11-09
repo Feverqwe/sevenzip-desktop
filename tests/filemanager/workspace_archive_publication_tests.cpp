@@ -1,10 +1,12 @@
 #include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
+#include "dialogs/copy/alias.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -185,6 +187,33 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             QVERIFY(!notice(window));
             return;
         }
+        const QString output = fixture.filePath("recovered");
+        QVERIFY(QDir().mkdir(output));
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->selectRow(0);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *dialog = qobject_cast<CopyDialog *>(modal)) {
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output);
+                dialog->accept();
+                if (dialog->isVisible())
+                    dialog->reject();
+            } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+                box->reject();
+            } else {
+                TestProgressDialog::DismissVisibleResult(modal);
+            }
+        });
+        answer.start(5);
+        QTest::keyClick(view, Qt::Key_F5);
+        QTRY_COMPARE(readFile(QDir(output).filePath("original.txt")), QByteArray("payload"));
+        answer.stop();
+        QVERIFY(notice(window));
+        QCOMPARE(names(window), QStringList{"original.txt"});
         if (nested)
             QVERIFY(QFile::remove(inner));
         QVERIFY(writeVersion("replacement.txt"));
