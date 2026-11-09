@@ -193,7 +193,7 @@ class ArchiveExternalLifetimeTests final : public QObject {
         legacy.sync();
         QString opened;
         QString probed;
-        const bool launchFails = QByteArray(QTest::currentDataTag()) == "unknown-launch-fails";
+        bool launchFails = QByteArray(QTest::currentDataTag()) == "unknown-launch-fails";
         const auto cleanup = qScopeGuard([&] {
             if (!opened.isEmpty())
                 QDir(QFileInfo(opened).absolutePath()).removeRecursively();
@@ -242,6 +242,17 @@ class ArchiveExternalLifetimeTests final : public QObject {
             QVERIFY(launchError.contains(name));
             QVERIFY(!QFileInfo::exists(opened));
             QVERIFY(ownedDirectory(opened).key.isEmpty());
+            launchFails = false;
+            prompted = false;
+            launchError.clear();
+            opened.clear();
+            responder.start();
+            panel.OpenItem(0, internal, true);
+            responder.stop();
+            QVERIFY(prompted);
+            QVERIFY(launchError.isEmpty());
+            QVERIFY(!opened.isEmpty());
+            QCOMPARE(read(opened), contents);
         } else if (!opened.isEmpty())
             QCOMPARE(read(opened), contents);
         else if (probe) {
