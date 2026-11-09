@@ -218,15 +218,17 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
     op.FolderOperations = _folderOperations;
     op.Index = realIndex;
     op.Name = newName;
+    if (IsFSFolder())
+        op.RenameDestination = us2fs(GetFsPath() + prefix + newName);
     const HRESULT result =
         op.DoOperation(*this, LangString(IDS_RENAMING), LangString(IDS_ERROR_RENAMING));
     SetPublishedArchive(*this, op, publishedArchive);
     if (result == S_OK) {
         state.FocusedName = RenamedItemInView(*this, prefix + newName);
         state.SelectFocused = true;
-        if (destinationDirectory && IsFSFolder())
+        if (destinationDirectory && !op.RenameDestination.IsEmpty())
             *destinationDirectory =
-                QFileInfo(ToQString(GetFsPath() + prefix + newName)).absolutePath();
+                QFileInfo(ToQString(fs2us(op.RenameDestination))).absolutePath();
     } else
         state.FocusedName = prefix + oldName;
     state.FocusedName_Defined = true;

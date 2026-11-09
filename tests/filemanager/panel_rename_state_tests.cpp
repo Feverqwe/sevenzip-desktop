@@ -447,7 +447,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTimer closeError;
         connect(&closeError, &QTimer::timeout, &window, [&] {
             for (QWidget *widget : QApplication::topLevelWidgets()) {
-                if (collision && TestProgressDialog::DismissVisibleResult(widget)) {
+                auto *report = collision ? TestProgressDialog::ResultWindow(widget) : nullptr;
+                if (report && report->isVisible()) {
+                    errorText = TestProgressDialog::ReportText(*report);
+                    TestProgressDialog::CloseResult(*report);
                     errorShown = true;
                     errorDelivery.quit();
                     continue;
@@ -496,6 +499,8 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
                 errorDelivery.exec();
             QVERIFY(errorShown);
         }
+        if (collision)
+            QVERIFY(QDir::fromNativeSeparators(errorText).contains(fixture.filePath(renamed)));
         if (invalid) {
             QCOMPARE(errorIcon, QMessageBox::Critical);
             QCOMPARE(errorText, ToQString(HResultToMessage(E_INVALIDARG)));
