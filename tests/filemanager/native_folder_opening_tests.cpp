@@ -116,7 +116,7 @@ class NativeFolderOpeningTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(L"*"), nullptr),
+                                              UString(L"*"), UString(), nullptr),
                  S_OK);
         QCOMPARE(backend.Starts, 0u);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
@@ -138,7 +138,7 @@ class NativeFolderOpeningTests final : public QObject {
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
         CFfpOpen wrong(manager);
         QCOMPARE(wrong.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                            UString(L"7z"), nullptr),
+                                            UString(L"7z"), UString(), nullptr),
                  S_FALSE);
         QVERIFY(!wrong.Folder);
         QCOMPARE(backend.Starts, 0u);
@@ -162,7 +162,7 @@ class NativeFolderOpeningTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(L"wim"), nullptr),
+                                              UString(L"wim"), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -240,7 +240,7 @@ class NativeFolderOpeningTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(L"wim"), nullptr),
+                                              UString(L"wim"), UString(), nullptr),
                  S_OK);
         CMyComPtr<IFolderSetFlatMode> flat;
         QCOMPARE(opening.Folder.QueryInterface(IID_IFolderSetFlatMode, &flat), S_OK);
@@ -309,7 +309,7 @@ class NativeFolderOpeningTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(L"wim"), nullptr),
+                                              UString(L"wim"), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -431,7 +431,7 @@ class NativeFolderOpeningTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(), nullptr),
+                                              UString(), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
@@ -473,7 +473,7 @@ class NativeFolderOpeningTests final : public QObject {
         CMyComPtr<IFolderManager> manager = new QtArchiveFolderManager(backend);
         CFfpOpen opening(manager);
         QCOMPARE(opening.OpenFileFolderPlugin(nullptr, us2fs(path.toStdWString().c_str()),
-                                              UString(), nullptr),
+                                              UString(), UString(), nullptr),
                  S_OK);
         auto *folder = dynamic_cast<CAgentFolder *>(opening.Folder.Interface());
         QVERIFY(folder);
