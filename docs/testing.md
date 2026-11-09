@@ -25,6 +25,10 @@ python3 scripts/verify.py navigation
 ./scripts/ctest.sh --preset dev -R '<regex>' --output-on-failure
 ```
 
+Для проверки буфера обмена и перетаскивания на Linux и Windows запустите
+`python3 scripts/verify.py native-file-transfer --platform all`. Профиль
+запускает Windows-проверки на интерактивном рабочем столе.
+
 ## What to test
 
 Перед добавлением теста определить конкретную наблюдаемую ошибку, которую он
