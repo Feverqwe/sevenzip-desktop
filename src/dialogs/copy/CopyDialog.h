@@ -19,7 +19,7 @@ struct QtCopyDestinationContext {
     QString SourceDirectory;
     QString SourceName;
     QString PeerDestination;
-    bool PeerWritable = false;
+    bool PeerSupportsWriting = false;
     std::function<bool(const QString &)> CanRename;
     // Null uses the caller's ordinary process-relative filesystem contract.
     QString RelativeBase = {};
@@ -27,6 +27,7 @@ struct QtCopyDestinationContext {
     bool PeerIsFilesystem = false;
     bool PeerIsArchive = false;
     bool LocalFileTransfer = false;
+    bool IsPeerWritable() const;
 };
 
 bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath);

@@ -434,9 +434,15 @@ class CopyDestinationTests final : public QObject {
         const QString source = fixture.filePath("source.txt");
         const QString target = writable + "/writable target.txt";
         CCopyDialog dialog(false, blocked + "/new folder/target.txt", {source});
-        configure(dialog, source);
+        QtCopyDestinationContext context{fixture.path(), "source.txt", blocked + '/', true, {}};
+        context.PeerIsFilesystem = true;
+        context.LocalFileTransfer = true;
+        dialog.ConfigureDestination(context);
         dialog.show();
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+        auto *peer = dialog.findChild<QPushButton *>("copyPeerDestination");
+        QVERIFY(peer->isVisible());
+        QVERIFY(!peer->isEnabled());
         auto *ok =
             dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
         for (const QString &unwritable :
@@ -460,11 +466,16 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(QFile::setPermissions(blocked, permissions));
         QVERIFY(WindowActivation::waitForActive(dialog));
         QTRY_VERIFY(ok->isEnabled());
+        QVERIFY(peer->isEnabled());
         QCOMPARE(path->text(), blocked + "/new folder/target.txt");
+        peer->click();
+        QCOMPARE(path->text(), context.PeerDestination);
+        QVERIFY(ok->isEnabled());
         QVERIFY(WindowActivation::waitForActive(other));
         QVERIFY(QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner));
         QVERIFY(WindowActivation::waitForActive(dialog));
         QTRY_VERIFY(!ok->isEnabled());
+        QVERIFY(!peer->isEnabled());
         path->setText(target);
         QVERIFY(ok->isEnabled());
         dialog.accept();

@@ -74,6 +74,14 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
 }
 } // namespace
 
+bool QtCopyDestinationContext::IsPeerWritable() const {
+    if (!PeerSupportsWriting || !PeerIsFilesystem)
+        return PeerSupportsWriting;
+    const QFileInfo directory(QDir::cleanPath(PeerDestination));
+    return directory.isDir() && directory.isWritable() &&
+           (!LocalFileTransfer || (!directory.isSymLink() && !directory.isJunction()));
+}
+
 bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath) {
     return (path.endsWith('/') || path.endsWith(QDir::separator())) &&
            SameDirectory(path, panelPath);
@@ -94,7 +102,7 @@ void CCopyDialog::BuildDestinationOptions(QVBoxLayout &layout) {
     _peer->hide();
     layout.addWidget(_peer, 0, Qt::AlignRight);
     connect(_peer, &QPushButton::clicked, this, [this] {
-        if (!_destinationContext || !_destinationContext->PeerWritable)
+        if (!_destinationContext || !_destinationContext->IsPeerWritable())
             return;
         SetPathText(_destinationContext->PeerDestination);
         _pathEdit->setFocus();
@@ -131,7 +139,6 @@ void CCopyDialog::ConfigureDestination(QtCopyDestinationContext context) {
         _name->setText(_destinationContext->SourceName);
     if (_peer) {
         _peer->setVisible(!_destinationContext->PeerDestination.isNull());
-        _peer->setEnabled(_destinationContext->PeerWritable);
         _peer->setToolTip(_destinationContext->PeerDestination);
     }
     UpdateDestination();
@@ -169,6 +176,9 @@ QString CCopyDialog::PreviewDestination(const QString &value) const {
 bool CCopyDialog::UpdateDestination(bool checkBatch) {
     if (!_copyMove || !_pathEdit || !_destinationMessage)
         return true;
+    const bool peerWritable = _destinationContext && _destinationContext->IsPeerWritable();
+    if (_peer)
+        _peer->setEnabled(peerWritable);
     const QString path = _pathEdit->text();
     const QString preview = PreviewDestination(path);
     const QFileInfo destination(preview);
@@ -219,7 +229,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch) {
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Enter a file or folder name."));
     else if (!directoryError.isEmpty())
         error = directoryError;
-    else if (peerDestination && !_destinationContext->PeerWritable)
+    else if (peerDestination && !peerWritable)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is read-only."));
     else if (linkedTransferDirectory)
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "The destination is invalid."));
