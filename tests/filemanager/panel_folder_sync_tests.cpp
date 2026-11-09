@@ -5,6 +5,8 @@
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
+#include <QScopeGuard>
 
 class PanelFolderSyncTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -107,13 +109,21 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
                 window,
                 QStringLiteral("alt-folder-%1-%2").arg(QTest::currentDataTag()).arg(width)));
         }
-        destinationTable->setFocus();
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
         QTRY_VERIFY(destinationTable->hasFocus());
-        const auto file = PanelMatches(*destinationTable, QStringLiteral("файл 0.txt"));
-        QVERIFY(!file.isEmpty());
-        destinationTable->selectRow(file.first().row());
-        QTRY_VERIFY(action(window, "copyAction")->isEnabled());
-        sourceTable->setFocus();
+        QTest::keyClick(window.focusWidget(), Qt::Key_End);
+        const QString name =
+            destinationTable->currentIndex().data(QtPanelList::NameRole).toString();
+        const QFileInfo file(QDir(expected).filePath(name));
+        QVERIFY(file.isFile());
+        auto *clipboard = QApplication::clipboard();
+        clipboard->clear();
+        const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
+        QCOMPARE(clipboard->mimeData()->urls(),
+                 QList<QUrl>{QUrl::fromLocalFile(file.canonicalFilePath())});
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
         QTRY_VERIFY(sourceTable->hasFocus());
     }
     void noOpConditions_data() {
