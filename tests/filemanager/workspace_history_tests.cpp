@@ -10,6 +10,7 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QMenu>
+#include <QScopeGuard>
 #include <QScrollBar>
 #include <QStatusBar>
 #include <QToolButton>
@@ -349,14 +350,20 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
     void historyRetriesUnavailableDirectory_data() {
         QTest::addColumn<bool>("forward");
         QTest::addColumn<bool>("background");
-        QTest::newRow("back") << false << false;
-        QTest::newRow("forward") << true << false;
-        QTest::newRow("back-background") << false << true;
-        QTest::newRow("forward-background") << true << true;
+        QTest::addColumn<bool>("unreadable");
+        QTest::newRow("back") << false << false << false;
+        QTest::newRow("forward") << true << false << false;
+        QTest::newRow("back-background") << false << true << false;
+        QTest::newRow("forward-background") << true << true << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("back-unreadable-background") << false << true << true;
+        QTest::newRow("forward-unreadable") << true << false << true;
+#endif
     }
     void historyRetriesUnavailableDirectory() {
         QFETCH(bool, forward);
         QFETCH(bool, background);
+        QFETCH(bool, unreadable);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString first = fixture.filePath(QStringLiteral("first 空"));
@@ -396,7 +403,18 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         view->setFocus();
         QTRY_VERIFY(view->hasFocus());
 
-        QVERIFY(QDir(target).removeRecursively());
+        const auto permissions = QFile::permissions(target);
+        const auto restore = qScopeGuard([&] {
+            if (unreadable)
+                QFile::setPermissions(target, permissions);
+        });
+        if (unreadable) {
+            QVERIFY(QFile::setPermissions(target, QFile::ExeOwner));
+            if (QFileInfo(target).isReadable())
+                QSKIP("Requires a directory that the current user cannot list");
+        } else {
+            QVERIFY(QDir(target).removeRecursively());
+        }
         QTest::keySequence(window.focusWidget(), travel->shortcut());
         QTRY_VERIFY_WITH_TIMEOUT(travel->isEnabled(), 3000);
         QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(target).fileName()));
@@ -409,7 +427,10 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
         QCOMPARE(view->selectionModel()->selectedRows().size(), originCount);
 
-        createDirectory(target);
+        if (unreadable)
+            QVERIFY(QFile::setPermissions(target, permissions));
+        else
+            createDirectory(target);
         QTest::keySequence(window.focusWidget(), travel->shortcut());
         QTRY_COMPARE(address->text(), QFileInfo(target).canonicalFilePath());
         QTRY_VERIFY(view->hasFocus());
