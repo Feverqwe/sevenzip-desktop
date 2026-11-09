@@ -163,9 +163,11 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
         [this, value, panels, finished = std::move(finished), canceled, firstArchive, interaction] {
             const auto complete = [this, value, finished, interaction] {
                 const unsigned focus = qBound(0, value.value("focused").toInt(), 1);
-                if (window_.panelUi_[focus].container)
+                const bool restoreFocus = interactionRevision_ == interaction;
+                const bool singlePane = value.value("count").toInt(1) == 1;
+                if ((restoreFocus || singlePane) && window_.panelUi_[focus].container)
                     window_.activatePanelUi(focus);
-                if (value.value("count").toInt(1) == 1 && window_.app_.NumPanels == 2)
+                if (singlePane && window_.app_.NumPanels == 2)
                     window_.togglePanels();
                 const QByteArray geometry =
                     QByteArray::fromBase64(value.value("geometry").toString().toLatin1());
@@ -183,7 +185,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.raise();
                     window_.activateWindow();
                 }
-                if (interactionRevision_ == interaction)
+                if (restoreFocus)
                     RequestListFocus(focus);
                 if (finished)
                     finished();
