@@ -380,6 +380,10 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         leftTable->setFocus();
         QVERIFY(leftTable->hasFocus());
         QTest::keyClick(leftTable, Qt::Key_Tab);
+        QVERIFY(!rightTable->isEnabled());
+        const auto leftCurrent = leftTable->currentIndex();
+        QTest::keyClick(leftTable, Qt::Key_Down);
+        QCOMPARE(leftTable->currentIndex(), leftCurrent);
         QTRY_VERIFY(rightTable->isEnabled() && rightTable->hasFocus());
         QCOMPARE(rightTable->selectionModel()->selectedRows().size(), 1);
         leftTable->setFocus();

@@ -71,10 +71,13 @@ bool QtWindowWorkspace::eventFilter(QObject *object, QEvent *event) {
         // the panel track it, and arbitrate the actual shortcut separately.
         if (key && (key->key() == Qt::Key_Control || key->key() == Qt::Key_Shift))
             return QObject::eventFilter(object, event);
-        // Plain list navigation on the temporary focus holder does not
-        // select a new input target while its view is disabled.
+        // Plain list navigation does not change the pending target, including
+        // after Tab leaves input in the old list until the peer is ready.
         if (pendingListFocus_ && key && widget &&
-            widget == window_.panelUi_[*pendingListFocus_].container) {
+            (widget == window_.panelUi_[*pendingListFocus_].container ||
+             (*pendingListFocus_ != window_.projectedPanel_ &&
+              window_.panelInputTarget(object, window_.projectedPanel_) ==
+                  MainWindow::PanelInputTarget::List))) {
             if (key->modifiers() == Qt::NoModifier &&
                 (key->key() == Qt::Key_Up || key->key() == Qt::Key_Down ||
                  key->key() == Qt::Key_Left || key->key() == Qt::Key_Right ||
