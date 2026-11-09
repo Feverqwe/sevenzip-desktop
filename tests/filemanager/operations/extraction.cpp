@@ -188,6 +188,19 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QCOMPARE(old.readAll(), QByteArray("preserved"));
     old.close();
 
+    answered = false;
+    ExtractionOptions skip = options;
+    skip.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
+    window.extractTo(temp.filePath("destination"), true, {}, skip);
+    QVERIFY(!answered);
+    QCOMPARE(preflight.size(), 0);
+    QCOMPARE(window.statusBar()->currentMessage(),
+             QCoreApplication::translate("ProgressRedesign",
+                                         "Completed with skipped items or messages"));
+    QVERIFY(old.open(QIODevice::ReadOnly));
+    QCOMPARE(old.readAll(), QByteArray("preserved"));
+    old.close();
+
     choice = "overwriteYes";
     answered = false;
     window.extractTo(temp.filePath("destination"), true, {}, options);
