@@ -109,6 +109,9 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         const QString output = fixture.filePath("output");
         QVERIFY(QDir().mkpath(child) && QDir().mkpath(output));
         write(QDir(child).filePath("keep.txt"));
+        const QString blocker = QDir(output).filePath("source folder");
+        const QString savedBlocker = QDir(output).filePath("saved file.txt");
+        write(blocker);
 
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -147,9 +150,23 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(!QFileInfo::exists(QDir(child).filePath("source folder")));
 
         window.openPath(output);
-        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus() &&
+                    rowFor(*files, "source folder") >= 0);
         QTest::keySequence(files, QKeySequence::Paste);
-        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "source folder") >= 0);
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate(
+                     "qtfiletransfertransaction",
+                     "Cannot replace a file with a folder or a folder with a file: %1")
+                     .arg(QFileInfo(blocker).canonicalFilePath()));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QVERIFY(QFileInfo(source).isDir());
+        QVERIFY(QFile::rename(blocker, savedBlocker));
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "saved file.txt") >= 0 &&
+                    rowFor(*files, "source folder") >= 0);
+        QFile preserved(savedBlocker);
+        QVERIFY(preserved.open(QIODevice::ReadOnly));
+        QCOMPARE(preserved.readAll(), QByteArray("file state fixture"));
         QFile moved(QDir(output).filePath("source folder/child/keep.txt"));
         QVERIFY(moved.open(QIODevice::ReadOnly));
         QCOMPARE(moved.readAll(), QByteArray("file state fixture"));
