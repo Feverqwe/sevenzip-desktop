@@ -213,6 +213,18 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         dialogs_.connectResponder(driver, &window,
                                   [&] { dismissResults(dialogs_, errors, successes); });
         driver.start(1);
+        if (!opened) {
+            source->sourcePanel->Set_AutoRefresh_Mode(false);
+            source->setFocus();
+            const QString parked = fixture.filePath("parked." + format);
+            QVERIFY(QFile::rename(archive, parked));
+            PanelKeys::command(source, Qt::Key_T, Qt::ControlModifier | Qt::ShiftModifier);
+            QVERIFY(backend.Selections.isEmpty());
+            QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(archive).fileName()));
+            QTRY_COMPARE(window.focusWidget(), source);
+            QVERIFY(source->selectionModel()->isRowSelected(0, {}));
+            QVERIFY(QFile::rename(parked, archive));
+        }
         for (int attempt = 0; attempt < 3; ++attempt) {
             const bool crash = !opened && attempt == 0;
             backend.CrashNext = crash;
@@ -225,6 +237,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             if (opened)
                 QCOMPARE(successes.size(), 1);
             else {
+                QVERIFY(window.statusBar()->currentMessage().isEmpty());
                 QVERIFY(action(window, "refreshAction")->isEnabled());
                 QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), attempt + 1, 30000);
                 QCOMPARE(backend.Results.last().Status, crash
