@@ -337,17 +337,20 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<QString>("language");
         QTest::addColumn<bool>("cancel");
+        QTest::addColumn<bool>("batch");
         for (unsigned pane : {0u, 1u})
             for (const QString language : {"-", "ru"})
                 for (bool cancel : {false, true})
                     QTest::newRow(
                         qPrintable(QString("%1-%2-%3").arg(pane).arg(language).arg(cancel)))
-                        << pane << language << cancel;
+                        << pane << language << cancel << false;
+        QTest::newRow("batch-escape") << 0u << QString("-") << true << true;
     }
     void refusedConfirmation() {
         QFETCH(unsigned, pane);
         QFETCH(QString, language);
         QFETCH(bool, cancel);
+        QFETCH(bool, batch);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -368,6 +371,12 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(keep.open(QIODevice::WriteOnly));
         QCOMPARE(keep.write("protected bytes"), qint64(15));
         keep.close();
+        const QString otherName = QStringLiteral("other δ.bin");
+        if (batch) {
+            QFile other(fixture.filePath(otherName));
+            QVERIFY(other.open(QIODevice::WriteOnly));
+            QCOMPARE(other.write("other bytes"), qint64(11));
+        }
         ControlledBackend backend;
         Trash trash;
         MainWindow window(&backend, {}, &trash);
@@ -377,17 +386,22 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(peer->rowCount(), 0);
         CMyComPtr<IFolderFolder> peerFolder = peer->sourcePanel->GetFolder();
         auto *view = openPanel(window, pane, fixture.path());
-        QTRY_COMPARE(view->rowCount(), 1);
+        const int itemCount = batch ? 2 : 1;
+        QTRY_COMPARE(view->rowCount(), itemCount);
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         view->selectRow(0);
-        view->setCurrentCell(0, 0);
+        if (batch)
+            view->selectionModel()->select(view->model()->index(1, 0),
+                                           QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        view->setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
         view->setFocus();
         CMyComPtr<IFolderFolder> folder = panel.GetFolder();
         const auto selection = view->selectionModel()->selection();
         bool observed = false;
         bool cancelDefault = false;
         QString title, message;
+        QStringList listedNames;
         bool reports = true;
         QTimer refusal;
         dialogs_.connectResponder(refusal, &window, [&] {
@@ -399,6 +413,9 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             cancelDefault = box->findChild<QPushButton *>("deleteCancel")->isDefault();
             title = box->windowTitle();
             message = box->findChild<QWidget *>("deleteSourceSummary")->accessibleName();
+            if (auto *names = box->findChild<QWidget *>("deleteSelectedNames"))
+                for (auto *label : names->findChildren<QLabel *>())
+                    listedNames.append(label->accessibleName());
             for (const QSize size : {QSize(400, 200), QSize(300, 180)}) {
                 box->resize(size);
                 QApplication::processEvents();
@@ -423,10 +440,13 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(observed);
         QVERIFY(cancelDefault);
         QCOMPARE(title, QCoreApplication::translate("DeleteRedesign", "Move to Trash?"));
-        QVERIFY(message.contains(name));
+        if (batch)
+            QCOMPARE(listedNames, (QStringList{name, otherName}));
+        else
+            QVERIFY(message.contains(name));
         QVERIFY(reports);
         // Original Delete returns before RefreshListCtrl on No or Cancel.
-        QCOMPARE(view->rowCount(), 1);
+        QCOMPARE(view->rowCount(), itemCount);
         QCOMPARE(panel.GetFolder(), (IFolderFolder *)folder);
         QCOMPARE(view->selectionModel()->selection(), selection);
         QTRY_COMPARE(window.focusWidget(), view);
@@ -445,10 +465,16 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(view, Qt::Key_Tab);
         QTRY_VERIFY(peer->hasFocus());
         QTest::keySequence(peer, QKeySequence::Paste);
-        QTRY_COMPARE(peer->rowCount(), 1);
+        QTRY_COMPARE(peer->rowCount(), itemCount);
         QFile copied(peerDirectory.filePath(name));
         QVERIFY(copied.open(QIODevice::ReadOnly));
         QCOMPARE(copied.readAll(), QByteArray("protected bytes"));
+        if (batch) {
+            QFile otherCopy(peerDirectory.filePath(otherName));
+            QVERIFY(otherCopy.open(QIODevice::ReadOnly));
+            QCOMPARE(otherCopy.readAll(), QByteArray("other bytes"));
+            QVERIFY(QFileInfo::exists(fixture.filePath(otherName)));
+        }
         QVERIFY(QFileInfo::exists(keep.fileName()));
         QCOMPARE(trash.calls, 0);
     }
