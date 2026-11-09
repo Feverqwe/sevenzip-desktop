@@ -409,6 +409,7 @@
     add_test(NAME panel_key COMMAND panel_key_tests -silent)
     add_test(NAME panel_key_quick COMMAND panel_key_tests -silent
         typingAndEnterOpenTheMatchingFolder
+        typingStartsFreshAfterSwitchingPanels
         typingFindsTheNameFromAnotherColumn
         shiftSelectionDoesNotIncludeFollowingUnmodifiedMove
         archiveOpenDisablesBothPanelAddresses

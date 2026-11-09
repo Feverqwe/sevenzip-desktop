@@ -102,6 +102,52 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
                      QString("alpha"));
         }
     }
+    void typingStartsFreshAfterSwitchingPanels() {
+        const int oldInterval = QApplication::keyboardInputInterval();
+        const auto restoreInterval =
+            qScopeGuard([oldInterval] { QApplication::setKeyboardInputInterval(oldInterval); });
+        QApplication::setKeyboardInputInterval(5000);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (const auto &name : {"left/alpha", "left/zebra", "right/bravo", "right/yankee"})
+            QVERIFY(QDir().mkpath(fixture.filePath(name)));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(fixture.filePath("left"));
+        QTRY_VERIFY(filesystemRow(window, "alpha") >= 0);
+        if (!action(window, "twoPanelsAction")->isChecked())
+            action(window, "twoPanelsAction")->trigger();
+        auto *right = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(right);
+        auto *address = right->findChild<QLineEdit *>("archivePath");
+        auto *peer = right->findChild<FileTable *>("archiveTable");
+        auto *leftPane = window.findChild<QWidget *>("filePanel0");
+        QVERIFY(leftPane);
+        auto *left = leftPane->findChild<FileTable *>("archiveTable");
+        QVERIFY(address && left && peer && left != peer);
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(fixture.filePath("right"));
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_B);
+        QCOMPARE(peer->currentIndex().data(QtPanelList::NameRole).toString(), QString("bravo"));
+
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(left->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_A);
+        QCOMPARE(left->currentIndex().data(QtPanelList::NameRole).toString(), QString("alpha"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(peer->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Y);
+        QCOMPARE(peer->currentIndex().data(QtPanelList::NameRole).toString(), QString("yankee"));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(left->hasFocus());
+        QTest::keyClick(window.focusWidget(), Qt::Key_Z);
+        QCOMPARE(left->currentIndex().data(QtPanelList::NameRole).toString(), QString("zebra"));
+    }
+
     void typingFindsTheNameFromAnotherColumn_data() {
         QTest::addColumn<bool>("matches");
         QTest::newRow("cyrillic-match") << true;
