@@ -98,7 +98,9 @@ CPanelStatus CPanel::Refresh_StatusBar() const {
     Get_ItemIndices_Selected(indices);
 
     status.selectedCount = int(indices.Size());
-    status.totalCount = int(_selectedStatusVector.Size());
+    status.totalCount = _selectionList.GetItemCount();
+    if (status.totalCount > 0 && GetRealItemIndex(0) == UInt32(-1))
+        --status.totalCount;
     if (!indices.IsEmpty()) {
         UInt64 totalSize = 0;
         bool known = bool(_folder);

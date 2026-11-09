@@ -129,6 +129,9 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         left->setFocus();
         QTRY_VERIFY(left->hasFocus());
         action(window, "selectAllAction")->trigger();
+        auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
+        QVERIFY(summary);
+        QTRY_COMPARE(summary->text(), QString("Selected: 1 / 1"));
         auto *copy = action(window, "copyFilesAction");
         QVERIFY(copy->isEnabled());
         copy->trigger();
@@ -169,6 +172,10 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QVERIFY(setListOptions(window, action(window, "settingsAction"), true));
         QCOMPARE(files->rowCount(), 2);
         QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral(".."));
+        auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
+        QVERIFY(summary);
+        action(window, "selectAllAction")->trigger();
+        QTRY_COMPARE(summary->text(), QString("Selected: 1 / 1"));
         QCOMPARE(files->model()->index(0, 0).data(Qt::ToolTipRole).toString(),
                  QStringLiteral("Parent folder"));
         QCOMPARE(files->accessibleName(), QStringLiteral("File list"));
