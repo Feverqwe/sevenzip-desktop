@@ -593,6 +593,41 @@ class SourceBrowseDialogTests final : public QObject {
         QCOMPARE(file.readAll(), QByteArray("original"));
     }
 
+    void hiddenFolderCanBeChosenByPath() {
+        QTemporaryDir fixture;
+        const QString directory = LongDirectory(fixture);
+        const QString hidden = directory + "/.private";
+        QVERIFY(QDir().mkpath(hidden));
+        QVERIFY(QDir().mkdir(directory + "/visible"));
+        if (!QFileInfo(hidden).isHidden())
+            QSKIP("Dot-prefixed directories are not hidden on this filesystem");
+        CFmSettings settings;
+        settings.Load(FmSettingsPath());
+        const auto restoreSettings = qScopeGuard([settings] { settings.Save(FmSettingsPath()); });
+        settings.ShowHiddenFolders = false;
+        settings.Save(FmSettingsPath());
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *list = dialog->findChild<QTreeWidget *>("browseList");
+            QVERIFY(list);
+            QVERIFY(Names(*list).contains("visible"));
+            QVERIFY(!Names(*list).contains(".private"));
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            QVERIFY(path);
+            path->setText(".private");
+            path->setFocus();
+            QTest::keyClick(path, Qt::Key_Return);
+        });
+        UString output;
+        QVERIFY(MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(output))), hidden);
+    }
+
     void saveModePreservesSpacesInNewName() {
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);

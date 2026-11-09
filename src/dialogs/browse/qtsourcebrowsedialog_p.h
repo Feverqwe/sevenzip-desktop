@@ -30,6 +30,7 @@ class CBrowseDialog : public QDialog {
     int _sortIndex = 0;
     bool _ascending = true;
     bool _showDots = false;
+    bool _showHiddenFolders = true;
     UString _topDirPrefix;
     UString DirPrefix;
 

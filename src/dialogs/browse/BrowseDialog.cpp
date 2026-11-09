@@ -112,6 +112,7 @@ void CBrowseDialog::OnInit() {
     CFmSettings st;
     st.Load(FmSettingsPath());
     _showDots = st.ShowDots;
+    _showHiddenFolders = st.ShowHiddenFolders;
 
     unsigned rootSize = GetRootPrefixSize(FilePath);
 #ifdef _WIN32
@@ -292,6 +293,9 @@ HRESULT CBrowseDialog::Reload(UString pathPrefix, const UString &selectedName) {
                 return GetLastError_noZero_HRESULT();
             if (!found)
                 break;
+            if (!_showHiddenFolders && fi.IsDir() &&
+                QFileInfo(ToQString(pathPrefix + fs2us(fi.Name))).isHidden())
+                continue;
             if (!fi.IsDir()) {
                 if (FolderMode)
                     continue;
