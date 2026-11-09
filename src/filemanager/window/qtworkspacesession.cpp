@@ -152,6 +152,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                                 const QtArchiveLocation &firstArchive) {
     const auto panels = value.value("panels").toArray();
     const auto interaction = interactionRevision_;
+    const QPointer<QWidget> activeAtStart = QApplication::activeWindow();
     const bool savedTwo = value.value("count").toInt(1) == 2;
     bool needsOtherPane = false;
     for (unsigned panel = 0; panel < 2 && panel < panels.size(); ++panel)
@@ -160,8 +161,9 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
     if ((needsOtherPane || savedTwo) && window_.app_.NumPanels == 1)
         window_.togglePanels();
     WhenReady(
-        [this, value, panels, finished = std::move(finished), canceled, firstArchive, interaction] {
-            const auto complete = [this, value, finished, interaction] {
+        [this, value, panels, finished = std::move(finished), canceled, firstArchive, interaction,
+         activeAtStart] {
+            const auto complete = [this, value, finished, interaction, activeAtStart] {
                 const unsigned focus = qBound(0, value.value("focused").toInt(), 1);
                 const bool restoreFocus = interactionRevision_ == interaction;
                 const bool singlePane = value.value("count").toInt(1) == 1;
@@ -181,7 +183,8 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.panelSplitter_->RememberPosition();
                 }
                 window_.refreshActions();
-                if (value.value("activeWindow").toBool()) {
+                if (value.value("activeWindow").toBool() &&
+                    QApplication::activeWindow() == activeAtStart) {
                     window_.raise();
                     window_.activateWindow();
                 }

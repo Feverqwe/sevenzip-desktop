@@ -515,6 +515,31 @@ class WorkspaceSessionTests final : public QObject {
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(window.windowTitle())), rightPath);
     }
 
+    void sessionRestoreDoesNotRaiseOverANewerActiveWindow() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        ControlledBackend restoredBackend, peerBackend;
+        MainWindow restored(&restoredBackend), peer(&peerBackend);
+        peer.show();
+        restored.show();
+        restored.openPath(fixture.path());
+        QTRY_COMPARE(location(restored), fixture.path());
+        QVERIFY(WindowActivation::waitForActive(restored));
+        const auto saved = workspace(restored)->Save();
+        QVERIFY(saved.value("activeWindow").toBool());
+        const QString other = fixture.filePath("other");
+        QVERIFY(QDir().mkdir(other));
+        restored.openPath(other);
+        QTRY_COMPARE(location(restored), other);
+        bool finished = false;
+        workspace(restored)->Restore(saved, [&] { finished = true; });
+        QApplication::setActiveWindow(&peer);
+        QCOMPARE(QApplication::activeWindow(), &peer);
+        QTRY_VERIFY(finished);
+        QCOMPARE(location(restored), fixture.path());
+        QCOMPARE(QApplication::activeWindow(), &peer);
+    }
+
     void sessionKeepsUnavailableFolderAndAllowsRetry() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
