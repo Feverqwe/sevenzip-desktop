@@ -112,6 +112,10 @@
             <translation>Папка доступна только для чтения: %1</translation>
         </message>
         <message>
+            <source>Cannot access folder: %1</source>
+            <translation>Нет доступа к папке: %1</translation>
+        </message>
+        <message>
             <source>Choose another destination or change the name.</source>
             <translation>Выберите другое назначение или измените имя.</translation>
         </message>

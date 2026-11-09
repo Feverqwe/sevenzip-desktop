@@ -745,12 +745,15 @@ class ExtractDialogTests final : public QObject {
 
     void blockedDestinationCanBeCorrected_data() {
         QTest::addColumn<bool>("split");
-        QTest::newRow("base-folder") << false;
-        QTest::newRow("subfolder") << true;
+        QTest::addColumn<bool>("searchDenied");
+        QTest::newRow("base-folder") << false << false;
+        QTest::newRow("subfolder") << true << false;
+        QTest::newRow("subfolder-without-search-access") << true << true;
     }
 
     void blockedDestinationCanBeCorrected() {
         QFETCH(bool, split);
+        QFETCH(bool, searchDenied);
 #ifndef Q_OS_UNIX
         QSKIP("Requires a searchable, read-only directory with a writable child");
 #endif
@@ -761,6 +764,17 @@ class ExtractDialogTests final : public QObject {
         QVERIFY(QDir().mkpath(writable));
         const QString occupied = QDir(writable).filePath("occupied");
         QVERIFY(SourceExtractFixture::writeFile(occupied, "unchanged"));
+        const QString blocked = QDir(writable).filePath("blocked");
+        QVERIFY(QDir().mkdir(blocked));
+        const auto blockedPermissions = QFile::permissions(blocked);
+        const auto restoreBlocked =
+            qScopeGuard([&] { QFile::setPermissions(blocked, blockedPermissions); });
+        if (searchDenied) {
+            QVERIFY(QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner));
+            const QFileInfo entry(blocked);
+            if (!entry.isWritable() || entry.isExecutable())
+                QSKIP("Fixture must allow writing while denying directory search");
+        }
         const QString output = QDir(writable).filePath("output");
         QVERIFY(QDir().mkpath(output));
         const QString retained = QDir(output).filePath("retained.txt");
@@ -785,18 +799,24 @@ class ExtractDialogTests final : public QObject {
                 destination->setEditText(base);
                 dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(split);
                 auto *subfolder = dialog.findChild<QLineEdit *>("extractPathName");
+                const QString invalidName =
+                    searchDenied ? QString("writable/blocked/new") : QString("writable/occupied");
                 if (split)
-                    subfolder->setText("writable/occupied");
+                    subfolder->setText(invalidName);
                 const int skip = overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
                 QVERIFY(skip >= 0);
                 overwrite(dialog)->setCurrentIndex(skip);
                 dialog.accept();
                 QVERIFY(dialog.isVisible());
                 QCOMPARE(destination->currentText(), base);
+                if (searchDenied)
+                    QVERIFY(dialog.findChild<QLabel *>("extractDestinationError")
+                                ->text()
+                                .contains(blocked));
                 auto *editor = split ? subfolder : destination->lineEdit();
                 QVERIFY(dialog.focusWidget() == editor ||
                         (!split && dialog.focusWidget() == destination));
-                QCOMPARE(editor->selectedText(), split ? QString("writable/occupied") : base);
+                QCOMPARE(editor->selectedText(), split ? invalidName : base);
                 auto *clipboard = QApplication::clipboard();
                 const auto clear = qScopeGuard([clipboard] { clipboard->clear(); });
                 clipboard->setText(split ? QString("writable/output") : output);

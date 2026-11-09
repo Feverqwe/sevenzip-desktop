@@ -47,11 +47,17 @@ class COutputPolicy final : public IQtExtractPathPolicy {
         QString path = destination;
         for (;;) {
             const QFileInfo entry(path);
-            if (entry.exists())
+            if (entry.exists()) {
+#ifdef Q_OS_UNIX
+                if (!entry.isExecutable())
+                    return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                        .arg(path);
+#endif
                 return entry.isWritable() ? QString()
                                           : QCoreApplication::translate(
                                                 "CopyRedesign", "The folder is read-only: %1")
                                                 .arg(path);
+            }
             const QString parent = entry.absolutePath();
             if (parent == path)
                 return {};
