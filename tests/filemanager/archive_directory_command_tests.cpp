@@ -3,6 +3,8 @@
 #include "filemanager/views/filetable.h"
 #include "filemanager/window/mainwindow.h"
 #include "localization/qtlanguageservices.h"
+#include "support/panel_keys.h"
+#include "support/progress_dialog.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QAction>
 #include <QFile>
@@ -141,7 +143,7 @@ class ArchiveDirectoryCommandTests final : public QObject {
         auto *peerPane = window.findChild<QWidget *>(QString("filePanel%1").arg(peer));
         auto *peerView = peerPane->findChild<FileTable *>("archiveTable");
         auto *peerAddress = peerPane->findChild<QLineEdit *>("archivePath");
-        peerAddress->setFocus();
+        PanelKeys::focusAddress(peerAddress);
         QTRY_VERIFY(peerAddress->hasFocus());
         window.openPath(fixture.path());
         QTRY_VERIFY(Row(*peerView, QFileInfo(input).fileName()) >= 0);
@@ -152,7 +154,7 @@ class ArchiveDirectoryCommandTests final : public QObject {
         auto *pane = window.findChild<QWidget *>(QString("filePanel%1").arg(source));
         auto *view = pane->findChild<FileTable *>("archiveTable");
         auto *address = pane->findChild<QLineEdit *>("archivePath");
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         window.openPath(input.fileName());
         const QString directory = QStringLiteral("directory-00");
@@ -170,20 +172,25 @@ class ArchiveDirectoryCommandTests final : public QObject {
         auto *calculate = window.findChild<QAction *>("calculateDirectorySizeAction");
         QVERIFY(calculate && calculate->isEnabled());
         bool observed = false, closed = false;
+        QTimer review;
+        connect(&review, &QTimer::timeout, &window, [] {
+            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+        });
         OnProgressShow observer([&](CProgressDialog &dialog) {
             if (observed)
                 return;
             observed = true;
             connect(&dialog, &QDialog::finished, &window, [&] {
                 window.activateWindow();
-                peerAddress->setFocus();
-                QTRY_VERIFY(peerAddress->hasFocus());
+                PanelKeys::focusAddress(peerAddress);
                 closed = true;
             });
             if (cancel)
                 dialog.Sync.Set_Stopped(true);
         });
+        review.start(1);
         calculate->trigger();
+        review.stop();
         QVERIFY(observed && closed);
         QCOMPARE(size().isValid(), !cancel);
         QCOMPARE(ToQString(view->sourcePanel->GetCurrentFolderPrefix()), sourcePrefix);
@@ -193,7 +200,7 @@ class ArchiveDirectoryCommandTests final : public QObject {
         QCOMPARE(peerAddress->text(), peerDraft);
         QVERIFY(peerView->selectionModel()->isRowSelected(
             Row(*peerView, QFileInfo(input).fileName()), {}));
-        address->setFocus();
+        PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         QCOMPARE(calculate->isEnabled(), cancel);
         if (cancel) {
