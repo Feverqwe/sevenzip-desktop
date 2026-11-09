@@ -12,6 +12,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -615,6 +616,62 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(destination->currentText(), corrected);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
+    }
+
+    void folderPickerKeepsExtractionDraftAndOptions() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString selected = fixture.filePath("selected folder");
+        QVERIFY(QDir().mkpath(selected));
+        CExtractDialog dialog(fixture.path(), {});
+        dialog.show();
+        auto *destination = path(dialog);
+        auto *edit = destination->lineEdit();
+        dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(true);
+        auto *subfolder = dialog.findChild<QLineEdit *>("extractPathName");
+        subfolder->setText(QStringLiteral("выход 空"));
+        const int overwriteIndex =
+            overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
+        QVERIFY(overwriteIndex >= 0);
+        overwrite(dialog)->setCurrentIndex(overwriteIndex);
+        const QString draft = edit->text();
+        edit->setFocus();
+        edit->setSelection(5, -4);
+        auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
+        for (const bool choose : {false, true}) {
+            bool found = false;
+            QTimer::singleShot(0, &dialog, [&] {
+                auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+                if (!picker)
+                    return;
+                found = true;
+                const auto close = qScopeGuard([&] {
+                    if (picker->isVisible())
+                        picker->reject();
+                });
+                if (choose) {
+                    picker->setDirectory(selected);
+                    picker->selectFile(selected);
+                    QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
+                }
+            });
+            QTest::mouseClick(browse, Qt::LeftButton);
+            QVERIFY(found);
+            QCOMPARE(subfolder->text(), QStringLiteral("выход 空"));
+            QCOMPARE(overwrite(dialog)->currentIndex(), overwriteIndex);
+            if (choose)
+                QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(edit->text())), selected);
+            else {
+                QCOMPARE(edit->text(), draft);
+                QCOMPARE(edit->selectedText(), draft.mid(1, 4));
+                QCOMPARE(edit->cursorPosition(), 1);
+            }
+        }
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())),
+                 QDir(selected).filePath(subfolder->text()));
+        QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kSkip);
     }
 
     void blockedSubfolderFocusesItsOwnField() {
