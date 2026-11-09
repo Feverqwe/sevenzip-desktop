@@ -14,6 +14,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSet>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -255,14 +256,20 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
         error = QCoreApplication::translate("qtfiletransfertransaction",
                                             "Destination is inside the source folder: %1")
                     .arg(draft);
-    else if (localTransfer && (_sources.size() == 1 || (checkBatch && destination.isDir()))) {
+    else if (localTransfer && (_sources.size() == 1 || checkBatch)) {
         // Check a batch on submit so editing the path does not stat every item.
         const QDir targetDirectory(preview);
+        QSet<QString> targets;
         for (const auto &sourcePath : _sources) {
             const QFileInfo source(sourcePath);
             const QFileInfo target(
                 needsDirectory && !_useName ? targetDirectory.filePath(source.fileName()) : draft);
-            if (QtIsFileSystemLink(target.filePath()))
+            if (targets.contains(target.filePath()))
+                error =
+                    QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Multiple items would use the same destination: %1")
+                        .arg(target.filePath());
+            else if (QtIsFileSystemLink(target.filePath()))
                 error = QCoreApplication::translate("qtfiletransfertransaction",
                                                     "Destination is a symbolic link: %1")
                             .arg(target.filePath());
@@ -276,6 +283,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
                 nameError = _useName;
                 break;
             }
+            targets.insert(target.filePath());
         }
     }
     // A batch conflict can be removed outside the dialog. Keep OK available

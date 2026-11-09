@@ -348,6 +348,30 @@ class CopyDestinationTests final : public QObject {
 #endif
     }
 
+    void duplicateBatchNamesKeepTheDestinationDialogOpen() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("first/item.txt");
+        const QString second = fixture.filePath("second/item.txt");
+        for (const auto &source : {first, second}) {
+            QVERIFY(QDir().mkpath(QFileInfo(source).absolutePath()));
+            QFile file(source);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        const QString destination = fixture.filePath("new folder");
+        CCopyDialog dialog(false, destination, {first, second});
+        QtCopyDestinationContext context;
+        context.LocalFileTransfer = true;
+        dialog.ConfigureDestination(context);
+        dialog.show();
+        dialog.accept();
+        QVERIFY(dialog.isVisible());
+        const auto *error = dialog.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(error && error->isVisible());
+        QVERIFY(error->text().contains(QDir(destination).filePath("item.txt")));
+        QVERIFY(!QFileInfo::exists(destination));
+    }
+
     void batchDestinationConflictCanBeCorrected_data() {
         QTest::addColumn<bool>("replacePath");
         QTest::newRow("same-destination") << false;
