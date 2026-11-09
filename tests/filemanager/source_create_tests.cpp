@@ -31,6 +31,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<QString>("draft");
         QTest::addColumn<QString>("unexpected");
         QTest::addColumn<bool>("occupied");
+        QTest::newRow("empty") << QString() << QString("unexpected") << false;
         QTest::newRow("nul") << (QStringLiteral("truncated") + QChar::Null + "suffix")
                              << QString("truncated") << false;
         QTest::newRow("existing-file")
@@ -79,6 +80,9 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(name, Qt::Key_Return);
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
+        if (draft.isEmpty())
+            QCOMPARE(error->text(),
+                     QCoreApplication::translate("InlineCreateFolder", "Enter a folder name."));
         QCOMPARE(QFileInfo::exists(existing.fileName()), occupied);
         QCOMPARE(view->rowCount(), initialRows);
         QCOMPARE(observed->rowCount(), initialRows);

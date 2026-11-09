@@ -4,6 +4,7 @@
     <context>
         <name>InlineCreateFolder</name>
         <message><source>Folder name</source><translation>Имя папки</translation></message>
+        <message><source>Enter a folder name.</source><translation>Введите имя папки.</translation></message>
     </context>
     <context>
         <name>ProgressRedesign</name>

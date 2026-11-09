@@ -179,7 +179,9 @@ void QtFileManagerCommands::CreateFolder() {
         // creating the inline editor. Submit against the editor's owner.
         if (focusOwner)
             window_.activatePanelUi(index);
-        QString detail;
+        QString detail = value.isEmpty() ? QCoreApplication::translate("InlineCreateFolder",
+                                                                       "Enter a folder name.")
+                                         : QString();
         QString destinationDirectory;
         QString publishedArchive;
         HRESULT result = E_INVALIDARG;
