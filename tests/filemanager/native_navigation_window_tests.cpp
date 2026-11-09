@@ -55,6 +55,43 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
     }
+    void openingMissingFolderKeepsTheListReadyForRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString child = fixture.filePath(QStringLiteral("папка с пробелом"));
+        const QString parked = fixture.filePath("renamed");
+        QVERIFY(QDir().mkpath(child));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        openFilesystemPanel(window, 0, fixture.path());
+        auto *view = table(window);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->selectRow(0);
+        view->setCurrentCell(0, 0);
+        QVERIFY(QDir().rename(child, parked));
+        QString diagnostic;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                diagnostic = warning->text();
+                warning->accept();
+            }
+        });
+        dismiss.start(5);
+        PanelKeys::openSelection(window.focusWidget());
+        dismiss.stop();
+        QVERIFY(diagnostic.contains(QDir::toNativeSeparators(child)));
+        QCOMPARE(view->currentIndex().data().toString(), QFileInfo(child).fileName());
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QVERIFY(QDir().rename(parked, child));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view->hasFocus());
+        PanelKeys::openSelection(window.focusWidget());
+        const auto *address = window.findChild<QLineEdit *>("archivePath");
+        QTRY_COMPARE(QDir::cleanPath(address->text()), QFileInfo(child).canonicalFilePath());
+    }
+
     void folderCommandPreservesPeerWhenTargetDisappears_data() {
         QTest::addColumn<int>("key");
         QTest::addColumn<int>("extraEntries");

@@ -28,7 +28,10 @@ void CPanel::OpenFolder(unsigned index) {
     CMyComPtr<IFolderFolder> newFolder;
     const HRESULT res = _folder->BindToFolder((unsigned)index, &newFolder);
     if (res != 0) {
-        MessageBox_Error_HRESULT(res);
+        if (IsFSFolder())
+            MessageBox_Error_2Lines_Message_HRESULT(GetItemFullPath(index), res);
+        else
+            MessageBox_Error_HRESULT(res);
         return;
     }
     if (!newFolder)
