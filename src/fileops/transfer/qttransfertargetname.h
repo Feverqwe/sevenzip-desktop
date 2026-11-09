@@ -4,6 +4,22 @@
 #include <QCoreApplication>
 #include <QFileInfo>
 
+inline QString QtTransferSourceError(const QFileInfo &source, bool move) {
+    if (source.isSymLink() || source.isJunction())
+        return {};
+    bool available = source.exists();
+#ifdef Q_OS_UNIX
+    if (available && !move)
+        available = source.isReadable() && (!source.isDir() || source.isExecutable());
+#else
+    (void)move;
+#endif
+    if (available)
+        return {};
+    return QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
+        .arg(source.filePath());
+}
+
 inline QString QtTransferTargetKey(const QString &path) {
 #ifdef Q_OS_WIN
     return path.toCaseFolded();

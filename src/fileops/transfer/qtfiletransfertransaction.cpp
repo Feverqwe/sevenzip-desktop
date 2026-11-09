@@ -177,7 +177,7 @@ bool QtFileTransferTransaction::removeEntry(const QString &path) {
 }
 
 QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
-                                                   const QString &destination) {
+                                                   const QString &destination, bool move) {
     if (const QString error = DirectorySearchError(QFileInfo(destination)); !error.isEmpty())
         return error;
     const QDir directory(destination);
@@ -185,10 +185,8 @@ QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
     QSet<QString> targets;
     for (const auto &path : sources) {
         const QFileInfo source(path);
-        if (!source.exists() && !source.isSymLink() && !source.isJunction())
-            return QCoreApplication::translate("qtfiletransfertransaction",
-                                               "Source unavailable: %1")
-                .arg(path);
+        if (const QString error = QtTransferSourceError(source, move); !error.isEmpty())
+            return error;
         const QString target = directory.filePath(source.fileName());
         if (const QString error = TargetPathError(source, QFileInfo(target), targets,
                                                   canonicalDestination, QtIsFileSystemLink(path));

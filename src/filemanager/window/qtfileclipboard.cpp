@@ -243,12 +243,12 @@ void QtFileClipboard::Paste() {
     if (paths.isEmpty())
         return;
     const QString destination = window_.projectedUi().directory;
-    if (const QString error = FileTransferOperation::checkDirectoryPaths(paths, destination);
+    const bool move = ClipboardMovesFiles(*mime, paths);
+    if (const QString error = FileTransferOperation::checkDirectoryPaths(paths, destination, move);
         !error.isEmpty()) {
         window_.showStatusMessage(error);
         return;
     }
-    const bool move = ClipboardMovesFiles(*mime, paths);
     // Existing transfer owns collisions, path validation, cancellation,
     // metadata and progress; clipboard only supplies source URLs/destination.
     const QPointer<const QMimeData> original(mime);
