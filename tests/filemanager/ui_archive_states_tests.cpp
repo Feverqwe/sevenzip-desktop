@@ -418,6 +418,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(test->isEnabled());
 
         QStringList reports;
+        QStringList additionalErrors;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &window, [&] {
             if (auto *result =
@@ -426,6 +427,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
                 TestProgressDialog::CloseResult(*result);
             } else if (auto *message =
                            qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                additionalErrors.append(message->text());
                 message->accept();
             }
         });
@@ -468,6 +470,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(reports.last().contains("Scope: current folder"));
         QVERIFY(reports.last().contains("inside.txt"));
         QVERIFY(!reports.last().contains("damaged.txt"));
+        QVERIFY2(additionalErrors.isEmpty(), qPrintable(additionalErrors.join('\n')));
     }
 
     void init() {
