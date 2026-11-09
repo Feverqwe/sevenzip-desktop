@@ -125,6 +125,34 @@ class DeleteConfirmationTests final : public QObject {
         QTest::keyClick(confirm, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
     }
+    void largeSelectionKeepsConfirmationCompact() {
+        QtDeleteConfirmation::Request request;
+        request.location = "/source";
+        request.includesFolders = true;
+        for (int index = 0; index < 62; ++index)
+            request.names.append(QString("item-%1.txt").arg(index));
+        QtDeleteConfirmation dialog(request);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowActive(&dialog));
+        QVERIFY(!dialog.isMaximized());
+        auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
+        auto *cancel = dialog.findChild<QPushButton *>("deleteCancel");
+        auto *confirm = dialog.findChild<QPushButton *>("deleteConfirm");
+        QVERIFY(scroll && cancel && confirm);
+        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
+        QVERIFY(UiInspection::fullyVisible(*cancel, dialog));
+        QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
+        scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
+        auto *names = dialog.findChild<QWidget *>("deleteSelectedNames");
+        QVERIFY(names);
+        auto *last = names->findChildren<QLabel *>().last();
+        QCOMPARE(last->text(), request.names.last());
+        QTRY_VERIFY(UiInspection::fullyVisible(*last, dialog));
+        QVERIFY(UiInspection::writeReport(dialog, "delete-large-selection"));
+        QTest::keyClick(&dialog, Qt::Key_Escape);
+        QCOMPARE(dialog.result(), int(QDialog::Rejected));
+    }
+
     void defaultAndReadOnlyDoNotDelete() {
         for (bool readOnly : {false, true})
             for (int cancel = 0; cancel < 3; ++cancel) {

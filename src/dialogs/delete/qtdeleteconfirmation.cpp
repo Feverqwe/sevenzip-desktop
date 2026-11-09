@@ -31,7 +31,7 @@ void QtDeleteConfirmation::showEvent(QShowEvent *event) {
     if (!initialSize_)
         return;
     initialSize_ = false;
-    QtFitScrollableDialog(*this);
+    QtFitScrollableDialog(*this, 420);
 }
 
 void QtDeleteConfirmation::buildPresentation() {
