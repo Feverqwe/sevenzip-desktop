@@ -131,10 +131,17 @@ class CompressionPathTests final : public QObject {
         QVERIFY(state.ArcIndices.IsEmpty());
 #endif
     }
+    void sourceSelectionSetsKeepNameBeforeFormatSwitch_data() {
+        QTest::addColumn<bool>("relative");
+        QTest::newRow("absolute") << false;
+        QTest::newRow("relative") << true;
+    }
+
     void sourceSelectionSetsKeepNameBeforeFormatSwitch() {
 #ifndef SEVENZIP_CODEC_MODULE
         QSKIP("Official module unavailable; source-picker naming consumer unverified");
 #else
+        QFETCH(bool, relative);
         const auto catalog =
             std::make_shared<ArchiveCodecCatalog>(QString::fromUtf8(SEVENZIP_CODEC_MODULE), 0);
         QCOMPARE(catalog->result(), S_OK);
@@ -156,9 +163,12 @@ class CompressionPathTests final : public QObject {
         single.findChild<QComboBox *>("archiveFormat")->setCurrentText("zip");
         QCOMPARE(single.findChild<QLineEdit *>("archiveName")->text(),
                  QStringLiteral("report.with.zip"));
-        const QString destination = dir_.filePath(QStringLiteral("другая папка"));
-        single.findChild<QLineEdit *>("archiveName")
-            ->setText(QDir::toNativeSeparators(QDir(destination).filePath("custom.zip")));
+        const QString subfolder =
+            relative ? QStringLiteral("относительная папка") : QStringLiteral("другая папка");
+        const QString destination = dir_.filePath(subfolder);
+        const QString entered =
+            relative ? subfolder + "/custom.zip" : QDir(destination).filePath("custom.zip");
+        single.findChild<QLineEdit *>("archiveName")->setText(QDir::toNativeSeparators(entered));
         single.findChild<QComboBox *>("archiveFormat")->setCurrentText("gzip");
         const QString output = QDir(destination).filePath(QFileInfo(source_).fileName() + ".gz");
         submit(single);
