@@ -109,7 +109,12 @@ void CDataObject::CopyFromPanelTo_Folder(CPanel *source) {
         // Qt owns mouse capture; CopyTo uses the existing progress adapter.
         Copy_WasCalled = true;
         Copy_HRESULT = E_FAIL;
-        Copy_HRESULT = source->CopyTo(options, Indices, &Messages);
+        QtArchiveExtractReport report;
+        Copy_HRESULT = source->CopyTo(options, Indices, &Messages, &report);
+        if (Copy_HRESULT == S_OK && source->IsArcFolder() &&
+            (!Messages.IsEmpty() || report.HadErrors ||
+             (report.Status && !report.Status->Complete)))
+            Copy_HRESULT = E_FAIL;
     } catch (...) {
         Copy_HRESULT = E_FAIL;
     }

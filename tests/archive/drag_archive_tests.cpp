@@ -237,6 +237,7 @@ class DragArchiveTests : public QObject {
         QTest::newRow("recipient-allocation-fails") << 7;
         QTest::newRow("recipient-confirms-drop-end") << 8;
         QTest::newRow("recipient-over-is-not-completion") << 9;
+        QTest::newRow("checksum-failure") << 10;
 #ifdef Q_OS_MACOS
         QTest::newRow("native-qt-ignore-unconfirmed") << 5;
 #endif
@@ -256,10 +257,18 @@ class DragArchiveTests : public QObject {
         QVERIFY(!engine.isEmpty());
         QProcess create;
         create.setWorkingDirectory(fixture.path());
-        create.start(engine, {"a", "-tzip", "--", archive, name});
+        create.start(engine, {"a", "-tzip", "-mx=0", "--", archive, name});
         QVERIFY(create.waitForFinished(10000));
         QCOMPARE(create.exitCode(), 0);
-        const QByteArray original = Read(archive);
+        QByteArray original = Read(archive);
+        if (outcome == 10) {
+            const auto offset = original.indexOf(payload);
+            QVERIFY(offset >= 0);
+            original[offset] = '!';
+            QFile damaged(archive);
+            QVERIFY(damaged.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(damaged.write(original), qint64(original.size()));
+        }
         ArchiveBackend backend;
         QList<ArchiveEntry> listed;
         connect(&backend, &ArchiveBackend::entriesReady, &backend,
@@ -356,7 +365,7 @@ class DragArchiveTests : public QObject {
         responder.start(1);
         app.Panels[0].OnDrag(false);
         responder.stop();
-        if (outcome == 6 || outcome == 7)
+        if (outcome == 6 || outcome == 7 || outcome == 10)
             QVERIFY(!errors.isEmpty());
         else
             QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
@@ -364,7 +373,7 @@ class DragArchiveTests : public QObject {
         QCOMPARE(app.DropTarget().SrcPanelIndex, -1);
         QCOMPARE(Read(archive), original);
         QVERIFY(!backend.busy());
-        if (outcome == 3) {
+        if (outcome == 3 || outcome == 10) {
             QCOMPARE(calls, 0);
             QVERIFY(row->isSelected());
             return;
