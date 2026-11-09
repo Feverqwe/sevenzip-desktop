@@ -294,9 +294,10 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(completed.isEmpty());
         QVERIFY(!scanner->isRunning());
         disconnect(restart);
-        if (reload)
-            panel.OnReload();
-        else {
+        if (reload) {
+            QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+            action(window, "refreshAction")->trigger();
+        } else {
             if (discardDraft)
                 PanelKeys::focusAddress(address);
             if (newInput)
@@ -305,6 +306,8 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         }
         QTRY_COMPARE(view->rowCount(), 301);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        if (reload)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(completed.size(), 1);
         QCOMPARE(failed.size(), 1);
         QFile control(QDir(large).filePath(QStringLiteral("control 文件 0.txt")));

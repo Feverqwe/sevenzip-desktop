@@ -352,6 +352,7 @@ void QtFileManagerCommands::RefreshView() {
         });
         return;
     }
+    window_.clearStatusMessage();
     if (panel.IsArcFolder() &&
         window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true))
         return;
