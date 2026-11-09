@@ -1,6 +1,7 @@
 #include "7zip/UI/FileManager/resourceGui.h"
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/support/native_archive_fixture.h"
+#include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
@@ -39,6 +40,38 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void creatingExistingNestedArchiveFolderAllowsRetry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("folders.zip");
+        QVERIFY(
+            NativeArchiveFixture::Write(archive, {{"docs/reports/payload.txt", "payload"}}, "zip"));
+        const QByteArray original = SourceExtractFixture::readFile(archive);
+        MainWindow window;
+        window.show();
+        window.openArchive(archive);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && rowWithPath(window, "docs") >= 0);
+        view->setFocus();
+        QTest::keyClick(view, Qt::Key_F7);
+        auto *editor = window.findChild<QLineEdit *>("inlineFolderName");
+        auto *error = window.findChild<QLabel *>("inlineFolderError");
+        QVERIFY(editor && error);
+        editor->setText("docs/reports");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QVERIFY(editor->isVisible());
+        QVERIFY(error->isVisible());
+        QCOMPARE(editor->selectedText(), QString("docs/reports"));
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+        editor->setText("docs/new");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(view->isEnabled() && window.focusWidget() == view);
+        openRow(window, rowWithPath(window, "docs"));
+        QTRY_VERIFY(rowWithPath(window, "docs/new") >= 0);
+        QVERIFY(rowWithPath(window, "docs/reports") >= 0);
+    }
+
     void openAsArchiveReportsUnrecognizedFile_data() {
         QTest::addColumn<bool>("nested");
         QTest::newRow("filesystem") << false;

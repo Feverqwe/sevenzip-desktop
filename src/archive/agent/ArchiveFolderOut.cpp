@@ -6,6 +6,7 @@
 #include "7zip/Common/LimitedStreams.h"
 #include "7zip/Compress/CopyCoder.h"
 #include "Common/ComTry.h"
+#include "Windows/FileName.h"
 #include "archive/agent/Agent.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivedeleteinputs.h"
@@ -428,8 +429,26 @@ Z7_COM7F_IMF(CAgentFolder::CreateFolder(const wchar_t *name, IProgress *progress
         return E_FAIL;
     if (_isAltStreamFolder)
         return E_NOTIMPL;
-    const bool exists = _proxy2 ? _proxy2->IsThere_SubDir(_proxyDirIndex, name)
-                                : _proxy->FindSubDir(_proxyDirIndex, name) != -1;
+    bool exists = false;
+    CMyComPtr<IFolderFolder> parent(this);
+    UString remaining(name);
+    for (;;) {
+        const int separator = NName::FindSepar(remaining);
+        const UString part = separator < 0 ? remaining : remaining.Left(unsigned(separator));
+        CMyComPtr<IFolderFolder> child;
+        const HRESULT result = parent->BindToFolder(part, &child);
+        if (result == E_INVALIDARG)
+            break;
+        RINOK(result)
+        if (!child)
+            break;
+        if (separator < 0) {
+            exists = true;
+            break;
+        }
+        parent = child;
+        remaining.DeleteFrontal(unsigned(separator + 1));
+    }
     if (exists) {
 #ifdef _WIN32
         return HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS);
