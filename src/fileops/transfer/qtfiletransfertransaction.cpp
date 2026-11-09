@@ -39,6 +39,15 @@ QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
     return {};
 }
 
+QString DirectoryNestingError(const QFileInfo &source, const QString &destination,
+                              const QString &target) {
+    if (!NFsFolder::IsDestChild(source.canonicalFilePath(), destination))
+        return {};
+    return QCoreApplication::translate("qtfiletransfertransaction",
+                                       "Destination is inside the source folder: %1")
+        .arg(target);
+}
+
 struct MergeMember {
     CFileInfo metadata;
     QString identity;
@@ -157,6 +166,7 @@ bool QtFileTransferTransaction::removeEntry(const QString &path) {
 QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
                                                    const QString &destination) {
     const QDir directory(destination);
+    const QString canonicalDestination = directory.canonicalPath();
     QSet<QString> targets;
     for (const auto &path : sources) {
         const QFileInfo source(path);
@@ -168,6 +178,10 @@ QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
         if (const QString error = TargetPathError(source, QFileInfo(target), targets);
             !error.isEmpty())
             return error;
+        if (source.isDir() && !QtIsFileSystemLink(path))
+            if (const QString error = DirectoryNestingError(source, canonicalDestination, target);
+                !error.isEmpty())
+                return error;
         targets.insert(target);
     }
     return {};
@@ -206,12 +220,10 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
         error = TargetPathError(info, targetInfo, plannedTargets_, !sourceLink);
         if (!error.isEmpty())
             return {};
-        if (!sourceLink && info.isDir() &&
-            NFsFolder::IsDestChild(info.canonicalFilePath(), canonicalDestination)) {
-            error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                "Destination is inside the source folder: %1")
-                        .arg(target);
-            return {};
+        if (!sourceLink && info.isDir()) {
+            error = DirectoryNestingError(info, canonicalDestination, target);
+            if (!error.isEmpty())
+                return {};
         }
         if (QtIsFileSystemLink(target)) {
             error = QCoreApplication::translate("qtfiletransfertransaction",

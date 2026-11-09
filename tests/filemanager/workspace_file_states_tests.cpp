@@ -66,6 +66,52 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
     }
 
+    void cutFolderCanBePastedAfterRejectingItsOwnSubfolder() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source folder");
+        const QString child = QDir(source).filePath("child");
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkpath(child) && QDir().mkpath(output));
+        write(QDir(child).filePath("keep.txt"));
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "source folder") >= 0);
+        files->setFocus();
+        files->selectRow(rowFor(*files, "source folder"));
+        QTest::keySequence(files, QKeySequence::Cut);
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+
+        window.openPath(child);
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Destination is inside the source folder: %1")
+                     .arg(QDir(child).filePath("source folder")));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QVERIFY(!QFileInfo::exists(QDir(child).filePath("source folder")));
+
+        window.openPath(output);
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "source folder") >= 0);
+        QFile moved(QDir(output).filePath("source folder/child/keep.txt"));
+        QVERIFY(moved.open(QIODevice::ReadOnly));
+        QCOMPARE(moved.readAll(), QByteArray("file state fixture"));
+        QVERIFY(!QFileInfo::exists(source));
+        const auto *remaining = QApplication::clipboard()->mimeData();
+        QVERIFY(!remaining || !remaining->hasUrls());
+    }
+
     void keyboardClipboardWorksWhileThePeerRefreshes_data() {
         QTest::addColumn<bool>("move");
         QTest::newRow("copy") << false;
