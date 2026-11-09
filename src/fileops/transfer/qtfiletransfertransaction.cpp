@@ -25,6 +25,17 @@
 namespace {
 using NWindows::NFile::NFind::CFileInfo;
 
+QString DirectorySearchError(const QFileInfo &directory) {
+#ifdef Q_OS_UNIX
+    if (directory.isDir() && !directory.isExecutable())
+        return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+            .arg(directory.filePath());
+#else
+    (void)directory;
+#endif
+    return {};
+}
+
 QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
                         const QSet<QString> &targets, const QString &canonicalDestination,
                         bool sourceLink) {
@@ -167,6 +178,8 @@ bool QtFileTransferTransaction::removeEntry(const QString &path) {
 
 QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
                                                    const QString &destination) {
+    if (const QString error = DirectorySearchError(QFileInfo(destination)); !error.isEmpty())
+        return error;
     const QDir directory(destination);
     const QString canonicalDestination = directory.canonicalPath();
     QSet<QString> targets;
@@ -193,6 +206,9 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
     destinationDirectory_ =
         directPath ? QFileInfo(worker_.destination_).absolutePath() : worker_.destination_;
     const QFileInfo destinationInfo(destinationDirectory_);
+    error = DirectorySearchError(destinationInfo);
+    if (!error.isEmpty())
+        return {};
     destinationIdentity_ = QtOwnedTempIdentity(destinationDirectory_);
     const QString canonicalDestination = destinationInfo.canonicalFilePath();
     QList<TransferPath> targets;

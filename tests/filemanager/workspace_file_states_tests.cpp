@@ -397,6 +397,56 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
             QVERIFY2(mutation->isEnabled(), qPrintable(mutation->objectName()));
     }
 
+    void pasteCanRetryAfterDirectoryAccessIsRestored() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory search permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("destination");
+        const QString source = fixture.filePath("incoming.txt");
+        QVERIFY(QDir().mkdir(destination));
+        write(source);
+        write(QDir(destination).filePath("existing.txt"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(destination);
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "existing.txt") >= 0);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        auto *clipboard = QApplication::clipboard();
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        clipboard->setMimeData(mime);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+
+        const auto permissions = QFile::permissions(destination);
+        const QString canonicalDestination = QFileInfo(destination).canonicalFilePath();
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(destination, permissions); });
+        QVERIFY(QFile::setPermissions(destination, QFile::ReadOwner | QFile::WriteOwner));
+        const QFileInfo blocked(destination);
+        if (!blocked.isWritable() || blocked.isExecutable())
+            QSKIP("Requires a writable directory without search access");
+
+        paste->trigger();
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                     .arg(canonicalDestination));
+        QCOMPARE(clipboard->mimeData()->urls(), urls);
+        QVERIFY(QFile::setPermissions(destination, permissions));
+        const QString target = QDir(destination).filePath("incoming.txt");
+        QVERIFY(!QFileInfo::exists(target));
+        paste->trigger();
+        QTRY_VERIFY(rowFor(*files, "incoming.txt") >= 0);
+        QFile received(target);
+        QVERIFY(received.open(QIODevice::ReadOnly));
+        QCOMPARE(received.readAll(), QByteArray("file state fixture"));
+        QCOMPARE(clipboard->mimeData()->urls(), urls);
+    }
+
     void pasteWaitsForTheDestinationListing() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
