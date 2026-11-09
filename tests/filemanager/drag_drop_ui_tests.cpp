@@ -1295,11 +1295,16 @@ class DragDropUiTests final : public QObject {
 
     void externalDropCanRetryAnOverwrite_data() {
         QTest::addColumn<bool>("directory");
-        QTest::newRow("file") << false;
-        QTest::newRow("directory-url") << true;
+        QTest::addColumn<bool>("unreadable");
+        QTest::newRow("file") << false << false;
+        QTest::newRow("directory-url") << true << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("batch-with-unreadable-source") << false << true;
+#endif
     }
     void externalDropCanRetryAnOverwrite() {
         QFETCH(bool, directory);
+        QFETCH(bool, unreadable);
         QTemporaryDir source, target;
         QVERIFY(source.isValid() && target.isValid());
         const QString entry = directory ? QString("same folder") : QString("same name.txt");
@@ -1319,7 +1324,22 @@ class DragDropUiTests final : public QObject {
         QTRY_VERIFY(view->isEnabled() && Row(*view, entry) >= 0);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(directory ? inputEntry + '/' : inputEntry)});
+        const QString blocked = source.filePath("unreadable.txt");
+        QFile::Permissions permissions;
+        const auto restore = qScopeGuard([&] {
+            if (unreadable)
+                QFile::setPermissions(blocked, permissions);
+        });
+        if (unreadable) {
+            QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
+            permissions = QFile::permissions(blocked);
+            QVERIFY(QFile::setPermissions(blocked, QFile::WriteOwner));
+            if (QFileInfo(blocked).isReadable())
+                QSKIP("The current user can still read the file");
+            mime.setUrls({QUrl::fromLocalFile(input), QUrl::fromLocalFile(blocked)});
+        }
         int prompts = 0;
+        QString report;
         QTimer answer;
         connect(&answer, &QTimer::timeout, &window, [&] {
             if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
@@ -1337,13 +1357,19 @@ class DragDropUiTests final : public QObject {
                     dynamic_cast<COverwriteDialog *>(QApplication::activeModalWidget())) {
                 ++prompts;
                 ReplyOverwrite(*dialog, prompts == 1 ? IDCANCEL : IDYES);
-            } else {
-                TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+            } else if (auto *result =
+                           TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                report = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
+            } else if (auto *error =
+                           qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                report = error->text();
+                error->accept();
             }
         });
         answer.start(5);
         const QPoint point(5, view->viewport()->height() - 5);
-        for (int attempt = 1; attempt <= 2; ++attempt) {
+        for (int attempt = unreadable ? 0 : 1; attempt <= 2; ++attempt) {
             QDragEnterEvent enter(DragEventPosition(point), Qt::CopyAction, &mime, Qt::MiddleButton,
                                   Qt::NoModifier);
             QCoreApplication::sendEvent(view->viewport(), &enter);
@@ -1354,8 +1380,16 @@ class DragDropUiTests final : public QObject {
             QTRY_VERIFY(view->isEnabled());
             QCOMPARE(SourceExtractFixture::readFile(input), QByteArray("incoming"));
             QCOMPARE(SourceExtractFixture::readFile(output),
-                     attempt == 1 ? QByteArray("original") : QByteArray("incoming"));
+                     attempt < 2 ? QByteArray("original") : QByteArray("incoming"));
+            if (attempt == 0) {
+                QVERIFY(report.contains(blocked));
+                QVERIFY(!QFileInfo::exists(target.filePath("unreadable.txt")));
+                QVERIFY(QFile::setPermissions(blocked, permissions));
+            }
         }
+        if (unreadable)
+            QCOMPARE(SourceExtractFixture::readFile(target.filePath("unreadable.txt")),
+                     QByteArray("other bytes"));
     }
 
     void internalDropCanRetryAfterDestinationAccessReturns() {

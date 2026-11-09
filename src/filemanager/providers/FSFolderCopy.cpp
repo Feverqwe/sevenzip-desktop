@@ -10,6 +10,7 @@
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/transfer/qttransfertargetname.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QDir>
@@ -19,6 +20,15 @@
 namespace NFsFolder {
 static const char *const k_CannotCopyDirToAltStream =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot copy folder as alternate stream");
+
+static HRESULT CheckCopySource(const FString &path, IFolderOperationsExtractCallback *callback) {
+    const QFileInfo source(QString::fromWCharArray(fs2us(path)));
+    const QString error = QtTransferSourceError(source, false);
+    if (error.isEmpty())
+        return S_OK;
+    RINOK(callback->ShowMessage(UString(error.toStdWString().c_str())))
+    return E_FAIL;
+}
 
 static HRESULT SendMessageError(IFolderOperationsExtractCallback *callback, const wchar_t *message,
                                 const FString &fileName) {
@@ -565,6 +575,9 @@ Z7_COM7F_IMF(CFSFolder::CopyTo(Int32 moveMode, const UInt32 *indices, UInt32 num
             return E_INVALIDARG;
         const CDirItem &fi = Files[index];
         const FString srcPath = _path + GetRelPath(fi);
+        if (!moveMode) {
+            RINOK(CheckCopySource(srcPath, callback))
+        }
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             if (!isAltDest) {
                 stat.Path = srcPath;
@@ -627,6 +640,9 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
         NWindows::NFile::NFind::CFileInfo fi;
         if (!fi.Find(path))
             continue;
+        if (!moveMode) {
+            RINOK(CheckCopySource(path, callback))
+        }
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             if (!isAltDest) {
                 stat.Path = path;
