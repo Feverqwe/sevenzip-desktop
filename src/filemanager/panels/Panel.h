@@ -229,6 +229,7 @@ struct CFolderLink : public CTempFileInfo {
 struct COpenResult {
     bool ArchiveIsOpened;
     bool Encrypted;
+    bool UnresolvedPath = false;
     UString ErrorMessage;
     COpenResult() : ArchiveIsOpened(false), Encrypted(false) {}
 };

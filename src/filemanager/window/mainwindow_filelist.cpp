@@ -103,8 +103,9 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
                 opened.ErrorMessage.IsEmpty()
                     ? QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path
                     : ToQString(opened.ErrorMessage));
-        else if (result == S_OK && !sourceAddress && !path.isEmpty() && panel.IsFSFolder() &&
-                 !info.exists())
+        else if (result == S_OK && !sourceAddress && !path.isEmpty() &&
+                 ((panel.IsFSFolder() && !info.exists()) ||
+                  (panel.IsArcFolder() && opened.UnresolvedPath)))
             showStatusMessage(
                 QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
         return result;

@@ -247,6 +247,7 @@ HRESULT CPanel::BindToPath(const UString &fullPath, const UString &arcFormat,
 #endif
     openRes.ArchiveIsOpened = false;
     openRes.Encrypted = false;
+    openRes.UnresolvedPath = false;
     CDisableTimerProcessing disableTimerProcessing(*this);
     CDisableNotify disableNotify(*this);
     for (; !_parentFolders.IsEmpty(); CloseOneLevel()) {
@@ -266,8 +267,10 @@ HRESULT CPanel::BindToPath(const UString &fullPath, const UString &arcFormat,
             relatPath2.Add_PathSepar();
         for (;;) {
             const UString foldPath = GetFolderPath(_folder);
-            if (relatPath2 == foldPath)
+            if (relatPath2 == foldPath) {
+                path.Empty();
                 break;
+            }
             if (relatPath.IsPrefixedBy(foldPath)) {
                 path = relatPath.Ptr(foldPath.Len());
                 break;
@@ -416,8 +419,10 @@ HRESULT CPanel::BindToPath(const UString &fullPath, const UString &arcFormat,
                         curPos += (unsigned)pos + 1;
                 }
             }
-            if (!newFolder)
+            if (!newFolder) {
+                openRes.UnresolvedPath = true;
                 break;
+            }
             SetNewFolder(newFolder);
         }
     }

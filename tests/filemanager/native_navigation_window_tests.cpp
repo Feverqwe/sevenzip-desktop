@@ -1077,6 +1077,12 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTest::keyClick(address, Qt::Key_Return);
         QCOMPARE(table->rowCount(), 1);
         QCOMPARE(address->text(), archive);
+        QVERIFY(window.statusBar()->currentMessage().contains("missing/deeper"));
+        PanelKeys::focusAddress(address);
+        address->setText(archive + '/');
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(address->text(), archive);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         table->selectRow(0);
         QVERIFY(payload.open(QIODevice::WriteOnly | QIODevice::Truncate));
         QCOMPARE(payload.write("after refresh with a different size"), 35);
