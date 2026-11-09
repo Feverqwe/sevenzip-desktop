@@ -131,7 +131,7 @@ class MainWindow : public QMainWindow {
     void createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                  UInt32 splitterPos);
     HRESULT openArchiveAs(const QString &path, const QString &type);
-    HRESULT openArchiveAsImpl(const QString &path, const QString &type);
+    HRESULT openArchiveAsImpl(const QFileInfo &file, const QString &type);
     void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
     void reloadLangItems();

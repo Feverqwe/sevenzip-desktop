@@ -464,6 +464,31 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(backend.listCalls, 1);
     }
+    void missingArchiveDoesNotInterruptFolderNavigation() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("large folder");
+        QVERIFY(QDir().mkdir(folder));
+        for (int i = 0; i < 300; ++i)
+            QVERIFY(writeFile(QDir(folder).filePath(QString("file-%1.txt").arg(i)), "x"));
+        const QString archive = fixture.filePath("retry.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"payload.txt", "payload"}}, "zip"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "large folder") >= 0);
+        window.openPath(folder);
+        QVERIFY(!view->isEnabled());
+        window.openArchive(fixture.filePath("missing.zip"));
+        QVERIFY(!view->isEnabled());
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "file-299.txt") >= 0);
+        window.openArchive(archive);
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder() &&
+                    rowWithPath(window, "payload.txt") >= 0);
+    }
+
     void completedAddressNavigationFocusesLargeList_data() {
         QTest::addColumn<bool>("archive");
         QTest::addColumn<bool>("newInput");

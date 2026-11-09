@@ -50,12 +50,19 @@ bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBo
 void MainWindow::openArchive(const QString &path) { openArchiveAs(path, {}); }
 
 HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
-    return workspace_->Navigate([&] { return openArchiveAsImpl(path, type); });
+    if (app_.QtOperations().closed() || projectedUi().state == State::Loading ||
+        projectedUi().state == State::Operating)
+        return E_ABORT;
+    const QFileInfo file(path);
+    if (!IsArchiveFileOrPackage(file)) {
+        showStatusMessage(
+            QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
+        return E_INVALIDARG;
+    }
+    return workspace_->Navigate([&] { return openArchiveAsImpl(file, type); });
 }
 
-HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) {
-    if (app_.QtOperations().closed())
-        return E_ABORT;
+HRESULT MainWindow::openArchiveAsImpl(const QFileInfo &file, const QString &type) {
     workspace_->CancelListFocus();
     const QPointer<QWidget> focused = focusWidget();
     const auto index = projectedPanel_;
@@ -73,14 +80,6 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
         appPresentation_->RestoreWidgetFocus(focused);
     });
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
-        return E_ABORT;
-    const QFileInfo file(path);
-    if (!IsArchiveFileOrPackage(file)) {
-        showStatusMessage(
-            QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
-        return E_INVALIDARG;
-    }
     const auto pendingSelection = projectedUi().pendingSelection;
     const auto pendingViewport = projectedUi().pendingViewport;
     const auto addressDraft = projectedUi().path->isModified()
