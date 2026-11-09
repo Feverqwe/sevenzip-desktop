@@ -687,6 +687,11 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(table(window)->isEnabled() && location(window) == folder);
         QVERIFY(WindowActivation::waitForActive(window));
         auto *address = window.findChild<QLineEdit *>("archivePath");
+        const auto addressHasFocus = [&] {
+            const auto *combo = window.findChild<QComboBox *>("pathCombo");
+            const auto *focus = window.focusWidget();
+            return focus && (focus == combo || focus == address);
+        };
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         address->selectAll();
@@ -702,6 +707,10 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(address->text(), draft);
         QCOMPARE(address->selectedText(), draft.mid(7, 4));
         QCOMPARE(address->cursorPosition(), 7);
+        QTRY_VERIFY(addressHasFocus());
+        QTest::keyClicks(window.focusWidget(), "edited");
+        const QString editedDraft = draft.left(7) + "edited" + draft.mid(11);
+        QCOMPARE(address->text(), editedDraft);
         QVERIFY(table(window)->sourcePanel->ShouldProcessNotifications());
         QVERIFY(action(window, "backAction")->isEnabled());
         QVERIFY(!action(window, "forwardAction")->isEnabled());
@@ -710,7 +719,8 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         action(window, "backAction")->trigger();
         QTRY_COMPARE(prompts, 2);
         QCOMPARE(location(window), folder);
-        QCOMPARE(address->text(), draft);
+        QCOMPARE(address->text(), editedDraft);
+        QTRY_VERIFY(addressHasFocus());
         QVERIFY(action(window, "backAction")->isEnabled());
         const QString error = window.statusBar()->currentMessage();
         QVERIFY(QDir::fromNativeSeparators(error).contains(archive));
@@ -721,7 +731,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(table(window)->isEnabled() && table(window)->sourcePanel->IsArcFolder());
         QCOMPARE(prompts, 3);
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
-        QVERIFY(address->text() != draft);
+        QVERIFY(address->text() != editedDraft);
         QTRY_COMPARE(window.focusWidget(), table(window));
         action(window, "forwardAction")->trigger();
         QTRY_COMPARE(location(window), folder);
