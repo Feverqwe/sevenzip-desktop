@@ -43,6 +43,7 @@ class MainWindowOperationsTests : public QObject, protected MainWindowTestSuppor
     void nestedArchivePanelCannotWriteIntoOppositeArchive();
     void stage7ArchiveCommandStates();
     void extractAskUsesSourceOverwriteDialog();
+    void extractionRefreshesAnOpenDestinationWithoutLosingItsDraft();
     void skippedArchiveMoveKeepsSourceAndShowsPartialResult();
     void backendOverwriteDisplaysNativeMetadata_data();
     void backendOverwriteDisplaysNativeMetadata();
