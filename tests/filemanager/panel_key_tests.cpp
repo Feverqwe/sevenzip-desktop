@@ -108,6 +108,16 @@ class PanelKeyTests final : public QObject, protected MainWindowTestSupport {
         QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix()))
                          .normalized(QString::NormalizationForm_C),
                      QDir(expected).filePath(current).normalized(QString::NormalizationForm_C));
+        QTest::keySequence(window.focusWidget(), action(window, "backAction")->shortcut());
+        QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix()))
+                         .normalized(QString::NormalizationForm_C),
+                     expected.normalized(QString::NormalizationForm_C));
+        QTRY_VERIFY(active->hasFocus());
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(), current);
+        const bool wasAlpha = current == "alpha";
+        QTest::keyClick(window.focusWidget(), wasAlpha ? Qt::Key_Z : Qt::Key_A);
+        QCOMPARE(active->currentIndex().data(QtPanelList::NameRole).toString(),
+                 wasAlpha ? QString("zebra") : QString("alpha"));
     }
     void typingStartsFreshAfterSwitchingPanels() {
         const int oldInterval = QApplication::keyboardInputInterval();
