@@ -95,16 +95,19 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void destinationRefreshKeepsNewAddressInput_data() {
+    void destinationRefreshKeepsNewInput_data() {
         QTest::addColumn<bool>("navigate");
         QTest::addColumn<bool>("existingDraft");
-        QTest::newRow("address-draft") << false << false;
-        QTest::newRow("different-folder") << true << false;
-        QTest::newRow("draft-before-copy") << false << true;
+        QTest::addColumn<bool>("switchPane");
+        QTest::newRow("address-draft") << false << false << false;
+        QTest::newRow("different-folder") << true << false << false;
+        QTest::newRow("draft-before-copy") << false << true << false;
+        QTest::newRow("switch-to-destination") << false << false << true;
     }
-    void destinationRefreshKeepsNewAddressInput() {
+    void destinationRefreshKeepsNewInput() {
         QFETCH(bool, navigate);
         QFETCH(bool, existingDraft);
+        QFETCH(bool, switchPane);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString input = fixture.filePath("source");
@@ -146,6 +149,14 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
                 return;
             scheduled = true;
             QTimer::singleShot(0, &window, [&] {
+                if (switchPane) {
+                    QVERIFY(WindowActivation::waitForActive(window));
+                    source->setFocus();
+                    QVERIFY(source->hasFocus());
+                    QTest::keyClick(source, Qt::Key_Tab);
+                    edited = true;
+                    return;
+                }
                 PanelKeys::focusAddress(address);
                 if (navigate) {
                     address->setText(other);
@@ -192,6 +203,13 @@ class CopyPublicationOrderTests final : public QObject, protected MainWindowTest
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), other);
             QVERIFY(peer->selectionModel()->selectedRows().isEmpty());
             QCOMPARE(read(other + "/existing-0.txt"), QByteArray("unrelated bytes"));
+        } else if (switchPane) {
+            QTRY_VERIFY(peer->hasFocus());
+            QCOMPARE(peer->selectionModel()->selectedRows().size(), 1);
+            const int row = peer->currentRow();
+            QVERIFY(row >= 0 && row + 1 < peer->rowCount());
+            QTest::keyClick(window.focusWidget(), Qt::Key_Down);
+            QCOMPARE(peer->currentRow(), row + 1);
         } else {
             if (existingDraft)
                 QTRY_VERIFY(source->hasFocus());
