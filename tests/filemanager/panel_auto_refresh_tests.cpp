@@ -7,6 +7,8 @@
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
 
+#include <QClipboard>
+#include <QScopeGuard>
 #include <QScrollBar>
 #include <QStackedWidget>
 
@@ -601,6 +603,8 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         window.show();
         auto *files = table(window);
         QCOMPARE(files->rowCount(), 1);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(files->hasFocus());
         files->sourcePanel->Set_AutoRefresh_Mode(automatic);
         const QList<QAction *> fileCommands{action(window, "toolbarAddAction"),
                                             action(window, "copyAction"),
@@ -687,6 +691,17 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             action(window, "refreshAction")->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(files->model()->index(0, 2).data(Qt::UserRole + 2).toLongLong(),
                                   qint64(changed.size()), 3500);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_COMPARE(window.focusWidget(), files);
+        auto *clipboard = QApplication::clipboard();
+        clipboard->clear();
+        const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
+        QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
+        QTRY_VERIFY(files->selectionModel()->isRowSelected(0, {}));
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
+        const auto restoredFile = QFileInfo(folder + "/new.txt").canonicalFilePath();
+        QCOMPARE(clipboard->mimeData()->urls(), QList<QUrl>{QUrl::fromLocalFile(restoredFile)});
     }
 };
 
