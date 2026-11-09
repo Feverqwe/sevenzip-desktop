@@ -243,6 +243,9 @@ class MainWindow : public QMainWindow {
         QString topPath;
         QPoint scrollPosition;
         int topOffset;
+        int cursorColumn = -1;
+        PROPID cursorProperty = kpidNoProperty;
+        bool cursorRawProperty = false;
     };
     ListViewport captureListViewport();
     void restoreListViewport(const ListViewport &viewport);

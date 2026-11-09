@@ -91,9 +91,16 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
     }
     const QString topPath =
         view->model()->index(topRow, 0).data(QtPanelList::OperationPathRole).toString();
-    return {view, projectedUi().directory, topPath,
-            QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
-            topOffset};
+    ListViewport viewport{
+        view, projectedUi().directory, topPath,
+        QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
+        topOffset};
+    if (auto *table = qobject_cast<FileTable *>(view)) {
+        viewport.cursorColumn = table->currentIndex().column();
+        viewport.cursorProperty = table->propertyId(viewport.cursorColumn);
+        viewport.cursorRawProperty = table->isRawProperty(viewport.cursorColumn);
+    }
+    return viewport;
 }
 
 HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
@@ -241,6 +248,16 @@ void MainWindow::restoreListViewport(const ListViewport &viewport) {
     auto *view = viewport.view.data();
     if (!view || view != projectedUi().viewStack->currentWidget())
         return;
+    if (auto *table = qobject_cast<FileTable *>(view)) {
+        const int column = viewport.cursorColumn;
+        const QModelIndex current = table->currentIndex();
+        if (current.isValid() && column >= 0 && column < table->columnCount() &&
+            !table->isColumnHidden(column) &&
+            table->propertyId(column) == viewport.cursorProperty &&
+            table->isRawProperty(column) == viewport.cursorRawProperty)
+            table->selectionModel()->setCurrentIndex(current.siblingAtColumn(column),
+                                                     QItemSelectionModel::NoUpdate);
+    }
     view->doItemsLayout();
     int row = -1;
     if (!viewport.topPath.isEmpty()) {

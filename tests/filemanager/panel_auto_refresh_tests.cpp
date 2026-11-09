@@ -222,8 +222,10 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(files->rowCount(), 80);
         const int selectedRow = filesystemRow(window, QStringLiteral("file-050.txt"));
         QVERIFY(selectedRow >= 0);
-        files->setCurrentCell(selectedRow, 0);
         files->selectRow(selectedRow);
+        const int sizeColumn = files->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0 && !files->isColumnHidden(sizeColumn));
+        files->setCurrentCell(selectedRow, sizeColumn, QItemSelectionModel::NoUpdate);
         const int topRow = filesystemRow(window, QStringLiteral("file-035.txt"));
         files->scrollTo(files->model()->index(topRow, 0), QAbstractItemView::PositionAtTop);
         const QString topPath = files->model()->index(files->rowAt(0), 1).data().toString();
@@ -234,6 +236,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(files->model()->index(files->currentRow(), 0).isValid());
         QCOMPARE(files->model()->index(files->currentRow(), 0).data().toString(),
                  QStringLiteral("file-050.txt"));
+        QCOMPARE(files->currentIndex().column(), sizeColumn);
         QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), QModelIndex()));
         QVERIFY(files->model()->index(files->rowAt(0), 1).isValid());
         QCOMPARE(files->model()->index(files->rowAt(0), 1).data().toString(), topPath);
