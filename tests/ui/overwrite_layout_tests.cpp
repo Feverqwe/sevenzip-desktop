@@ -67,6 +67,17 @@ class OverwriteLayoutTests final : public QObject {
         auto *skip = dialog.findChild<QPushButton *>("overwriteNo");
         QVERIFY(skip->hasFocus());
         QCOMPARE(apply->isVisible(), multiple);
+        auto *keepBoth = dialog.findChild<QPushButton *>("overwriteRename");
+        auto *cancel = dialog.findChild<QPushButton *>("overwriteCancel");
+        QTest::keyClick(skip, Qt::Key_Tab);
+        QCOMPARE(dialog.focusWidget(), static_cast<QWidget *>(keepBoth));
+        QTest::keyClick(keepBoth, Qt::Key_Tab);
+        QCOMPARE(dialog.focusWidget(),
+                 multiple ? static_cast<QWidget *>(apply) : static_cast<QWidget *>(cancel));
+        if (multiple) {
+            QTest::keyClick(apply, Qt::Key_Tab);
+            QCOMPARE(dialog.focusWidget(), static_cast<QWidget *>(cancel));
+        }
         QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), displayName);
         QVERIFY(
             dialog.findChild<QLabel *>("overwriteOldFile")->text().contains('"' + existing + '"'));
@@ -94,7 +105,7 @@ class OverwriteLayoutTests final : public QObject {
             QTest::keyClick(skip, Qt::Key_Return);
             QCOMPARE(dialog.result(), IDB_NO_TO_ALL);
         } else {
-            dialog.findChild<QPushButton *>("overwriteRename")->click();
+            keepBoth->click();
             QCOMPARE(dialog.result(), NOverwriteDialog::kAutoRenameOnceResult);
         }
     }

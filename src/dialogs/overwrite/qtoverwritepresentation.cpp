@@ -114,6 +114,8 @@ void COverwriteDialog::BuildPresentation() {
         connect(button, &QPushButton::clicked, this,
                 [this, id = spec.Id, button] { OnButtonClicked(id, button); });
     }
+    QWidget::setTabOrder({_applyToRemaining, cancel, _controls.value(IDYES), _controls.value(IDNO),
+                          _controls.value(IDB_AUTO_RENAME)});
     resize(620, minimumSizeHint().height());
 }
 
