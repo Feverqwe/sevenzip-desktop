@@ -25,27 +25,28 @@ namespace {
 using NWindows::NFile::NFind::CFileInfo;
 
 QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
-                        const QSet<QString> &targets, bool checkAliases = false) {
+                        const QSet<QString> &targets, const QString &canonicalDestination,
+                        bool sourceLink) {
     if (targets.contains(target.filePath()))
         return QCoreApplication::translate("qtfiletransfertransaction",
                                            "Multiple items would use the same destination: %1")
             .arg(target.filePath());
     if (QDir::cleanPath(source.absoluteFilePath()) == QDir::cleanPath(target.absoluteFilePath()) ||
-        (checkAliases && target.exists() &&
+        (!sourceLink && target.exists() &&
          source.canonicalFilePath() == target.canonicalFilePath()))
         return QCoreApplication::translate("qtfiletransfertransaction",
                                            "Source and destination are the same: %1")
             .arg(target.filePath());
+    if (!sourceLink && source.isDir() &&
+        NFsFolder::IsDestChild(source.canonicalFilePath(), canonicalDestination))
+        return QCoreApplication::translate("qtfiletransfertransaction",
+                                           "Destination is inside the source folder: %1")
+            .arg(target.filePath());
+    if (QtIsFileSystemLink(target.filePath()))
+        return QCoreApplication::translate("qtfiletransfertransaction",
+                                           "Destination is a symbolic link: %1")
+            .arg(target.filePath());
     return {};
-}
-
-QString DirectoryNestingError(const QFileInfo &source, const QString &destination,
-                              const QString &target) {
-    if (!NFsFolder::IsDestChild(source.canonicalFilePath(), destination))
-        return {};
-    return QCoreApplication::translate("qtfiletransfertransaction",
-                                       "Destination is inside the source folder: %1")
-        .arg(target);
 }
 
 struct MergeMember {
@@ -175,13 +176,10 @@ QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
                                                "Source unavailable: %1")
                 .arg(path);
         const QString target = directory.filePath(source.fileName());
-        if (const QString error = TargetPathError(source, QFileInfo(target), targets);
+        if (const QString error = TargetPathError(source, QFileInfo(target), targets,
+                                                  canonicalDestination, QtIsFileSystemLink(path));
             !error.isEmpty())
             return error;
-        if (source.isDir() && !QtIsFileSystemLink(path))
-            if (const QString error = DirectoryNestingError(source, canonicalDestination, target);
-                !error.isEmpty())
-                return error;
         targets.insert(target);
     }
     return {};
@@ -217,20 +215,10 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
         const QString target = directPath ? worker_.destination_
                                           : QDir(destinationDirectory_).filePath(info.fileName());
         const QFileInfo targetInfo(target);
-        error = TargetPathError(info, targetInfo, plannedTargets_, !sourceLink);
+        error =
+            TargetPathError(info, targetInfo, plannedTargets_, canonicalDestination, sourceLink);
         if (!error.isEmpty())
             return {};
-        if (!sourceLink && info.isDir()) {
-            error = DirectoryNestingError(info, canonicalDestination, target);
-            if (!error.isEmpty())
-                return {};
-        }
-        if (QtIsFileSystemLink(target)) {
-            error = QCoreApplication::translate("qtfiletransfertransaction",
-                                                "Destination is a symbolic link: %1")
-                        .arg(target);
-            return {};
-        }
         plannedTargets_.insert(target);
         targets.append({source, target, std::move(*member)});
     }

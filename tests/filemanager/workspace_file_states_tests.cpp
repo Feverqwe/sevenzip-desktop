@@ -535,6 +535,53 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
+    void pasteRetriesAfterRemovingDestinationLink() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires filesystem symbolic links");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString output = fixture.filePath("output");
+        QVERIFY(QDir().mkdir(output));
+        const QString source = fixture.filePath("payload.txt");
+        const QString target = QDir(output).filePath("payload.txt");
+        const QString outside = fixture.filePath("protected.txt");
+        write(source);
+        QVERIFY(QFile::link(outside, target));
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(output);
+        auto *files = table(window);
+        files->setFocus();
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        QApplication::clipboard()->setMimeData(mime);
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Destination is a symbolic link: %1")
+                     .arg(target));
+        QVERIFY(QFileInfo(target).isSymLink());
+        QVERIFY(!QFileInfo::exists(outside));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+
+        QVERIFY(QFile::remove(target));
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && QFileInfo(target).isFile());
+        QFile copied(target);
+        QVERIFY(copied.open(QIODevice::ReadOnly));
+        QCOMPARE(copied.readAll(), QByteArray("file state fixture"));
+        QVERIFY(!QFileInfo::exists(outside));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+    }
+
     void pasteRejectsAnOpenedFolderReplacedByALink() {
 #ifndef Q_OS_UNIX
         QSKIP("Requires filesystem symbolic links");
