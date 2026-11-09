@@ -264,8 +264,26 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(files->isColumnHidden(column));
         QCOMPARE(files->currentIndex().data().toString(), QString("payload.txt"));
         QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
-        if (!typeColumn)
+        if (!typeColumn) {
             QVERIFY(filesystemRow(window, "alpha.txt") < filesystemRow(window, "payload.txt"));
+            action(window, "sort3Action")->trigger();
+            QVERIFY(filesystemRow(window, "payload.txt") < filesystemRow(window, "alpha.txt"));
+            QVERIFY(files->isColumnHidden(column));
+
+            QFile middle(temp.filePath("middle.txt"));
+            QVERIFY(middle.open(QIODevice::WriteOnly));
+            QCOMPARE(middle.write("mid"), qint64(3));
+            middle.close();
+            action(window, "refreshAction")->trigger();
+            QTRY_VERIFY(filesystemRow(window, "middle.txt") >= 0);
+            const int payload = filesystemRow(window, "payload.txt");
+            QVERIFY(payload >= 0);
+            QVERIFY(payload < filesystemRow(window, "middle.txt"));
+            QVERIFY(filesystemRow(window, "middle.txt") < filesystemRow(window, "alpha.txt"));
+            QVERIFY(files->isColumnHidden(files->columnForProperty(kpidSize)));
+            QCOMPARE(files->currentRow(), payload);
+            QVERIFY(files->selectionModel()->isRowSelected(payload, {}));
+        }
     }
 
     void sourceCatalogAndHeaderSettingsPersist() {
