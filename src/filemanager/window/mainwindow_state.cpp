@@ -145,9 +145,14 @@ void MainWindow::showPanelStatus(unsigned index, const CPanelStatus &status) {
         return;
     const auto &ui = panelUi_[index];
     const bool loading = ui.scanningDisk || ui.scanningArchive || ui.state == State::Loading;
+    const auto root = ui.autoRefreshSnapshot.constFind(ui.directory);
+    const bool missingFolder =
+        ui.state == State::Filesystem && root != ui.autoRefreshSnapshot.cend() && !root->directory;
     QString summary;
     if (loading)
         summary = QCoreApplication::translate("WindowStatus", "Reading folder…");
+    else if (missingFolder)
+        summary = QCoreApplication::translate("WindowStatus", "Folder unavailable");
     else if (!ui.locationUnavailable) {
         summary = status.selectedCount
                       ? QCoreApplication::translate("WindowStatus", "Selected: %1 / %2")
@@ -160,7 +165,8 @@ void MainWindow::showPanelStatus(unsigned index, const CPanelStatus &status) {
         summary = (index == 0 ? QCoreApplication::translate("WindowStatus", "Left")
                               : QCoreApplication::translate("WindowStatus", "Right")) +
                   " · " + summary;
-    const bool hasSize = !loading && !ui.locationUnavailable && status.selectedSize.has_value();
+    const bool hasSize =
+        !loading && !missingFolder && !ui.locationUnavailable && status.selectedSize.has_value();
     statusStrip_->SetSummary(
         &app_.Panels[index], summary,
         hasSize ? QtRegionalFormat::bytes(*status.selectedSize) : QString(),

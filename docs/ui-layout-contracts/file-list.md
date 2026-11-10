@@ -77,6 +77,9 @@ stays unselected, and the focused-size/date fields stay empty when the pane
 has no selection. Check both panes, EN/RU and active/inactive ownership at
 980×620 and 640×400 through the `source-refresh-status` widget reports.
 Rebinding the view preserves selection notifications for the current provider.
+If the open folder disappears, the active pane's status continues to show that
+the folder is unavailable after the detailed message clears. The normal status
+returns after recovery or navigation.
 Create Folder brings the newly selected folder into view, including after a
 deferred reload. If the new folder is outside the current panel, the panel
 keeps its previous viewport.

@@ -142,6 +142,7 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
         snapshot.insert(directory, signature);
         projectedUi().table->clearSelection();
         projectedUi().table->clearRows();
+        showPanelStatus(projectedPanel_, {});
         showStatusMessage(
             signature.exists
                 ? QCoreApplication::translate("CopyRedesign", "Not a folder: %1").arg(directory)
