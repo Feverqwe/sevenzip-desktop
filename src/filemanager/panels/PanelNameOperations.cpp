@@ -123,9 +123,13 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, bool showHiddenFolder
     QString filesystemDestination;
     QString firstMissingParent;
     if (IsFSFolder()) {
-        const QFileInfo destination(QDir(ToQString(GetFsPath())), QDir::cleanPath(ToQString(name)));
-        filesystemDestination = destination.absoluteFilePath();
-        parentDirectory = destination.absolutePath();
+        // Keep ".." after a directory link until the filesystem resolves it.
+        filesystemDestination =
+            QDir::fromNativeSeparators(QDir(ToQString(GetFsPath())).filePath(ToQString(name)));
+        while (filesystemDestination.endsWith(u'/') &&
+               QDir::isAbsolutePath(filesystemDestination.chopped(1)))
+            filesystemDestination.chop(1);
+        parentDirectory = QFileInfo(filesystemDestination).path();
         QString ancestor = parentDirectory;
         QFileInfo component(ancestor);
         while (!component.isDir()) {
@@ -134,7 +138,7 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, bool showHiddenFolder
                             .arg(QDir::toNativeSeparators(ancestor));
                 return E_INVALIDARG;
             }
-            const QString parent = component.absolutePath();
+            const QString parent = component.path();
             if (parent == ancestor)
                 break;
             firstMissingParent = ancestor;
@@ -172,7 +176,7 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, bool showHiddenFolder
         if (!parentDirectory.isEmpty() && res == S_OK)
             *destinationDirectory = parentDirectory;
         else if (!firstMissingParent.isEmpty() && QFileInfo(firstMissingParent).isDir())
-            *destinationDirectory = QFileInfo(firstMissingParent).absolutePath();
+            *destinationDirectory = QFileInfo(firstMissingParent).path();
     }
     RefreshTitleAlways();
     RefreshListCtrl(state);

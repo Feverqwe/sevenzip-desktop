@@ -203,6 +203,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::newRow("nested-outside") << QString("nested-outside");
 #ifndef Q_OS_WIN
         QTest::newRow("nested-hidden") << QString("nested-hidden");
+        QTest::newRow("linked-parent") << QString("linked-parent");
 #endif
     }
     void createdPathSelectsVisibleFolder() {
@@ -228,28 +229,38 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             options.Save(settings);
         }
         const QString folder = hidden ? QStringLiteral(".created δ") : QStringLiteral("created δ");
-        const bool outside = pathForm == "outside" || pathForm == "nested-outside";
+        const bool linked = pathForm == "linked-parent";
+        const bool outside = linked || pathForm == "outside" || pathForm == "nested-outside";
         const bool nested = hidden || pathForm == "nested-outside";
         const QString target = outside ? fixture.filePath("other") : source;
         if (outside)
             QVERIFY(QDir().mkdir(target));
+        if (linked) {
+            const QString child = QDir(target).filePath("child");
+            QVERIFY(QDir().mkdir(child));
+            QVERIFY(QFile::link(child, QDir(source).filePath("link")));
+        }
         const QString destination =
             QDir(target).filePath(nested ? folder + QStringLiteral("/child 空") : folder);
-        const QString entered = pathForm == "relative" ? "./" + folder : destination;
+        const QString entered = linked                   ? "link/../" + folder + '/'
+                                : pathForm == "relative" ? "./" + folder
+                                                         : destination;
 
         QtWorkspaceApplication application(*qApp);
         ControlledBackend backend, observerBackend;
         MainWindow window(&backend), observer(&observerBackend);
         observer.show();
         auto *observed = openPanel(observer, 0, target);
-        QTRY_COMPARE(observed->rowCount(), outside ? 0 : 1);
+        QTRY_COMPARE(observed->rowCount(), outside && !linked ? 0 : 1);
         observed->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
         auto *view = openPanel(window, 0, source);
-        QTRY_COMPARE(view->rowCount(), 1);
+        QTRY_COMPARE(view->rowCount(), linked ? 2 : 1);
         view->setFocus();
-        view->setCurrentCell(0, 0);
-        view->selectRow(0);
+        const int keepRow = row(view, "keep.txt");
+        QVERIFY(keepRow >= 0);
+        view->setCurrentCell(keepRow, 0);
+        view->selectRow(keepRow);
         action(window, "createFolderAction")->trigger();
         auto *input = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(input && input->isVisible());
@@ -260,7 +271,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             QCOMPARE(row(observed, folder), -1);
         else
             QTRY_VERIFY(row(observed, folder) >= 0);
-        QTRY_COMPARE(view->rowCount(), outside || hidden ? 1 : 2);
+        QTRY_COMPARE(view->rowCount(), (outside || hidden ? 1 : 2) + int(linked));
         const int selected = row(view, outside || hidden ? "keep.txt" : folder);
         QVERIFY(selected >= 0);
         QCOMPARE(view->currentRow(), selected);
