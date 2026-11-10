@@ -81,8 +81,21 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
     } else {
         const QRect visible = view->viewport()->rect();
         const int column = projectedUi().iconList->modelColumn();
-        for (int row = 0; row < view->model()->rowCount(); ++row) {
-            const QRect item = view->visualRect(view->model()->index(row, column));
+        const auto *model = view->model();
+        // The fixed icon grid is laid out left to right, then top to bottom.
+        int first = 0;
+        int last = model->rowCount();
+        while (first < last) {
+            const int middle = first + (last - first) / 2;
+            if (view->visualRect(model->index(middle, column)).bottom() < visible.top())
+                first = middle + 1;
+            else
+                last = middle;
+        }
+        for (int row = first; row < model->rowCount(); ++row) {
+            const QRect item = view->visualRect(model->index(row, column));
+            if (item.top() > visible.bottom())
+                break;
             if (visible.intersects(item)) {
                 topRow = row;
                 topOffset = item.top();
