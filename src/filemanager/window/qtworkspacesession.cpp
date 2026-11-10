@@ -150,6 +150,13 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
     WhenReady(std::move(finished), std::move(canceled));
 }
 
+void QtWindowWorkspace::RestoreSavedGeometry(const QJsonObject &state) {
+    const QByteArray geometry =
+        QByteArray::fromBase64(state.value("geometry").toString().toLatin1());
+    if (!geometry.isEmpty())
+        window_.restoreGeometry(geometry);
+}
+
 void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> finished,
                                 std::function<void()> canceled,
                                 const QtArchiveLocation &firstArchive) {
@@ -174,10 +181,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.activatePanelUi(focus);
                 if (singlePane && window_.app_.NumPanels == 2)
                     window_.togglePanels();
-                const QByteArray geometry =
-                    QByteArray::fromBase64(value.value("geometry").toString().toLatin1());
-                if (!geometry.isEmpty())
-                    window_.restoreGeometry(geometry);
+                RestoreSavedGeometry(value);
                 QList<int> sizes;
                 for (const auto &size : value.value("split").toArray())
                     sizes.append(size.toInt());

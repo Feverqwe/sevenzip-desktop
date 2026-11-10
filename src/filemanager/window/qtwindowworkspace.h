@@ -90,6 +90,7 @@ class QtWindowWorkspace final : public QObject {
 
   private:
     friend class QtWorkspaceApplication;
+    void RestoreSavedGeometry(const QJsonObject &state);
     struct Visit {
         QString path;
         QString nativePlaceIdentity;

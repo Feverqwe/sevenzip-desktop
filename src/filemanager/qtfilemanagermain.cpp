@@ -161,6 +161,9 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
             };
             if (!showBeforeDiscovery)
                 restoreSession();
+            else if (startup.FullPath.IsEmpty())
+                if (auto *workspace = QtWorkspaceApplication::Find())
+                    workspace->RestoreInitialGeometry(window);
             const QString loading =
                 showBeforeDiscovery
                     ? QCoreApplication::translate("ProgressRedesign", "Loading archive formats…")

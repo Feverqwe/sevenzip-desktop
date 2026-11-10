@@ -166,6 +166,12 @@ void QtWorkspaceApplication::OpenWindow(const QJsonObject &state, QtArchiveLocat
     window->show();
 }
 
+void QtWorkspaceApplication::RestoreInitialGeometry(MainWindow &first) {
+    const auto session = ReadSession();
+    if (!session.isEmpty())
+        first.workspace_->RestoreSavedGeometry(session.first().toObject());
+}
+
 void QtWorkspaceApplication::Restore(MainWindow &first) {
     const auto session = ReadSession();
     if (session.isEmpty())

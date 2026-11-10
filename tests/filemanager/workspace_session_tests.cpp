@@ -500,6 +500,7 @@ class WorkspaceSessionTests final : public QObject {
         const QString a = fixture.filePath("A folder");
         const QString b = fixture.filePath("B folder");
         const QString c = fixture.filePath("C folder");
+        const QSize firstSize(730, 450);
         for (const auto &path : {a, b, c})
             QVERIFY(QDir().mkpath(path));
         const bool quit = qApp->quitOnLastWindowClosed();
@@ -515,6 +516,9 @@ class WorkspaceSessionTests final : public QObject {
             QTRY_VERIFY(active(first) && active(first)->isEnabled());
             first.openPath(b);
             second.openPath(c);
+            first.resize(firstSize);
+            second.resize(850, 550);
+            QCOMPARE(first.size(), firstSize);
             application.Quit();
             QVERIFY(!first.isVisible() && !second.isVisible());
         }
@@ -522,6 +526,8 @@ class WorkspaceSessionTests final : public QObject {
             QtWorkspaceApplication application(*qApp);
             ControlledBackend backend;
             MainWindow first(&backend);
+            application.RestoreInitialGeometry(first);
+            QCOMPARE(first.size(), firstSize);
             first.show();
             application.Restore(first);
             QTRY_COMPARE_WITH_TIMEOUT(windows().size(), 2, 10000);
