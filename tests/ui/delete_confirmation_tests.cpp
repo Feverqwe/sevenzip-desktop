@@ -159,15 +159,27 @@ class DeleteConfirmationTests final : public QObject {
         for (int step = 0; step < 8 && !names->hasFocus(); ++step)
             QTest::keyClick(dialog.focusWidget(), Qt::Key_Tab);
         QVERIFY(names->hasFocus());
+        dialog.resize(340, 240);
+        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
+        scroll->verticalScrollBar()->setValue(0);
+        const auto rowVisible = [&](const QModelIndex &index) {
+            const QRect row = names->visualRect(index);
+            return names->viewport()->rect().contains(row) &&
+                   scroll->viewport()->rect().contains(QRect(
+                       names->viewport()->mapTo(scroll->viewport(), row.topLeft()), row.size()));
+        };
         const auto last = names->model()->index(names->model()->rowCount() - 1, 0);
         QCOMPARE(last.data().toString(), request.names.last());
         QTest::keyClick(names, Qt::Key_End);
-        QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(last)));
+        QCOMPARE(names->currentIndex(), last);
+        QTRY_VERIFY(rowVisible(last));
         const auto first = names->model()->index(0, 0);
         QTest::keyClick(names, Qt::Key_Home);
-        QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(first)));
+        QTRY_VERIFY(rowVisible(first));
         QTest::keyClick(names, Qt::Key_End);
-        QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(last)));
+        QTRY_VERIFY(rowVisible(last));
+        QVERIFY(UiInspection::fullyVisible(*cancel, dialog));
+        QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
         QVERIFY(UiInspection::writeReport(dialog, "delete-large-selection"));
         QTest::keyClick(names, Qt::Key_Escape);
         QCOMPARE(dialog.result(), int(QDialog::Rejected));

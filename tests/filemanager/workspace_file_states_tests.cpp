@@ -381,11 +381,16 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
 
     void fileMutationsRequireWritableFolder_data() {
         QTest::addColumn<bool>("retryCut");
-        QTest::newRow("retry-paste") << false;
-        QTest::newRow("retry-cut") << true;
+        QTest::addColumn<bool>("denySearch");
+        QTest::newRow("retry-paste") << false << false;
+        QTest::newRow("retry-cut") << true << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("retry-after-search-permission-restored") << true << true;
+#endif
     }
     void fileMutationsRequireWritableFolder() {
         QFETCH(bool, retryCut);
+        QFETCH(bool, denySearch);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString writable = fixture.filePath("writable");
@@ -393,14 +398,15 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         const QString source = fixture.filePath("incoming.txt");
         QVERIFY(QDir().mkpath(writable));
         QVERIFY(QDir().mkpath(blocked));
+        const QString canonicalBlocked = QFileInfo(blocked).canonicalFilePath();
         write(source);
         write(QDir(blocked).filePath("existing.txt"));
         write(QDir(writable).filePath("existing.txt"));
         const auto restore = qScopeGuard([&] {
             QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
         });
-        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
-            QFileInfo(blocked).isWritable())
+        if (!denySearch && (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
+                            QFileInfo(blocked).isWritable()))
             QSKIP("Cannot make the destination folder read-only");
 
         ControlledBackend backend;
@@ -426,21 +432,34 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         files->setFocus();
         QTRY_VERIFY(files->hasFocus());
         QTest::keySequence(files, QKeySequence::SelectAll);
+        if (denySearch) {
+            if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner) ||
+                QFileInfo(blocked).isExecutable() || !QFileInfo(blocked).isWritable())
+                QSKIP("Cannot deny directory search while allowing writes");
+            auto *replacement = new QMimeData;
+            replacement->setUrls({QUrl::fromLocalFile(source)});
+            QApplication::clipboard()->setMimeData(replacement);
+        }
         QVERIFY(copy->isEnabled());
         QVERIFY(!cut->isEnabled());
-        QVERIFY(!paste->isEnabled());
-        for (auto *mutation : mutations)
-            QVERIFY2(!mutation->isEnabled(), qPrintable(mutation->objectName()));
+        QCOMPARE(paste->isEnabled(), denySearch);
+        if (!denySearch)
+            for (auto *mutation : mutations)
+                QVERIFY2(!mutation->isEnabled(), qPrintable(mutation->objectName()));
         const QString target = QDir(blocked).filePath("incoming.txt");
         QTest::keySequence(files, QKeySequence::Paste);
         QVERIFY(!QFileInfo::exists(target));
+        if (denySearch)
+            QCOMPARE(window.statusBar()->currentMessage(),
+                     QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                         .arg(canonicalBlocked));
         const QList<QUrl> original{QUrl::fromLocalFile(source)};
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
         QTest::keySequence(files, QKeySequence::Cut);
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
         QVERIFY(
             QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
-        QVERIFY(!paste->isEnabled());
+        QCOMPARE(paste->isEnabled(), denySearch);
         if (retryCut) {
             QVERIFY(!cut->isEnabled());
             QTest::keySequence(files, QKeySequence::Cut);

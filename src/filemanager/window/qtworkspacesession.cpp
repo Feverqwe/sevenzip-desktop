@@ -55,7 +55,7 @@ QJsonObject QtWindowWorkspace::Save() {
 }
 
 void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void()> canceled,
-                                  bool presentingResult) {
+                                  bool presentingResult, std::function<bool()> ready) {
     auto *timer = new QTimer(this);
     const auto pending = std::make_shared<bool>(true);
     const auto cancel = [pending, canceled = std::move(canceled)] {
@@ -65,14 +65,16 @@ void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void
     connect(timer, &QObject::destroyed, cancel);
     timer->setInterval(25);
     connect(timer, &QTimer::timeout, this,
-            [this, timer, pending, body = std::move(body), cancel, presentingResult] {
+            [this, timer, pending, body = std::move(body), cancel, presentingResult,
+             ready = std::move(ready)] {
                 if (window_.app_.QtOperations().closed()) {
                     timer->stop();
                     timer->deleteLater();
                     cancel();
                     return;
                 }
-                if (!Ready() || (presentingResult && !QtTaskPresentation::CanPresent()))
+                if (!Ready() || (presentingResult && !QtTaskPresentation::CanPresent()) ||
+                    (ready && !ready()))
                     return;
                 timer->stop();
                 timer->deleteLater();
@@ -148,6 +150,13 @@ void QtWindowWorkspace::RestorePanel(unsigned panel, const QJsonObject &saved,
     WhenReady(std::move(finished), std::move(canceled));
 }
 
+void QtWindowWorkspace::RestoreSavedGeometry(const QJsonObject &state) {
+    const QByteArray geometry =
+        QByteArray::fromBase64(state.value("geometry").toString().toLatin1());
+    if (!geometry.isEmpty())
+        window_.restoreGeometry(geometry);
+}
+
 void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> finished,
                                 std::function<void()> canceled,
                                 const QtArchiveLocation &firstArchive) {
@@ -172,10 +181,7 @@ void QtWindowWorkspace::Restore(const QJsonObject &value, std::function<void()> 
                     window_.activatePanelUi(focus);
                 if (singlePane && window_.app_.NumPanels == 2)
                     window_.togglePanels();
-                const QByteArray geometry =
-                    QByteArray::fromBase64(value.value("geometry").toString().toLatin1());
-                if (!geometry.isEmpty())
-                    window_.restoreGeometry(geometry);
+                RestoreSavedGeometry(value);
                 QList<int> sizes;
                 for (const auto &size : value.value("split").toArray())
                     sizes.append(size.toInt());

@@ -13,6 +13,7 @@
 #include "localization/qtlangcontrols.h"
 #include "operations/CompressCall.h"
 #include "ui/controls/qtinlinefoldername.h"
+#include "ui/controls/qtmenutext.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
@@ -272,7 +273,7 @@ void QtFileManagerCommands::CreateFolder() {
             }
         });
     });
-    editor->setToolTip(ToQString(prefix));
+    editor->setToolTip(QtLiteralToolTip(ToQString(prefix)));
     editor->show();
     name->setFocus();
 }

@@ -758,6 +758,13 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         else
             QVERIFY(
                 window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
+        auto *summary = window.statusBar()->findChild<QLabel *>("selectedItemsStatus");
+        QVERIFY(summary);
+        window.statusBar()->clearMessage();
+        QTRY_VERIFY(summary->isVisible());
+        const QString unavailable =
+            QCoreApplication::translate("WindowStatus", "Folder unavailable");
+        QVERIFY(summary->text().endsWith(unavailable));
         for (const auto *command : fileCommands)
             QVERIFY(!command->isEnabled());
         QVERIFY(!action(window, "testArchiveAction")->isEnabled());
@@ -775,6 +782,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
                          QFileInfo(temp.path()).canonicalFilePath());
             QTRY_VERIFY(files->hasFocus());
             QVERIFY(window.statusBar()->currentMessage().isEmpty());
+            QVERIFY(!summary->text().endsWith(unavailable));
             QVERIFY(action(window, "createFolderAction")->isEnabled());
             const auto matches = files->model()->match(files->model()->index(0, 0), Qt::DisplayRole,
                                                        "surviving.txt", 1, Qt::MatchExactly);
@@ -798,6 +806,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         for (const auto *command : fileCommands)
             QVERIFY(command->isEnabled());
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(!summary->text().endsWith(unavailable));
         const QByteArray changed("changed after the folder came back");
         QVERIFY(writeFile(folder + "/new.txt", changed));
         if (!automatic)

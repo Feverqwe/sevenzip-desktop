@@ -64,6 +64,8 @@ search access in the destination or in the folder where it would be created.
 Spaces in the name of an existing destination or subfolder are preserved.
 If the destination field cannot be resolved or the path is blocked by a file,
 Browse starts from the original folder and preserves the separate subfolder field.
+After choosing a folder, any error in the resulting destination appears before
+the user confirms extraction.
 Choosing a history entry restores the saved destination, including its own
 subfolder when the split fields are enabled. If the fields are disabled,
 choosing a history entry discards the previous subfolder draft.
@@ -363,6 +365,7 @@ are documented adaptations. Windows rendering remains unverified.
 `password_window` adds current-build 360×170/260×170 reports for accepted
 Unicode, surrounding spaces and empty text during source archive opening.
 It also checks the subsequent asynchronous process prompt, raw-value reuse,
-Cancel/reopen and reset on another archive. `open_callback`/`update_callback`
+Cancel/reopen and reset on another archive. The process prompt identifies the
+archive by its displayed name and path. `open_callback`/`update_callback`
 cover empty and supplementary Unicode through the portable UString/BSTR boundary.
 These add caller coverage; the resource layout and labels are unchanged.

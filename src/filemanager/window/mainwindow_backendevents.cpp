@@ -34,7 +34,8 @@ void MainWindow::connectBackend() {
         if (app_.QtOperations().closed() || sourceArchiveProgress_)
             return;
         CPasswordDialog dialog(this);
-        dialog.OnInit();
+        const auto &ui = projectedUi();
+        dialog.OnInit(ui.displayArchive.isEmpty() ? ui.archive : ui.displayArchive);
         if (dialog.exec() != QDialog::Accepted) {
             backend_->cancel();
             return;

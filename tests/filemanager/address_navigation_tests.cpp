@@ -505,8 +505,26 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
 
-        address->setText(destination);
-        QTest::keyClick(address, Qt::Key_Return);
+        auto *clipboard = QApplication::clipboard();
+        const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
+        address->selectAll();
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QCOMPARE(clipboard->text(), text);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QVERIFY(clipboard->mimeData());
+        QCOMPARE(
+            clipboard->mimeData()->urls(),
+            QList{QUrl::fromLocalFile(QFileInfo(fixture.filePath(selected)).canonicalFilePath())});
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(address->text(), text);
+        address->selectAll();
+        clipboard->setText(destination);
+        QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
+        QCOMPARE(address->text(), destination);
+        QTest::keyClick(window.focusWidget(), Qt::Key_Return);
         QTRY_COMPARE(
             QFileInfo(ToQString(view->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
             QFileInfo(destination).canonicalFilePath());

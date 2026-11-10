@@ -102,8 +102,9 @@ class OverwriteLayoutTests final : public QObject {
             QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
                         ->text()
                         .contains(QStringLiteral("Неизвестно")));
-            skip->setFocus();
-            QTest::keyClick(skip, Qt::Key_Return);
+            apply->setFocus();
+            QVERIFY(apply->hasFocus());
+            QTest::keyClick(apply, Qt::Key_Return);
             QCOMPARE(dialog.result(), IDB_NO_TO_ALL);
         } else {
             keepBoth->click();

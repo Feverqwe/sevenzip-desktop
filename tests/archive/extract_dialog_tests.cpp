@@ -665,6 +665,10 @@ class ExtractDialogTests final : public QObject {
         const QString selected = fixture.filePath("selected folder");
         QVERIFY(QDir().mkpath(selected));
         const QString subfolderName = QStringLiteral("выход 空");
+        const QString blocked = fixture.filePath("blocked choice");
+        QVERIFY(QDir().mkdir(blocked));
+        const QString blocker = QDir(blocked).filePath(subfolderName);
+        QVERIFY(SourceExtractFixture::writeFile(blocker, "retain blocker"));
         const QString output = QDir(selected).filePath(subfolderName);
         QVERIFY(QDir().mkpath(output));
         const QString existing = QDir(output).filePath("existing.txt");
@@ -699,7 +703,8 @@ class ExtractDialogTests final : public QObject {
             edit->setFocus();
             edit->setSelection(5, -4);
             auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
-            for (const bool choose : {false, true}) {
+            QString start = fixture.path();
+            for (const QString &choice : {QString(), blocked, selected}) {
                 bool found = false;
                 QTimer::singleShot(0, &dialog, [&] {
                     auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
@@ -710,11 +715,10 @@ class ExtractDialogTests final : public QObject {
                         if (picker->isVisible())
                             picker->reject();
                     });
-                    QCOMPARE(picker->directory().canonicalPath(),
-                             QDir(fixture.path()).canonicalPath());
-                    if (choose) {
-                        picker->setDirectory(selected);
-                        picker->selectFile(selected);
+                    QCOMPARE(picker->directory().canonicalPath(), QDir(start).canonicalPath());
+                    if (!choice.isEmpty()) {
+                        picker->setDirectory(choice);
+                        picker->selectFile(choice);
                         QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
                     }
                 });
@@ -722,13 +726,24 @@ class ExtractDialogTests final : public QObject {
                 QVERIFY(found);
                 QCOMPARE(subfolder->text(), nameDraft);
                 QCOMPARE(overwrite(dialog)->currentIndex(), overwriteIndex);
-                if (choose)
-                    QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(edit->text())), selected);
-                else {
+                if (choice.isEmpty()) {
                     QCOMPARE(edit->text(), draft);
                     QCOMPARE(edit->selectedText(), draft.mid(1, 4));
                     QCOMPARE(edit->cursorPosition(), 1);
+                    continue;
                 }
+                QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(edit->text())), choice);
+                auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(error);
+                if (choice == blocked) {
+                    QTRY_VERIFY(UiInspection::fullyVisible(*error, dialog));
+                    QVERIFY(error->text().contains(subfolderName));
+                    QTRY_COMPARE(dialog.focusWidget(), static_cast<QWidget *>(subfolder));
+                    QCOMPARE(subfolder->selectedText(), nameDraft);
+                } else {
+                    QVERIFY(!error->isVisible());
+                }
+                start = choice;
             }
             QTRY_VERIFY(dialog.focusWidget() == edit || dialog.focusWidget() == destination);
             QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
@@ -743,6 +758,7 @@ class ExtractDialogTests final : public QObject {
         QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath("entry.txt")),
                  QByteArray("payload"));
         QCOMPARE(SourceExtractFixture::readFile(existing), QByteArray("keep"));
+        QCOMPARE(SourceExtractFixture::readFile(blocker), QByteArray("retain blocker"));
         QVERIFY(!QFileInfo::exists(fixture.filePath(subfolderName)));
     }
 

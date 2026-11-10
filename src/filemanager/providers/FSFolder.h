@@ -42,18 +42,22 @@ struct CFsFolderSizeResult {
     UInt64 NumFiles;
 };
 
-CFsFolderSizeResult MeasureFolderSize(const FString &path, IProgress *progress);
+using FolderSizeProgress = std::function<HRESULT(UInt64 files, UInt64 bytes)>;
+CFsFolderSizeResult MeasureFolderSize(const FString &path, IProgress *progress,
+                                      FolderSizeProgress report = {});
 
 struct CFsFolderStat {
     UInt64 NumFolders = 0;
     UInt64 NumFiles = 0;
     UInt64 Size = 0;
     IProgress *Progress = nullptr;
+    FolderSizeProgress Report;
     FString Path;
 
     CFsFolderStat(const FString &path, IProgress *progress Z7_lifetimebound = nullptr)
         : Progress(progress), Path(path) {}
     HRESULT Enumerate();
+    HRESULT Checkpoint() const;
 };
 
 // Source folder owner. Runtime panel loading and destructive mutations use

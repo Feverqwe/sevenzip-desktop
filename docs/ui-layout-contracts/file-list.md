@@ -49,7 +49,8 @@ Rename edits the name inline in the active table/icon list. On macOS, the editor
 and its native focus ring must remain inside the viewport, including the first
 icon column; resize and Escape retain the source selection and file bytes.
 Automatic refresh waits for inline Rename to finish in its panel. The other
-panel continues to refresh while the name is being edited.
+panel continues to refresh while the name is being edited. File list options
+apply to a window after its active rename finishes.
 
 Rename rejects an empty file or archive entry name and other invalid filesystem
 names with the shared HRESULT error. It uses the Critical icon, the source
@@ -77,6 +78,9 @@ stays unselected, and the focused-size/date fields stay empty when the pane
 has no selection. Check both panes, EN/RU and active/inactive ownership at
 980×620 and 640×400 through the `source-refresh-status` widget reports.
 Rebinding the view preserves selection notifications for the current provider.
+If the open folder disappears, the active pane's status continues to show that
+the folder is unavailable after the detailed message clears. The normal status
+returns after recovery or navigation.
 Create Folder brings the newly selected folder into view, including after a
 deferred reload. If the new folder is outside the current panel, the panel
 keeps its previous viewport.

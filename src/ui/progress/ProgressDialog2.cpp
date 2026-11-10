@@ -284,7 +284,7 @@ void CProgressDialog::accept() { OnOK(); }
 void CProgressDialog::reject() { OnButtonClicked(IDCANCEL); }
 
 struct CWaitCursor {
-    CWaitCursor() { QApplication::setOverrideCursor(Qt::WaitCursor); }
+    CWaitCursor() { QApplication::setOverrideCursor(QtWaitCursor()); }
     ~CWaitCursor() { QApplication::restoreOverrideCursor(); }
 };
 

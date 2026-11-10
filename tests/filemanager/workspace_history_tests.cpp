@@ -9,6 +9,7 @@
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QMenu>
 #include <QScopeGuard>
 #include <QScrollBar>
@@ -44,8 +45,8 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(fixture.isValid());
         const QString first = fixture.filePath("first");
         const QString second = fixture.filePath("second");
-        createDirectory(first);
-        createDirectory(second);
+        createDirectory(first, 3);
+        createDirectory(second, 3);
         ArchiveBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -59,14 +60,35 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         }
         const QString current = forward ? first : second;
         const QString missing = forward ? second : first;
+        auto *files = table(window);
+        QVERIFY(WindowActivation::waitForActive(window));
+        files->setFocus();
+        QTRY_VERIFY(files->hasFocus());
+        const auto selection =
+            files->model()->match(files->model()->index(0, 0), Qt::DisplayRole, "item-0002.txt");
+        QCOMPARE(selection.size(), 1);
+        files->selectionModel()->setCurrentIndex(selection.front(), QItemSelectionModel::NoUpdate);
+        files->selectionModel()->select(selection.front(), QItemSelectionModel::ClearAndSelect |
+                                                               QItemSelectionModel::Rows);
+        const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
+        QApplication::clipboard()->clear();
         auto *travel = action(window, forward ? "forwardAction" : "backAction");
         QTRY_VERIFY(travel->isEnabled());
         const QString parked = fixture.filePath("renamed");
         QVERIFY(QDir().rename(missing, parked));
-        travel->trigger();
+        QCOMPARE(files->selectionModel()->selectedRows(), selection);
+        QTest::keySequence(window.focusWidget(), travel->shortcut());
         QTRY_VERIFY(window.statusBar()->currentMessage().contains(missing));
         QCOMPARE(location(window), current);
         QTRY_VERIFY(travel->isEnabled());
+        QCOMPARE(window.focusWidget(), static_cast<QWidget *>(files));
+        QCOMPARE(files->selectionModel()->selectedRows(), selection);
+        QVERIFY(files->sourcePanel->ShouldProcessNotifications());
+        QVERIFY(action(window, "copyFilesAction")->isEnabled());
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY_WITH_TIMEOUT(QApplication::clipboard()->mimeData(), 1000);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                 QList{QUrl::fromLocalFile(QDir(current).filePath("item-0002.txt"))});
         const QString archive = fixture.filePath("replacement.7z");
         QVERIFY(ExternalEditorFixture::createArchive(
             fixture.path(), archive, QFileInfo(parked).fileName(), "7z", "history password"));

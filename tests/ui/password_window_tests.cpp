@@ -301,10 +301,13 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         window.testArchive();
         QCOMPARE(backend.lastTestPassword, password);
         bool transportPrompt = false;
+        QString promptedArchive;
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = dynamic_cast<CPasswordDialog *>(QApplication::activeModalWidget());
             QVERIFY(dialog);
             transportPrompt = true;
+            if (const auto *source = dialog->findChild<QWidget *>("passwordArchiveSource"))
+                promptedArchive = source->accessibleName();
             dialog->findChild<QLineEdit *>("passwordEdit")->setText(password + "-retry");
             dialog->accept();
         });
@@ -312,6 +315,7 @@ class PasswordWindowTests final : public QObject, protected MainWindowTestSuppor
         // above instead routes the same signal through COpenArchiveCallback.
         emit backend.passwordRequired();
         QVERIFY(transportPrompt);
+        QCOMPARE(promptedArchive, QStringLiteral("protected.7z"));
         QCOMPARE(backend.cancelCalls, 0);
         QVERIFY(!action(window, "openInsideAction")->isEnabled());
         backend.fail(QStringLiteral("Операция отменена."), E_ABORT);

@@ -25,6 +25,7 @@ class QtWorkspaceApplication final : public QObject {
     static QtWorkspaceApplication *Find();
     void Register(MainWindow &window);
     void Closing(MainWindow &window);
+    void RestoreInitialGeometry(MainWindow &first);
     void Restore(MainWindow &first);
     void NewWindowFrom(MainWindow &source);
     void Save();

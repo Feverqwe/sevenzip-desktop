@@ -3,6 +3,7 @@
 #include "filemanager/panels/qtpanelcontextmenu.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/qtfilemanagercommands.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
@@ -44,8 +45,9 @@ void MainWindow::showSettings() {
                 application->FileListSettingsChanged(*this);
     };
     connect(&dialog, &SettingsDialog::Applied, this, [this, apply] {
-        if (scanningPanelMask())
-            workspace_->WhenReady(apply);
+        if (scanningPanelMask() || renameController_->Pending())
+            workspace_->WhenReady(apply, {}, false,
+                                  [this] { return !renameController_->Pending(); });
         else
             apply();
     });

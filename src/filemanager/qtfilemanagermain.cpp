@@ -8,6 +8,7 @@
 #include "platform/associations/qtassociationfileopen.h"
 #include "platform/memory/qtmemorylockservices.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include "ui/progress/qtprogresscontrols.h"
 #ifdef Q_OS_MACOS
 #include "app/qtapplicationstartup.h"
 #endif
@@ -19,10 +20,12 @@
 #include <QPointer>
 #include <QScopeGuard>
 #include <QThreadPool>
+#include <QTimer>
 #include <memory>
 
 namespace {
-bool WaitForFileManagerCodecs(ArchiveBackend &backend, QString &error) {
+bool WaitForFileManagerCodecs(ArchiveBackend &backend, QString &error,
+                              QEventLoop::ProcessEventsFlags flags = QEventLoop::AllEvents) {
     QEventLoop discovery;
     bool ready = false;
     QObject::connect(&backend, &ArchiveBackend::codecCatalogReady, &discovery,
@@ -32,7 +35,7 @@ bool WaitForFileManagerCodecs(ArchiveBackend &backend, QString &error) {
                          discovery.quit();
                      });
     if (backend.discoverCodecCatalog())
-        discovery.exec();
+        discovery.exec(flags);
     return ready;
 }
 } // namespace
@@ -134,12 +137,14 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
         if (associatedStartup)
             return application.exec();
         ArchiveBackend backend;
-        // Prepare the retained native catalog before the first interactive
-        // window. On macOS a worker's dlopen can also block AppKit painting
-        // through dyld's loader lock; showing first only disguises that wait.
+        bool showBeforeDiscovery = false;
+#ifdef Q_OS_MACOS
+        showBeforeDiscovery =
+            !startup.NeedOpenArc && startup.ShowCommand != NQtFileManager::NShowCommand::Hide;
+#endif
         QString codecError;
-        const bool codecsReady = WaitForFileManagerCodecs(backend, codecError);
-        if (startup.NeedOpenArc && !codecsReady)
+        if (!showBeforeDiscovery && !WaitForFileManagerCodecs(backend, codecError) &&
+            startup.NeedOpenArc)
             throw UString(codecError.toStdWString().c_str());
         try {
             const bool quitOnClose = application.quitOnLastWindowClosed();
@@ -147,13 +152,45 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
                 qScopeGuard([&] { application.setQuitOnLastWindowClosed(quitOnClose); });
             application.setQuitOnLastWindowClosed(false);
             MainWindow window(&backend, {}, nullptr, &startup);
-            if (startup.FullPath.IsEmpty())
+            const auto restoreSession = [&] {
+                if (startup.FullPath.IsEmpty())
+                    if (auto *workspace = QtWorkspaceApplication::Find())
+                        workspace->Restore(window);
+                if (!codecError.isEmpty())
+                    window.statusBar()->showMessage(codecError);
+            };
+            if (!showBeforeDiscovery)
+                restoreSession();
+            else if (startup.FullPath.IsEmpty())
                 if (auto *workspace = QtWorkspaceApplication::Find())
-                    workspace->Restore(window);
-            if (!codecError.isEmpty())
-                window.statusBar()->showMessage(codecError);
+                    workspace->RestoreInitialGeometry(window);
+            const QString loading =
+                showBeforeDiscovery
+                    ? QCoreApplication::translate("ProgressRedesign", "Loading archive formats…")
+                    : QString();
+            if (showBeforeDiscovery) {
+                window.setCursor(QtWaitCursor());
+                window.statusBar()->showMessage(loading);
+            }
             if (startup.ShowCommand != NQtFileManager::NShowCommand::Hide)
                 window.show();
+            if (showBeforeDiscovery)
+                QTimer::singleShot(0, &window, [&] {
+                    // Paint the filesystem window before the worker can take
+                    // dyld's loader lock. Defer input until archive commands
+                    // can use the retained codec catalog.
+                    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+                    if (!window.isVisible())
+                        return;
+                    WaitForFileManagerCodecs(backend, codecError,
+                                             QEventLoop::ExcludeUserInputEvents);
+                    if (!window.isVisible())
+                        return;
+                    window.unsetCursor();
+                    if (window.statusBar()->currentMessage() == loading)
+                        window.statusBar()->clearMessage();
+                    restoreSession();
+                });
             application.setQuitOnLastWindowClosed(quitOnClose);
             return application.exec();
         } catch (const QtFileManagerStartupFailure &failure) {

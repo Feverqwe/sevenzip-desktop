@@ -50,10 +50,20 @@ class OptionsDialogTests : public QObject {
         for (QSize size : {QSize(640, 390), QSize(520, 380), QSize(640, 720), QSize(900, 800)}) {
             dialog.resize(size);
             QApplication::processEvents();
+            auto *dots = dialog.findChild<QCheckBox *>("showDotsOption");
+            auto *hidden = dialog.findChild<QCheckBox *>("showHiddenFoldersOption");
+            QVERIFY(dots && hidden);
+            OptionsPresentation::show(dialog, dots);
+            QVERIFY(UiInspection::fullyVisible(*dots, dialog));
+            QVERIFY(UiInspection::fullyVisible(*hidden, dialog));
+            QVERIFY(UiInspection::bounds(*dots, dialog).bottom() <
+                    UiInspection::bounds(*hidden, dialog).top());
+            QVERIFY(UiInspection::writeReport(
+                dialog, QString("options-file-list-%1x%2").arg(size.width()).arg(size.height())));
             // Native resize constraints and height-for-width layouts can
             // change the requested size. Check the actual content below.
             QWidget *previous = nullptr;
-            for (const char *name : {"showDotsOption", "extractMemoryLabel", "extractMemorySpin"}) {
+            for (const char *name : {"extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = dialog.findChild<QWidget *>(name);
                 QVERIFY(control);
                 OptionsPresentation::show(dialog, control);

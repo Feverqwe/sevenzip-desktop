@@ -63,9 +63,7 @@ QWidget *memoryPage(CSettingsPage *owner) {
 }
 QWidget *listPage(CSettingsPage *owner) {
     auto *body = owner->listControls();
-    delete body->layout();
-    auto *layout = fields(body);
-    layout->addWidget(body->findChild<QCheckBox *>("showDotsOption"));
+    body->layout()->setSpacing(16);
     return body;
 }
 void section(QTabWidget *pages, const char *name, const char *title, QWidget *body,

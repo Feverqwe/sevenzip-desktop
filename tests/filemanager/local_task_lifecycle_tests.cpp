@@ -551,15 +551,18 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTest::addColumn<bool>("replaceClipboard");
         QTest::addColumn<bool>("gnomeOnly");
         QTest::addColumn<bool>("cancel");
-        QTest::newRow("retry-skipped-file") << false << false << false;
-        QTest::newRow("keep-new-clipboard") << true << false << false;
-        QTest::newRow("retry-gnome-cut") << false << true << false;
-        QTest::newRow("retry-after-escape") << false << false << true;
+        QTest::addColumn<bool>("mergeFolder");
+        QTest::newRow("retry-skipped-file") << false << false << false << false;
+        QTest::newRow("keep-new-clipboard") << true << false << false << false;
+        QTest::newRow("retry-gnome-cut") << false << true << false << false;
+        QTest::newRow("retry-after-escape") << false << false << true << false;
+        QTest::newRow("retry-merged-folder") << false << false << false << true;
     }
     void partialCutCanBeRetried() {
         QFETCH(bool, replaceClipboard);
         QFETCH(bool, gnomeOnly);
         QFETCH(bool, cancel);
+        QFETCH(bool, mergeFolder);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const auto cleanup = qScopeGuard([] { QApplication::clipboard()->clear(); });
@@ -567,11 +570,19 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         const QString destination = fixture.filePath("destination");
         QVERIFY(QDir().mkpath(source) && QDir().mkpath(destination));
         const QString moved = QStringLiteral("01 перенести # %23 空.txt");
-        const QString skipped = QStringLiteral("02 пропустить δ.txt");
+        const QString skipped =
+            mergeFolder ? QStringLiteral("02 объединить δ") : QStringLiteral("02 пропустить δ.txt");
+        const QString conflict = mergeFolder ? skipped + "/same.txt" : skipped;
+        const QString merged = skipped + "/nonconflicting.txt";
         const QString fresh = fixture.filePath("new clipboard file.txt");
         QVERIFY(write(source + '/' + moved, "moved bytes"));
-        QVERIFY(write(source + '/' + skipped, "skipped bytes"));
-        QVERIFY(write(destination + '/' + skipped, "existing bytes"));
+        if (mergeFolder) {
+            QVERIFY(QDir(source).mkdir(skipped));
+            QVERIFY(QDir(destination).mkdir(skipped));
+            QVERIFY(write(source + '/' + merged, "merged bytes"));
+        }
+        QVERIFY(write(source + '/' + conflict, "skipped bytes"));
+        QVERIFY(write(destination + '/' + conflict, "existing bytes"));
         if (replaceClipboard)
             QVERIFY(write(fresh, "new clipboard bytes"));
 
@@ -634,8 +645,12 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(read(destination + '/' + moved),
                  cancel ? QByteArray() : QByteArray("moved bytes"));
         QCOMPARE(read(source + '/' + moved), cancel ? QByteArray("moved bytes") : QByteArray());
-        QCOMPARE(read(destination + '/' + skipped), QByteArray("existing bytes"));
-        QCOMPARE(read(source + '/' + skipped), QByteArray("skipped bytes"));
+        QCOMPARE(read(destination + '/' + conflict), QByteArray("existing bytes"));
+        QCOMPARE(read(source + '/' + conflict), QByteArray("skipped bytes"));
+        if (mergeFolder) {
+            QVERIFY(!QFileInfo::exists(source + '/' + merged));
+            QCOMPARE(read(destination + '/' + merged), QByteArray("merged bytes"));
+        }
         QTRY_COMPARE(filesystemRow(sourceWindow, moved) >= 0, cancel);
         QTRY_COMPARE(filesystemRow(destinationWindow, moved) >= 0, !cancel);
         QTRY_VERIFY(filesystemRow(sourceWindow, skipped) >= 0);
@@ -679,7 +694,9 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
                                                      "Some files skipped; sources retained."));
         PanelKeys::command(destinationWindow.focusWidget(), Qt::Key_V, Qt::ControlModifier);
         QTRY_VERIFY(answered && QtLocalFileTask::Active().isEmpty());
-        QCOMPARE(read(destination + '/' + skipped), QByteArray("skipped bytes"));
+        QCOMPARE(read(destination + '/' + conflict), QByteArray("skipped bytes"));
+        if (mergeFolder)
+            QCOMPARE(read(destination + '/' + merged), QByteArray("merged bytes"));
         QCOMPARE(read(destination + '/' + moved), QByteArray("moved bytes"));
         QVERIFY(!QFileInfo::exists(source + '/' + moved));
         QVERIFY(!QFileInfo::exists(source + '/' + skipped));

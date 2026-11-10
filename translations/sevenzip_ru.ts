@@ -10,6 +10,7 @@
         <name>ProgressRedesign</name>
         <message><source>Stop</source><translation>Остановить</translation></message>
         <message><source>Preparing…</source><translation>Подготовка…</translation></message>
+        <message><source>Loading archive formats…</source><translation>Загрузка форматов архивов…</translation></message>
         <message><source>Continue working</source><translation>Продолжить работу</translation></message>
         <message><source>Stop this operation?</source><translation>Остановить операцию?</translation></message>
         <message><source>Stopping…</source><translation>Останавливаем…</translation></message>
@@ -7301,6 +7302,10 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <source>Calculating folder size…</source>
         <translation>Подсчёт размера папки…</translation>
     </message>
+    <message>
+        <source>Files: %1 · Size: %2</source>
+        <translation>Файлов: %1 · Размер: %2</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -7642,6 +7647,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <context>
         <name>WindowStatus</name>
         <message><source>Reading folder…</source><translation>Чтение папки…</translation></message>
+        <message><source>Folder unavailable</source><translation>Папка недоступна</translation></message>
         <message><source>Selected: %1 / %2</source><translation>Выделено: %1 / %2</translation></message>
         <message><source>Objects: %1</source><translation>Объектов: %1</translation></message>
         <message><source>Left</source><translation>Слева</translation></message>
