@@ -155,13 +155,21 @@ class DeleteConfirmationTests final : public QObject {
         QVERIFY(UiInspection::fullyVisible(*confirm, dialog));
         auto *names = dialog.findChild<QListView *>("deleteSelectedNames");
         QVERIFY(names);
-        scroll->ensureWidgetVisible(names, 0, 0);
+        QVERIFY(cancel->hasFocus());
+        for (int step = 0; step < 8 && !names->hasFocus(); ++step)
+            QTest::keyClick(dialog.focusWidget(), Qt::Key_Tab);
+        QVERIFY(names->hasFocus());
         const auto last = names->model()->index(names->model()->rowCount() - 1, 0);
         QCOMPARE(last.data().toString(), request.names.last());
-        names->scrollTo(last);
+        QTest::keyClick(names, Qt::Key_End);
+        QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(last)));
+        const auto first = names->model()->index(0, 0);
+        QTest::keyClick(names, Qt::Key_Home);
+        QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(first)));
+        QTest::keyClick(names, Qt::Key_End);
         QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(last)));
         QVERIFY(UiInspection::writeReport(dialog, "delete-large-selection"));
-        QTest::keyClick(&dialog, Qt::Key_Escape);
+        QTest::keyClick(names, Qt::Key_Escape);
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
     }
 
