@@ -329,7 +329,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
                 error = QtTransferTargetTypeError(source, target);
             if (!error.isEmpty()) {
                 canRetry = checkBatch;
-                nameError = _useName;
+                nameError = nameAvailable;
                 break;
             }
             targets.insert(QtTransferTargetKey(target.filePath()));

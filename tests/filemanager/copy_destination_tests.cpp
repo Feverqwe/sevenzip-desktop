@@ -293,14 +293,17 @@ class CopyDestinationTests final : public QObject {
     void destinationNameWithWrongTypeCanBeCorrected_data() {
         QTest::addColumn<bool>("move");
         QTest::addColumn<bool>("removeConflict");
-        QTest::newRow("copy-file") << false << false;
-        QTest::newRow("move-folder") << true << false;
-        QTest::newRow("retry-same-copy-name") << false << true;
-        QTest::newRow("retry-same-move-name") << true << true;
+        QTest::addColumn<bool>("useDefaultName");
+        QTest::newRow("copy-file") << false << false << false;
+        QTest::newRow("move-folder") << true << false << false;
+        QTest::newRow("retry-same-copy-name") << false << true << false;
+        QTest::newRow("retry-same-move-name") << true << true << false;
+        QTest::newRow("late-conflict-at-default-name") << false << false << true;
     }
     void destinationNameWithWrongTypeCanBeCorrected() {
         QFETCH(bool, move);
         QFETCH(bool, removeConflict);
+        QFETCH(bool, useDefaultName);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("item");
@@ -327,8 +330,13 @@ class CopyDestinationTests final : public QObject {
         dialog.accept();
         QVERIFY(dialog.isVisible());
         name->setText("other name");
+        if (useDefaultName) {
+            QVERIFY(QDir().rmdir(occupied));
+            name->setText("item");
+        }
         QVERIFY(ok->isEnabled());
-        const QString lateConflict = QDir(folder).filePath("other name");
+        const QString conflictingName = name->text();
+        const QString lateConflict = QDir(folder).filePath(conflictingName);
         if (move) {
             QFile conflict(lateConflict);
             QVERIFY(conflict.open(QIODevice::WriteOnly));
@@ -338,7 +346,7 @@ class CopyDestinationTests final : public QObject {
         ok->click();
         QVERIFY(dialog.isVisible());
         QCOMPARE(dialog.focusWidget(), name);
-        QCOMPARE(name->selectedText(), QString("other name"));
+        QCOMPARE(name->selectedText(), conflictingName);
         if (removeConflict) {
             QVERIFY(ok->isEnabled());
             ok->click();
