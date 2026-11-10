@@ -13,23 +13,16 @@
 #include "archive/operations/ExtractingFilePath.h"
 #include "filemanager/panels/Panel.h"
 #include "filemanager/providers/FSFolder.h"
+#include "platform/locale/qtregionalsettings.h"
+#include "ui/formatting/qtregionalformat.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <vector>
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
 namespace {
-class FolderSizeCheckpoint final : public IProgress, public CMyUnknownImp {
-    Z7_COM_UNKNOWN_IMP_1(IProgress)
-    CProgressSync &sync_;
-
-  public:
-    explicit FolderSizeCheckpoint(CProgressSync &sync) : sync_(sync) {}
-    Z7_COM7F_IMF(SetTotal(UInt64)) override { return sync_.CheckStop(); }
-    Z7_COM7F_IMF(SetCompleted(const UInt64 *)) override { return sync_.CheckStop(); }
-};
-
 class FolderSizeOperation final : public CProgressThreadVirt {
     const FStringVector &paths_;
     std::vector<NFsFolder::CFsFolderSizeResult> results_;
@@ -39,16 +32,32 @@ class FolderSizeOperation final : public CProgressThreadVirt {
             Sync.Set_FilesProgressMode(true);
             RINOK(Sync.Set_NumFilesTotal(paths_.Size()))
         }
-        CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
+        UInt64 files = 0;
+        UInt64 bytes = 0;
+        QElapsedTimer lastUpdate;
+        const QString status =
+            QCoreApplication::translate("ArchiveDirectory", "Files: %1 · Size: %2");
+        const auto report = [&](UInt64 currentFiles, UInt64 currentBytes) -> HRESULT {
+            RINOK(Sync.CheckStop())
+            if (!lastUpdate.isValid() || lastUpdate.hasExpired(100)) {
+                Sync.Set_Status(
+                    ToUString(status.arg(QtSystemRegionalNumber(files + currentFiles),
+                                         QtRegionalFormat::bytes(bytes + currentBytes))));
+                lastUpdate.start();
+            }
+            return S_OK;
+        };
         HRESULT firstError = S_OK;
         unsigned reportedErrors = 0;
         FOR_VECTOR(i, paths_) {
             RINOK(Sync.CheckStop())
             Sync.Set_FilePath(fs2us(paths_[i]), true);
-            const auto measurement = NFsFolder::MeasureFolderSize(paths_[i], progress);
+            const auto measurement = NFsFolder::MeasureFolderSize(paths_[i], nullptr, report);
             const HRESULT result = measurement.Status;
             if (result == E_ABORT)
                 return result;
+            files += measurement.NumFiles;
+            bytes += measurement.Size;
             results_.push_back(measurement);
             if (paths_.Size() > 1)
                 Sync.Set_NumFilesCur(i + 1);

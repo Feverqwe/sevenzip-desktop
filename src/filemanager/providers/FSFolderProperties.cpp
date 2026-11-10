@@ -13,6 +13,7 @@
 #include "filemanager/sorting/filenamesort.h"
 #include "platform/loader/DLL.h"
 #include <cstring>
+#include <utility>
 #ifndef _WIN32
 #include <sys/stat.h>
 #endif
@@ -54,9 +55,16 @@ int CompareFileNames_ForFolderList(const FChar *s1, const FChar *s2) {
 
 namespace NFsFolder {
 
-HRESULT CFsFolderStat::Enumerate() {
+HRESULT CFsFolderStat::Checkpoint() const {
     if (Progress)
-        RINOK(Progress->SetCompleted(NULL))
+        RINOK(Progress->SetCompleted(nullptr))
+    return Report ? Report(NumFiles, Size) : S_OK;
+}
+
+HRESULT CFsFolderStat::Enumerate() {
+    const bool hasProgress = Progress || Report;
+    if (hasProgress)
+        RINOK(Checkpoint())
     Path.Add_PathSepar();
     const unsigned len = Path.Len();
     NWindows::NFile::NFind::CEnumerator enumerator;
@@ -67,8 +75,8 @@ HRESULT CFsFolderStat::Enumerate() {
 #endif
     unsigned entries = 0;
     for (;;) {
-        if (Progress && ++entries % 256 == 0)
-            RINOK(Progress->SetCompleted(NULL))
+        if (hasProgress && ++entries % 256 == 0)
+            RINOK(Checkpoint())
 #ifdef _WIN32
         if (!enumerator.Next(fi)) {
             const DWORD error = ::GetLastError();
@@ -198,8 +206,10 @@ bool CFSFolder::CanCalculateItemFullSize(UInt32 index) const {
 
 FString CFSFolder::ItemFullSizePath(UInt32 index) const { return _path + GetRelPath(Files[index]); }
 
-CFsFolderSizeResult MeasureFolderSize(const FString &path, IProgress *progress) {
+CFsFolderSizeResult MeasureFolderSize(const FString &path, IProgress *progress,
+                                      FolderSizeProgress report) {
     CFsFolderStat stat(path, progress);
+    stat.Report = std::move(report);
     const HRESULT result = stat.Enumerate();
     return {result, stat.Size, stat.NumFolders, stat.NumFiles};
 }

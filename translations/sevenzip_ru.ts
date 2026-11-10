@@ -7301,6 +7301,10 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
         <source>Calculating folder size…</source>
         <translation>Подсчёт размера папки…</translation>
     </message>
+    <message>
+        <source>Files: %1 · Size: %2</source>
+        <translation>Файлов: %1 · Размер: %2</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>

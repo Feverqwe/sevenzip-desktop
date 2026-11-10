@@ -1,5 +1,7 @@
+#include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
 #include "filemanager/properties/qtpropertieswindow.h"
+#include "filemanager/providers/FSFolder.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "platform/support/native_link_fixture.h"
@@ -102,6 +104,17 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         QVERIFY(QDir().mkdir(folder));
         for (int index = 0; index < 320; ++index)
             QVERIFY(writeFile(QDir(folder).filePath(QString::number(index)), "123"));
+        UInt64 processed = 0;
+        UInt64 bytes = 0;
+        const auto interrupted = NFsFolder::MeasureFolderSize(
+            us2fs(ToUString(folder)), nullptr, [&](UInt64 files, UInt64 size) -> HRESULT {
+                processed = files;
+                bytes = size;
+                return files ? E_ABORT : S_OK;
+            });
+        QCOMPARE(interrupted.Status, E_ABORT);
+        QVERIFY(processed > 0 && processed < 320);
+        QCOMPARE(bytes, 3 * processed);
         MainWindow window;
         window.show();
         window.openPath(fixture.path());

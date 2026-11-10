@@ -180,8 +180,9 @@ in the footer, and the title bar provides Minimize. Full locations come from the
 accepted operation plan, not from the changing current-file string.
 Expanding locations brings the paths into view while the footer stays in place.
 For a batch sent to Trash, the source location is the starting folder.
-When calculating the size of several filesystem folders, progress counts
-processed folders. A single folder uses indeterminate progress.
+While calculating filesystem folder sizes, the dialog shows the running file
+count and accumulated size. The progress bar counts completed folders in a
+batch and stays indeterminate for a single folder.
 When a transfer has many source paths, they scroll independently of the
 destination and the footer.
 
