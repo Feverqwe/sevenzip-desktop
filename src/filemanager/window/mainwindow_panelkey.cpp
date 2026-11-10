@@ -247,8 +247,9 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
             app_.ExecuteCommand(action->property("nativeCommandID").toUInt());
             return true;
         }
-        // Destination permissions can change between file list updates.
-        if (clipboard_ && action == clipboard_->paste && !action->isEnabled())
+        // Folder permissions can change between file list updates.
+        if (clipboard_ && (action == clipboard_->paste || action == clipboard_->cut) &&
+            !action->isEnabled())
             clipboard_->Refresh();
         if (action->isEnabled() && action->isVisible())
             action->trigger();

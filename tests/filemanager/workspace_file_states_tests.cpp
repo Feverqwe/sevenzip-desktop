@@ -379,7 +379,13 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(QFileInfo::exists(source + "/Alpha.txt"));
     }
 
+    void fileMutationsRequireWritableFolder_data() {
+        QTest::addColumn<bool>("retryCut");
+        QTest::newRow("retry-paste") << false;
+        QTest::newRow("retry-cut") << true;
+    }
     void fileMutationsRequireWritableFolder() {
+        QFETCH(bool, retryCut);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString writable = fixture.filePath("writable");
@@ -430,9 +436,22 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(!QFileInfo::exists(target));
         const QList<QUrl> original{QUrl::fromLocalFile(source)};
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
+        QTest::keySequence(files, QKeySequence::Cut);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
         QVERIFY(
             QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
         QVERIFY(!paste->isEnabled());
+        if (retryCut) {
+            QVERIFY(!cut->isEnabled());
+            QTest::keySequence(files, QKeySequence::Cut);
+            const QList<QUrl> selection{
+                QUrl::fromLocalFile(QDir(blocked).filePath("existing.txt"))};
+            QCOMPARE(QApplication::clipboard()->mimeData()->urls(), selection);
+            QVERIFY(this->cut(*files, "existing.txt"));
+            auto *copied = new QMimeData;
+            copied->setUrls(original);
+            QApplication::clipboard()->setMimeData(copied);
+        }
         QTest::keySequence(files, QKeySequence::Paste);
         QTRY_VERIFY(rowFor(*files, "incoming.txt") >= 0);
         QFile received(target);
