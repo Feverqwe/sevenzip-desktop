@@ -9,6 +9,7 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
+#include <QTextDocument>
 
 class SourceCreateTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
@@ -133,7 +134,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTemporaryDir peerDirectory;
         QVERIFY(fixture.isValid());
         QVERIFY(peerDirectory.isValid());
-        QFile keep(fixture.filePath("keep.bin"));
+#ifdef Q_OS_WIN
+        const QString folderName = QStringLiteral("folder & files");
+#else
+        const QString folderName = QStringLiteral("<b>folder & files");
+#endif
+        QVERIFY(QDir(fixture.path()).mkdir(folderName));
+        const QDir destination(fixture.filePath(folderName));
+        QFile keep(destination.filePath("keep.bin"));
         QVERIFY(keep.open(QIODevice::WriteOnly));
         QCOMPARE(keep.write("protected bytes"), qint64(15));
         keep.close();
@@ -145,7 +153,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         auto *peer = openPanel(window, 1 - pane, peerDirectory.path());
         QTRY_COMPARE(peer->rowCount(), 0);
         CMyComPtr<IFolderFolder> peerFolder = peer->sourcePanel->GetFolder();
-        auto *view = openPanel(window, pane, fixture.path());
+        auto *view = openPanel(window, pane, destination.path());
         QTRY_COMPARE(view->rowCount(), 1);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         view->selectRow(row(view, "keep.bin"));
@@ -157,6 +165,13 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(window.focusWidget(), Qt::Key_F7);
         QPointer<QLineEdit> name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
+        const QString tooltip = name->parentWidget()->toolTip();
+        QTextDocument renderedTooltip;
+        if (Qt::mightBeRichText(tooltip))
+            renderedTooltip.setHtml(tooltip);
+        else
+            renderedTooltip.setPlainText(tooltip);
+        QVERIFY(renderedTooltip.toPlainText().contains(folderName));
         name->setText(entered);
         for (const int width : {980, 640}) {
             window.resize(width, 560);
@@ -167,14 +182,14 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::keyClick(name, Qt::Key_Escape);
         QTRY_VERIFY(!name);
         QCOMPARE(view->selectionModel()->selection(), initial);
-        QVERIFY(!QFileInfo::exists(fixture.filePath(entered)));
+        QVERIFY(!QFileInfo::exists(destination.filePath(entered)));
         QTRY_COMPARE(window.focusWidget(), view);
         QTest::keyClick(window.focusWidget(), Qt::Key_F7);
         name = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
         name->setText(entered);
         QTest::keyClick(name, Qt::Key_Return);
-        QTRY_VERIFY(QFileInfo::exists(fixture.filePath(entered)));
+        QTRY_VERIFY(QFileInfo::exists(destination.filePath(entered)));
         QTRY_COMPARE(view->rowCount(), 2);
         const QString focused = QStringLiteral("new folder 空");
         QTRY_COMPARE(view->currentRow(), row(view, focused));
@@ -189,7 +204,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(action(window, "openItemAction")->isEnabled());
         PanelKeys::openSelection(window.focusWidget());
         QTRY_COMPARE(QDir::cleanPath(ToQString(view->sourcePanel->GetCurrentFolderPrefix())),
-                     QFileInfo(fixture.filePath(focused)).canonicalFilePath());
+                     QFileInfo(destination.filePath(focused)).canonicalFilePath());
         QTRY_VERIFY(row(view, "child") >= 0);
         QCOMPARE(peer->rowCount(), 0);
         QVERIFY(keep.open(QIODevice::ReadOnly));
