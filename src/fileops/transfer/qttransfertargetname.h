@@ -2,7 +2,11 @@
 
 #include "fileops/links/qtlinkservices.h"
 #include <QCoreApplication>
+#include <QFile>
 #include <QFileInfo>
+#ifdef Q_OS_UNIX
+#include <sys/stat.h>
+#endif
 
 inline QString QtTransferSourceError(const QFileInfo &source, bool move) {
     if (source.isSymLink() || source.isJunction())
@@ -18,6 +22,24 @@ inline QString QtTransferSourceError(const QFileInfo &source, bool move) {
         return {};
     return QCoreApplication::translate("qtfiletransfertransaction", "Source unavailable: %1")
         .arg(source.filePath());
+}
+
+inline QString QtTransferSourceError(const QFileInfo &source, bool move, const QFileInfo &target,
+                                     const QString &existingDirectory) {
+    const QString error = QtTransferSourceError(source, false);
+    if (error.isEmpty() || !move || (source.isDir() && target.isDir()))
+        return error;
+#ifdef Q_OS_UNIX
+    struct stat from, to;
+    if (!existingDirectory.isEmpty() &&
+        stat(QFile::encodeName(source.absolutePath()).constData(), &from) == 0 &&
+        stat(QFile::encodeName(existingDirectory).constData(), &to) == 0 &&
+        from.st_dev != to.st_dev)
+        return error;
+#else
+    (void)existingDirectory;
+#endif
+    return QtTransferSourceError(source, true);
 }
 
 inline QString QtTransferTargetKey(const QString &path) {

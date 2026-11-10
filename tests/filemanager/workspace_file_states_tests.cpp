@@ -502,6 +502,54 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QCOMPARE(clipboard->mimeData()->urls(), urls);
     }
 
+    void cutFolderMergeCanRetryAfterReadAccessReturns() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("folder");
+        const QString destination = fixture.filePath("destination");
+        const QString merged = QDir(destination).filePath("folder");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(merged));
+        write(QDir(source).filePath("incoming.txt"));
+        write(QDir(merged).filePath("existing.txt"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(destination);
+        QTRY_VERIFY(table(window)->isEnabled() && rowFor(*table(window), "folder") >= 0);
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        auto *clipboard = QApplication::clipboard();
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        mime->setData("application/x-kde-cutselection", "1");
+        clipboard->setMimeData(mime);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        const auto permissions = QFile::permissions(source);
+        const auto restore = qScopeGuard([&] {
+            if (QFileInfo::exists(source))
+                QFile::setPermissions(source, permissions);
+        });
+        QVERIFY(QFile::setPermissions(source, QFile::WriteOwner | QFile::ExeOwner));
+        if (QFileInfo(source).isReadable())
+            QSKIP("The current user can still read the directory");
+        paste->trigger();
+        QVERIFY(window.statusBar()->currentMessage().contains(source));
+        QCOMPARE(clipboard->mimeData()->urls(), urls);
+        const QString incoming = QDir(merged).filePath("incoming.txt");
+        QVERIFY(!QFileInfo::exists(incoming));
+        QVERIFY(QFile::setPermissions(source, permissions));
+        paste->trigger();
+        QTRY_VERIFY(!QFileInfo::exists(source));
+        QFile received(incoming), retained(QDir(merged).filePath("existing.txt"));
+        QVERIFY(received.open(QIODevice::ReadOnly) && retained.open(QIODevice::ReadOnly));
+        QCOMPARE(received.readAll(), QByteArray("file state fixture"));
+        QCOMPARE(retained.readAll(), QByteArray("file state fixture"));
+        QTRY_VERIFY(!paste->isEnabled());
+    }
+
     void pasteWaitsForTheDestinationListing() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

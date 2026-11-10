@@ -185,11 +185,13 @@ QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
     QSet<QString> targets;
     for (const auto &path : sources) {
         const QFileInfo source(path);
-        if (const QString error = QtTransferSourceError(source, move); !error.isEmpty())
-            return error;
         const QString target = directory.filePath(source.fileName());
-        if (const QString error = TargetPathError(source, QFileInfo(target), targets,
-                                                  canonicalDestination, QtIsFileSystemLink(path));
+        const QFileInfo targetInfo(target);
+        if (const QString error = QtTransferSourceError(source, move, targetInfo, destination);
+            !error.isEmpty())
+            return error;
+        if (const QString error = TargetPathError(source, targetInfo, targets, canonicalDestination,
+                                                  QtIsFileSystemLink(path));
             !error.isEmpty())
             return error;
         targets.insert(QtTransferTargetKey(target));

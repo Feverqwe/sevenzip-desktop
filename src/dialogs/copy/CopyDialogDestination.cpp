@@ -11,7 +11,6 @@
 #include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QDir>
-#include <QFile>
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QPushButton>
@@ -19,9 +18,6 @@
 #include <QSet>
 #include <QVBoxLayout>
 #include <utility>
-#ifdef Q_OS_UNIX
-#include <sys/stat.h>
-#endif
 
 namespace {
 QString Text(const char *source) { return QCoreApplication::translate("CopyRedesign", source); }
@@ -93,19 +89,6 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
     }
 }
 
-bool MoveCrossesFilesystems(const QFileInfo &source, const QString &destinationDirectory) {
-#ifdef Q_OS_UNIX
-    struct stat from, to;
-    return !destinationDirectory.isEmpty() &&
-           stat(QFile::encodeName(source.absolutePath()).constData(), &from) == 0 &&
-           stat(QFile::encodeName(destinationDirectory).constData(), &to) == 0 &&
-           from.st_dev != to.st_dev;
-#else
-    (void)source;
-    (void)destinationDirectory;
-    return false;
-#endif
-}
 } // namespace
 
 bool QtCopyDestinationContext::IsPeerWritable() const {
@@ -298,11 +281,8 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
         _destinationContext->LocalFileTransfer) {
         for (const QString &path : _sources) {
             const QFileInfo source(path);
-            error = QtTransferSourceError(source, false);
-            if (!error.isEmpty() && _move && filesystemDestination &&
-                !(source.isDir() && QFileInfo(targetPath(source)).isDir()) &&
-                !MoveCrossesFilesystems(source, existingDirectory))
-                error = QtTransferSourceError(source, true);
+            error = QtTransferSourceError(source, _move && filesystemDestination,
+                                          QFileInfo(targetPath(source)), existingDirectory);
             if (!error.isEmpty()) {
                 canRetry = true;
                 break;
