@@ -14,6 +14,7 @@
 #include <QShowEvent>
 #include <QStringListModel>
 #include <QStyle>
+#include <QTextDocument>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -23,7 +24,10 @@ class DeleteNamesModel final : public QStringListModel {
     using QStringListModel::QStringListModel;
 
     QVariant data(const QModelIndex &index, int role) const override {
-        return QStringListModel::data(index, role == Qt::ToolTipRole ? Qt::DisplayRole : role);
+        if (role == Qt::ToolTipRole && index.isValid())
+            return Qt::convertFromPlainText(
+                QStringListModel::data(index, Qt::DisplayRole).toString(), Qt::WhiteSpacePre);
+        return QStringListModel::data(index, role);
     }
 };
 } // namespace

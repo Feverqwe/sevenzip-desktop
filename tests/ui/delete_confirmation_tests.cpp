@@ -13,6 +13,7 @@
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTextDocument>
 #include <QToolTip>
 #include <QtTest>
 
@@ -41,7 +42,7 @@ class DeleteConfirmationTests final : public QObject {
         QtDeleteConfirmation::Request request;
         request.mode = static_cast<QtDeleteConfirmation::Mode>(mode);
         request.location = "/source/каталог 空/" + QString(90, 'x');
-        request.names = {QStringLiteral("длинное имя 空 ") + QString(120, 'y') + ".txt",
+        request.names = {QStringLiteral("<b>длинное  имя & 空 ") + QString(120, 'y') + ".txt",
                          QStringLiteral("вторая папка"), QStringLiteral("third.txt")};
         request.includesFolders = true;
         QtDeleteConfirmation dialog(request);
@@ -77,9 +78,18 @@ class DeleteConfirmationTests final : public QObject {
         for (int row = 0; row < names->model()->rowCount(); ++row) {
             const auto item = names->model()->index(row, 0);
             listedNames.append(item.data().toString());
-            QCOMPARE(item.data(Qt::ToolTipRole), item.data());
         }
         QCOMPARE(listedNames, request.names);
+        const auto first = names->model()->index(0, 0);
+        scroll->ensureWidgetVisible(names);
+        const QPoint position = names->visualRect(first).center();
+        QVERIFY(names->viewport()->rect().contains(position));
+        QHelpEvent nameHover(QEvent::ToolTip, position, names->viewport()->mapToGlobal(position));
+        QCoreApplication::sendEvent(names->viewport(), &nameHover);
+        QTextDocument tooltip;
+        tooltip.setHtml(QToolTip::text());
+        QCOMPARE(tooltip.toPlainText(), request.names.first());
+        QToolTip::hideText();
         const char *actions[] = {"Move to Trash", "Delete from archive"};
         QCOMPARE(confirm->text(), QCoreApplication::translate("DeleteRedesign", actions[mode]));
         for (const QSize size : {QSize(560, 380), QSize(340, 240)}) {
