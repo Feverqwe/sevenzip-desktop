@@ -49,7 +49,8 @@ Rename edits the name inline in the active table/icon list. On macOS, the editor
 and its native focus ring must remain inside the viewport, including the first
 icon column; resize and Escape retain the source selection and file bytes.
 Automatic refresh waits for inline Rename to finish in its panel. The other
-panel continues to refresh while the name is being edited.
+panel continues to refresh while the name is being edited. File list options
+apply to a window after its active rename finishes.
 
 Rename rejects an empty file or archive entry name and other invalid filesystem
 names with the shared HRESULT error. It uses the Critical icon, the source

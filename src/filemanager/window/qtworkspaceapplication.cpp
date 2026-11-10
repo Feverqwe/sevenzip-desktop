@@ -2,6 +2,7 @@
 
 #include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/qtfilemanagerstartup.h"
+#include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include <QJsonArray>
@@ -24,10 +25,12 @@ void QtWorkspaceApplication::FilesystemPublished(const QStringList &directories,
 void QtWorkspaceApplication::FileListSettingsChanged(const MainWindow &source) {
     for (const auto &window : windows_) {
         if (window && window != &source && !window->app_.QtOperations().closed())
-            window->workspace_->WhenReady([window] {
-                if (window)
-                    window->applyFileListSettings();
-            });
+            window->workspace_->WhenReady(
+                [window] {
+                    if (window)
+                        window->applyFileListSettings();
+                },
+                {}, false, [window] { return window && !window->renameController_->Pending(); });
     }
 }
 

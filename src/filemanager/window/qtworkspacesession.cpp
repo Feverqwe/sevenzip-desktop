@@ -55,7 +55,7 @@ QJsonObject QtWindowWorkspace::Save() {
 }
 
 void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void()> canceled,
-                                  bool presentingResult) {
+                                  bool presentingResult, std::function<bool()> ready) {
     auto *timer = new QTimer(this);
     const auto pending = std::make_shared<bool>(true);
     const auto cancel = [pending, canceled = std::move(canceled)] {
@@ -65,14 +65,16 @@ void QtWindowWorkspace::WhenReady(std::function<void()> body, std::function<void
     connect(timer, &QObject::destroyed, cancel);
     timer->setInterval(25);
     connect(timer, &QTimer::timeout, this,
-            [this, timer, pending, body = std::move(body), cancel, presentingResult] {
+            [this, timer, pending, body = std::move(body), cancel, presentingResult,
+             ready = std::move(ready)] {
                 if (window_.app_.QtOperations().closed()) {
                     timer->stop();
                     timer->deleteLater();
                     cancel();
                     return;
                 }
-                if (!Ready() || (presentingResult && !QtTaskPresentation::CanPresent()))
+                if (!Ready() || (presentingResult && !QtTaskPresentation::CanPresent()) ||
+                    (ready && !ready()))
                     return;
                 timer->stop();
                 timer->deleteLater();

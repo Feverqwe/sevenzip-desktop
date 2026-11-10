@@ -64,7 +64,7 @@ class QtWindowWorkspace final : public QObject {
     QWidget *MountCloseBlocker() const;
     bool PreparePanelForShow(unsigned panel);
     void WhenReady(std::function<void()> body, std::function<void()> canceled = {},
-                   bool presentingResult = false);
+                   bool presentingResult = false, std::function<bool()> ready = {});
     enum class NavigationHistory { Record, Skip };
     HRESULT Navigate(const std::function<HRESULT()> &body,
                      std::function<void(HRESULT)> finished = {},

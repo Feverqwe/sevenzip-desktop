@@ -181,6 +181,56 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QTRY_COMPARE(peer->rowCount(), 3);
     }
 
+    void hiddenFolderPreferenceWaitsForRenameInAnotherWindow() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString hidden = fixture.filePath(".private");
+        QVERIFY(QDir().mkdir(hidden));
+#ifdef Q_OS_WIN
+        QVERIFY(
+            SetFileAttributesW(reinterpret_cast<LPCWSTR>(hidden.utf16()), FILE_ATTRIBUTE_HIDDEN));
+#endif
+        QVERIFY(writeFile(fixture.filePath("original.txt")));
+        QtWorkspaceApplication application(*qApp);
+        MainWindow settingsOwner;
+        MainWindow editing, idle;
+        idle.show();
+        idle.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(idle, ".private") >= 0);
+        editing.show();
+        editing.openPath(fixture.path());
+        QVERIFY(WindowActivation::waitForActive(editing));
+        auto *view = table(editing);
+        QTRY_VERIFY(view->isEnabled());
+        const int row = filesystemRow(editing, "original.txt");
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        QTest::keyClick(view, Qt::Key_F2);
+        auto *editor = qobject_cast<QLineEdit *>(editing.focusWidget());
+        QVERIFY(editor && view->isAncestorOf(editor));
+        const QString draft = QStringLiteral("renamed file.txt");
+        editor->setText(draft);
+
+        const QString path = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        CFmSettings settings;
+        settings.Load(path);
+        settings.ShowHiddenFolders = false;
+        settings.Save(path);
+        application.FileListSettingsChanged(settingsOwner);
+        QTRY_COMPARE(filesystemRow(idle, ".private"), -1);
+        QCOMPARE(editing.focusWidget(), static_cast<QWidget *>(editor));
+        QCOMPARE(editor->text(), draft);
+        QVERIFY(filesystemRow(editing, ".private") >= 0);
+
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(QFileInfo::exists(fixture.filePath(draft)));
+        QTRY_COMPARE(filesystemRow(editing, ".private"), -1);
+        QTRY_VERIFY(filesystemRow(editing, draft) >= 0);
+        QTRY_VERIFY(view->hasFocus());
+    }
+
     void parentRowPreferenceAppliesAfterInFlightListing() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
