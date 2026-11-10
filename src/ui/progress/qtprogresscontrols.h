@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Common/MyString.h"
+#include <QCursor>
 #include <QDialog>
 #include <QElapsedTimer>
 #include <QHash>
@@ -11,6 +12,8 @@
 class QProgressBar;
 class QLabel;
 class QPlainTextEdit;
+
+QCursor QtWaitCursor();
 
 struct CQtProgressRect {
     int left;

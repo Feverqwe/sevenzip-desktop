@@ -65,6 +65,8 @@ def run(args):
                 assert not actual["wrongDocumentShown"], actual
                 assert actual["firstPaintMs"] >= actual["firstShowMs"] >= 0, actual
                 assert actual["readyMs"] >= actual["firstPaintMs"], actual
+                assert actual["waitingAtShow"] == (mode != "document"), actual
+                assert not actual["waitingAtReady"], actual
                 assert Path(actual["executable"]).resolve() == binary.resolve(), actual
                 assert hashlib.sha256(archive.read_bytes()).digest() == digest
                 assert member.read_bytes() == payload

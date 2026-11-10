@@ -8,6 +8,7 @@
 #include "platform/associations/qtassociationfileopen.h"
 #include "platform/memory/qtmemorylockservices.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include "ui/progress/qtprogresscontrols.h"
 #ifdef Q_OS_MACOS
 #include "app/qtapplicationstartup.h"
 #endif
@@ -160,6 +161,14 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
             };
             if (!showBeforeDiscovery)
                 restoreSession();
+            const QString loading =
+                showBeforeDiscovery
+                    ? QCoreApplication::translate("ProgressRedesign", "Loading archive formats…")
+                    : QString();
+            if (showBeforeDiscovery) {
+                window.setCursor(QtWaitCursor());
+                window.statusBar()->showMessage(loading);
+            }
             if (startup.ShowCommand != NQtFileManager::NShowCommand::Hide)
                 window.show();
             if (showBeforeDiscovery)
@@ -168,8 +177,15 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
                     // dyld's loader lock. Defer input until archive commands
                     // can use the retained codec catalog.
                     QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+                    if (!window.isVisible())
+                        return;
                     WaitForFileManagerCodecs(backend, codecError,
                                              QEventLoop::ExcludeUserInputEvents);
+                    if (!window.isVisible())
+                        return;
+                    window.unsetCursor();
+                    if (window.statusBar()->currentMessage() == loading)
+                        window.statusBar()->clearMessage();
                     restoreSession();
                 });
             application.setQuitOnLastWindowClosed(quitOnClose);

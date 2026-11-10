@@ -10,6 +10,7 @@
         <name>ProgressRedesign</name>
         <message><source>Stop</source><translation>Остановить</translation></message>
         <message><source>Preparing…</source><translation>Подготовка…</translation></message>
+        <message><source>Loading archive formats…</source><translation>Загрузка форматов архивов…</translation></message>
         <message><source>Continue working</source><translation>Продолжить работу</translation></message>
         <message><source>Stop this operation?</source><translation>Остановить операцию?</translation></message>
         <message><source>Stopping…</source><translation>Останавливаем…</translation></message>
