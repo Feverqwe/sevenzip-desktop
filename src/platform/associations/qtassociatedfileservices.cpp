@@ -3,6 +3,7 @@
 #include "platform/associations/qtfileassociationprobe.h"
 #include "settings/ViewSettings.h"
 #include <QDesktopServices>
+#include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
 #ifdef Q_OS_WIN
@@ -13,6 +14,23 @@
 namespace {
 bool OpenAssociation(const QUrl &url) { return QDesktopServices::openUrl(url); }
 } // namespace
+
+void QtShowAssociationOpenError(const QString &path, QWidget *window, const QString &details) {
+    const bool folder = QDir::fromNativeSeparators(path).endsWith(u'/') || QFileInfo(path).isDir();
+    const QString title =
+        folder ? QCoreApplication::translate("qtassociatedfileservices", "Open folder")
+               : QCoreApplication::translate("qtassociatedfileservices", "Open file");
+    const QString message =
+        folder
+            ? QCoreApplication::translate("qtassociatedfileservices", "Could not open folder: %1")
+            : QCoreApplication::translate("qtassociatedfileservices", "Could not open file: %1");
+    QMessageBox box(QMessageBox::Warning, title, message.arg(path), QMessageBox::Ok, window);
+    box.setObjectName("externalFileOpenError");
+    box.setTextFormat(Qt::PlainText);
+    if (!details.isEmpty())
+        box.setInformativeText(details);
+    box.exec();
+}
 
 QtAssociatedFileServices::QtAssociatedFileServices(
     std::function<bool(const QUrl &)> opener,
@@ -88,13 +106,6 @@ HRESULT QtAssociatedFileServices::StartApplication(const UString &dir, const USt
     }
     if (opened)
         return S_OK;
-    QMessageBox box(
-        QMessageBox::Warning, QCoreApplication::translate("qtassociatedfileservices", "Open file"),
-        QCoreApplication::translate("qtassociatedfileservices", "Could not open file: %1")
-            .arg(ToQString(path)),
-        QMessageBox::Ok, window);
-    box.setObjectName("externalFileOpenError");
-    box.setTextFormat(Qt::PlainText);
-    box.exec();
+    QtShowAssociationOpenError(ToQString(path), window);
     return E_FAIL;
 }

@@ -6316,6 +6316,14 @@ Use `Revert` to recover timestamp.</source>
             <source>Open file</source>
             <translation>Открыть файл</translation>
         </message>
+        <message>
+            <source>Open folder</source>
+            <translation>Открыть папку</translation>
+        </message>
+        <message>
+            <source>Could not open folder: %1</source>
+            <translation>Не удалось открыть папку: %1</translation>
+        </message>
     </context>
     <context>
         <name>qtassociationplatform_linux</name>
