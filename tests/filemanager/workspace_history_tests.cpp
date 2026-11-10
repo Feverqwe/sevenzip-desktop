@@ -354,19 +354,22 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<bool>("forward");
         QTest::addColumn<bool>("background");
         QTest::addColumn<bool>("unreadable");
-        QTest::newRow("back") << false << false << false;
-        QTest::newRow("forward") << true << false << false;
-        QTest::newRow("back-background") << false << true << false;
-        QTest::newRow("forward-background") << true << true << false;
+        QTest::addColumn<bool>("forwardBranch");
+        QTest::newRow("back") << false << false << false << false;
+        QTest::newRow("forward") << true << false << false << false;
+        QTest::newRow("back-background") << false << true << false << false;
+        QTest::newRow("forward-background") << true << true << false << false;
+        QTest::newRow("back-with-forward-branch") << false << false << false << true;
 #ifdef Q_OS_UNIX
-        QTest::newRow("back-unreadable-background") << false << true << true;
-        QTest::newRow("forward-unreadable") << true << false << true;
+        QTest::newRow("back-unreadable-background") << false << true << true << false;
+        QTest::newRow("forward-unreadable") << true << false << true << false;
 #endif
     }
     void historyRetriesUnavailableDirectory() {
         QFETCH(bool, forward);
         QFETCH(bool, background);
         QFETCH(bool, unreadable);
+        QFETCH(bool, forwardBranch);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString first = fixture.filePath(QStringLiteral("first 空"));
@@ -383,15 +386,23 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
         auto *back = window.findChild<QAction *>("backAction");
-        auto *travel = forward ? window.findChild<QAction *>("forwardAction") : back;
-        QVERIFY(address && view && back && travel);
+        auto *next = window.findChild<QAction *>("forwardAction");
+        auto *travel = forward ? next : back;
+        QVERIFY(address && view && back && next);
         window.openPath(first);
         QTRY_COMPARE(address->text(), QFileInfo(first).canonicalFilePath());
         QTRY_VERIFY(view->isEnabled());
         window.openPath(second);
         QTRY_COMPARE(address->text(), QFileInfo(second).canonicalFilePath());
         QTRY_VERIFY(view->isEnabled());
-        if (forward)
+        const QString third = fixture.filePath("third");
+        if (forwardBranch) {
+            createDirectory(third);
+            window.openPath(third);
+            QTRY_COMPARE(address->text(), QFileInfo(third).canonicalFilePath());
+            QTRY_VERIFY(view->isEnabled());
+        }
+        if (forward || forwardBranch)
             back->trigger();
         else
             window.openPath(origin); // Reopening the current location is not another visit.
@@ -425,10 +436,21 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QCOMPARE(view->currentRow(), filesystemRow(window, "item-0000.txt"));
         if (!forward)
-            QVERIFY(!action(window, "forwardAction")->isEnabled());
+            QCOMPARE(next->isEnabled(), forwardBranch);
         QTRY_VERIFY(view->hasFocus());
         QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
         QCOMPARE(view->selectionModel()->selectedRows().size(), originCount);
+
+        if (forwardBranch) {
+            QTest::keySequence(view, next->shortcut());
+            QTRY_COMPARE(address->text(), QFileInfo(third).canonicalFilePath());
+            QTRY_VERIFY(view->hasFocus());
+            QTRY_VERIFY(back->isEnabled());
+            QTest::keySequence(view, back->shortcut());
+            QTRY_COMPARE(address->text(), displayedOrigin);
+            QTRY_VERIFY(view->hasFocus());
+            QTRY_VERIFY(travel->isEnabled());
+        }
 
         if (unreadable)
             QVERIFY(QFile::setPermissions(target, permissions));
