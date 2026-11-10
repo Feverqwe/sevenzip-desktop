@@ -41,7 +41,7 @@ class DeleteConfirmationTests final : public QObject {
         });
         QtDeleteConfirmation::Request request;
         request.mode = static_cast<QtDeleteConfirmation::Mode>(mode);
-        request.location = "/source/каталог 空/" + QString(90, 'x');
+        request.location = "/source/<b>каталог  & 空/" + QString(90, 'x');
         request.names = {QStringLiteral("<b>длинное  имя & 空 ") + QString(120, 'y') + ".txt",
                          QStringLiteral("вторая папка"), QStringLiteral("third.txt")};
         request.includesFolders = true;
@@ -68,7 +68,9 @@ class DeleteConfirmationTests final : public QObject {
         QHelpEvent hover(QEvent::ToolTip, source->rect().center(),
                          source->mapToGlobal(source->rect().center()));
         QCoreApplication::sendEvent(source, &hover);
-        QCOMPARE(QToolTip::text(), request.location);
+        QTextDocument tooltip;
+        tooltip.setHtml(QToolTip::text());
+        QCOMPARE(tooltip.toPlainText(), request.location);
         QToolTip::hideText();
         for (auto *label : source->findChildren<QLabel *>())
             if (label->window() == dialog.window())
@@ -86,7 +88,6 @@ class DeleteConfirmationTests final : public QObject {
         QVERIFY(names->viewport()->rect().contains(position));
         QHelpEvent nameHover(QEvent::ToolTip, position, names->viewport()->mapToGlobal(position));
         QCoreApplication::sendEvent(names->viewport(), &nameHover);
-        QTextDocument tooltip;
         tooltip.setHtml(QToolTip::text());
         QCOMPARE(tooltip.toPlainText(), request.names.first());
         QToolTip::hideText();

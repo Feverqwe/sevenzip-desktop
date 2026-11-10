@@ -21,6 +21,7 @@ class QtSourceSummary final : public QWidget {
   private:
     void RefreshIdentity();
     void RefreshAccessibleDescription();
+    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     QIcon icon_;
     QLabel *symbol_;

@@ -2,8 +2,11 @@
 #include "ui/dialogs/qtdialoglayout.h"
 #include <QEvent>
 #include <QHBoxLayout>
+#include <QHelpEvent>
 #include <QLabel>
 #include <QStringList>
+#include <QTextDocument>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 QtSourceSummary::QtSourceSummary(const QIcon &icon, const QString &name, const QString &path,
@@ -114,6 +117,16 @@ void QtSourceSummary::RefreshIdentity() {
         title.setWeight(QFont::DemiBold);
         name_->setFont(title);
     }
+}
+
+bool QtSourceSummary::event(QEvent *event) {
+    if (event->type() == QEvent::ToolTip && !sourcePath_.isEmpty()) {
+        const auto *help = static_cast<QHelpEvent *>(event);
+        QToolTip::showText(help->globalPos(),
+                           Qt::convertFromPlainText(sourcePath_, Qt::WhiteSpacePre), this);
+        return true;
+    }
+    return QWidget::event(event);
 }
 
 void QtSourceSummary::changeEvent(QEvent *event) {
