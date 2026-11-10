@@ -111,7 +111,7 @@ class OverwriteLayoutTests final : public QObject {
     }
     void directoryConflictNamesTheIncomingFolder() {
         OverwriteQuestion question;
-        question.Existing.Path = "/destination/folder";
+        question.Existing.Path = "/destination/folder/";
         question.Existing.Directory = true;
         question.Incoming.Path = QStringLiteral("/source/папка 空/");
         question.Incoming.Directory = true;
@@ -119,9 +119,12 @@ class OverwriteLayoutTests final : public QObject {
         dialog.SetQuestion(question);
         QVERIFY(dialog.OnInit());
         QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), QStringLiteral("папка 空"));
+        QVERIFY(dialog.findChild<QLabel *>("overwriteOldFile")
+                    ->text()
+                    .startsWith(QStringLiteral("/destination/\nfolder\n")));
         QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
                     ->text()
-                    .contains(question.Incoming.Path));
+                    .startsWith(QStringLiteral("/source/\nпапка 空\n")));
     }
     void sourceFooterAndFileRows_data() {
         QTest::addColumn<QString>("language");
