@@ -278,11 +278,14 @@ void CExtractDialog::OnButtonSetPath() {
                           path)) {
         _path->setCurrentIndex(-1);
         _path->setEditText(ToQString(path));
+        FString resolved;
+        if (!ValidateDestination(resolved))
+            return;
     }
     _path->setFocus();
 }
 
-void CExtractDialog::OnOK() {
+bool CExtractDialog::ValidateDestination(FString &resolvedDestination) {
     const QString base = DestinationDraft(_path->currentText());
     const QString requested = ToQString(DraftDestination());
     const auto directoryError = [this](const QString &candidate, FString *resolvedPath = nullptr,
@@ -297,7 +300,6 @@ void CExtractDialog::OnOK() {
             return _destinationErrorForPath(path);
         return OutputDirectoryStructureError(path);
     };
-    FString resolvedDestination;
     QString baseError;
     if (base.isEmpty())
         baseError = QCoreApplication::translate("CopyRedesign", "Choose a destination.");
@@ -330,9 +332,16 @@ void CExtractDialog::OnOK() {
             const int first = qMin(target.bottom() + 1 - height, target.top());
             bar->setValue(qBound(first, bar->value(), target.top()));
         });
-        return;
+        return false;
     }
     _destinationError->hide();
+    return true;
+}
+
+void CExtractDialog::OnOK() {
+    FString resolvedDestination;
+    if (!ValidateDestination(resolvedDestination))
+        return;
     if (_validateSourcePaths) {
         for (const auto &source : _archiveSources) {
             const QFileInfo file(source);

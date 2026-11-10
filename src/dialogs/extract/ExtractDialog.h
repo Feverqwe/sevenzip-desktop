@@ -43,6 +43,7 @@ class CExtractDialog : public QDialog {
     NExtract::CInfo _info;
     void OnInit(const QStringList &history);
     void OnOK();
+    bool ValidateDestination(FString &resolvedDestination);
     UString DraftDestination() const;
     void OnButtonSetPath();
     bool eventFilter(QObject *watched, QEvent *event) override;

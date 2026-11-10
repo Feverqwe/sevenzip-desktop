@@ -64,6 +64,8 @@ search access in the destination or in the folder where it would be created.
 Spaces in the name of an existing destination or subfolder are preserved.
 If the destination field cannot be resolved or the path is blocked by a file,
 Browse starts from the original folder and preserves the separate subfolder field.
+After choosing a folder, any error in the resulting destination appears before
+the user confirms extraction.
 Choosing a history entry restores the saved destination, including its own
 subfolder when the split fields are enabled. If the fields are disabled,
 choosing a history entry discards the previous subfolder draft.
