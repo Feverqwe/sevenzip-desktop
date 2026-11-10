@@ -66,6 +66,7 @@ void CExtractDialog::BuildPresentation() {
     QtBindLangText(_path, IDT_EXTRACT_EXTRACT_TO, "Extract to:", true);
     destinationLabel->setBuddy(_path);
     _path->setEditable(true);
+    _path->setCompleter(nullptr);
     _path->setInsertPolicy(QComboBox::NoInsert);
     // Return in the editor submits the dialog. Only a history selection
     // should replace the separately entered subfolder.

@@ -471,6 +471,21 @@ class ExtractDialogTests final : public QObject {
         saved.Load(settings_);
         QCOMPARE(saved.PathMode, NExtract::NPathMode::kFullPaths);
     }
+    void typedDestinationCanBeAPrefixOfHistory() {
+        const QString destination = dir_.filePath("completed");
+        CExtractDialog dialog(dir_.path(), {destination + " destination"});
+        auto *combo = path(dialog);
+        auto *editor = combo->lineEdit();
+        dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+        dialog.show();
+        editor->setFocus();
+        editor->setText(dir_.path() + '/');
+        QTest::keyClicks(editor, "completed");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())), destination);
+    }
+
     void originalHistoryRules() {
         const QString initial = dir_.filePath("initial");
         const QString edited = dir_.filePath(QStringLiteral("новая папка/δ space"));
