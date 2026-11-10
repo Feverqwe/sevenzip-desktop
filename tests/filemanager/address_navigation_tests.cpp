@@ -464,6 +464,55 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(backend.listCalls, 1);
     }
+    void ordinaryFileAddressKeepsSelectionAndCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString text = fixture.filePath("ordinary text.txt");
+        const QString selected = QStringLiteral("selected.txt");
+        QVERIFY(writeFile(text, "plain text"));
+        QVERIFY(writeFile(fixture.filePath(selected), "keep selected"));
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(destination));
+
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        const int row = filesystemRow(window, selected);
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        address->setText(text);
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                warning->accept();
+        });
+        dismiss.start(5);
+        QTest::keyClick(address, Qt::Key_Return);
+        dismiss.stop();
+        QApplication::processEvents();
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTRY_VERIFY(view->isEnabled());
+        QCOMPARE(address->text(), text);
+        QVERIFY(window.statusBar()->currentMessage().contains(QDir::toNativeSeparators(text)));
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+
+        address->setText(destination);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(
+            QFileInfo(ToQString(view->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
+            QFileInfo(destination).canonicalFilePath());
+        QTRY_VERIFY(view->hasFocus());
+    }
+
     void missingArchiveDoesNotInterruptFolderNavigation() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
