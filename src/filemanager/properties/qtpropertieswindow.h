@@ -5,6 +5,7 @@
 #include <functional>
 
 class QLabel;
+class QPlainTextEdit;
 class QtSourceSummary;
 class QtDisclosure;
 class QVBoxLayout;
@@ -35,7 +36,8 @@ class QtPropertiesWindow final : public QDialog {
     QtPropertyReport report_;
     std::function<QWidget *()> returnFocus_;
     QtSourceSummary *summary_ = nullptr;
-    QLabel *location_ = nullptr, *size_ = nullptr, *modified_ = nullptr, *selectedNames_ = nullptr;
+    QLabel *location_ = nullptr, *size_ = nullptr, *modified_ = nullptr;
+    QPlainTextEdit *selectedNames_ = nullptr;
     QList<ValueRow> rows_;
     QList<Section> sections_;
     bool firstShow_ = true;

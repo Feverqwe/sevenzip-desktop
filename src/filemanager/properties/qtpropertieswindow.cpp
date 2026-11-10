@@ -18,6 +18,7 @@
 #include <QDir>
 #include <QEvent>
 #include <QFileInfo>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
 #include <QShowEvent>
@@ -91,15 +92,12 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
                         "propertiesModified");
     layout->addWidget(primary);
     if (report_.items.size() > 1) {
-        QStringList names;
-        for (const auto &item : report_.items)
-            names.append(item.name);
-        auto *list = new QtWrappingLabel(names.join('\n'), this);
+        auto *list = new QPlainTextEdit(this);
         selectedNames_ = list;
         list->setObjectName("propertiesSelectedNames");
-        list->setTextFormat(Qt::PlainText);
-        list->setWordWrap(true);
+        list->setReadOnly(true);
         list->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
+        list->setMaximumHeight(fontMetrics().lineSpacing() * 6);
         auto *section = new QtDisclosure(list, this);
         section->setExpanded(true);
         section->setObjectName("propertiesSelectedObjects");
@@ -322,7 +320,9 @@ void QtPropertiesWindow::Refresh() {
         QStringList names;
         for (const auto &item : report_.items)
             names.append(item.prefix + available(item.name));
-        selectedNames_->setText(names.join('\n'));
+        const QString list = names.join('\n');
+        if (selectedNames_->toPlainText() != list)
+            selectedNames_->setPlainText(list);
     }
     for (const auto &row : rows_) {
         const QString caption = Caption(row.source, row.scope, true);

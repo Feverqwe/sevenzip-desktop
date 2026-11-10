@@ -13,6 +13,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -200,11 +201,9 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             window->show();
             QVERIFY(QTest::qWaitForWindowExposed(window));
             if (window == &multiple) {
-                auto *names = window->findChild<QLabel *>("propertiesSelectedNames");
+                auto *names = window->findChild<QPlainTextEdit *>("propertiesSelectedNames");
                 QVERIFY(names && names->isVisible());
-                const qsizetype start = names->text().indexOf(literalName);
-                QVERIFY(start >= 0);
-                names->setSelection(int(start), int(literalName.size()));
+                QVERIFY(names->find(literalName));
                 QTest::keySequence(names, QKeySequence::Copy);
                 QCOMPARE(QApplication::clipboard()->text(), literalName);
                 for (auto *section : window->findChildren<QtDisclosure *>())
@@ -219,6 +218,27 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(UiInspection::writeReport(*window, QString("properties-info-%1").arg(tag)));
             window->hide();
         }
+    }
+    void longSelectionCanBeReviewedWithoutScrollingTheWholeReport() {
+        QtPropertyReport report;
+        for (int i = 0; i < 100; ++i)
+            report.items.append({QString("selected-%1.txt").arg(i), false, {}});
+        const QString lastName = report.items.last().name;
+        QtPropertiesWindow window(std::move(report));
+        window.resize(420, 360);
+        window.show();
+        auto *names = window.findChild<QPlainTextEdit *>("propertiesSelectedNames");
+        QVERIFY(names);
+        QTRY_VERIFY(names->isVisible());
+        QVERIFY(names->verticalScrollBar()->maximum() > 0);
+        names->setFocus();
+        QTest::keySequence(names, QKeySequence::MoveToEndOfDocument);
+        QCOMPARE(names->verticalScrollBar()->value(), names->verticalScrollBar()->maximum());
+        QVERIFY(UiInspection::fullyVisible(
+            *window.findChild<QPushButton *>("propertiesCopyInformation"), window));
+        QVERIFY(UiInspection::writeReport(window, "properties-long-selection"));
+        copy(window);
+        QVERIFY(QApplication::clipboard()->text().split(u'\n').contains(lastName));
     }
     void navigationDoesNotRetargetIndependentWindows_data() {
         QTest::addColumn<bool>("switchToIcons");

@@ -121,6 +121,8 @@ navigation cannot silently change it. Windows ordinary files retain the native
 shell sheet. [Source comparison and adaptations](../upstream-port-audit/property-report-ownership.md#selected-properties-snapshot-and-information-window--2026-11-07).
 
 SourceSummary shows the selected name/type or selected-object counts.
+The selected names have a bounded, keyboard-scrollable area and remain
+available for text selection and copying.
 MetadataRows shows location, data size and known modification text. Unknown
 is distinct from zero; folder and multiple-selection contents are not newly
 calculated. Existing source totals remain in additional information, qualified
