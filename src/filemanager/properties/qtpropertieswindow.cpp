@@ -248,6 +248,10 @@ QString QtPropertiesWindow::Caption(unsigned row, Scope scope, bool compact) con
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Metadata changed"));
     if (compact && scope == Scope::Selection && id == kpidPackSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Packed size"));
+    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize &&
+        native != report_.nativeValues.cend() &&
+        native->availability != QtPropertyReport::Availability::Known)
+        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported size (may be partial)"));
     if (compact && scope == Scope::Selection && id == kpidSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Size"));
     if (compact)
@@ -257,10 +261,6 @@ QString QtPropertiesWindow::Caption(unsigned row, Scope scope, bool compact) con
                text(QT_TRANSLATE_NOOP("PropertiesWindow", "(stored metadata)"));
     if (scope == Scope::Selection && id == kpidPackSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported packed size (may be partial)"));
-    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize &&
-        native != report_.nativeValues.cend() &&
-        native->availability != QtPropertyReport::Availability::Known)
-        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported size (may be partial)"));
     return ToQString(report_.Strings[row]);
 }
 QString QtPropertiesWindow::Value(unsigned row) const {

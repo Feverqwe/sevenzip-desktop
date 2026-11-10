@@ -198,6 +198,16 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             window->resize(520, 360);
             window->show();
             QVERIFY(QTest::qWaitForWindowExposed(window));
+            if (window == &multiple) {
+                for (auto *section : window->findChildren<QtDisclosure *>())
+                    section->setExpanded(true);
+                QLabel *caption = nullptr;
+                for (auto *label : window->findChildren<QLabel *>())
+                    if (label->text() == QStringLiteral("Reported size (may be partial)"))
+                        caption = label;
+                QVERIFY(caption && caption->isVisible());
+                QTRY_VERIFY(UiInspection::labelFits(*caption));
+            }
             QVERIFY(UiInspection::writeReport(*window, QString("properties-info-%1").arg(tag)));
             window->hide();
         }
