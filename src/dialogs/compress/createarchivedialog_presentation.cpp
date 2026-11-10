@@ -82,6 +82,7 @@ QPushButton *CreateArchiveDialog::createArchiveDestination(QVBoxLayout *windowLa
     archivePath_ = new QComboBox(this);
     archivePath_->setObjectName("archivePath");
     archivePath_->setEditable(true);
+    archivePath_->setCompleter(nullptr);
     archivePath_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     archivePath_->setMinimumContentsLength(20);
     archivePath_->setInsertPolicy(QComboBox::NoInsert);

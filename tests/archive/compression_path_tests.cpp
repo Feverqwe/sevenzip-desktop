@@ -471,12 +471,19 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(QDir::fromNativeSeparators(reopened.target()), archive);
     }
 
-    void enteringAnExistingHistoryPathKeepsTheSelectedFormat() {
+    void typingArchivePathKeepsTheTypedNameAndSelectedFormat_data() {
+        QTest::addColumn<QString>("historySuffix");
+        QTest::newRow("exact-history-match") << QString();
+        QTest::newRow("prefix-of-history") << QString(".old");
+    }
+
+    void typingArchivePathKeepsTheTypedNameAndSelectedFormat() {
+        QFETCH(QString, historySuffix);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString target = fixture.filePath("previous.zip");
         NCompression::CInfo registry;
-        registry.ArcPaths.Add(target);
+        registry.ArcPaths.Add(target + historySuffix);
         registry.Save(settings_);
         CreateArchiveDialog dialog(dir_.path(), {source_});
         dialog.show();
