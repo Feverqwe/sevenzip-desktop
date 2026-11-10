@@ -1,9 +1,42 @@
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
+#include <QScopeGuard>
 
 class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
   private slots:
+    void filesystemRootParentOnlyOpensInside() {
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        const auto previous = settings.value("FM/ShowDots");
+        const auto restore = qScopeGuard([&] {
+            if (previous.isValid())
+                settings.setValue("FM/ShowDots", previous);
+            else
+                settings.remove("FM/ShowDots");
+        });
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        ControlledBackend backend;
+        int opened = 0;
+        MainWindow window(&backend, [&](const QUrl &) {
+            ++opened;
+            return true;
+        });
+        window.show();
+        window.openPath(QDir::rootPath());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() > 0);
+        QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        view->setFocus();
+        QVERIFY(action(window, "openItemAction")->isEnabled());
+        QVERIFY(!action(window, "openOutsideAction")->isEnabled());
+        QTest::keyClick(view, Qt::Key_Return, Qt::ShiftModifier);
+        QCOMPARE(opened, 0);
+        QVERIFY(view->sourcePanel->IsFSFolder());
+    }
+
     void filesystemCannotForgeMountCapability() {
         QTemporaryDir fixture;
         ControlledBackend backend;

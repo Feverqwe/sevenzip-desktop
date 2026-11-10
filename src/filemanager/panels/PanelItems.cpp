@@ -206,6 +206,10 @@ void CPanel::OpenFocusedItemAsInternal(const wchar_t *type) {
 }
 
 bool CPanel::CanOpenItemsOutside(const CRecordVector<UInt32> &indices) const {
+    if (IsFSFolder() && indices.IsEmpty()) {
+        const UString prefix = GetFsPath();
+        return prefix.Len() > NWindows::NFile::NName::GetRootPrefixSize(prefix);
+    }
     if (!IsArcFolder())
         return true;
     if (indices.IsEmpty())
