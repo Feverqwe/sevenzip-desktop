@@ -20,6 +20,10 @@
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QTimerEvent>
+#ifdef Q_OS_MACOS
+#include <QConicalGradient>
+#include <QPainter>
+#endif
 
 using namespace NWindows;
 
@@ -284,7 +288,34 @@ void CProgressDialog::accept() { OnOK(); }
 void CProgressDialog::reject() { OnButtonClicked(IDCANCEL); }
 
 struct CWaitCursor {
-    CWaitCursor() { QApplication::setOverrideCursor(Qt::WaitCursor); }
+    CWaitCursor() {
+#ifdef Q_OS_MACOS
+        static const QCursor cursor = [] {
+            QPixmap image(40, 40);
+            image.setDevicePixelRatio(2);
+            image.fill(Qt::transparent);
+            QPainter painter(&image);
+            painter.setRenderHint(QPainter::Antialiasing);
+            const QRectF ring(3, 3, 14, 14);
+            painter.setPen(QPen(QColor(0, 0, 0, 160), 4));
+            painter.drawEllipse(ring);
+            QConicalGradient colors(ring.center(), 90);
+            colors.setColorAt(0, QColor("#ff625f"));
+            colors.setColorAt(0.2, QColor("#ffca58"));
+            colors.setColorAt(0.4, QColor("#62cf74"));
+            colors.setColorAt(0.6, QColor("#4fc8ea"));
+            colors.setColorAt(0.8, QColor("#a584ff"));
+            colors.setColorAt(1, QColor("#ff625f"));
+            painter.setPen(QPen(QBrush(colors), 3));
+            painter.drawEllipse(ring);
+            painter.end();
+            return QCursor(image, 10, 10);
+        }();
+        QApplication::setOverrideCursor(cursor);
+#else
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+#endif
+    }
     ~CWaitCursor() { QApplication::restoreOverrideCursor(); }
 };
 
