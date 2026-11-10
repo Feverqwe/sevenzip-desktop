@@ -15,6 +15,7 @@
 #include "filemanager/providers/FSFolder.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QCoreApplication>
+#include <vector>
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -30,18 +31,18 @@ class FolderSizeCheckpoint final : public IProgress, public CMyUnknownImp {
 };
 
 class FolderSizeOperation final : public CProgressThreadVirt {
-    IFolderCalcItemFullSize &folder_;
-    const CRecordVector<UInt32> &indices_;
-    const UStringVector &paths_;
+    const FStringVector &paths_;
+    std::vector<NFsFolder::CFsFolderSizeResult> results_;
 
     HRESULT ProcessVirt() override {
         CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
         HRESULT firstError = S_OK;
         unsigned reportedErrors = 0;
-        FOR_VECTOR(i, indices_) {
+        FOR_VECTOR(i, paths_) {
             RINOK(Sync.CheckStop())
-            Sync.Set_FilePath(paths_[i], true);
-            const HRESULT result = folder_.CalcItemFullSize(indices_[i], progress);
+            Sync.Set_FilePath(fs2us(paths_[i]), true);
+            results_.push_back(NFsFolder::MeasureFolderSize(paths_[i], progress));
+            const HRESULT result = results_.back().Status;
             if (result == E_ABORT)
                 return result;
             if (result != S_OK) {
@@ -50,7 +51,7 @@ class FolderSizeOperation final : public CProgressThreadVirt {
                 // Keep item diagnostics separate from the terminal result so
                 // cancelling after an unreadable folder still reports Cancel.
                 if (reportedErrors < 32) {
-                    Sync.AddError_Code_Name(result, paths_[i]);
+                    Sync.AddError_Code_Name(result, fs2us(paths_[i]));
                     ++reportedErrors;
                 }
             }
@@ -59,12 +60,15 @@ class FolderSizeOperation final : public CProgressThreadVirt {
     }
 
   public:
-    FolderSizeOperation(IFolderCalcItemFullSize &folder, const CRecordVector<UInt32> &indices,
-                        const UStringVector &paths)
-        : folder_(folder), indices_(indices), paths_(paths) {
+    explicit FolderSizeOperation(const FStringVector &paths) : paths_(paths) {
         ShowCompressionInfo = false;
         WaitMode = true;
         CancellationMayLeaveChanges = false;
+    }
+
+    void ApplyResults(NFsFolder::CFSFolder &folder, const CRecordVector<UInt32> &indices) const {
+        for (unsigned i = 0; i < results_.size(); ++i)
+            folder.ApplyItemFullSize(indices[i], results_[i]);
     }
 };
 } // namespace
@@ -81,9 +85,8 @@ UInt32 CPanel::GetFocusedFileIndex() const {
 
 void CPanel::EditItem(bool useEditor) {
     if (!useEditor) {
-        CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;
-        _folder.QueryInterface(IID_IFolderCalcItemFullSize, &calcItemFullSize);
-        if (calcItemFullSize) {
+        CMyComPtr<IFolderFolder> owner = _folder;
+        if (auto *folder = dynamic_cast<NFsFolder::CFSFolder *>(owner.Interface())) {
             CRecordVector<UInt32> indices;
             Get_ItemIndices_Operated(indices);
             CRecordVector<UInt32> folders;
@@ -93,15 +96,19 @@ void CPanel::EditItem(bool useEditor) {
             }
             if (!folders.IsEmpty()) {
                 CDisableTimerProcessing timer(*this);
-                UStringVector paths;
-                GetFilePaths(folders, paths);
-                FolderSizeOperation operation(*calcItemFullSize.Interface(), folders, paths);
+                FStringVector paths;
+                FOR_VECTOR(i, folders)
+                paths.Add(folder->ItemFullSizePath(folders[i]));
+                FolderSizeOperation operation(paths);
                 const auto title =
                     QCoreApplication::translate("ArchiveDirectory", "Calculating folder size…");
                 {
                     CDisableNotify notify(*this);
                     operation.Create(ToUString(title), GetParent());
                 }
+                if (owner.Interface() != GetFolder())
+                    return;
+                operation.ApplyResults(*folder, folders);
                 if (_sortID == kpidSize) {
                     const int previousRow = _selectionList.GetFocusedItem();
                     _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
