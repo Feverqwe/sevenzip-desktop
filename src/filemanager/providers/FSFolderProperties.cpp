@@ -485,10 +485,13 @@ Z7_COM7F_IMF2(Int32, CFSFolder::CompareItems(UInt32 index1, UInt32 index2, PROPI
         */
         return comp;
     }
-    case kpidSize:
-        return MyCompare(
-            /* ss1 ? ss1->Size : */ fi1.Size,
-            /* ss2 ? ss2->Size : */ fi2.Size);
+    case kpidSize: {
+        const bool defined1 = !fi1.IsDir() || fi1.FolderStat_Defined;
+        const bool defined2 = !fi2.IsDir() || fi2.FolderStat_Defined;
+        if (defined1 != defined2)
+            return defined1 ? 1 : -1;
+        return defined1 ? MyCompare(fi1.Size, fi2.Size) : 0;
+    }
     case kpidNumSubDirs:
     case kpidNumSubFiles:
         if (fi1.FolderStat_Defined != fi2.FolderStat_Defined)

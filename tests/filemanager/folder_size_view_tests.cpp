@@ -36,16 +36,22 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
     void calculatedFolderRemainsVisibleWhenSortMovesIt_data() {
         QTest::addColumn<quint32>("property");
-        QTest::newRow("size") << quint32(kpidSize);
-        QTest::newRow("files") << quint32(kpidNumSubFiles);
-        QTest::newRow("folders") << quint32(kpidNumSubDirs);
+        QTest::addColumn<bool>("empty");
+        QTest::newRow("size") << quint32(kpidSize) << false;
+        QTest::newRow("empty-size") << quint32(kpidSize) << true;
+        QTest::newRow("files") << quint32(kpidNumSubFiles) << false;
+        QTest::newRow("folders") << quint32(kpidNumSubDirs) << false;
     }
     void calculatedFolderRemainsVisibleWhenSortMovesIt() {
         QFETCH(quint32, property);
+        QFETCH(bool, empty);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        QVERIFY(QDir().mkpath(fixture.filePath("aaa/child")));
-        QVERIFY(writeFile(fixture.filePath("aaa/child/payload"), "123"));
+        QVERIFY(QDir().mkpath(fixture.filePath("aaa")));
+        if (!empty) {
+            QVERIFY(QDir().mkdir(fixture.filePath("aaa/child")));
+            QVERIFY(writeFile(fixture.filePath("aaa/child/payload"), "123"));
+        }
         for (int index = 0; index < 40; ++index)
             QVERIFY(QDir().mkdir(fixture.filePath(QString("folder-%1").arg(index))));
 
@@ -81,6 +87,9 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         calculate->trigger();
         const int after = filesystemRow(window, "aaa");
         QVERIFY(after > filesystemRow(window, "folder-39"));
+        if (empty)
+            QCOMPARE(view->model()->index(after, sortColumn).data().toString(),
+                     QtRegionalFormat::bytes(0));
         QCOMPARE(view->currentRow(), after);
         QVERIFY(view->selectionModel()->isRowSelected(after, {}));
         QTRY_VERIFY(visible(after));
