@@ -489,6 +489,14 @@ Z7_COM7F_IMF2(Int32, CFSFolder::CompareItems(UInt32 index1, UInt32 index2, PROPI
         return MyCompare(
             /* ss1 ? ss1->Size : */ fi1.Size,
             /* ss2 ? ss2->Size : */ fi2.Size);
+    case kpidNumSubDirs:
+    case kpidNumSubFiles:
+        if (fi1.FolderStat_Defined != fi2.FolderStat_Defined)
+            return fi1.FolderStat_Defined ? 1 : -1;
+        if (!fi1.FolderStat_Defined)
+            return 0;
+        return propID == kpidNumSubDirs ? MyCompare(fi1.NumFolders, fi2.NumFolders)
+                                        : MyCompare(fi1.NumFiles, fi2.NumFiles);
     case kpidAttrib:
         return MyCompare(fi1.GetWinAttrib(), fi2.GetWinAttrib());
     case kpidCTime:

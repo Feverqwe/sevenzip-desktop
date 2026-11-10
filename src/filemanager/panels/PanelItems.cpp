@@ -109,7 +109,8 @@ void CPanel::EditItem(bool useEditor) {
                 if (owner.Interface() != GetFolder())
                     return;
                 operation.ApplyResults(*folder, folders);
-                if (_sortID == kpidSize) {
+                if (!_isRawSortProp && (_sortID == kpidSize || _sortID == kpidNumSubFiles ||
+                                        _sortID == kpidNumSubDirs)) {
                     const int previousRow = _selectionList.GetFocusedItem();
                     _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
                     const int currentRow = _selectionList.GetFocusedItem();

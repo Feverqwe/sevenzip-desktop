@@ -34,11 +34,18 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
     Q_OBJECT
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
-    void calculatedFolderRemainsVisibleWhenSizeSortMovesIt() {
+    void calculatedFolderRemainsVisibleWhenSortMovesIt_data() {
+        QTest::addColumn<quint32>("property");
+        QTest::newRow("size") << quint32(kpidSize);
+        QTest::newRow("files") << quint32(kpidNumSubFiles);
+        QTest::newRow("folders") << quint32(kpidNumSubDirs);
+    }
+    void calculatedFolderRemainsVisibleWhenSortMovesIt() {
+        QFETCH(quint32, property);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        QVERIFY(QDir().mkdir(fixture.filePath("aaa")));
-        QVERIFY(writeFile(fixture.filePath("aaa/payload"), "123"));
+        QVERIFY(QDir().mkpath(fixture.filePath("aaa/child")));
+        QVERIFY(writeFile(fixture.filePath("aaa/child/payload"), "123"));
         for (int index = 0; index < 40; ++index)
             QVERIFY(QDir().mkdir(fixture.filePath(QString("folder-%1").arg(index))));
 
@@ -48,9 +55,10 @@ class FolderSizeViewTests final : public QObject, protected MainWindowTestSuppor
         window.openPath(fixture.path());
         auto *view = static_cast<FileTable *>(table(window));
         QTRY_VERIFY(filesystemRow(window, "folder-39") >= 0);
-        const int sizeColumn = view->columnForProperty(kpidSize);
-        QVERIFY(sizeColumn >= 0);
-        view->sortItems(sizeColumn, Qt::AscendingOrder);
+        const int sortColumn = view->columnForProperty(property);
+        QVERIFY(sortColumn >= 0);
+        view->setColumnHidden(sortColumn, false);
+        view->sortItems(sortColumn, Qt::AscendingOrder);
         const int before = filesystemRow(window, "aaa");
         QVERIFY(before >= 0);
         view->setCurrentCell(before, 0);
