@@ -447,12 +447,14 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QCOMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("folder"));
     }
     void archiveParentCanBeRetriedAfterDirectoryReturns_data() {
-        QTest::addColumn<bool>("parentRow");
-        QTest::newRow("button") << false;
-        QTest::newRow("parent-row") << true;
+        QTest::addColumn<QString>("gesture");
+        QTest::newRow("button") << QString("button");
+        QTest::newRow("parent-row") << QString("row");
+        QTest::newRow("backspace") << QString("backspace");
+        QTest::newRow("button-with-address-draft") << QString("address-draft");
     }
     void archiveParentCanBeRetriedAfterDirectoryReturns() {
-        QFETCH(bool, parentRow);
+        QFETCH(QString, gesture);
 #ifndef Q_OS_UNIX
         QSKIP("Requires renaming a folder while its archive is open");
 #endif
@@ -474,15 +476,27 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(list->rowCount(), 2);
         QCOMPARE(list->model()->index(0, 0).data().toString(), QString(".."));
         QVERIFY(WindowActivation::waitForActive(window));
+        const bool parentRow = gesture == "row";
         list->setCurrentCell(parentRow ? 0 : 1, 0);
         list->selectRow(list->currentRow());
         list->setFocus();
         QTRY_VERIFY(list->hasFocus());
         auto *button = window.findChild<QPushButton *>("panelParentButton0");
         QVERIFY(button);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        const QString draft = QStringLiteral("unfinished location");
+        if (gesture == "address-draft") {
+            PanelKeys::focusAddress(address);
+            address->selectAll();
+            QTest::keyClicks(address, draft);
+            address->setSelection(0, 10);
+        }
         const auto openParent = [&] {
             if (parentRow)
                 PanelKeys::openSelection(list);
+            else if (gesture == "backspace")
+                QTest::keyClick(window.focusWidget(), Qt::Key_Backspace);
             else
                 QTest::mouseClick(button, Qt::LeftButton);
         };
@@ -501,12 +515,25 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(list->sourcePanel->IsArcFolder());
         QCOMPARE(list->model()->index(1, 0).data().toString(), QString("entry.txt"));
         QCOMPARE(list->currentRow(), parentRow ? 0 : 1);
+        if (gesture == "address-draft") {
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), draft);
+            QTRY_COMPARE(address->selectedText(), QStringLiteral("unfinished"));
+        }
 
         QVERIFY(QDir().rename(parked, folder));
         QVERIFY(WindowActivation::waitForActive(window));
+        if (gesture == "backspace")
+            QTRY_COMPARE(window.focusWidget(), list);
         openParent();
         QTRY_VERIFY(list->sourcePanel->IsFSFolder());
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), folder);
         QTRY_COMPARE(list->currentIndex().data().toString(), QString("source.zip"));
+        QTRY_COMPARE(window.focusWidget(), list);
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_VERIFY(list->sourcePanel->IsArcFolder());
+        QTRY_COMPARE(list->model()->index(1, 0).data().toString(), QString("entry.txt"));
     }
     void parentButtonBelongsToItsPanel_data() {
         QTest::addColumn<unsigned>("pane");

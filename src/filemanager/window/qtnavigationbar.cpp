@@ -97,7 +97,7 @@ void QtNavigationBar::SetLocation(const QString &path,
         return;
     path_ = path;
     segments_ = segments;
-    setToolTip(path);
+    setToolTip(QtLiteralToolTip(path));
     rootLabel_ = rootLabel;
     Rebuild();
 }
@@ -130,12 +130,12 @@ void QtNavigationBar::Rebuild() {
         layout_->addWidget(separator);
         auto *button = new CrumbButton(label, crumbs_);
         button->setAutoRaise(true);
-        button->setToolTip(target);
+        button->setToolTip(QtLiteralToolTip(target));
         button->setAccessibleName(target);
         connect(button, &QToolButton::clicked, this, [this, target] { navigate_(target); });
         layout_->addWidget(button);
         auto *ancestor = menu->addAction(QtLiteralMenuText(label));
-        ancestor->setToolTip(target);
+        ancestor->setToolTip(QtLiteralToolTip(target));
         connect(ancestor, &QAction::triggered, this, [this, target] { navigate_(target); });
         if (archive) {
             ancestor->setIcon(QtCommandSymbol(QtCommandIcon::Archive));

@@ -470,7 +470,18 @@ class NestedEditChainTests final : public QObject, protected MainWindowTestSuppo
                     return;
                 }
                 if (cancelParent && box->objectName() == "modifiedArchiveQuestion") {
-                    QTest::keyClick(box, Qt::Key_Escape);
+                    const auto cancel =
+                        qScopeGuard([box] { QTest::keyClick(box, Qt::Key_Escape); });
+                    auto *update = box->button(QMessageBox::Yes);
+                    auto *discard = box->button(QMessageBox::No);
+                    QVERIFY(update && discard);
+                    QCOMPARE(update->text(),
+                             QCoreApplication::translate("QtExternalFileTask", "Update archive"));
+                    QCOMPARE(discard->text(), QCoreApplication::translate("PanelArchiveLifecycle",
+                                                                          "Discard changes"));
+                    QVERIFY(UiInspection::fullyVisible(*update, *box));
+                    QVERIFY(UiInspection::fullyVisible(*discard, *box));
+                    QVERIFY(UiInspection::writeReport(*box, "modified-nested-archive-question"));
                     return;
                 }
                 if (auto *yes = box->button(QMessageBox::Yes))

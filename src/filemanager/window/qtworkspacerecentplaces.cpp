@@ -44,7 +44,7 @@ void QtWindowWorkspace::ShowRecentPlaces(unsigned panel, QWidget &anchor) {
         const QString label = PlaceLabel(place);
         auto *item = menu->addAction(QtLiteralMenuText(
             menu->fontMetrics().elidedText(label, Qt::ElideMiddle, maxLabelWidth)));
-        item->setToolTip(label);
+        item->setToolTip(QtLiteralToolTip(label));
         item->setData(place.path);
         connect(item, &QAction::triggered, this, [this, panel, place] {
             QTimer::singleShot(0, this, [this, panel, place] { OpenRecentPlace(panel, place); });

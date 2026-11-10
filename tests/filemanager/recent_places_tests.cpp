@@ -13,6 +13,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QInputDialog>
 #include <QMenu>
+#include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
 
@@ -222,7 +223,12 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         QTRY_COMPARE(location(window), initial);
         QStringList paths;
         for (int i = 0; i < 7; ++i) {
-            const QString path = fixture.filePath(QString("Папка & 空 %1").arg(i));
+            QString name = QString("Папка & 空 %1").arg(i);
+#ifndef Q_OS_WIN
+            if (i == 6)
+                name = QStringLiteral("<b>Папка  & 空");
+#endif
+            const QString path = fixture.filePath(name);
             directory(path);
             store().Visit({path, {}, {}});
             paths.prepend(path);
@@ -258,8 +264,19 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         popup = RecentPlacesMenu::Visible(window);
         auto *entry = RecentPlacesMenu::Find(*popup, paths.first());
         QVERIFY(entry);
+#ifndef Q_OS_WIN
+        QTextDocument tooltip;
+        tooltip.setHtml(entry->toolTip());
+        QCOMPARE(tooltip.toPlainText(), paths.first());
+#endif
         RecentPlacesMenu::Choose(*popup, *entry);
         QTRY_COMPARE(location(window), paths.first());
+#ifndef Q_OS_WIN
+        auto *bar = window.findChild<QWidget *>("panelNavigation0");
+        QVERIFY(bar);
+        tooltip.setHtml(bar->toolTip());
+        QCOMPARE(QDir::cleanPath(tooltip.toPlainText()), paths.first());
+#endif
         action(window, "backAction")->trigger();
         QTRY_COMPARE(location(window), initial);
     }

@@ -83,6 +83,7 @@ class CCopyDialog : public QDialog {
     void RefreshSourceSummary();
     bool OnInit();
     void OnButtonSetPath();
+    void FocusDestinationError(QLineEdit *field);
     void OnOK();
     bool ReadPath(UString &path);
     void SetPathText(const QString &path);

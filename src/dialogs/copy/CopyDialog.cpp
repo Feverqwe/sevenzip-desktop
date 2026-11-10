@@ -235,12 +235,37 @@ void CCopyDialog::OnButtonSetPath() {
     UString selectedPath;
     const bool chosen = MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)),
                                           initialDirectory, selectedPath);
-    _pathEdit->setFocus();
-    if (!chosen)
+    if (!chosen) {
+        _pathEdit->setFocus();
         return;
+    }
     NWindows::NFile::NName::NormalizeDirPathPrefix(selectedPath);
     SetPathText(ToQString(selectedPath));
-    _pathEdit->setFocus();
+    QLineEdit *field = _pathEdit;
+    if (UpdateDestination(false, &field))
+        field->setFocus();
+    else
+        FocusDestinationError(field);
+}
+
+void CCopyDialog::FocusDestinationError(QLineEdit *field) {
+    field->setFocus();
+    field->selectAll();
+    QTimer::singleShot(0, this, [this, field] {
+        auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
+        if (!scroll || !_destinationMessage->isVisible())
+            return;
+        const int top = field->mapTo(scroll->widget(), QPoint()).y();
+        const int bottom = _destinationMessage->mapTo(scroll->widget(), QPoint()).y() +
+                           _destinationMessage->height();
+        const int missingHeight = bottom - top - scroll->viewport()->height();
+        if (missingHeight > 0) {
+            resize(width(), height() + missingHeight);
+            QtNormalizeDialogSize(*this, false);
+        }
+        const int margin = qMin((bottom - top + 1) / 2, scroll->viewport()->height() / 2);
+        scroll->ensureVisible(0, top + margin, 0, margin);
+    });
 }
 
 bool CCopyDialog::ReadPath(UString &path) {
@@ -259,25 +284,8 @@ void CCopyDialog::OnOK() {
     const bool couldSubmit = _canSubmit;
     QLineEdit *correctionField = _pathEdit;
     if (!UpdateDestination(true, &correctionField)) {
-        if (couldSubmit) {
-            correctionField->setFocus();
-            correctionField->selectAll();
-            QTimer::singleShot(0, this, [this, correctionField] {
-                auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
-                if (!scroll || !_destinationMessage->isVisible())
-                    return;
-                const int top = correctionField->mapTo(scroll->widget(), QPoint()).y();
-                const int bottom = _destinationMessage->mapTo(scroll->widget(), QPoint()).y() +
-                                   _destinationMessage->height();
-                const int missingHeight = bottom - top - scroll->viewport()->height();
-                if (missingHeight > 0) {
-                    resize(width(), height() + missingHeight);
-                    QtNormalizeDialogSize(*this, false);
-                }
-                const int margin = qMin((bottom - top + 1) / 2, scroll->viewport()->height() / 2);
-                scroll->ensureVisible(0, top + margin, 0, margin);
-            });
-        }
+        if (couldSubmit)
+            FocusDestinationError(correctionField);
         return;
     }
     UString path;

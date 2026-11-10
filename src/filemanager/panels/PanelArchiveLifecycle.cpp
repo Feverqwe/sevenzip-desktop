@@ -14,8 +14,10 @@
 #include "filemanager/panels/qtpanellocationtransaction.h"
 #include "filemanager/providers/FileFolderPluginOpen.h"
 #include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
 #include "platform/temp/qtownedtempidentity.h"
 #include "ui/progress/ProgressDialog2.h"
+#include <QAbstractButton>
 #include <QFileInfo>
 #include <QMessageBox>
 
@@ -175,6 +177,11 @@ bool CPanel::CloseOneLevel(bool allowCancel) {
                         QString::fromWCharArray(message.Ptr()), buttons, GetParent());
         box.setObjectName("modifiedArchiveQuestion");
         box.setTextFormat(Qt::PlainText);
+        QtBindLocalText(box.button(QMessageBox::Yes), "QtExternalFileTask",
+                        QT_TRANSLATE_NOOP("QtExternalFileTask", "Update archive"));
+        QtBindLocalText(box.button(allowCancel ? QMessageBox::No : QMessageBox::Discard),
+                        "PanelArchiveLifecycle",
+                        QT_TRANSLATE_NOOP("PanelArchiveLifecycle", "Discard changes"));
         box.setDefaultButton(QMessageBox::Yes);
         if (allowCancel)
             box.setEscapeButton(QMessageBox::Cancel);

@@ -769,6 +769,7 @@ class CopyDestinationTests final : public QObject {
         QTest::newRow("invalid-path") << QString("invalid");
         QTest::newRow("blocked-parent") << QString("blocked-parent");
         QTest::newRow("existing-final-file") << QString("existing-file");
+        QTest::newRow("name-conflict-in-chosen-folder") << QString("name-conflict");
     }
 
     void browsePreservesNameDraft() {
@@ -777,8 +778,21 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(fixture.isValid());
         const QString selected = fixture.filePath("selected folder");
         QVERIFY(QDir().mkpath(selected));
-        CCopyDialog dialog(false, fixture.path() + '/', {fixture.filePath("source.txt")});
-        configure(dialog, fixture.filePath("source.txt"));
+        const bool nameConflict = kind == "name-conflict";
+        const QString source = fixture.filePath("source.txt");
+        CCopyDialog dialog(false, fixture.path() + '/', {source});
+        if (nameConflict) {
+            QFile file(source);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.close();
+            QVERIFY(QDir(selected).mkdir("draft.txt"));
+            QtCopyDestinationContext context{
+                fixture.path(), "source.txt", {}, false, [](const QString &) { return true; }};
+            context.LocalFileTransfer = true;
+            dialog.ConfigureDestination(std::move(context));
+            dialog.resize(340, 220);
+        } else
+            configure(dialog, source);
         dialog.show();
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         name->setText("draft.txt");
@@ -826,10 +840,22 @@ class CopyDestinationTests final : public QObject {
             }
         }
         QCOMPARE(ToQString(dialog.Value), fixture.path() + '/');
-        QTest::keyClick(path, Qt::Key_Return);
+        QTRY_COMPARE(dialog.focusWidget(), nameConflict ? name : path);
+        if (nameConflict) {
+            QCOMPARE(name->selectedText(), QString("draft.txt"));
+            auto *message = dialog.findChild<QLabel *>("copyDestinationMessage");
+            auto *buttons = dialog.findChild<QDialogButtonBox *>("copyButtons");
+            QVERIFY(message && buttons);
+            QTRY_VERIFY(UiInspection::fullyVisible(*message, dialog));
+            QVERIFY(UiInspection::fullyVisible(*name, dialog));
+            QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
+            QVERIFY(UiInspection::writeReport(dialog, "copy-picker-name-conflict"));
+            QTest::keyClicks(dialog.focusWidget(), "corrected.txt");
+        }
+        QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(dialog.Value))),
-                 QDir(selected).filePath("draft.txt"));
+                 QDir(selected).filePath(nameConflict ? "corrected.txt" : "draft.txt"));
     }
 };
 

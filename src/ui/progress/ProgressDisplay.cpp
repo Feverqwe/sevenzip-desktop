@@ -10,6 +10,7 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QCoreApplication>
 #include <QLabel>
+#include <QTextDocument>
 
 using namespace NWindows;
 
@@ -446,7 +447,10 @@ void CProgressDialog::UpdateStatInfo(bool showAll) {
         ReduceString(s2, _numReduceSymbols);
         SetItemText(IDT_PROGRESS_FILE_NAME, _isDir ? s1 : s2);
         const QString fullPath = QString::fromWCharArray(_filePath.Ptr());
-        GetItem(IDT_PROGRESS_FILE_NAME)->setToolTip(fullPath);
+        GetItem(IDT_PROGRESS_FILE_NAME)
+            ->setToolTip(fullPath.isEmpty()
+                             ? QString()
+                             : Qt::convertFromPlainText(fullPath, Qt::WhiteSpacePre));
         GetItem(IDT_PROGRESS_FILE_NAME)->setAccessibleDescription(fullPath);
     }
 }
