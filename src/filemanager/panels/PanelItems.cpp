@@ -41,10 +41,11 @@ class FolderSizeOperation final : public CProgressThreadVirt {
         FOR_VECTOR(i, paths_) {
             RINOK(Sync.CheckStop())
             Sync.Set_FilePath(fs2us(paths_[i]), true);
-            results_.push_back(NFsFolder::MeasureFolderSize(paths_[i], progress));
-            const HRESULT result = results_.back().Status;
+            const auto measurement = NFsFolder::MeasureFolderSize(paths_[i], progress);
+            const HRESULT result = measurement.Status;
             if (result == E_ABORT)
                 return result;
+            results_.push_back(measurement);
             if (result != S_OK) {
                 if (firstError == S_OK)
                     firstError = result;
@@ -66,9 +67,10 @@ class FolderSizeOperation final : public CProgressThreadVirt {
         CancellationMayLeaveChanges = false;
     }
 
-    void ApplyResults(NFsFolder::CFSFolder &folder, const CRecordVector<UInt32> &indices) const {
+    bool ApplyResults(NFsFolder::CFSFolder &folder, const CRecordVector<UInt32> &indices) const {
         for (unsigned i = 0; i < results_.size(); ++i)
             folder.ApplyItemFullSize(indices[i], results_[i]);
+        return !results_.empty();
     }
 };
 } // namespace
@@ -106,9 +108,8 @@ void CPanel::EditItem(bool useEditor) {
                     CDisableNotify notify(*this);
                     operation.Create(ToUString(title), GetParent());
                 }
-                if (owner.Interface() != GetFolder())
+                if (owner.Interface() != GetFolder() || !operation.ApplyResults(*folder, folders))
                     return;
-                operation.ApplyResults(*folder, folders);
                 if (!_isRawSortProp && (_sortID == kpidSize || _sortID == kpidNumSubFiles ||
                                         _sortID == kpidNumSubDirs)) {
                     const int previousRow = _selectionList.GetFocusedItem();
