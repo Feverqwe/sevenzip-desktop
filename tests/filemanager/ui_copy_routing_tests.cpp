@@ -662,7 +662,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         });
         QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(stayedOpen);
-        QCOMPARE(diagnostic, QString("Destination is inside the source folder: %1").arg(blocked));
+        QCOMPARE(diagnostic, QString("Destination is inside the source folder: %1")
+                                 .arg(QDir(blocked).filePath(name)));
         QVERIFY(corrected);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QVERIFY(!QFileInfo::exists(blocked));

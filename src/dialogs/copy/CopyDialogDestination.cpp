@@ -223,6 +223,9 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
     const bool localTransfer =
         _destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination;
     const QString draft = PreviewDestination(DraftDestination());
+    const auto targetPath = [&](const QFileInfo &source) {
+        return needsDirectory && !_useName ? QDir(preview).filePath(source.fileName()) : draft;
+    };
     QString existingDirectory;
     const QString directoryError =
         path.isEmpty() || path.contains(QChar::Null) || !filesystemDestination
@@ -269,14 +272,14 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
         nameError = _useName;
     } else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
-               (!peerDestination || _destinationContext->PeerIsFilesystem) &&
-               _destinationContext->IsInsideSourceDirectory(draft))
-        error = QCoreApplication::translate("qtfiletransfertransaction",
-                                            "Destination is inside the source folder: %1")
-                    .arg(draft);
-    const auto targetPath = [&](const QFileInfo &source) {
-        return needsDirectory && !_useName ? QDir(preview).filePath(source.fileName()) : draft;
-    };
+               filesystemDestination) {
+        const QString target =
+            _sources.size() == 1 ? targetPath(QFileInfo(_sources.first())) : draft;
+        if (_destinationContext->IsInsideSourceDirectory(target))
+            error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Destination is inside the source folder: %1")
+                        .arg(target);
+    }
     if (error.isEmpty() && checkBatch && _destinationContext &&
         _destinationContext->LocalFileTransfer) {
         for (const QString &path : _sources) {
