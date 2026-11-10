@@ -165,6 +165,28 @@ class DeleteConfirmationTests final : public QObject {
         QCOMPARE(dialog.result(), int(QDialog::Rejected));
     }
 
+    void largerTextKeepsShortListReadable() {
+        QtDeleteConfirmation::Request request;
+        request.location = "/source";
+        request.names = {"first.txt", "second.txt"};
+        QtDeleteConfirmation dialog(request);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowActive(&dialog));
+        auto *names = dialog.findChild<QListView *>("deleteSelectedNames");
+        QVERIFY(names);
+
+        QFont larger = dialog.font();
+        larger.setPixelSize(32);
+        dialog.setFont(larger);
+        const auto last = names->model()->index(1, 0);
+        QTRY_VERIFY(names->viewport()->rect().contains(names->visualRect(last)));
+        QCOMPARE(names->verticalScrollBar()->maximum(), 0);
+        QVERIFY(
+            UiInspection::fullyVisible(*dialog.findChild<QPushButton *>("deleteCancel"), dialog));
+        QVERIFY(
+            UiInspection::fullyVisible(*dialog.findChild<QPushButton *>("deleteConfirm"), dialog));
+    }
+
     void defaultAndReadOnlyDoNotDelete() {
         for (bool readOnly : {false, true})
             for (int cancel = 0; cancel < 3; ++cancel) {

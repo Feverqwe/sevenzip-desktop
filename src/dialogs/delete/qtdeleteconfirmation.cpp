@@ -30,6 +30,33 @@ class DeleteNamesModel final : public QStringListModel {
         return QStringListModel::data(index, role);
     }
 };
+
+class DeleteNamesView final : public QListView {
+  public:
+    DeleteNamesView(const QStringList &names, QWidget *parent) : QListView(parent) {
+        setObjectName("deleteSelectedNames");
+        setModel(new DeleteNamesModel(names, this));
+        setEditTriggers(QAbstractItemView::NoEditTriggers);
+        setSelectionMode(QAbstractItemView::NoSelection);
+        setUniformItemSizes(true);
+        setTextElideMode(Qt::ElideMiddle);
+        setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        updateHeight();
+    }
+
+  protected:
+    void changeEvent(QEvent *event) override {
+        QListView::changeEvent(event);
+        if (model() &&
+            (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange))
+            updateHeight();
+    }
+
+  private:
+    void updateHeight() {
+        setFixedHeight(sizeHintForRow(0) * qMin(8, model()->rowCount()) + 2 * frameWidth());
+    }
+};
 } // namespace
 
 QtDeleteConfirmation::QtDeleteConfirmation(Request request, QWidget *parent)
@@ -89,20 +116,8 @@ void QtDeleteConfirmation::buildPresentation() {
     consequence_ = label("deleteConsequence");
     restriction_ = label("deleteRestriction");
     restriction_->setVisible(request_.readOnly);
-    if (request_.names.size() > 1) {
-        auto *names = new QListView(this);
-        names->setObjectName("deleteSelectedNames");
-        names->setModel(new DeleteNamesModel(request_.names, names));
-        names->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        names->setSelectionMode(QAbstractItemView::NoSelection);
-        names->setUniformItemSizes(true);
-        names->setTextElideMode(Qt::ElideMiddle);
-        names->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        names->setFixedHeight(names->sizeHintForRow(0) *
-                                  int(qMin<qsizetype>(8, request_.names.size())) +
-                              2 * names->frameWidth());
-        body->addWidget(names);
-    }
+    if (request_.names.size() > 1)
+        body->addWidget(new DeleteNamesView(request_.names, this));
 }
 
 void QtDeleteConfirmation::refreshText() {
