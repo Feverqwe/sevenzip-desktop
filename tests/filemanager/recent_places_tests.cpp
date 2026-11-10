@@ -118,10 +118,18 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
             RecentPlacesMenu::Choose(*menu, *entry);
         };
         suppliedPassword = QStringLiteral("incorrect");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        const QString draft = QStringLiteral("unfinished folder");
         if (favorite)
             openFavorite(window, "Saved archive");
-        else
+        else {
+            PanelKeys::focusAddress(address);
+            address->selectAll();
+            QTest::keyClicks(address, draft);
+            address->setSelection(0, 10);
             openRecent();
+        }
         QTRY_COMPARE(prompts, 2);
         const auto showsError = [&] {
             const QString message = window.statusBar()->currentMessage();
@@ -138,6 +146,8 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
             QTRY_VERIFY(showsError());
         } else {
             QCOMPARE(location(window), folder);
+            QCOMPARE(address->text(), draft);
+            QCOMPARE(address->selectedText(), QStringLiteral("unfinished"));
         }
         suppliedPassword = password;
         if (favorite)
