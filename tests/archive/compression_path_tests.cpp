@@ -1034,6 +1034,38 @@ class CompressionPathTests final : public QObject {
             QVERIFY(!QFileInfo::exists(original.filePath("nested/" + draft)));
         }
     }
+    void absoluteArchiveNameCanBypassAnInvalidFolderDraft() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        CreateArchiveDialog dialog(dir_.path(), {source_});
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
+        const QString invalidFolder = fixture.path() + QChar::Null + "/invalid";
+        folder->setText(invalidFolder);
+        name->setText("report.7z");
+        dialog.show();
+        bool rejected = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                rejected = true;
+                warning->accept();
+            }
+        });
+        submit(dialog);
+        QVERIFY(rejected && dialog.isVisible());
+        QCOMPARE(folder->selectedText(), invalidFolder);
+
+        const QString target = fixture.filePath("report.7z");
+        name->setText(QDir::toNativeSeparators(target));
+        QTimer::singleShot(0, &dialog, [] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                warning->accept();
+        });
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), target);
+    }
+
     void emptyDestinationKeepsInitialPrefixForBrowseAndAccept() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

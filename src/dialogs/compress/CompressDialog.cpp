@@ -470,11 +470,18 @@ bool CCompressDialog::GetFinalPath_Smart(QString &resPath) const {
     UString name(m_ArchivePath.toStdWString().c_str());
     name.Trim();
     FString fullPath;
+    if (NWindows::NFile::NName::GetRootPrefixSize(name) != 0) {
+        if (!NWindows::NFile::NName::GetFullPath(us2fs(name), fullPath))
+            return false;
+        resPath = QString::fromWCharArray(fs2us(fullPath).Ptr());
+        return true;
+    }
+    if (DirPrefix.contains(QChar::Null))
+        return false;
     UString dirPrefx(DirPrefix.toStdWString().c_str());
     if (dirPrefx.IsEmpty())
         dirPrefx = StartDirPrefix.toStdWString().c_str();
-    else if (NWindows::NFile::NName::GetRootPrefixSize(dirPrefx) == 0 &&
-             NWindows::NFile::NName::GetRootPrefixSize(name) == 0) {
+    else if (NWindows::NFile::NName::GetRootPrefixSize(dirPrefx) == 0) {
         const UString start(StartDirPrefix.toStdWString().c_str());
         FString directory;
         if (!NWindows::NFile::NName::GetFullPath(start.IsEmpty() ? nullptr : us2fs(start).Ptr(),

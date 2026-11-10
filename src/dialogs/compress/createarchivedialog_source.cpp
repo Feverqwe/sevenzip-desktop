@@ -94,8 +94,6 @@ void CreateArchiveDialog::initializeSourceControls(const NCompressDialog::CInfo 
 }
 
 QString CreateArchiveDialog::archivePath() const {
-    if (archiveFolder_->text().contains(QChar::Null))
-        return {};
     QString result;
     archiveNameState_.GetFinalPath_Smart(result);
     return result;
@@ -227,7 +225,8 @@ void CreateArchiveDialog::validateAndAccept() {
         const std::wstring message = pathError.toStdWString();
         ShowErrorMessageQt(this, message.c_str());
         auto *field = name_;
-        if (archiveFolder_->text().contains(QChar::Null) || (invalidFolder && !invalidName))
+        if (relativeName &&
+            (archiveFolder_->text().contains(QChar::Null) || (invalidFolder && !invalidName)))
             field = archiveFolder_;
         else if (hasFileName && !invalidName && !name_->text().contains(QChar::Null) &&
                  relativeName) {
