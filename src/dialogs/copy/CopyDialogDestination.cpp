@@ -66,7 +66,7 @@ bool CanSearchDirectory(const QFileInfo &directory) {
 }
 
 QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory,
-                                  QString &existingDirectory) {
+                                  QString &existingDirectory, bool requireWritable = true) {
     QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
     for (;;) {
         const QFileInfo directory(path);
@@ -77,7 +77,7 @@ QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirect
                 return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Cannot access folder: %1"))
                     .arg(path);
             existingDirectory = path;
-            return directory.isWritable()
+            return !requireWritable || directory.isWritable()
                        ? QString()
                        : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The folder is read-only: %1"))
                              .arg(path);
@@ -189,6 +189,24 @@ QString CCopyDialog::PreviewDestination(const QString &value) const {
     // CApp adds its native panel prefix to a relative Value. This preview
     // never replaces that raw Value or the native normalization step.
     return NormalizeCopyDestination(_destinationContext->RelativeBase + value);
+}
+
+QString CCopyDialog::BrowseStartDirectory() const {
+    const QString draft = _pathEdit->text();
+    if (!draft.contains(QChar::Null)) {
+        const QString preview = PreviewDestination(draft);
+        if (!_copyMove)
+            return preview;
+        const QFileInfo destination(preview);
+        const bool needsDirectory = _sources.size() > 1 || draft.endsWith('/') ||
+                                    draft.endsWith(QDir::separator()) || destination.isDir();
+        QString existingDirectory;
+        if (IsValidWindowsPath(draft, preview) &&
+            DestinationDirectoryError(destination, needsDirectory, existingDirectory, false)
+                .isEmpty())
+            return preview;
+    }
+    return PreviewDestination(ToQString(Value));
 }
 
 bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField) {

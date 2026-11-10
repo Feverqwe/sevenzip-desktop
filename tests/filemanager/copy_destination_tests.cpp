@@ -752,13 +752,15 @@ class CopyDestinationTests final : public QObject {
     }
 
     void browsePreservesNameDraft_data() {
-        QTest::addColumn<bool>("invalidDraft");
-        QTest::newRow("valid-path") << false;
-        QTest::newRow("invalid-path") << true;
+        QTest::addColumn<QString>("kind");
+        QTest::newRow("valid-path") << QString("valid");
+        QTest::newRow("invalid-path") << QString("invalid");
+        QTest::newRow("blocked-parent") << QString("blocked-parent");
+        QTest::newRow("existing-final-file") << QString("existing-file");
     }
 
     void browsePreservesNameDraft() {
-        QFETCH(bool, invalidDraft);
+        QFETCH(QString, kind);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString selected = fixture.filePath("selected folder");
@@ -769,8 +771,16 @@ class CopyDestinationTests final : public QObject {
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         name->setText("draft.txt");
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
-        if (invalidDraft)
+        if (kind == "invalid")
             path->setText(path->text() + QChar::Null);
+        if (kind == "blocked-parent" || kind == "existing-file") {
+            QFile occupied(QDir(selected).filePath("existing.txt"));
+            QVERIFY(occupied.open(QIODevice::WriteOnly));
+            occupied.close();
+            path->setText(kind == "blocked-parent" ? occupied.fileName() + "/output.txt"
+                                                   : occupied.fileName());
+        }
+        const QString initial = kind == "existing-file" ? selected : fixture.path();
         const QString destination = path->text();
         path->setFocus();
         path->setSelection(5, -4);
@@ -785,7 +795,7 @@ class CopyDestinationTests final : public QObject {
                     if (picker->isVisible())
                         picker->reject();
                 });
-                QCOMPARE(picker->directory().canonicalPath(), QDir(fixture.path()).canonicalPath());
+                QCOMPARE(picker->directory().canonicalPath(), QDir(initial).canonicalPath());
                 if (accept) {
                     picker->setDirectory(selected);
                     picker->selectFile(selected);
