@@ -588,6 +588,7 @@ class CPanel : public QObject {
     void SaveSelectedState(CSelectedState &state);
     void GetSelectedNames(UStringVector &selectedNames);
     void Get_ItemIndices_Selected(CRecordVector<UInt32> &indices) const;
+    bool HasOperatedItems() const;
     void Get_ItemIndices_Operated(CRecordVector<UInt32> &indices) const;
     void Get_ItemIndices_All(CRecordVector<UInt32> &indices) const;
     void Get_ItemIndices_OperSmart(CRecordVector<UInt32> &indices) const;
@@ -813,6 +814,7 @@ class CPanel : public QObject {
     bool GetItem_BoolProp(UInt32 index, PROPID propID) const;
     UString GetItemPrefix(unsigned index) const;
     unsigned GetRealItemIndex(int indexInListView) const;
+    UInt32 OperatedFocusedIndex() const;
     UInt32 GetFocusedFileIndex() const;
     UInt32 GetFolderItemCount() const;
     void EnsureSelectionVectorSize();

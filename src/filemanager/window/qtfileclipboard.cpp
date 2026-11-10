@@ -115,11 +115,8 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
     const bool ready = !window_.app_.QtOperations().closed() &&
                        !window_.app_.QtOperations().blocking() && !window_.sourceArchiveProgress_ &&
                        !ui.locationUnavailable && !ui.scanningDisk && !ui.scanningArchive;
-    CRecordVector<UInt32> indices;
-    if (ready)
-        source.Get_ItemIndices_Operated(indices);
     Availability available;
-    available.copy = ready && !indices.IsEmpty() && source.DoesItSupportOperations();
+    available.copy = ready && source.HasOperatedItems() && source.DoesItSupportOperations();
     const QFileInfo destination(ui.directory);
     const bool writableFolder = ready && source.GetFolder() && source.IsFSFolder() &&
                                 !source.IsThereReadOnlyFolder() && destination.isDir() &&

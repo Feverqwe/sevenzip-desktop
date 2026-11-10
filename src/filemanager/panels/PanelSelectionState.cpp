@@ -31,16 +31,23 @@ void CPanel::Get_ItemIndices_Operated(CRecordVector<UInt32> &indices) const {
     Get_ItemIndices_Selected(indices);
     if (!indices.IsEmpty())
         return;
-    if (_selectionList.GetSelectedCount() == 0)
-        return;
+    const UInt32 index = OperatedFocusedIndex();
+    if (index != kParentIndex)
+        indices.Add(index);
+}
+
+bool CPanel::HasOperatedItems() const {
+    for (unsigned i = 0; i < _selectedStatusVector.Size(); ++i)
+        if (_selectedStatusVector[i])
+            return true;
+    return OperatedFocusedIndex() != kParentIndex;
+}
+
+UInt32 CPanel::OperatedFocusedIndex() const {
     const int focusedItem = _selectionList.GetFocusedItem();
-    if (focusedItem >= 0) {
-        if (_selectionList.IsItemSelected(focusedItem)) {
-            const unsigned realIndex = GetRealItemIndex(focusedItem);
-            if (realIndex != kParentIndex)
-                indices.Add(realIndex);
-        }
-    }
+    if (focusedItem >= 0 && _selectionList.IsItemSelected(focusedItem))
+        return GetRealItemIndex(focusedItem);
+    return kParentIndex;
 }
 
 void CPanel::Get_ItemIndices_All(CRecordVector<UInt32> &indices) const {

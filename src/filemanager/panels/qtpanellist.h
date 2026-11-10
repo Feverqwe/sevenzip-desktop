@@ -34,7 +34,6 @@ class QtPanelList {
     }
     bool IsBound() const { return view_ && view_->model() && view_->selectionModel(); }
     int GetItemCount() const;
-    int GetSelectedCount() const;
     int GetFocusedItem() const;
     bool IsItemSelected(int row) const;
     UString GetItemName(unsigned row) const;
