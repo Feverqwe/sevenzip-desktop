@@ -235,12 +235,17 @@ void CCopyDialog::OnButtonSetPath() {
     UString selectedPath;
     const bool chosen = MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)),
                                           initialDirectory, selectedPath);
-    _pathEdit->setFocus();
-    if (!chosen)
+    if (!chosen) {
+        _pathEdit->setFocus();
         return;
+    }
     NWindows::NFile::NName::NormalizeDirPathPrefix(selectedPath);
     SetPathText(ToQString(selectedPath));
-    _pathEdit->setFocus();
+    QLineEdit *field = _pathEdit;
+    UpdateDestination(false, &field);
+    field->setFocus();
+    if (field != _pathEdit)
+        field->selectAll();
 }
 
 bool CCopyDialog::ReadPath(UString &path) {
