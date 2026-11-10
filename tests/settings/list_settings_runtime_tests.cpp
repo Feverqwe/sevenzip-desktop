@@ -74,7 +74,14 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
 
+    void hiddenFoldersCanBeToggled_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+
     void hiddenFoldersCanBeToggled() {
+        QFETCH(bool, icons);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString hidden = fixture.filePath(".private");
@@ -122,6 +129,13 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         action(window, "selectAllAction")->trigger();
         QCOMPARE(left->selectionModel()->selectedRows().size(), 3);
         left->setCurrentCell(filesystemRow(window, ".private"), 0, QItemSelectionModel::NoUpdate);
+        QWidget *list = left;
+        if (icons) {
+            action(window, "viewMode0Action")->trigger();
+            list = window.findChild<QWidget *>("filePanel0")->findChild<QListView *>("iconList");
+        }
+        QVERIFY(list && list->isVisible());
+        QTRY_VERIFY(list->hasFocus());
         auto *settings = action(window, "settingsAction");
         backend.held = true;
         QVERIFY(setListOptions(window, settings, false, "showHiddenFoldersOption"));
@@ -135,9 +149,8 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QVERIFY(filesystemRow(window, ".notes.txt") >= 0);
         QVERIFY(left->currentIndex().isValid());
         QVERIFY(!left->currentIndex().data(QtPanelList::DirectoryRole).toBool());
-        QTRY_VERIFY(left->isEnabled());
-        left->setFocus();
-        QTRY_VERIFY(left->hasFocus());
+        QTRY_VERIFY(list->isEnabled());
+        QTRY_VERIFY(list->hasFocus());
         auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
         QVERIFY(summary);
         QTRY_COMPARE(summary->text(), QString("Selected: 2 / 2"));
@@ -153,6 +166,8 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         twoPanels->trigger();
         QTRY_VERIFY(peer->isVisible() && peer->isEnabled());
         QCOMPARE(peer->rowCount(), 2);
+        if (icons)
+            action(window, "viewMode3Action")->trigger();
         left->setFocus();
         QTRY_VERIFY(left->hasFocus());
         window.openPath(hidden);
