@@ -136,6 +136,38 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(files->model()->index(0, 0).data().toString(), QString("keep.txt"));
         QCOMPARE(backend.listCalls, 0);
     }
+    void typedRelativePathDoesNotCompleteFromHierarchy() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString current = fixture.filePath("project reports");
+        const QString child = QDir(current).filePath("project");
+        QVERIFY(QDir().mkpath(child));
+        QVERIFY(ExternalEditorFixture::write(QDir(child).filePath("keep.txt"), "contents"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(current);
+        auto *combo = window.findChild<QComboBox *>("pathCombo");
+        auto *address = combo->lineEdit();
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        PanelKeys::focusAddress(address);
+        AddressPopupSupport::show(*combo);
+        QTRY_VERIFY(combo->view()->isVisible());
+        combo->hidePopup();
+        QVERIFY(WindowActivation::waitForActive(window));
+        PanelKeys::focusAddress(address);
+        address->selectAll();
+        QTest::keyClicks(address, "project");
+        QCOMPARE(address->text(), QString("project"));
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(filesystemRow(window, "keep.txt"), 0);
+        QCOMPARE(
+            QFileInfo(ToQString(files->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
+            QFileInfo(child).canonicalFilePath());
+    }
+
     void decorativeIconAllowsPaddingClipButRejectsGlyphClip() {
         QWidget window;
         window.resize(320, 80);

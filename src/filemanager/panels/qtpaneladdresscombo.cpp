@@ -46,6 +46,7 @@ QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
     setAttribute(Qt::WA_LayoutUsesWidgetRect);
 #endif
     setEditable(true);
+    setCompleter(nullptr);
     // Source address edits are submitted only by Return or a popup choice.
     // Qt's implicit label matching on blur can activate a second hierarchy row.
     disconnect(lineEdit(), SIGNAL(editingFinished()), nullptr, nullptr);
