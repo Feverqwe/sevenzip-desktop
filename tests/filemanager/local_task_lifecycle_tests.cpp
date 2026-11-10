@@ -101,6 +101,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QTest::newRow("copy-command") << false << false << false;
         QTest::newRow("move-command") << false << false << true;
         QTest::newRow("clipboard-directory") << false << true << false;
+        QTest::newRow("clipboard-move") << false << true << true;
 #ifdef Q_OS_UNIX
         QTest::newRow("clipboard-directory-symlink") << true << true << false;
 #endif
@@ -145,7 +146,16 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             sourceObserver->show();
             sourceObserver->openPath(fixture.path());
             QTRY_VERIFY(filesystemRow(*sourceObserver, name) >= 0);
-            table(*sourceObserver)->sourcePanel->Set_AutoRefresh_Mode(false);
+            auto *sourceView = table(*sourceObserver);
+            sourceView->sourcePanel->Set_AutoRefresh_Mode(false);
+            if (viaClipboard) {
+                QVERIFY(WindowActivation::waitForActive(*sourceObserver));
+                sourceView->setFocus();
+                sourceView->selectRow(filesystemRow(*sourceObserver, name));
+                QTest::keySequence(sourceView, QKeySequence::Cut);
+                QCOMPARE(QApplication::clipboard()->mimeData()->urls(),
+                         QList<QUrl>{QUrl::fromLocalFile(source)});
+            }
         }
         window.show();
         window.openPath(viaClipboard ? opened : fixture.path());
@@ -156,12 +166,14 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         QCOMPARE(window.focusWidget(), view);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         if (viaClipboard) {
-            auto *mime = new QMimeData;
-            mime->setUrls({QUrl::fromLocalFile(source)});
-            QApplication::clipboard()->setMimeData(mime);
+            if (!move) {
+                auto *mime = new QMimeData;
+                mime->setUrls({QUrl::fromLocalFile(source)});
+                QApplication::clipboard()->setMimeData(mime);
+            }
             auto *paste = action(window, "pasteFilesAction");
             QTRY_VERIFY(paste->isEnabled());
-            paste->trigger();
+            QTest::keySequence(view, QKeySequence::Paste);
         } else {
             const int row = filesystemRow(window, name);
             QVERIFY(row >= 0);
@@ -184,7 +196,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             action(window, move ? "moveAction" : "copyAction")->trigger();
         }
         QTRY_VERIFY(filesystemRow(observer, name) >= 0);
-        QTRY_COMPARE(filesystemRow(window, name) >= 0, !move);
+        QTRY_COMPARE(filesystemRow(window, name) >= 0, viaClipboard || !move);
         if (sourceObserver)
             QTRY_COMPARE(filesystemRow(*sourceObserver, name), -1);
         QCOMPARE(read(QDir(destination).filePath(name)), QByteArray("source bytes"));
@@ -195,7 +207,7 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         if (linkedDestination)
             QVERIFY(QFileInfo(opened).isSymLink());
         if (viaClipboard)
-            QVERIFY(action(window, "pasteFilesAction")->isEnabled());
+            QCOMPARE(action(window, "pasteFilesAction")->isEnabled(), !move);
         QTRY_COMPARE(window.focusWidget(), view);
     }
 
@@ -235,8 +247,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         const auto items = files->model()->match(files->model()->index(0, 0), Qt::DisplayRole,
                                                  "source", 1, Qt::MatchExactly);
         QCOMPARE(items.size(), 1);
-        files->setCurrentIndex(items.front());
-        files->selectRow(items.front().row());
+        QTest::mouseClick(files->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          files->visualRect(items.front()).center());
+        QCOMPARE(files->selectionModel()->selectedRows(), items);
+        QString rejectedDestination;
         QTimer submit;
         connect(&submit, &QTimer::timeout, &window, [&] {
             auto *dialog = window.findChild<CopyDialog *>("copyDialog");
@@ -245,8 +259,10 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
             submit.stop();
             dialog->findChild<QLineEdit *>("copyDestination")->setText(destination);
             dialog->accept();
-            if (dialog->isVisible())
+            if (dialog->isVisible()) {
+                rejectedDestination = dialog->findChild<QLabel *>("copyDestinationMessage")->text();
                 dialog->reject();
+            }
         });
         bool failed = false;
         QString report;
@@ -262,10 +278,19 @@ class LocalTaskLifecycleTests final : public QObject, protected MainWindowTestSu
         dismissResult.start(5);
         submit.start(1);
         QTest::keyClick(files, Qt::Key_F6);
+        QVERIFY2(rejectedDestination.isEmpty(), qPrintable(rejectedDestination));
         const QString moved = QDir(destination).filePath("source/opened.zip");
         auto *retryArchive = peerPanel->findChild<QPushButton *>("navigationRetry1");
         QVERIFY(retryArchive);
-        QTRY_VERIFY(failed || retryArchive->isVisible());
+        QTRY_VERIFY2(
+            failed || retryArchive->isVisible(),
+            qPrintable(QString("source=%1 moved=%2 submitted=%3 archive=%4 notice=%5 status=%6")
+                           .arg(QFileInfo::exists(source))
+                           .arg(QFileInfo::exists(moved))
+                           .arg(!submit.isActive())
+                           .arg(peer->sourcePanel->IsArcFolder())
+                           .arg(retryArchive->parentWidget()->isVisible())
+                           .arg(window.statusBar()->currentMessage())));
         QTRY_VERIFY(QtLocalFileTask::Active().isEmpty());
         if (failed) {
             QVERIFY(report.contains("Could not delete source after copying:"));
