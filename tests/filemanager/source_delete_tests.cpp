@@ -413,6 +413,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         const auto selection = view->selectionModel()->selection();
         bool observed = false;
         bool cancelDefault = false;
+        bool reviewedByKeyboard = false;
         QString title, message;
         QStringList listedNames;
         bool reports = true;
@@ -441,6 +442,17 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QFile external(fixture.filePath("external.bin"));
             if (external.open(QIODevice::WriteOnly))
                 external.write("external bytes");
+            if (batch) {
+                auto *names = box->findChild<QListView *>("deleteSelectedNames");
+                for (int step = 0; names && !names->hasFocus() && step < 8; ++step)
+                    QTest::keyClick(box->focusWidget(), Qt::Key_Tab);
+                reviewedByKeyboard = names && names->hasFocus();
+                if (reviewedByKeyboard) {
+                    QTest::keyClick(names, Qt::Key_End);
+                    QTest::keyClick(names, Qt::Key_Escape);
+                    return;
+                }
+            }
             QTest::keyClick(box, cancel ? Qt::Key_Escape : Qt::Key_Return);
         });
         refusal.start(5);
@@ -453,9 +465,10 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(observed);
         QVERIFY(cancelDefault);
         QCOMPARE(title, QCoreApplication::translate("DeleteRedesign", "Move to Trash?"));
-        if (batch)
+        if (batch) {
+            QVERIFY(reviewedByKeyboard);
             QCOMPARE(listedNames, (QStringList{name, otherName}));
-        else
+        } else
             QVERIFY(message.contains(name));
         QVERIFY(reports);
         // Original Delete returns before RefreshListCtrl on No or Cancel.
