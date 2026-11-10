@@ -1306,21 +1306,28 @@ class DragDropUiTests final : public QObject {
         QTest::addColumn<bool>("directory");
         QTest::addColumn<bool>("unreadable");
         QTest::addColumn<bool>("move");
-        QTest::addColumn<bool>("missing");
-        QTest::newRow("file") << false << false << false << false;
-        QTest::newRow("directory-url") << true << false << false << false;
-        QTest::newRow("batch-copy-with-missing-source") << false << false << false << true;
-        QTest::newRow("batch-move-with-missing-source") << false << false << true << true;
+        QTest::addColumn<QString>("batchBlocker");
+        QTest::newRow("file") << false << false << false << QString();
+        QTest::newRow("directory-url") << true << false << false << QString();
+        QTest::newRow("batch-copy-with-missing-source")
+            << false << false << false << QString("missing");
+        QTest::newRow("batch-move-with-missing-source")
+            << false << false << true << QString("missing");
+        QTest::newRow("batch-copy-with-type-conflict")
+            << false << false << false << QString("type");
+        QTest::newRow("batch-move-with-type-conflict") << false << false << true << QString("type");
 #ifdef Q_OS_UNIX
-        QTest::newRow("batch-with-unreadable-source") << false << true << false << false;
-        QTest::newRow("merge-with-unreadable-source") << true << true << true << false;
+        QTest::newRow("batch-with-unreadable-source") << false << true << false << QString();
+        QTest::newRow("merge-with-unreadable-source") << true << true << true << QString();
 #endif
     }
     void externalDropCanRetryAnOverwrite() {
         QFETCH(bool, directory);
         QFETCH(bool, unreadable);
         QFETCH(bool, move);
-        QFETCH(bool, missing);
+        QFETCH(QString, batchBlocker);
+        const bool missing = batchBlocker == "missing";
+        const bool typeConflict = batchBlocker == "type";
         QTemporaryDir source, target;
         QVERIFY(source.isValid() && target.isValid());
         const QString entry = directory ? QString("same folder") : QString("same name.txt");
@@ -1355,7 +1362,12 @@ class DragDropUiTests final : public QObject {
             if (QFileInfo(blocked).isReadable())
                 QSKIP("The current user can still read the file");
         }
-        if (missing || (unreadable && !move))
+        const QString secondTarget = target.filePath("second.txt");
+        if (typeConflict) {
+            QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
+            QVERIFY(QDir().mkdir(secondTarget));
+        }
+        if (!batchBlocker.isEmpty() || (unreadable && !move))
             mime.setUrls({QUrl::fromLocalFile(input), QUrl::fromLocalFile(blocked)});
         int prompts = 0;
         QString report;
@@ -1391,7 +1403,7 @@ class DragDropUiTests final : public QObject {
         const QPoint point(5, view->viewport()->height() - 5);
         const auto actions =
             move ? Qt::CopyAction | Qt::MoveAction : Qt::DropActions(Qt::CopyAction);
-        for (int attempt = unreadable || missing ? 0 : 1; attempt <= 2; ++attempt) {
+        for (int attempt = unreadable || !batchBlocker.isEmpty() ? 0 : 1; attempt <= 2; ++attempt) {
             QDragEnterEvent enter(DragEventPosition(point), actions, &mime, Qt::MiddleButton,
                                   Qt::NoModifier);
             QCoreApplication::sendEvent(view->viewport(), &enter);
@@ -1405,18 +1417,21 @@ class DragDropUiTests final : public QObject {
             QCOMPARE(SourceExtractFixture::readFile(output),
                      attempt < 2 ? QByteArray("original") : QByteArray("incoming"));
             if (attempt == 0) {
-                QVERIFY2(QDir::fromNativeSeparators(report).contains(blocked), qPrintable(report));
-                if (!directory)
-                    QVERIFY(!QFileInfo::exists(target.filePath("second.txt")));
+                QVERIFY2(QDir::fromNativeSeparators(report).contains(typeConflict ? secondTarget
+                                                                                  : blocked),
+                         qPrintable(report));
+                if (typeConflict)
+                    QVERIFY(QDir().rmdir(secondTarget));
+                else if (!directory)
+                    QVERIFY(!QFileInfo::exists(secondTarget));
                 if (missing)
                     QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
-                else
+                else if (unreadable)
                     QVERIFY(QFile::setPermissions(blocked, permissions));
             }
         }
-        if (missing || (unreadable && !move))
-            QCOMPARE(SourceExtractFixture::readFile(target.filePath("second.txt")),
-                     QByteArray("other bytes"));
+        if (!batchBlocker.isEmpty() || (unreadable && !move))
+            QCOMPARE(SourceExtractFixture::readFile(secondTarget), QByteArray("other bytes"));
     }
 
     void internalDropCanRetryAfterDestinationAccessReturns() {

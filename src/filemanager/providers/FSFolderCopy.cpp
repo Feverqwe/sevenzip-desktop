@@ -637,8 +637,8 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
     if (!isAltDest && !IsPathSepar(destDirPrefix.Back()))
         return E_INVALIDARG;
 
-    const QString moveDirectory =
-        moveMode && !isAltDest ? QString::fromWCharArray(fs2us(destDirPrefix)) : QString();
+    const QString destinationDirectory =
+        isAltDest ? QString() : QString::fromWCharArray(fs2us(destDirPrefix));
     const auto reportMissing = [callback](const UString &path) {
         return callback->ShowMessage(
             QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot find the file : ")) +
@@ -652,11 +652,23 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
             RINOK(reportMissing(itemsPaths[i]))
             return E_FAIL;
         }
+        if (!destinationDirectory.isEmpty()) {
+            const QFileInfo target(QDir(destinationDirectory),
+                                   QString::fromWCharArray(fs2us(fi.Name)));
+            if (!QtIsFileSystemLink(target.filePath())) {
+                const QFileInfo source(QString::fromWCharArray(fs2us(path)));
+                const QString error = QtTransferTargetTypeError(source, target);
+                if (!error.isEmpty()) {
+                    RINOK(callback->ShowMessage(UString(error.toStdWString().c_str())))
+                    return E_FAIL;
+                }
+            }
+            if (moveMode) {
+                RINOK(CheckCopySource(path, callback, target, destinationDirectory))
+            }
+        }
         if (!moveMode) {
             RINOK(CheckCopySource(path, callback))
-        } else if (!moveDirectory.isEmpty()) {
-            const QFileInfo target(QDir(moveDirectory), QString::fromWCharArray(fs2us(fi.Name)));
-            RINOK(CheckCopySource(path, callback, target, moveDirectory))
         }
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             if (!isAltDest) {
