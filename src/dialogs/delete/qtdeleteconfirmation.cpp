@@ -8,9 +8,12 @@
 #include <QDir>
 #include <QEvent>
 #include <QFileInfo>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QListView>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QShowEvent>
 #include <QStringListModel>
 #include <QStyle>
@@ -45,6 +48,22 @@ class DeleteNamesView final : public QListView {
     }
 
   protected:
+    void keyPressEvent(QKeyEvent *event) override {
+        QListView::keyPressEvent(event);
+        switch (event->key()) {
+        case Qt::Key_Up:
+        case Qt::Key_Down:
+        case Qt::Key_Home:
+        case Qt::Key_End:
+        case Qt::Key_PageUp:
+        case Qt::Key_PageDown:
+            revealCurrentRow();
+            break;
+        default:
+            break;
+        }
+    }
+
     void changeEvent(QEvent *event) override {
         QListView::changeEvent(event);
         if (model() &&
@@ -53,6 +72,24 @@ class DeleteNamesView final : public QListView {
     }
 
   private:
+    void revealCurrentRow() {
+        if (!hasFocus() || !currentIndex().isValid())
+            return;
+        for (auto *parent = parentWidget(); parent; parent = parent->parentWidget()) {
+            if (auto *scroll = qobject_cast<QScrollArea *>(parent)) {
+                const QRect item = visualRect(currentIndex());
+                const int top = viewport()->mapTo(scroll->viewport(), item.topLeft()).y();
+                const int bottom = top + item.height() - 1;
+                auto *bar = scroll->verticalScrollBar();
+                if (top < 0)
+                    bar->setValue(bar->value() + top);
+                else if (bottom >= scroll->viewport()->height())
+                    bar->setValue(bar->value() + bottom - scroll->viewport()->height() + 1);
+                break;
+            }
+        }
+    }
+
     void updateHeight() {
         setFixedHeight(sizeHintForRow(0) * qMin(8, model()->rowCount()) + 2 * frameWidth());
     }

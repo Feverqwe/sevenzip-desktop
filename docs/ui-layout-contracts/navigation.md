@@ -68,7 +68,9 @@ dialog preserve the selection. On macOS, Command–Backspace opens the confirmat
 from the file list.
 
 The body scrolls while both footer actions remain reachable at normal and compact
-sizes in English and Russian, including with long Unicode names. Trash uses the
+sizes in English and Russian, including with long Unicode names. Keyboard
+navigation in the selected-names list brings the current row into view even
+when the dialog body also needs to scroll. Trash uses the
 common progress view with the current path and item counts. Stop is observed
 between native calls. On refusal, the failed item stays in place and the source
 is refreshed to reflect any completed moves. Archive Move owns its separate
