@@ -134,6 +134,45 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(payload.readAll(), QByteArray("original bytes"));
     }
 
+#ifndef Q_OS_WIN
+    void hidingTheLastFolderDoesNotSelectParent() {
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        CFmSettings preferences;
+        preferences.Load(settings);
+        const auto restorePreferences = qScopeGuard([&] { preferences.Save(settings); });
+        auto options = preferences;
+        options.ShowDots = true;
+        options.ShowHiddenFolders = false;
+        options.Save(settings);
+
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir(fixture.path()).mkdir("visible"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 2);
+        const int row = filesystemRow(window, "visible");
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        view->setFocus();
+        action(window, "renameAction")->trigger();
+        auto *editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        editor->setText(".hidden");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_COMPARE(view->rowCount(), 1);
+        QVERIFY(QFileInfo(fixture.filePath(".hidden")).isDir());
+        QCOMPARE(view->currentIndex().data().toString(), QString(".."));
+        QVERIFY(view->selectionModel()->selectedRows().isEmpty());
+        QVERIFY(!action(window, "openItemAction")->isEnabled());
+    }
+#endif
+
     void activationUsesFocusedRow_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("icons");

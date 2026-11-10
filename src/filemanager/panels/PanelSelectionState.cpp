@@ -197,7 +197,8 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealF
         if (focusedPos >= _selectionList.GetItemCount())
             focusedPos = _selectionList.GetItemCount() - 1;
         // Select the initial parent row only in the original showDots mode.
-        SetFocusedSelectedItem(focusedPos, showDots && (focusedPos == 0), keepColumn);
+        SetFocusedSelectedItem(
+            focusedPos, showDots && focusedPos == 0 && !state.FocusedName_Defined, keepColumn);
     }
     if (revealFocused)
         _selectionList.EnsureVisible(_selectionList.GetFocusedItem());
