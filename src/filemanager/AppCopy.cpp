@@ -321,10 +321,12 @@ void CApp::CompleteCopy(bool preserveSourceSelection, bool restoreSourceFocus) {
     CPanel::CDisableNotify disableNotify2(srcPanel);
     RefreshTitleAlways();
     if (sameSource && (request->CopyToSame || request->Move || preserveSourceSelection))
-        srcPanel.RestoreLoadedSelection(request->SourceSelection);
+        srcPanel.RestoreLoadedSelection(request->SourceSelection,
+                                        !request->SourceSelection.KeepViewport);
     if (!request->CopyToSame) {
         if (sameDestination)
-            destPanel.RestoreLoadedSelection(request->DestinationSelection);
+            destPanel.RestoreLoadedSelection(request->DestinationSelection,
+                                             !request->DestinationSelection.KeepViewport);
         if (sameSource && !preserveSourceSelection)
             srcPanel.KillSelection();
     }

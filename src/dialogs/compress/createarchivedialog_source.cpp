@@ -1,5 +1,7 @@
+#include "7zip/UI/FileManager/PasswordDialogRes.h"
 #include "7zip/UI/FileManager/resource.h"
 #include "7zip/UI/GUI/CompressDialogRes.h"
+#include "7zip/UI/GUI/ExtractRes.h"
 #include "Windows/ErrorMsg.h"
 #include "Windows/FileFind.h"
 #include "Windows/FileName.h"
@@ -7,7 +9,10 @@
 #include "archive/codecs/archivecodeccatalog.h"
 #include "archive/operations/Update.h"
 #include "dialogs/compress/createarchivedialog.h"
+#include "filemanager/FormatUtils.h"
+#include "fileops/links/qtlinkservices.h"
 #include "fileops/native/correctfspath.h"
+#include "fileops/transfer/qttransfertargetname.h"
 #include "settings/ViewSettings.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -28,6 +33,11 @@ QString ArchiveDirectoryError(QString path) {
             if (!entry.isDir())
                 return QCoreApplication::translate("CopyRedesign", "Not a folder: %1")
                     .arg(QDir::toNativeSeparators(path));
+#ifdef Q_OS_UNIX
+            if (!entry.isExecutable())
+                return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                    .arg(QDir::toNativeSeparators(path));
+#endif
             if (!entry.isWritable())
                 return QCoreApplication::translate("CopyRedesign", "The folder is read-only: %1")
                     .arg(QDir::toNativeSeparators(path));
@@ -35,7 +45,8 @@ QString ArchiveDirectoryError(QString path) {
         }
         const QString parent = entry.absolutePath();
         if (parent == path)
-            return {};
+            return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                .arg(QDir::toNativeSeparators(path));
         path = parent;
     }
 }
@@ -83,8 +94,6 @@ void CreateArchiveDialog::initializeSourceControls(const NCompressDialog::CInfo 
 }
 
 QString CreateArchiveDialog::archivePath() const {
-    if (archiveFolder_->text().contains(QChar::Null))
-        return {};
     QString result;
     archiveNameState_.GetFinalPath_Smart(result);
     return result;
@@ -103,6 +112,11 @@ void CreateArchiveDialog::validateAndAccept() {
     }
     if (password_) {
         const bool protect = password_->isEnabled();
+        if (protect && password_->text().isEmpty()) {
+            ShowErrorMessageHwndResQt(this, IDD_PASSWORD);
+            password_->setFocus();
+            return;
+        }
         const auto error = CCompressDialog::CheckPassword(
             protect ? password_->text() : QString(),
             protect ? passwordConfirmation_->text() : QString(), showPassword_->isChecked(),
@@ -147,8 +161,15 @@ void CreateArchiveDialog::validateAndAccept() {
     const bool invalidFolder =
         relativeName && (FindInvalidWindowsPathCharacter(nativeFolder) >= 0 ||
                          HasEmptyWindowsPathComponent(nativeFolder, nativeResolved));
-    const QFileInfo target(resolved);
     const bool singleVolume = volumeInfo.VolumeSizes.IsEmpty();
+    CArchivePath archive;
+    archive.VolExtension = archiveNameState_.Get_ArcInfoEx().GetMainExt();
+    if (!codecs_ && archive.VolExtension.IsEmpty())
+        archive.VolExtension = format_->currentText().toStdWString().c_str();
+    archive.BaseExtension = archive.VolExtension;
+    archive.ParseFromPath(ToUString(resolved), k_ArcNameMode_Smart);
+    const QString output = ToQString(archive.GetFinalPath());
+    const QFileInfo target(output);
     const bool danglingTarget = singleVolume && target.isSymLink() && !target.exists();
     bool occupiedName = danglingTarget;
     QString pathError =
@@ -161,37 +182,37 @@ void CreateArchiveDialog::validateAndAccept() {
         occupiedName = true;
         pathError =
             QCoreApplication::translate("CreateArchiveDialog", "Archive path is a folder: %1")
-                .arg(QDir::toNativeSeparators(resolved));
+                .arg(QDir::toNativeSeparators(output));
     }
     if (danglingTarget)
-        pathError += '\n' + QDir::toNativeSeparators(resolved);
+        pathError += '\n' + QDir::toNativeSeparators(output);
     if (pathError.isEmpty() && singleVolume && target.exists()) {
         NWindows::NFile::NFind::CFileInfo existing;
-        const UString nativePath(QDir::toNativeSeparators(resolved).toStdWString().c_str());
+        const UString nativePath = ToUString(QDir::toNativeSeparators(output));
         if (existing.Find_FollowLink(us2fs(nativePath)) && existing.IsReadOnly()) {
             occupiedName = true;
             pathError =
                 QCoreApplication::translate("SevenZipDiagnostics", "The file is read-only") + '\n' +
-                QDir::toNativeSeparators(resolved);
+                QDir::toNativeSeparators(output);
         }
+#ifdef Q_OS_UNIX
+        if (pathError.isEmpty() && (!target.isFile() || !target.isReadable())) {
+            occupiedName = true;
+            pathError = ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, nativePath));
+        }
+#endif
     }
     if (pathError.isEmpty() && !singleVolume) {
-        CArchivePath volumes;
-        volumes.VolExtension = archiveNameState_.Get_ArcInfoEx().GetMainExt();
-        if (!codecs_ && volumes.VolExtension.IsEmpty())
-            volumes.VolExtension = format_->currentText().toStdWString().c_str();
-        volumes.BaseExtension = volumes.VolExtension;
-        volumes.ParseFromPath(UString(resolved.toStdWString().c_str()), k_ArcNameMode_Smart);
-        const UString first = volumes.GetFinalVolPath() + L".001";
+        const UString first = archive.GetFinalVolPath() + L".001";
         QString occupied;
-        for (const UString &candidate : {volumes.GetFinalPath(), first}) {
+        for (const UString &candidate : {archive.GetFinalPath(), first}) {
             if (NWindows::NFile::NFind::DoesFileOrDirExist(us2fs(candidate))) {
                 occupied = ToQString(candidate);
                 break;
             }
         }
         if (occupied.isEmpty())
-            occupied = ExistingVolume(volumes.GetFinalVolPath());
+            occupied = ExistingVolume(archive.GetFinalVolPath());
         if (!occupied.isEmpty()) {
             occupiedName = true;
             pathError =
@@ -204,7 +225,8 @@ void CreateArchiveDialog::validateAndAccept() {
         const std::wstring message = pathError.toStdWString();
         ShowErrorMessageQt(this, message.c_str());
         auto *field = name_;
-        if (archiveFolder_->text().contains(QChar::Null) || (invalidFolder && !invalidName))
+        if (relativeName &&
+            (archiveFolder_->text().contains(QChar::Null) || (invalidFolder && !invalidName)))
             field = archiveFolder_;
         else if (hasFileName && !invalidName && !name_->text().contains(QChar::Null) &&
                  relativeName) {
@@ -232,13 +254,32 @@ void CreateArchiveDialog::validateAndAccept() {
         }
         return;
     }
-    if (!checkVolumeSizes(volumeResult, volumeInfo))
+    const auto sourcesAvailable = [&] {
+        for (const auto &source : requiredSources_) {
+            const QFileInfo entry(source);
+            if (QtIsFileSystemLink(source))
+                continue;
+            const QString message =
+                entry.exists()
+                    ? QtTransferSourceError(entry, false)
+                    : QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                          QDir::toNativeSeparators(source);
+            if (message.isEmpty())
+                continue;
+            ShowErrorMessageQt(this, message.toStdWString().c_str());
+            return false;
+        }
+        return true;
+    };
+    if (!sourcesAvailable() || !checkVolumeSizes(volumeResult, volumeInfo) ||
+        (volumeResult == CCompressDialog::kConfirmSmallVolume && !sourcesAvailable()))
         return;
     // Existing outputs are opened/validated by source UpdateArchive after OK,
     // just as for the original form. The dialog must not reject update intent.
-    auto request = readRequest(resolved);
+    const QString acceptedPath = archive.BaseExtension.IsEmpty() ? resolved : output;
+    auto request = readRequest(acceptedPath);
     CCompressDialog path;
-    path.m_ArchivePath = resolved;
+    path.m_ArchivePath = acceptedPath;
     path.Format = format_->currentText();
     path.ShowPassword = showPassword_ && showPassword_->isChecked();
     path.EncryptHeaders = encryptHeaders_ && encryptHeaders_->isChecked();
@@ -351,14 +392,21 @@ HRESULT CreateArchiveDialog::PresentSource(CCompressDialog &source,
                                            const CObjectVector<NWildcard::CCensorPath> &paths,
                                            std::shared_ptr<const ArchiveCodecCatalog> codecs,
                                            QWidget *parent) {
-    QStringList selected;
+    QStringList selected, required;
     FOR_VECTOR(i, paths) {
-        if (paths[i].Include)
-            selected.append(QString::fromWCharArray(paths[i].Path.Ptr()));
+        const auto &entry = paths[i];
+        if (!entry.Include)
+            continue;
+        const QString path = QString::fromWCharArray(entry.Path.Ptr());
+        selected.append(path);
+        if (QDir::isAbsolutePath(path) &&
+            (!entry.Props.WildcardMatching || !DoesNameContainWildcard(entry.Path)))
+            required.append(path);
     }
     const QString directory =
         QFileInfo(QString::fromWCharArray(source.Info.ArcPath.Ptr())).absolutePath();
     CreateArchiveDialog dialog(directory, selected, parent, std::move(codecs), &source);
+    dialog.requiredSources_ = std::move(required);
     if (dialog.exec() != QDialog::Accepted)
         return E_ABORT;
     source.Info = dialog.sourceInfo();

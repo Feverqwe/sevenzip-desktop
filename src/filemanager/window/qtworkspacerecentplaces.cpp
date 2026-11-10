@@ -1,3 +1,4 @@
+#include "filemanager/panels/qtpaneladdresscombo.h"
 #include "filemanager/providers/RootFolder.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtrecentplacesstore.h"
@@ -61,15 +62,23 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
     window_.activatePanelUi(panel);
     if (window_.projectedPanel_ != panel)
         return;
+    const auto &ui = window_.panelUi_[panel];
+    const auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+    const auto revision = address->UserEditRevision();
+    const auto draft =
+        ui.path->isModified() ? std::optional(QtAddressDraft(*ui.path)) : std::nullopt;
     const auto interaction = interactionRevision_;
+    const auto failure = std::make_shared<QString>();
     Navigate(
         [&]() -> HRESULT {
             if (place.diskFolder && !QFileInfo(QDir::cleanPath(place.path)).isDir())
                 return S_FALSE;
             ProtectNavigation();
-            return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive);
+            return OpenRecordedLocation(panel, place.path, place.nativeIdentity, place.archive,
+                                        failure.get());
         },
-        [this, panel, interaction, label = PlaceLabel(place)](HRESULT result) {
+        [this, panel, interaction, revision, draft, failure,
+         label = PlaceLabel(place)](HRESULT result) {
             if (window_.app_.QtOperations().closed())
                 return;
             if (result == S_OK) {
@@ -77,8 +86,15 @@ void QtWindowWorkspace::OpenRecentPlace(unsigned panel, const QtRecentPlace &pla
                 FocusListAfterLocationOpen(panel, interaction);
                 return;
             }
+            const auto &ui = window_.panelUi_[panel];
+            const auto *address = static_cast<QtPanelAddressCombo *>(ui.pathCombo);
+            const auto restored =
+                address->UserEditRevision() == revision ? draft : address->LastUserDraft();
+            if (restored)
+                restored->Restore(*ui.path);
             const QString error =
-                result == E_ABORT ? tr("Opening canceled.")
+                result == E_ABORT     ? tr("Opening canceled.")
+                : !failure->isEmpty() ? *failure
                 : result == S_FALSE
                     ? tr("Location unavailable: %1").arg(label)
                     : tr("Could not open %1. %2").arg(label, ToQString(HResultToMessage(result)));

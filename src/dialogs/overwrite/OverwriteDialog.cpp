@@ -19,9 +19,22 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QTextDocument>
 #include <QVBoxLayout>
 
 using namespace NWindows;
+
+namespace {
+
+UString DisplayPath(const NOverwriteDialog::CFileInfo &fileInfo) {
+    UString path = fileInfo.Path;
+    if (fileInfo.Is_Directory)
+        while (path.Len() > 1 && IS_PATH_SEPAR(path.Back()))
+            path.DeleteBack();
+    return path;
+}
+
+} // namespace
 
 void COverwriteDialog::SetQuestion(const OverwriteQuestion &question) {
     _multipleConflictsPossible = question.MultipleConflictsPossible;
@@ -66,7 +79,7 @@ void COverwriteDialog::FormatPathPart(UString &s) {
 void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fileInfo,
                                           unsigned textID, unsigned iconID, unsigned iconID_2) {
     {
-        const UString &path = fileInfo.Path;
+        const UString path = DisplayPath(fileInfo);
         const int slashPos = path.ReverseFind_PathSepar();
         UString s = path.Left((unsigned)(slashPos + 1));
         FormatPathPart(s);
@@ -102,6 +115,8 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
     // has no portable QFileIconProvider equivalent.
     QFileIconProvider provider;
     const auto path = QString::fromWCharArray(fileInfo.Path);
+    _controls.value(textID)->setToolTip(
+        path.isEmpty() ? QString() : Qt::convertFromPlainText(path, Qt::WhiteSpacePre));
     const auto icon = fileInfo.Is_FileSystemFile ? provider.icon(QFileInfo(path))
                                                  : provider.icon(QFileIconProvider::File);
     static_cast<QLabel *>(_controls.value(iconID))->setPixmap(icon.pixmap(32, 32));
@@ -122,10 +137,7 @@ bool COverwriteDialog::OnInit() {
     SetFileInfoControl(NewFileInfo, IDT_OVERWRITE_NEW_FILE_SIZE_TIME, IDI_OVERWRITE_NEW_FILE,
                        IDI_OVERWRITE_NEW_FILE_2);
     UpdateButtonSizes();
-    UString path = NewFileInfo.Path;
-    if (NewFileInfo.Is_Directory)
-        while (path.Len() > 1 && IS_PATH_SEPAR(path.Back()))
-            path.DeleteBack();
+    const UString path = DisplayPath(NewFileInfo);
     UString name = path.Ptr((unsigned)(path.ReverseFind_PathSepar() + 1));
     if (name.IsEmpty())
         name = path;

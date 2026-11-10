@@ -1,6 +1,7 @@
 #include "7zip/UI/FileManager/resourceGui.h"
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "archive/support/native_archive_fixture.h"
+#include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "dialogs/password/PasswordDialog.h"
@@ -39,6 +40,121 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
     }
 
   private slots:
+    void creatingExistingNestedArchiveFolderAllowsRetry_data() {
+        QTest::addColumn<QString>("blocked");
+        QTest::addColumn<QString>("conflict");
+        QTest::newRow("existing-folder") << QString("docs/reports") << QString("docs/reports");
+        QTest::newRow("existing-file")
+            << QString("docs/reports/payload.txt") << QString("docs/reports/payload.txt");
+        QTest::newRow("file-in-parent-path")
+            << QString("docs/reports/payload.txt/child") << QString("docs/reports/payload.txt");
+    }
+
+    void creatingExistingNestedArchiveFolderAllowsRetry() {
+        QFETCH(QString, blocked);
+        QFETCH(QString, conflict);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("folders.zip");
+        QVERIFY(
+            NativeArchiveFixture::Write(archive, {{"docs/reports/payload.txt", "payload"}}, "zip"));
+        const QByteArray original = SourceExtractFixture::readFile(archive);
+        MainWindow window;
+        window.show();
+        window.openArchive(archive);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && rowWithPath(window, "docs") >= 0);
+        view->setFocus();
+        QTest::keyClick(view, Qt::Key_F7);
+        auto *editor = window.findChild<QLineEdit *>("inlineFolderName");
+        auto *error = window.findChild<QLabel *>("inlineFolderError");
+        QVERIFY(editor && error);
+        editor->setText(blocked);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QVERIFY(editor->isVisible());
+        QVERIFY(error->isVisible());
+        QVERIFY2(error->text().endsWith(conflict), qPrintable(error->text()));
+        QCOMPARE(editor->selectedText(), blocked);
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+        editor->setText("new parent/new");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(view->isEnabled() && window.focusWidget() == view);
+        QVERIFY(rowWithPath(window, "docs") >= 0);
+        const int created = rowWithPath(window, "new parent");
+        QVERIFY(created >= 0);
+        QCOMPARE(view->currentRow(), created);
+        QVERIFY(view->selectionModel()->isRowSelected(created, {}));
+        PanelKeys::openSelection(view);
+        QTRY_VERIFY(rowWithPath(window, "new parent/new") >= 0);
+    }
+
+    void openAsArchiveReportsUnrecognizedFile_data() {
+        QTest::addColumn<bool>("nested");
+        QTest::newRow("filesystem") << false;
+        QTest::newRow("inside-archive") << true;
+    }
+
+    void openAsArchiveReportsUnrecognizedFile() {
+        QFETCH(bool, nested);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString plainName = QStringLiteral("обычный файл.txt");
+        const QString validName = QStringLiteral("valid archive.zip");
+        QVERIFY(NativeArchiveFixture::Write(fixture.filePath(validName),
+                                            {{"payload.txt", "payload"}}, "zip"));
+        const QString outer = fixture.filePath("outer.zip");
+        if (nested) {
+            QFile inner(fixture.filePath(validName));
+            QVERIFY(inner.open(QIODevice::ReadOnly));
+            QVERIFY(NativeArchiveFixture::Write(
+                outer, {{plainName, "plain text"}, {validName, inner.readAll()}}, "zip"));
+        } else {
+            QFile plain(fixture.filePath(plainName));
+            QVERIFY(plain.open(QIODevice::WriteOnly));
+            QCOMPARE(plain.write("plain text"), qint64(10));
+        }
+
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        if (nested)
+            window.openArchive(outer);
+        else
+            window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, plainName) >= 0);
+        view->setFocus();
+        view->setCurrentCell(filesystemRow(window, plainName), 0);
+        view->selectRow(view->currentRow());
+
+        QStringList messages;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                messages.append(box->text());
+                box->accept();
+            }
+        });
+        responder.start(5);
+        auto *open = action(window, "openInsideAction");
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        QCOMPARE(messages.size(), 1);
+        QVERIFY(messages.front().contains(plainName));
+        QTRY_VERIFY(view->isEnabled() && window.focusWidget() == view);
+        QCOMPARE(view->currentRow(), filesystemRow(window, plainName));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+
+        view->setCurrentCell(filesystemRow(window, validName), 0);
+        view->selectRow(view->currentRow());
+        open->trigger();
+        QTRY_VERIFY(view->isEnabled() && rowWithPath(window, "payload.txt") >= 0);
+        QCOMPARE(messages.size(), 1);
+    }
+
     void rejectedExtractionDestinationKeepsSelectedItems() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -381,6 +497,93 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QCOMPARE(QDir(folder).entryList(QDir::Files), QStringList{QStringLiteral("input.txt")});
     }
 
+    void encryptedArchiveTestAllowsPasswordRetry_data() {
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("cancel") << true;
+        QTest::newRow("wrong-password") << false;
+    }
+
+    void encryptedArchiveTestAllowsPasswordRetry() {
+        QFETCH(bool, cancel);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("encrypted.zip");
+        const QString password = QStringLiteral("correct password");
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{"selected.txt", "selected"}, {"other.txt", "other"}}, "zip", password));
+        const QByteArray original = SourceExtractFixture::readFile(archive);
+        ArchiveBackend backend;
+        QCOMPARE(NativeArchiveFixture::Attach(backend), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        window.openArchive(archive);
+        QTRY_VERIFY(rowWithPath(window, "selected.txt") >= 0);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        const int selected = rowWithPath(window, "selected.txt");
+        view->setFocus();
+        view->selectRow(selected);
+
+        bool retry = false;
+        int prompts = 0;
+        QStringList reports;
+        QStringList errors;
+        QString resultStatus;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(modal)) {
+                ++prompts;
+                if (cancel && !retry)
+                    dialog->reject();
+                else {
+                    dialog->findChild<QLineEdit *>("passwordEdit")
+                        ->setText(retry ? password : QStringLiteral("wrong password"));
+                    dialog->accept();
+                }
+            } else if (auto *report = TestProgressDialog::ResultWindow(modal)) {
+                reports.append(TestProgressDialog::ReportText(*report));
+                resultStatus = report->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
+                TestProgressDialog::CloseResult(*report);
+            } else if (auto *message = qobject_cast<QMessageBox *>(modal)) {
+                errors.append(message->text());
+                message->accept();
+            }
+        });
+        responder.start(5);
+        auto *test = action(window, "testArchiveAction");
+        QVERIFY(test->isEnabled());
+        test->trigger();
+        QTRY_VERIFY(test->isEnabled());
+        QCOMPARE(prompts, 1);
+        QTRY_COMPARE(window.focusWidget(), view);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+        QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(reports.size(), 1);
+        if (cancel) {
+            QCOMPARE(resultStatus, QStringLiteral("The operation was cancelled."));
+            QVERIFY(reports.last().isEmpty());
+        } else {
+            QVERIFY2(reports.last().contains("password", Qt::CaseInsensitive),
+                     qPrintable(reports.last()));
+        }
+
+        retry = true;
+        reports.clear();
+        test->trigger();
+        QTRY_VERIFY(test->isEnabled());
+        QCOMPARE(prompts, 2);
+        QCOMPARE(reports.size(), 1);
+        QVERIFY(reports.last().contains("Scope: selected items"));
+        QVERIFY(reports.last().contains("selected.txt"));
+        QVERIFY(!reports.last().contains("other.txt"));
+        QVERIFY(!reports.last().contains("password", Qt::CaseInsensitive));
+        QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
+        QCOMPARE(SourceExtractFixture::readFile(archive), original);
+        QCOMPARE(QDir(fixture.path()).entryList(QDir::Files), QStringList{"encrypted.zip"});
+    }
+
     void testReportIdentifiesWhichItemsWereChecked_data() {
         QTest::addColumn<bool>("corrupt");
         QTest::newRow("healthy") << false;
@@ -418,6 +621,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(test->isEnabled());
 
         QStringList reports;
+        QStringList additionalErrors;
         QTimer responder;
         connect(&responder, &QTimer::timeout, &window, [&] {
             if (auto *result =
@@ -426,6 +630,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
                 TestProgressDialog::CloseResult(*result);
             } else if (auto *message =
                            qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                additionalErrors.append(message->text());
                 message->accept();
             }
         });
@@ -468,6 +673,7 @@ class MainWindowArchiveStatesTests : public QObject, protected MainWindowTestSup
         QVERIFY(reports.last().contains("Scope: current folder"));
         QVERIFY(reports.last().contains("inside.txt"));
         QVERIFY(!reports.last().contains("damaged.txt"));
+        QVERIFY2(additionalErrors.isEmpty(), qPrintable(additionalErrors.join('\n')));
     }
 
     void init() {

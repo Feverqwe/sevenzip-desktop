@@ -67,11 +67,13 @@ void MainWindow::transferFromArchive(const QString &destination, bool move, bool
 
 void MainWindow::refreshArchiveTransferDestination(unsigned index, const CSelectedState &selection,
                                                    ArchiveTransferReload reload) {
+    auto preserved = selection;
+    preserved.PreserveAddress = true;
     withPanelProjection(index, [&] {
         if (reload == ArchiveTransferReload::ReopenArchive)
-            refreshCurrent(&selection);
+            refreshCurrent(&preserved);
         else
-            app_.Panels[index].RefreshListCtrl(selection);
+            app_.Panels[index].RefreshListCtrl(preserved);
         appPresentation_->CopyDestinationRefreshed(index);
     });
     // As with independent GUI outputs, retain ReOpen's modal guards through

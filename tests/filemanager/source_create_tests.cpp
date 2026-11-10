@@ -36,6 +36,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
                              << QString("truncated") << false;
         QTest::newRow("existing-file")
             << QString("occupied.txt") << QString("occupied.txt") << true;
+        QTest::newRow("parent-is-file")
+            << QString("occupied.txt/missing/new folder") << QString("occupied.txt") << true;
 #ifdef Q_OS_WIN
         QTest::newRow("empty-path-component")
             << QString("nested/.../suffix") << QString("nested") << false;
@@ -83,6 +85,8 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         if (draft.isEmpty())
             QCOMPARE(error->text(),
                      QCoreApplication::translate("InlineCreateFolder", "Enter a folder name."));
+        if (occupied)
+            QVERIFY(error->text().contains(QDir::toNativeSeparators(existing.fileName())));
         QCOMPARE(QFileInfo::exists(existing.fileName()), occupied);
         QCOMPARE(view->rowCount(), initialRows);
         QCOMPARE(observed->rowCount(), initialRows);
@@ -197,6 +201,10 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::newRow("absolute") << QString("absolute");
         QTest::newRow("outside") << QString("outside");
         QTest::newRow("nested-outside") << QString("nested-outside");
+#ifndef Q_OS_WIN
+        QTest::newRow("nested-hidden") << QString("nested-hidden");
+        QTest::newRow("linked-parent") << QString("linked-parent");
+#endif
     }
     void createdPathSelectsVisibleFolder() {
         QFETCH(QString, pathForm);
@@ -207,42 +215,108 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QFile keep(QDir(source).filePath("keep.txt"));
         QVERIFY(keep.open(QIODevice::WriteOnly));
         keep.close();
-        const QString folder = QStringLiteral("created δ");
-        const bool nested = pathForm == "nested-outside";
-        const bool outside = pathForm == "outside" || nested;
+        const bool hidden = pathForm == "nested-hidden";
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        CFmSettings preferences;
+        preferences.Load(settings);
+        const auto restorePreferences = qScopeGuard([&] {
+            if (hidden)
+                preferences.Save(settings);
+        });
+        if (hidden) {
+            auto options = preferences;
+            options.ShowHiddenFolders = false;
+            options.Save(settings);
+        }
+        const QString folder = hidden ? QStringLiteral(".created δ") : QStringLiteral("created δ");
+        const bool linked = pathForm == "linked-parent";
+        const bool outside = linked || pathForm == "outside" || pathForm == "nested-outside";
+        const bool nested = hidden || pathForm == "nested-outside";
         const QString target = outside ? fixture.filePath("other") : source;
         if (outside)
             QVERIFY(QDir().mkdir(target));
+        if (linked) {
+            const QString child = QDir(target).filePath("child");
+            QVERIFY(QDir().mkdir(child));
+            QVERIFY(QFile::link(child, QDir(source).filePath("link")));
+        }
         const QString destination =
             QDir(target).filePath(nested ? folder + QStringLiteral("/child 空") : folder);
-        const QString entered = pathForm == "relative" ? "./" + folder : destination;
+        const QString entered = linked                   ? "link/../" + folder + '/'
+                                : pathForm == "relative" ? "./" + folder
+                                                         : destination;
 
         QtWorkspaceApplication application(*qApp);
         ControlledBackend backend, observerBackend;
         MainWindow window(&backend), observer(&observerBackend);
         observer.show();
         auto *observed = openPanel(observer, 0, target);
-        QTRY_COMPARE(observed->rowCount(), outside ? 0 : 1);
+        QTRY_COMPARE(observed->rowCount(), outside && !linked ? 0 : 1);
         observed->sourcePanel->Set_AutoRefresh_Mode(false);
         window.show();
         auto *view = openPanel(window, 0, source);
-        QTRY_COMPARE(view->rowCount(), 1);
+        QTRY_COMPARE(view->rowCount(), linked ? 2 : 1);
         view->setFocus();
-        view->setCurrentCell(0, 0);
-        view->selectRow(0);
+        const int keepRow = row(view, "keep.txt");
+        QVERIFY(keepRow >= 0);
+        view->setCurrentCell(keepRow, 0);
+        view->selectRow(keepRow);
         action(window, "createFolderAction")->trigger();
         auto *input = window.findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(input && input->isVisible());
         input->setText(entered);
         QTest::keyClick(input, Qt::Key_Return);
         QTRY_VERIFY(QFileInfo(destination).isDir());
-        QTRY_VERIFY(row(observed, folder) >= 0);
-        QTRY_COMPARE(view->rowCount(), outside ? 1 : 2);
-        const int selected = row(view, outside ? "keep.txt" : folder);
+        if (hidden)
+            QCOMPARE(row(observed, folder), -1);
+        else
+            QTRY_VERIFY(row(observed, folder) >= 0);
+        QTRY_COMPARE(view->rowCount(), (outside || hidden ? 1 : 2) + int(linked));
+        const int selected = row(view, outside || hidden ? "keep.txt" : folder);
         QVERIFY(selected >= 0);
         QCOMPARE(view->currentRow(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(selected, {}));
     }
+    void partialFolderCreationUpdatesTheDestinationWindow() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires a filesystem that rejects an overlong leaf during creation");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString target = fixture.filePath("target");
+        QVERIFY(QDir().mkdir(source));
+        QVERIFY(QDir().mkdir(target));
+        const QString parent = QDir(target).filePath("created parent");
+        const QString draft = QDir(parent).filePath(QString(1024, u'x'));
+
+        QtWorkspaceApplication application(*qApp);
+        MainWindow window, observer;
+        observer.show();
+        auto *observed = openPanel(observer, 0, target);
+        QTRY_VERIFY(observed->isEnabled());
+        observed->sourcePanel->Set_AutoRefresh_Mode(false);
+        window.show();
+        auto *view = openPanel(window, 0, source);
+        QTRY_VERIFY(view->isEnabled());
+        action(window, "createFolderAction")->trigger();
+        auto *input = window.findChild<QLineEdit *>("inlineFolderName");
+        QVERIFY(input && input->isVisible());
+        input->setText(draft);
+        QTest::keyClick(input, Qt::Key_Return);
+
+        QVERIFY(QFileInfo(parent).isDir());
+        QVERIFY(!QFileInfo::exists(draft));
+        QCOMPARE(input->text(), draft);
+        QCOMPARE(input->selectedText(), draft);
+        QTRY_VERIFY(row(observed, "created parent") >= 0);
+        const QString corrected = QDir(parent).filePath("corrected");
+        input->setText(corrected);
+        QTest::keyClick(input, Qt::Key_Return);
+        QTRY_VERIFY(QFileInfo(corrected).isDir());
+        QTRY_VERIFY(!window.findChild<QLineEdit *>("inlineFolderName"));
+    }
+
     void revealsCreatedFolder_data() {
         QTest::addColumn<int>("count");
         QTest::addColumn<bool>("peerDraft");
@@ -414,13 +488,20 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::addColumn<bool>("retry");
         QTest::addColumn<bool>("switchPane");
         QTest::addColumn<bool>("editAfterSubmit");
+        QTest::addColumn<bool>("existingFolder");
         for (const QString language : {"-", "ru"})
-            QTest::newRow(qPrintable(language)) << language << false << false << false << false;
-        QTest::newRow("immediate-retry") << QString("-") << false << true << false << false;
-        QTest::newRow("deferred") << QString("-") << true << false << false << false;
-        QTest::newRow("deferred-retry") << QString("-") << true << true << false << false;
-        QTest::newRow("deferred-retry-peer-focus") << QString("-") << true << true << true << false;
-        QTest::newRow("deferred-retry-edited") << QString("-") << true << true << false << true;
+            QTest::newRow(qPrintable(language))
+                << language << false << false << false << false << false;
+        QTest::newRow("immediate-retry")
+            << QString("-") << false << true << false << false << false;
+        QTest::newRow("existing-folder-retry")
+            << QString("-") << false << true << false << false << true;
+        QTest::newRow("deferred") << QString("-") << true << false << false << false << false;
+        QTest::newRow("deferred-retry") << QString("-") << true << true << false << false << false;
+        QTest::newRow("deferred-retry-peer-focus")
+            << QString("-") << true << true << true << false << false;
+        QTest::newRow("deferred-retry-edited")
+            << QString("-") << true << true << false << true << false;
     }
     void failure() {
         QFETCH(QString, language);
@@ -428,6 +509,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QFETCH(bool, retry);
         QFETCH(bool, switchPane);
         QFETCH(bool, editAfterSubmit);
+        QFETCH(bool, existingFolder);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
@@ -442,7 +524,10 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        QFile keep(fixture.filePath("keep.bin"));
+        const QString occupied = existingFolder ? QString("keep folder") : QString("keep.bin");
+        if (existingFolder)
+            QVERIFY(QDir(fixture.path()).mkdir(occupied));
+        QFile keep(fixture.filePath(existingFolder ? occupied + "/keep.bin" : occupied));
         QVERIFY(keep.open(QIODevice::WriteOnly));
         QCOMPARE(keep.write("protected bytes"), qint64(15));
         keep.close();
@@ -466,7 +551,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows);
         QVERIFY(WindowActivation::waitForActive(window));
         view->sourcePanel->Set_AutoRefresh_Mode(false);
-        const int originalRow = row(view, "keep.bin");
+        const int originalRow = row(view, occupied);
         QVERIFY(originalRow >= 0);
         view->selectRow(originalRow);
         view->setCurrentCell(originalRow, 0);
@@ -478,12 +563,13 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(external.open(QIODevice::WriteOnly));
         QCOMPARE(external.write("external bytes"), qint64(14));
         external.close();
-        name->setText("keep.bin");
+        name->setText(occupied);
         QTest::keyClick(name, Qt::Key_Return);
         auto *error = window.findChild<QLabel *>("inlineFolderError");
         QVERIFY(error && error->isVisible() && !error->text().isEmpty());
-        QCOMPARE(name->text(), QString("keep.bin"));
-        QCOMPARE(name->selectedText(), QString("keep.bin"));
+        QVERIFY(error->text().contains(QDir::toNativeSeparators(fixture.filePath(occupied))));
+        QCOMPARE(name->text(), occupied);
+        QCOMPARE(name->selectedText(), occupied);
         const QString corrected = QStringLiteral("corrected folder");
         if (deferred)
             QVERIFY(view->rowCount() < initialRows);
@@ -513,7 +599,7 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTRY_VERIFY(view->isEnabled() && view->rowCount() == initialRows + 1 + int(retry));
         QTRY_COMPARE(window.focusWidget(), peer ? peer : view);
         QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
-        QCOMPARE(view->currentRow(), row(view, retry ? corrected : QString("keep.bin")));
+        QCOMPARE(view->currentRow(), row(view, retry ? corrected : occupied));
         QCOMPARE(QFileInfo(fixture.filePath(corrected)).isDir(), retry);
         if (peer)
             QVERIFY(!QFileInfo::exists(peerFolder.filePath(corrected)));

@@ -44,6 +44,7 @@ HRESULT RunDirectoryRead(CAgentFolder &folder, bool recursive, const CUIntVector
     request.UI.ProgressDialog.MainWindow = parent;
     request.UI.ProgressDialog.MainTitle = L"7-Zip";
     request.UI.ProgressDialog.WaitMode = true;
+    request.UI.ProgressDialog.CancellationMayLeaveChanges = false;
     auto *resource = dynamic_cast<QtArchiveFileResource *>(folder.GetEngineResource());
     if (!resource)
         return E_FAIL;

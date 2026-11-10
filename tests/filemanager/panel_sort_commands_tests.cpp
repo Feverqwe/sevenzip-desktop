@@ -357,6 +357,30 @@ class PanelSortCommandsTests final : public QObject, protected MainWindowTestSup
         QCOMPARE(selectedNames(), marked);
         QVERIFY(!view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(view->viewport()->rect().contains(view->visualRect(view->currentIndex())));
+        view->setColumnWidth(0, view->viewport()->width() * 2);
+        auto *horizontal = view->horizontalScrollBar();
+        QTRY_VERIFY(horizontal->maximum() > 0);
+        horizontal->setValue(horizontal->maximum());
+        const int horizontalPosition = horizontal->value();
+        action(window, "sort3Action")->trigger();
+        QCOMPARE(horizontal->value(), horizontalPosition);
+        const QRect focusedAfterSort = view->visualRect(view->currentIndex());
+        QVERIFY(focusedAfterSort.top() >= 0);
+        QVERIFY(focusedAfterSort.bottom() < view->viewport()->height());
+        QCOMPARE(selectedNames(), marked);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn > 0 && !view->isColumnHidden(sizeColumn));
+        view->setCurrentCell(view->currentRow(), sizeColumn, QItemSelectionModel::NoUpdate);
+        horizontal->setValue(horizontalPosition);
+        action(window, "viewMode0Action")->trigger();
+        auto *icons = window.findChild<QListView *>("iconList");
+        QVERIFY(icons && icons->isVisible());
+        action(window, "viewMode3Action")->trigger();
+        QVERIFY(view->isVisible());
+        QCOMPARE(horizontal->value(), horizontalPosition);
+        QCOMPARE(view->currentIndex().column(), sizeColumn);
+        QCOMPARE(view->currentIndex().data(QtPanelList::NameRole).toString(), entries[0].path);
+        QCOMPARE(selectedNames(), marked);
     }
 };
 

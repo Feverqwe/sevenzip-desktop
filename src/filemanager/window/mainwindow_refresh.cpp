@@ -1,5 +1,6 @@
 #include "archive/password/archivepassword.h"
 #include "archive/resources/qtarchivereopen.h"
+#include "filemanager/panels/qtpanellist.h"
 #include "filemanager/providers/qtlocationfolder.h"
 #include "filemanager/rename/qtrenamecontroller.h"
 #include "filemanager/window/mainwindow.h"
@@ -8,6 +9,7 @@
 
 #include <QScopedValueRollback>
 #include <QScrollBar>
+#include <QThreadPool>
 #include <utility>
 
 HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState &selection) {
@@ -45,11 +47,20 @@ HRESULT MainWindow::reloadProjectedPanel(const CSelectedState &selection) {
     const QString &displayedPath = projectedUi().directory;
     if (!filesystem ||
         (boundPath != displayedPath && QFileInfo(boundPath).canonicalFilePath() != displayedPath)) {
+        const auto viewport =
+            archive && selection.KeepViewport ? std::optional(captureListViewport()) : std::nullopt;
         const bool updateAddress = !selection.PreserveAddress;
         const HRESULT loaded =
             root ? renderRootFolder(updateAddress) : renderBoundFolder(updateAddress);
-        if (loaded == S_OK)
+        if (loaded == S_OK) {
             restoreListSelection(selection);
+            if (viewport) {
+                if (projectedUi().scanningArchive)
+                    projectedUi().pendingViewport = viewport;
+                else
+                    restoreListViewport(*viewport);
+            }
+        }
         return loaded;
     }
     if (!selection.KeepViewport)
@@ -70,8 +81,21 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
     } else {
         const QRect visible = view->viewport()->rect();
         const int column = projectedUi().iconList->modelColumn();
-        for (int row = 0; row < view->model()->rowCount(); ++row) {
-            const QRect item = view->visualRect(view->model()->index(row, column));
+        const auto *model = view->model();
+        // The fixed icon grid is laid out left to right, then top to bottom.
+        int first = 0;
+        int last = model->rowCount();
+        while (first < last) {
+            const int middle = first + (last - first) / 2;
+            if (view->visualRect(model->index(middle, column)).bottom() < visible.top())
+                first = middle + 1;
+            else
+                last = middle;
+        }
+        for (int row = first; row < model->rowCount(); ++row) {
+            const QRect item = view->visualRect(model->index(row, column));
+            if (item.top() > visible.bottom())
+                break;
             if (visible.intersects(item)) {
                 topRow = row;
                 topOffset = item.top();
@@ -79,10 +103,31 @@ MainWindow::ListViewport MainWindow::captureListViewport() {
             }
         }
     }
-    const QString topPath = view->model()->index(topRow, 1).data().toString();
-    return {view, projectedUi().directory, topPath,
-            QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
-            topOffset};
+    QStringList visiblePaths;
+    const int height = view->viewport()->height();
+    const int column = view == projectedUi().table ? 0 : projectedUi().iconList->modelColumn();
+    for (int row = topRow; row >= 0 && row < view->model()->rowCount(); ++row) {
+        const int offset = view == projectedUi().table
+                               ? projectedUi().table->rowViewportPosition(row)
+                               : view->visualRect(view->model()->index(row, column)).top();
+        if (offset >= height)
+            break;
+        const auto path =
+            view->model()->index(row, 0).data(QtPanelList::OperationPathRole).toString();
+        if (path.isEmpty())
+            break;
+        visiblePaths.append(path);
+    }
+    ListViewport viewport{
+        view, projectedUi().directory, visiblePaths,
+        QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value()),
+        topOffset};
+    if (auto *table = qobject_cast<FileTable *>(view)) {
+        viewport.cursorColumn = table->currentIndex().column();
+        viewport.cursorProperty = table->propertyId(viewport.cursorColumn);
+        viewport.cursorRawProperty = table->isRawProperty(viewport.cursorColumn);
+    }
+    return viewport;
 }
 
 HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sourceAlreadyBound,
@@ -90,16 +135,21 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
     const QString directory = projectedUi().directory;
     const auto signature = filesystemSignature(directory);
     if (!signature.directory) {
-        const HRESULT loaded = app_.GetFocusedPanel().LoadListItems();
+        app_.GetFocusedPanel().LoadListItems();
         auto &snapshot = projectedUi().autoRefreshSnapshot;
+        projectedUi().autoRefreshProbe.reset();
         snapshot.clear();
         snapshot.insert(directory, signature);
         projectedUi().table->clearSelection();
         projectedUi().table->clearRows();
-        showStatusMessage(QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
-                          directory);
+        showStatusMessage(
+            signature.exists
+                ? QCoreApplication::translate("CopyRedesign", "Not a folder: %1").arg(directory)
+                : QCoreApplication::translate("mainwindow_refresh", "Folder not found: ") +
+                      directory);
         refreshActions();
-        return loaded;
+        // The missing-folder state has been published, including the diagnostic.
+        return S_OK;
     }
     const HRESULT loaded = showDirectory(projectedUi().directory, false, sourceAlreadyBound,
                                          !selection.PreserveAddress, true);
@@ -108,7 +158,7 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
     panelUi_[projectedPanel_].pendingViewport = std::move(viewport);
     restoreListSelection(selection);
     if (!projectedUi().scanningDisk) {
-        restoreAutoRefreshViewport();
+        completeListViewport();
         refreshActions();
     }
     return S_OK;
@@ -154,9 +204,10 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
         }
         if (result == S_OK) {
             panel.SetNewFolder(refreshed);
-            renderBoundFolder();
-            restoreListSelection(GetFolderPath(refreshed) == previousFolderPath ? selection
-                                                                                : CSelectedState());
+            if (GetFolderPath(refreshed) == previousFolderPath)
+                reloadProjectedPanel(selection);
+            else if (renderBoundFolder() == S_OK)
+                restoreListSelection(CSelectedState());
             refreshActions();
         } else {
             // Native ReOpen releases the old proxy; never render stale folders.
@@ -170,7 +221,7 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
     }
 }
 
-MainWindow::FilesystemSignature MainWindow::filesystemSignature(const QString &path) const {
+MainWindow::FilesystemSignature MainWindow::filesystemSignature(const QString &path) {
     const QFileInfo info(path);
     return {info.lastModified(), info.metadataChangeTime(), info.size(), info.exists(),
             info.isDir()};
@@ -191,23 +242,7 @@ void MainWindow::pollAutoRefresh() {
             return;
     for (unsigned offset = 0; offset < kNumPanelsMax; ++offset) {
         const unsigned index = (nextAutoRefreshPanel_ + offset) % kNumPanelsMax;
-        if (!app_.IsPanelVisible(index) || !panelUi_[index].container ||
-            panelUi_[index].state != State::Filesystem || panelUi_[index].locationUnavailable ||
-            renameController_->PendingFor(index))
-            continue;
-        withPanelProjection(index, [&] {
-            CPanel &panel = app_.GetFocusedPanel();
-            const auto &snapshot = panelUi_[index].autoRefreshSnapshot;
-            if (panel.AutoRefresh_Mode) {
-                for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
-                    if (!(filesystemSignature(it.key()) == it.value())) {
-                        panel.MarkPortableFolderChanged();
-                        break;
-                    }
-                }
-            }
-            panel.OnTimer();
-        });
+        checkPanelForFilesystemChanges(index);
         if (app_.QtOperations().active()) {
             nextAutoRefreshPanel_ = (index + 1) % kNumPanelsMax;
             break;
@@ -215,7 +250,58 @@ void MainWindow::pollAutoRefresh() {
     }
 }
 
-void MainWindow::restoreAutoRefreshViewport() {
+void MainWindow::checkPanelForFilesystemChanges(unsigned index) {
+    auto &ui = panelUi_[index];
+    auto &panel = app_.Panels[index];
+    if (!app_.IsPanelVisible(index) || !ui.container || ui.state != State::Filesystem ||
+        ui.locationUnavailable || renameController_->PendingFor(index) || !panel.AutoRefresh_Mode ||
+        !panel.ShouldProcessNotifications())
+        return;
+    withPanelProjection(index, [&] {
+        const auto &snapshot = ui.autoRefreshSnapshot;
+        const auto root = snapshot.constFind(ui.directory);
+        if (root != snapshot.cend() && filesystemSignature(root.key()) != root.value()) {
+            ui.autoRefreshProbe.reset();
+            panel.MarkPortableFolderChanged();
+        } else if (snapshot.size() > 256) {
+            using Probe = PanelUiState::RefreshProbe;
+            auto &probe = ui.autoRefreshProbe;
+            if (probe) {
+                const Probe result = probe->load();
+                if (result != Probe::Pending)
+                    probe.reset();
+                if (result == Probe::Changed)
+                    panel.MarkPortableFolderChanged();
+            }
+            if (!probe) {
+                probe = std::make_shared<std::atomic<Probe>>(Probe::Pending);
+                QThreadPool::globalInstance()->start([snapshot, pending = std::weak_ptr(probe)] {
+                    auto result = Probe::Unchanged;
+                    for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
+                        if (pending.expired())
+                            return;
+                        if (filesystemSignature(it.key()) != it.value()) {
+                            result = Probe::Changed;
+                            break;
+                        }
+                    }
+                    if (const auto active = pending.lock())
+                        active->store(result);
+                });
+            }
+        } else {
+            for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
+                if (it != root && filesystemSignature(it.key()) != it.value()) {
+                    panel.MarkPortableFolderChanged();
+                    break;
+                }
+            }
+        }
+        panel.OnTimer();
+    });
+}
+
+void MainWindow::completeListViewport() {
     const auto viewport = std::exchange(panelUi_[projectedPanel_].pendingViewport, std::nullopt);
     if (!viewport || viewport->directory != projectedUi().directory)
         return;
@@ -226,14 +312,37 @@ void MainWindow::restoreListViewport(const ListViewport &viewport) {
     auto *view = viewport.view.data();
     if (!view || view != projectedUi().viewStack->currentWidget())
         return;
+    if (auto *table = qobject_cast<FileTable *>(view)) {
+        const int column = viewport.cursorColumn;
+        const QModelIndex current = table->currentIndex();
+        if (current.isValid() && column >= 0 && column < table->columnCount() &&
+            !table->isColumnHidden(column) &&
+            table->propertyId(column) == viewport.cursorProperty &&
+            table->isRawProperty(column) == viewport.cursorRawProperty)
+            table->selectionModel()->setCurrentIndex(current.siblingAtColumn(column),
+                                                     QItemSelectionModel::NoUpdate);
+    }
     view->doItemsLayout();
+    if (!viewport.keepVertical) {
+        view->horizontalScrollBar()->setValue(viewport.scrollPosition.x());
+        return;
+    }
     int row = -1;
-    if (!viewport.topPath.isEmpty()) {
+    if (!viewport.visiblePaths.isEmpty()) {
+        QHash<QString, qsizetype> rank;
+        for (qsizetype i = viewport.visiblePaths.size(); i > 0; --i)
+            rank.insert(viewport.visiblePaths[i - 1], i - 1);
+        qsizetype best = viewport.visiblePaths.size();
         for (int i = 0; i < view->model()->rowCount(); ++i) {
-            if (view->model()->index(i, 1).data().toString() == viewport.topPath) {
-                row = i;
+            const auto path =
+                view->model()->index(i, 0).data(QtPanelList::OperationPathRole).toString();
+            const auto candidate = rank.constFind(path);
+            if (candidate == rank.cend() || candidate.value() >= best)
+                continue;
+            row = i;
+            best = candidate.value();
+            if (best == 0)
                 break;
-            }
         }
     }
     if (row < 0) {

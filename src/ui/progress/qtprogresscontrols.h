@@ -10,6 +10,7 @@
 
 class QProgressBar;
 class QLabel;
+class QPlainTextEdit;
 
 struct CQtProgressRect {
     int left;
@@ -33,6 +34,7 @@ class CQtProgressDialog : public QDialog {
     double _unitX;
     QLabel *_percent = nullptr;
     QLabel *_source = nullptr;
+    QPlainTextEdit *_sourcePaths = nullptr;
     QLabel *_destination = nullptr;
     QWidget *_locations = nullptr;
     QPointer<QDialog> _stopQuestion;

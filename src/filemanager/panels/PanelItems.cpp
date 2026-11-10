@@ -4,6 +4,7 @@
 // use the source load/property stages and a separate Qt row-publication stage.
 #include "7zip/PropID.h"
 #include "7zip/UI/FileManager/resource.h"
+#include "Common/StringConvert.h"
 #include "Windows/FileName.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
@@ -11,8 +12,68 @@
 #include "archive/opening/archivecontainerpath.h"
 #include "archive/operations/ExtractingFilePath.h"
 #include "filemanager/panels/Panel.h"
+#include "filemanager/providers/FSFolder.h"
+#include "ui/progress/ProgressDialog2.h"
+#include <QCoreApplication>
+#include <vector>
 
 static const UInt32 kParentIndex = (UInt32)-1;
+
+namespace {
+class FolderSizeCheckpoint final : public IProgress, public CMyUnknownImp {
+    Z7_COM_UNKNOWN_IMP_1(IProgress)
+    CProgressSync &sync_;
+
+  public:
+    explicit FolderSizeCheckpoint(CProgressSync &sync) : sync_(sync) {}
+    Z7_COM7F_IMF(SetTotal(UInt64)) override { return sync_.CheckStop(); }
+    Z7_COM7F_IMF(SetCompleted(const UInt64 *)) override { return sync_.CheckStop(); }
+};
+
+class FolderSizeOperation final : public CProgressThreadVirt {
+    const FStringVector &paths_;
+    std::vector<NFsFolder::CFsFolderSizeResult> results_;
+
+    HRESULT ProcessVirt() override {
+        CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
+        HRESULT firstError = S_OK;
+        unsigned reportedErrors = 0;
+        FOR_VECTOR(i, paths_) {
+            RINOK(Sync.CheckStop())
+            Sync.Set_FilePath(fs2us(paths_[i]), true);
+            const auto measurement = NFsFolder::MeasureFolderSize(paths_[i], progress);
+            const HRESULT result = measurement.Status;
+            if (result == E_ABORT)
+                return result;
+            results_.push_back(measurement);
+            if (result != S_OK) {
+                if (firstError == S_OK)
+                    firstError = result;
+                // Keep item diagnostics separate from the terminal result so
+                // cancelling after an unreadable folder still reports Cancel.
+                if (reportedErrors < 32) {
+                    Sync.AddError_Code_Name(result, fs2us(paths_[i]));
+                    ++reportedErrors;
+                }
+            }
+        }
+        return firstError;
+    }
+
+  public:
+    explicit FolderSizeOperation(const FStringVector &paths) : paths_(paths) {
+        ShowCompressionInfo = false;
+        WaitMode = true;
+        CancellationMayLeaveChanges = false;
+    }
+
+    bool ApplyResults(NFsFolder::CFSFolder &folder, const CRecordVector<UInt32> &indices) const {
+        for (unsigned i = 0; i < results_.size(); ++i)
+            folder.ApplyItemFullSize(indices[i], results_[i]);
+        return !results_.empty();
+    }
+};
+} // namespace
 
 UInt32 CPanel::GetFocusedFileIndex() const {
     const int focusedItem = _selectionList.GetFocusedItem();
@@ -26,20 +87,37 @@ UInt32 CPanel::GetFocusedFileIndex() const {
 
 void CPanel::EditItem(bool useEditor) {
     if (!useEditor) {
-        CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;
-        _folder.QueryInterface(IID_IFolderCalcItemFullSize, &calcItemFullSize);
-        if (calcItemFullSize) {
-            bool needRefresh = false;
+        CMyComPtr<IFolderFolder> owner = _folder;
+        if (auto *folder = dynamic_cast<NFsFolder::CFSFolder *>(owner.Interface())) {
             CRecordVector<UInt32> indices;
             Get_ItemIndices_Operated(indices);
+            CRecordVector<UInt32> folders;
             FOR_VECTOR(i, indices) {
-                UInt32 index = indices[i];
-                if (IsItem_Folder(index)) {
-                    calcItemFullSize->CalcItemFullSize(index, NULL);
-                    needRefresh = true;
-                }
+                if (CanCalculateFilesystemItemSize(indices[i]))
+                    folders.Add(indices[i]);
             }
-            if (needRefresh) {
+            if (!folders.IsEmpty()) {
+                CDisableTimerProcessing timer(*this);
+                FStringVector paths;
+                FOR_VECTOR(i, folders)
+                paths.Add(folder->ItemFullSizePath(folders[i]));
+                FolderSizeOperation operation(paths);
+                const auto title =
+                    QCoreApplication::translate("ArchiveDirectory", "Calculating folder size…");
+                {
+                    CDisableNotify notify(*this);
+                    operation.Create(ToUString(title), GetParent());
+                }
+                if (owner.Interface() != GetFolder() || !operation.ApplyResults(*folder, folders))
+                    return;
+                if (!_isRawSortProp && (_sortID == kpidSize || _sortID == kpidNumSubFiles ||
+                                        _sortID == kpidNumSubDirs)) {
+                    const int previousRow = _selectionList.GetFocusedItem();
+                    _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
+                    const int currentRow = _selectionList.GetFocusedItem();
+                    if (currentRow != previousRow)
+                        _selectionList.EnsureVisible(currentRow, true);
+                }
                 InvalidateList();
                 return;
             }
@@ -127,9 +205,26 @@ void CPanel::OpenFocusedItemAsInternal(const wchar_t *type) {
         OpenItem(realIndex, true, false, type);
 }
 
+bool CPanel::CanOpenItemsOutside(const CRecordVector<UInt32> &indices) const {
+    if (IsFSFolder() && indices.IsEmpty()) {
+        const UString prefix = GetFsPath();
+        return prefix.Len() > NWindows::NFile::NName::GetRootPrefixSize(prefix);
+    }
+    if (!IsArcFolder())
+        return true;
+    if (indices.IsEmpty())
+        return false;
+    FOR_VECTOR(i, indices)
+    if (IsItem_Folder(indices[i]))
+        return false;
+    return true;
+}
+
 void CPanel::OpenSelectedItems(bool tryInternal) {
     CRecordVector<UInt32> indices;
     Get_ItemIndices_Operated(indices);
+    if (!tryInternal && !CanOpenItemsOutside(indices))
+        return;
     if (indices.Size() > 20) {
         MessageBox_Error_LangID(IDS_TOO_MANY_ITEMS);
         return;
@@ -153,6 +248,11 @@ void CPanel::OpenSelectedItems(bool tryInternal) {
         } else
             OpenItem(index, (tryInternal && indices.Size() == 1), true);
     }
+}
+
+bool CPanel::CanCalculateFilesystemItemSize(UInt32 index) const {
+    const auto *folder = dynamic_cast<const NFsFolder::CFSFolder *>(_folder.Interface());
+    return folder && folder->CanCalculateItemFullSize(index);
 }
 
 bool CPanel::IsItem_Folder(UInt32 itemIndex) const {

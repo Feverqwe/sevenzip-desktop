@@ -159,13 +159,26 @@ class OperationCreationTests final : public QObject {
         QCOMPARE(readFile(QDir(output).filePath("secret 空.txt")),
                  QByteArray("protected native payload"));
     }
+    void missingSourceReportsPartialArchiveAndAllowsRetry_data() {
+        QTest::addColumn<bool>("update");
+        QTest::newRow("create") << false;
+        QTest::newRow("update") << true;
+    }
     void missingSourceReportsPartialArchiveAndAllowsRetry() {
+        QFETCH(bool, update);
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         const QString present = directory.filePath("present.txt");
         const QString missing = directory.filePath("missing file.txt");
         const QString archive = directory.filePath("partial.zip");
         const QString program = QStringLiteral(SEVENZIP_OPERATION_HOST);
+        const QString retained = directory.filePath("retained.txt");
+        if (update) {
+            QVERIFY(writeFile(missing, "old bytes"));
+            QVERIFY(writeFile(retained, "retained bytes"));
+            QCOMPARE(Run(program, Compress(archive, {missing, retained})).Status, Outcome::Success);
+            QVERIFY(QFile::remove(missing));
+        }
         QVERIFY(writeFile(present, "present bytes"));
         const auto job = Compress(archive, {present, missing});
         const auto partial = Run(program, job);
@@ -174,13 +187,20 @@ class OperationCreationTests final : public QObject {
         const QString first = directory.filePath("first output");
         QCOMPARE(Run(program, Extract(archive, first)).Status, Outcome::Success);
         QCOMPARE(readFile(QDir(first).filePath("present.txt")), QByteArray("present bytes"));
-        QVERIFY(!QFileInfo::exists(QDir(first).filePath("missing file.txt")));
+        if (update) {
+            QCOMPARE(readFile(QDir(first).filePath("missing file.txt")), QByteArray("old bytes"));
+            QCOMPARE(readFile(QDir(first).filePath("retained.txt")), QByteArray("retained bytes"));
+        } else {
+            QVERIFY(!QFileInfo::exists(QDir(first).filePath("missing file.txt")));
+        }
         QVERIFY(writeFile(missing, "restored bytes"));
         QCOMPARE(Run(program, job).Status, Outcome::Success);
         const QString second = directory.filePath("second output");
         QCOMPARE(Run(program, Extract(archive, second)).Status, Outcome::Success);
         QCOMPARE(readFile(QDir(second).filePath("present.txt")), QByteArray("present bytes"));
         QCOMPARE(readFile(QDir(second).filePath("missing file.txt")), QByteArray("restored bytes"));
+        if (update)
+            QCOMPARE(readFile(QDir(second).filePath("retained.txt")), QByteArray("retained bytes"));
     }
 
     void conflictingWriterPreservesArchiveAndCanRetry() {

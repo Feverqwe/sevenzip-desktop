@@ -9,6 +9,7 @@
 #include "filemanager/panels/PanelFolderOperations.h"
 #include "fileops/native/correctfspath.h"
 #include "localization/LangUtils.h"
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <utility>
@@ -39,18 +40,17 @@ static UString VisibleFilesystemItem(const QString &base, const QString &destina
     return flat ? path : FirstPathPart(path);
 }
 
-static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelectedState &state) {
+static void PrepareCreatedSelection(const CPanel &panel, UString newName, bool showHiddenFolders,
+                                    CSelectedState &state) {
     if (panel.IsFSFolder()) {
         const QDir folder(ToQString(panel.GetFsPath()));
         newName = VisibleFilesystemItem(folder.canonicalPath(),
                                         QFileInfo(folder, ToQString(newName)).canonicalFilePath());
-        if (newName.IsEmpty())
+        if (newName.IsEmpty() ||
+            (!showHiddenFolders && QFileInfo(folder, ToQString(newName)).isHidden()))
             return;
-    } else {
-        const int pos = newName.Find(WCHAR_PATH_SEPARATOR);
-        if (pos >= 0)
-            newName.DeleteFrom((unsigned)pos);
-    }
+    } else
+        newName = FirstPathPart(newName);
     state.SelectedNames.Clear();
     state.FocusedName = newName;
     state.FocusedName_Defined = true;
@@ -107,8 +107,8 @@ static void SetPublishedArchive(const CPanel &panel, const CThreadFolderOperatio
         *publishedArchive = ToQString(parents.Front().VirtualPath);
 }
 
-HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationDirectory,
-                             QString *publishedArchive) {
+HRESULT CPanel::CreateFolder(UString name, QString &error, bool showHiddenFolders,
+                             QString *destinationDirectory, QString *publishedArchive) {
     if (IsHashFolder() || !_folderOperations || IsThereReadOnlyFolder())
         return E_NOTIMPL;
     if (name.IsEmpty() || !IsCorrectFsName(name))
@@ -118,6 +118,33 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
         if (!CorrectItemPath(*this, name, corrected))
             return E_INVALIDARG;
         name = corrected;
+    }
+    QString parentDirectory;
+    QString filesystemDestination;
+    QString firstMissingParent;
+    if (IsFSFolder()) {
+        // Keep ".." after a directory link until the filesystem resolves it.
+        filesystemDestination =
+            QDir::fromNativeSeparators(QDir(ToQString(GetFsPath())).filePath(ToQString(name)));
+        while (filesystemDestination.endsWith(u'/') &&
+               QDir::isAbsolutePath(filesystemDestination.chopped(1)))
+            filesystemDestination.chop(1);
+        parentDirectory = QFileInfo(filesystemDestination).path();
+        QString ancestor = parentDirectory;
+        QFileInfo component(ancestor);
+        while (!component.isDir()) {
+            if (component.exists() || component.isSymLink() || component.isJunction()) {
+                error = QCoreApplication::translate("CopyRedesign", "Not a folder: %1")
+                            .arg(QDir::toNativeSeparators(ancestor));
+                return E_INVALIDARG;
+            }
+            const QString parent = component.path();
+            if (parent == ancestor)
+                break;
+            firstMissingParent = ancestor;
+            ancestor = parent;
+            component.setFile(ancestor);
+        }
     }
     CDisableTimerProcessing disableTimerProcessing2(*this);
     CSelectedState state;
@@ -131,12 +158,25 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     const HRESULT res =
         op.DoOperation(*this, LangString(IDS_CREATE_FOLDER), LangString(IDS_CREATE_FOLDER_ERROR));
     error = ToQString(op.Sync.FinalMessage.ErrorMessage.Message);
+    if (FAILED(res) && res != E_ABORT && !op.Sync.Messages.IsEmpty()) {
+        QStringList diagnostics;
+        FOR_VECTOR(i, op.Sync.Messages)
+        diagnostics.append(ToQString(op.Sync.Messages[i]));
+        error = diagnostics.join(QLatin1Char('\n'));
+    }
+    if (FAILED(res) && res != E_ABORT && !filesystemDestination.isEmpty()) {
+        if (error.isEmpty())
+            error = ToQString(HResultToMessage(res));
+        error.prepend(QDir::toNativeSeparators(filesystemDestination) + u'\n');
+    }
     SetPublishedArchive(*this, op, publishedArchive);
-    if (res == S_OK) {
-        PrepareCreatedSelection(*this, name, state);
-        if (destinationDirectory && IsFSFolder())
-            *destinationDirectory =
-                QFileInfo(QDir(ToQString(GetFsPath())), ToQString(name)).absolutePath();
+    if (res == S_OK)
+        PrepareCreatedSelection(*this, name, showHiddenFolders, state);
+    if (destinationDirectory) {
+        if (!parentDirectory.isEmpty() && res == S_OK)
+            *destinationDirectory = parentDirectory;
+        else if (!firstMissingParent.isEmpty() && QFileInfo(firstMissingParent).isDir())
+            *destinationDirectory = QFileInfo(firstMissingParent).path();
     }
     RefreshTitleAlways();
     RefreshListCtrl(state);
@@ -184,15 +224,17 @@ HRESULT CPanel::OnEndLabelEdit(UInt32 realIndex, const UString &enteredName,
     op.FolderOperations = _folderOperations;
     op.Index = realIndex;
     op.Name = newName;
+    if (IsFSFolder())
+        op.RenameDestination = us2fs(GetFsPath() + prefix + newName);
     const HRESULT result =
         op.DoOperation(*this, LangString(IDS_RENAMING), LangString(IDS_ERROR_RENAMING));
     SetPublishedArchive(*this, op, publishedArchive);
     if (result == S_OK) {
         state.FocusedName = RenamedItemInView(*this, prefix + newName);
         state.SelectFocused = true;
-        if (destinationDirectory && IsFSFolder())
+        if (destinationDirectory && !op.RenameDestination.IsEmpty())
             *destinationDirectory =
-                QFileInfo(ToQString(GetFsPath() + prefix + newName)).absolutePath();
+                QFileInfo(ToQString(fs2us(op.RenameDestination))).absolutePath();
     } else
         state.FocusedName = prefix + oldName;
     state.FocusedName_Defined = true;

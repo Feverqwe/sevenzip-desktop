@@ -1,3 +1,4 @@
+#include "archive/support/native_archive_fixture.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
@@ -9,6 +10,7 @@
 #include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QMenu>
+#include <QScopeGuard>
 #include <QScrollBar>
 #include <QStatusBar>
 #include <QToolButton>
@@ -86,6 +88,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QDir().rename(parked, missing));
         travel->trigger();
         QTRY_COMPARE(location(window), missing);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
     void keyboardAndNavigationGeometry_data() {
@@ -194,6 +197,19 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, cell);
         QTRY_COMPARE(location(window), nested);
         QTRY_VERIFY(view->hasFocus());
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->selectAll();
+        QTest::keyClicks(address, "unfinished address");
+        QTest::keyClick(address, Qt::Key_Tab);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(address->text(), QString("unfinished address"));
+        QTest::keyClick(view, Qt::Key_Backspace);
+        QTRY_COMPARE(location(window), child);
+        QTRY_COMPARE(QDir::cleanPath(address->text()), child);
+        QTRY_VERIFY(view->hasFocus() && view->isEnabled());
+        QTRY_COMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), QString("nested"));
     }
 
     void keyboardHistoryWorksWhileThePeerRefreshes() {
@@ -287,7 +303,9 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(view->isEnabled() && view->rowCount() >= count);
         const int row = count * 3 / 4;
         view->selectRow(row);
-        view->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn > 0 && !view->isColumnHidden(sizeColumn));
+        view->setCurrentCell(row, sizeColumn, QItemSelectionModel::NoUpdate);
         view->scrollTo(view->model()->index(count / 3, 0), QAbstractItemView::PositionAtCenter);
         QVERIFY(!view->viewport()->rect().intersects(view->visualRect(view->currentIndex())));
         const QString selected = view->model()->index(row, 0).data().toString();
@@ -328,20 +346,30 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(window.focusWidget(), view);
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data().toString(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QCOMPARE(view->currentIndex().column(), sizeColumn);
         QTRY_COMPARE(view->verticalScrollBar()->value(), scroll);
     }
 
     void historyRetriesUnavailableDirectory_data() {
         QTest::addColumn<bool>("forward");
         QTest::addColumn<bool>("background");
-        QTest::newRow("back") << false << false;
-        QTest::newRow("forward") << true << false;
-        QTest::newRow("back-background") << false << true;
-        QTest::newRow("forward-background") << true << true;
+        QTest::addColumn<bool>("unreadable");
+        QTest::addColumn<bool>("forwardBranch");
+        QTest::newRow("back") << false << false << false << false;
+        QTest::newRow("forward") << true << false << false << false;
+        QTest::newRow("back-background") << false << true << false << false;
+        QTest::newRow("forward-background") << true << true << false << false;
+        QTest::newRow("back-with-forward-branch") << false << false << false << true;
+#ifdef Q_OS_UNIX
+        QTest::newRow("back-unreadable-background") << false << true << true << false;
+        QTest::newRow("forward-unreadable") << true << false << true << false;
+#endif
     }
     void historyRetriesUnavailableDirectory() {
         QFETCH(bool, forward);
         QFETCH(bool, background);
+        QFETCH(bool, unreadable);
+        QFETCH(bool, forwardBranch);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString first = fixture.filePath(QStringLiteral("first 空"));
@@ -358,15 +386,23 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         auto *address = window.findChild<QLineEdit *>("archivePath");
         auto *view = table(window);
         auto *back = window.findChild<QAction *>("backAction");
-        auto *travel = forward ? window.findChild<QAction *>("forwardAction") : back;
-        QVERIFY(address && view && back && travel);
+        auto *next = window.findChild<QAction *>("forwardAction");
+        auto *travel = forward ? next : back;
+        QVERIFY(address && view && back && next);
         window.openPath(first);
         QTRY_COMPARE(address->text(), QFileInfo(first).canonicalFilePath());
         QTRY_VERIFY(view->isEnabled());
         window.openPath(second);
         QTRY_COMPARE(address->text(), QFileInfo(second).canonicalFilePath());
         QTRY_VERIFY(view->isEnabled());
-        if (forward)
+        const QString third = fixture.filePath("third");
+        if (forwardBranch) {
+            createDirectory(third);
+            window.openPath(third);
+            QTRY_COMPARE(address->text(), QFileInfo(third).canonicalFilePath());
+            QTRY_VERIFY(view->isEnabled());
+        }
+        if (forward || forwardBranch)
             back->trigger();
         else
             window.openPath(origin); // Reopening the current location is not another visit.
@@ -381,7 +417,18 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         view->setFocus();
         QTRY_VERIFY(view->hasFocus());
 
-        QVERIFY(QDir(target).removeRecursively());
+        const auto permissions = QFile::permissions(target);
+        const auto restore = qScopeGuard([&] {
+            if (unreadable)
+                QFile::setPermissions(target, permissions);
+        });
+        if (unreadable) {
+            QVERIFY(QFile::setPermissions(target, QFile::ExeOwner));
+            if (QFileInfo(target).isReadable())
+                QSKIP("Requires a directory that the current user cannot list");
+        } else {
+            QVERIFY(QDir(target).removeRecursively());
+        }
         QTest::keySequence(window.focusWidget(), travel->shortcut());
         QTRY_VERIFY_WITH_TIMEOUT(travel->isEnabled(), 3000);
         QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(target).fileName()));
@@ -389,12 +436,26 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QCOMPARE(view->currentRow(), filesystemRow(window, "item-0000.txt"));
         if (!forward)
-            QVERIFY(!action(window, "forwardAction")->isEnabled());
+            QCOMPARE(next->isEnabled(), forwardBranch);
         QTRY_VERIFY(view->hasFocus());
         QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
         QCOMPARE(view->selectionModel()->selectedRows().size(), originCount);
 
-        createDirectory(target);
+        if (forwardBranch) {
+            QTest::keySequence(view, next->shortcut());
+            QTRY_COMPARE(address->text(), QFileInfo(third).canonicalFilePath());
+            QTRY_VERIFY(view->hasFocus());
+            QTRY_VERIFY(back->isEnabled());
+            QTest::keySequence(view, back->shortcut());
+            QTRY_COMPARE(address->text(), displayedOrigin);
+            QTRY_VERIFY(view->hasFocus());
+            QTRY_VERIFY(travel->isEnabled());
+        }
+
+        if (unreadable)
+            QVERIFY(QFile::setPermissions(target, permissions));
+        else
+            createDirectory(target);
         QTest::keySequence(window.focusWidget(), travel->shortcut());
         QTRY_COMPARE(address->text(), QFileInfo(target).canonicalFilePath());
         QTRY_VERIFY(view->hasFocus());
@@ -496,6 +557,49 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(view->viewport()->rect().intersects(view->visualRect(view->currentIndex())));
     }
 
+    void backRestoresArchiveViewWhenLeavingDuringRefresh() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("history.zip");
+        const QString other = fixture.filePath("other");
+        createDirectory(other);
+        QList<NativeArchiveFixture::Item> items;
+        for (int index = 0; index < 270; ++index)
+            items.append({QString("entry-%1.txt").arg(index, 3, 10, QChar('0')), "payload"});
+        QVERIFY(NativeArchiveFixture::Write(archive, items, "zip"));
+        MainWindow window;
+        window.resize(640, 440);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openArchive(archive);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == items.size());
+        const QString selected = QStringLiteral("entry-020.txt");
+        const int row = rowWithPath(window, selected);
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        auto *scroll = view->verticalScrollBar();
+        QTRY_VERIFY(scroll->maximum() > 2);
+        scroll->setValue(scroll->maximum() / 2);
+        const int position = scroll->value();
+        QVERIFY(view->rowAt(0) > row);
+
+        auto *refresh = action(window, "refreshAction");
+        QVERIFY(refresh->isEnabled());
+        refresh->trigger();
+        QVERIFY(!view->isEnabled());
+        window.openPath(other);
+        QTRY_VERIFY(view->isEnabled() && location(window) == other);
+        auto *back = action(window, "backAction");
+        QVERIFY(back->isEnabled());
+        back->trigger();
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() == items.size());
+        QCOMPARE(view->currentIndex().data().toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QCOMPARE(scroll->value(), position);
+    }
+
     void paneBackButtonIgnoresTheClosingViewMenu() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -570,7 +674,9 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(QDir::cleanPath(ToQString(leftView->sourcePanel->GetCurrentFolderPrefix())), left);
     }
 
-    void canceledEncryptedBackKeepsItsCursorAndDoesNotPromptTwice() {
+    void encryptedBackKeepsItsCursorAfterPasswordCancellationOrFailure() {
+        SaveRegLang(UString("-"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
         const QString folder = fixture.filePath("source");
         createDirectory(folder);
@@ -583,6 +689,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         window.show();
         int prompts = 0;
         bool reject = false;
+        QString suppliedPassword = password;
         QTimer answer;
         dialogs_.connectResponder(answer, &window, [&] {
             if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs_.activeDialog())) {
@@ -590,7 +697,7 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
                 if (reject)
                     dialog->reject();
                 else {
-                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(password);
+                    dialog->findChild<QLineEdit *>("passwordEdit")->setText(suppliedPassword);
                     dialog->accept();
                 }
             }
@@ -602,6 +709,11 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(table(window)->isEnabled() && location(window) == folder);
         QVERIFY(WindowActivation::waitForActive(window));
         auto *address = window.findChild<QLineEdit *>("archivePath");
+        const auto addressHasFocus = [&] {
+            const auto *combo = window.findChild<QComboBox *>("pathCombo");
+            const auto *focus = window.focusWidget();
+            return focus && (focus == combo || focus == address);
+        };
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         address->selectAll();
@@ -617,13 +729,31 @@ class WorkspaceHistoryTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(address->text(), draft);
         QCOMPARE(address->selectedText(), draft.mid(7, 4));
         QCOMPARE(address->cursorPosition(), 7);
+        QTRY_VERIFY(addressHasFocus());
+        QTest::keyClicks(window.focusWidget(), "edited");
+        const QString editedDraft = draft.left(7) + "edited" + draft.mid(11);
+        QCOMPARE(address->text(), editedDraft);
         QVERIFY(table(window)->sourcePanel->ShouldProcessNotifications());
         QVERIFY(action(window, "backAction")->isEnabled());
         QVERIFY(!action(window, "forwardAction")->isEnabled());
         reject = false;
+        suppliedPassword = QStringLiteral("incorrect password");
+        action(window, "backAction")->trigger();
+        QTRY_COMPARE(prompts, 2);
+        QCOMPARE(location(window), folder);
+        QCOMPARE(address->text(), editedDraft);
+        QTRY_VERIFY(addressHasFocus());
+        QVERIFY(action(window, "backAction")->isEnabled());
+        const QString error = window.statusBar()->currentMessage();
+        QVERIFY(QDir::fromNativeSeparators(error).contains(archive));
+        QVERIFY(error.contains("password", Qt::CaseInsensitive));
+
+        suppliedPassword = password;
         action(window, "backAction")->trigger();
         QTRY_VERIFY(table(window)->isEnabled() && table(window)->sourcePanel->IsArcFolder());
-        QVERIFY(address->text() != draft);
+        QCOMPARE(prompts, 3);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(address->text() != editedDraft);
         QTRY_COMPARE(window.focusWidget(), table(window));
         action(window, "forwardAction")->trigger();
         QTRY_COMPARE(location(window), folder);

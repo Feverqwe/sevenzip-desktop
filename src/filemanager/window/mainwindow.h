@@ -76,6 +76,7 @@ class QtWindowStatusBar;
 #include <QVBoxLayout>
 #include <QWidget>
 #include <array>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -131,7 +132,7 @@ class MainWindow : public QMainWindow {
     void createFileManagerWindow(const QtFileManagerStartup *startup, bool panelsDefined,
                                  UInt32 splitterPos);
     HRESULT openArchiveAs(const QString &path, const QString &type);
-    HRESULT openArchiveAsImpl(const QString &path, const QString &type);
+    HRESULT openArchiveAsImpl(const QFileInfo &file, const QString &type);
     void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
     void reloadLangItems();
@@ -234,15 +235,19 @@ class MainWindow : public QMainWindow {
     HRESULT finishSynchronousFilesystemListing(HRESULT result);
     HRESULT startFilesystemScan(IFolderFolder *folder);
     struct ListViewport {
-        ListViewport(QAbstractItemView *source, const QString &folder, const QString &top,
+        ListViewport(QAbstractItemView *source, const QString &folder, const QStringList &visible,
                      const QPoint &position, int offset)
-            : view(source), directory(folder), topPath(top), scrollPosition(position),
+            : view(source), directory(folder), visiblePaths(visible), scrollPosition(position),
               topOffset(offset) {}
         QPointer<QAbstractItemView> view;
         QString directory;
-        QString topPath;
+        QStringList visiblePaths;
         QPoint scrollPosition;
         int topOffset;
+        int cursorColumn = -1;
+        PROPID cursorProperty = kpidNoProperty;
+        bool cursorRawProperty = false;
+        bool keepVertical = true;
     };
     ListViewport captureListViewport();
     void restoreListViewport(const ListViewport &viewport);
@@ -251,8 +256,9 @@ class MainWindow : public QMainWindow {
     void restoreListSelection(const CSelectedState &selection);
     struct FilesystemSignature;
     void pollAutoRefresh();
-    void restoreAutoRefreshViewport();
-    FilesystemSignature filesystemSignature(const QString &path) const;
+    void checkPanelForFilesystemChanges(unsigned index);
+    void completeListViewport();
+    static FilesystemSignature filesystemSignature(const QString &path);
     void SelectAll(bool select);
     HRESULT navigateTo(const QString &path, bool sourceAddress = false);
     HRESULT navigateToImpl(const QString &path, bool sourceAddress);
@@ -277,6 +283,8 @@ class MainWindow : public QMainWindow {
     void showPanelStatus(unsigned panel, const CPanelStatus &status);
     void showStatusMessage(const QString &message, int timeout = 5000);
     void clearStatusMessage();
+    QString recordFilesystemReadError();
+    void clearFilesystemReadError();
     void showSelectedProperties();
     void calculateHash(const QString &method);
     void begin(const QString &label, const QString &source, const QString &destination = {});
@@ -348,8 +356,10 @@ class MainWindow : public QMainWindow {
         FileTable *table = nullptr;
         QListView *iconList = nullptr;
         QStackedWidget *viewStack = nullptr;
+        std::optional<std::pair<PROPID, bool>> tableCursorColumn;
         QLabel *readOnlyIndicator = nullptr;
         QString directory;
+        QString filesystemReadError;
         QString returnDirectory;
         QString archive;
         QString displayArchive;
@@ -363,6 +373,8 @@ class MainWindow : public QMainWindow {
         FilesystemScanner *filesystemScanner = nullptr;
         QtFolderProjection *listProjection = nullptr;
         QHash<QString, FilesystemSignature> autoRefreshSnapshot;
+        enum class RefreshProbe { Pending, Unchanged, Changed };
+        std::shared_ptr<std::atomic<RefreshProbe>> autoRefreshProbe;
         std::optional<ListViewport> pendingViewport;
         std::optional<CSelectedState> pendingSelection;
     };

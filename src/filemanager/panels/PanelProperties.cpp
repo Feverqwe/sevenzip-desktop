@@ -8,6 +8,7 @@
 #include "Common/StringConvert.h"
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/agent/Agent.h"
 #include "archive/diagnostics/archiveerrormessages.h"
 #include "archive/opening/OpenArchive.h"
 #include "filemanager/FormatUtils.h"
@@ -214,9 +215,22 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
         UInt64 unpackSize = 0;
         UInt64 numFiles = 0;
         UInt64 numDirs = 0;
-        bool completeFileSize = true;
+        bool completeFileCount = true;
+        bool completeDirCount = true;
+        bool completeSize = true;
         bool hasReportedSize = false;
         bool hasPackedSize = false;
+        const bool exactFolderSizes =
+            IsFSFolder() || (!GetFlatMode() && dynamic_cast<CAgentFolder *>(_folder.Interface()));
+        const auto addFolderCount = [&](UInt32 index, PROPID id, UInt64 &total, bool &complete) {
+            NWindows::NCOM::CPropVariant value;
+            UInt64 count = 0;
+            if (_folder->GetProperty(index, id, &value) == S_OK &&
+                ConvertPropVariantToUInt64(value, count))
+                AddReportedTotal(total, count, id, message);
+            else
+                complete = false;
+        };
         FOR_VECTOR(i, operatedIndices) {
             const UInt32 index = operatedIndices[i];
             NWindows::NCOM::CPropVariant size;
@@ -226,7 +240,7 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                 hasReportedSize = true;
                 AddReportedTotal(unpackSize, bytes, kpidSize, message);
             } else {
-                completeFileSize = false;
+                completeSize = false;
                 const UInt64 fallback = GetItemSize(index);
                 hasReportedSize |= fallback != 0;
                 AddReportedTotal(unpackSize, fallback, kpidSize, message);
@@ -238,12 +252,11 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
                 AddReportedTotal(packSize, bytes, kpidPackSize, message);
             }
             if (IsItem_Folder(index)) {
-                completeFileSize = false;
+                if (!exactFolderSizes)
+                    completeSize = false;
                 AddReportedTotal(numDirs, 1, kpidNumSubDirs, message);
-                AddReportedTotal(numDirs, GetItem_UInt64Prop(index, kpidNumSubDirs), kpidNumSubDirs,
-                                 message);
-                AddReportedTotal(numFiles, GetItem_UInt64Prop(index, kpidNumSubFiles),
-                                 kpidNumSubFiles, message);
+                addFolderCount(index, kpidNumSubDirs, numDirs, completeDirCount);
+                addFolderCount(index, kpidNumSubFiles, numFiles, completeFileCount);
             } else
                 AddReportedTotal(numFiles, 1, kpidNumSubFiles, message);
         }
@@ -253,16 +266,24 @@ void CPanel::Properties(const CRecordVector<UInt32> &operatedIndices,
             AddPropertyPair(L"", UString(selected.c_str()), message);
             message.selectionSummaryRow = message.Strings.Size() - 1;
         }
-        if (numDirs != 0)
-            AddPropertyString(kpidNumSubDirs, numDirs, message);
-        if (numFiles != 0)
-            AddPropertyString(kpidNumSubFiles, numFiles, message);
+        const auto addCountRow = [&](PROPID id, UInt64 total, bool complete) {
+            if (total == 0 && !message.overflowedTotals.contains(id))
+                return;
+            AddPropertyString(id, total, message);
+            if (complete && !message.overflowedTotals.contains(id)) {
+                auto row = message.nativeValues.find(message.Strings.Size() - 1);
+                if (row != message.nativeValues.end() && row->id == id)
+                    row->availability = QtPropertyReport::Availability::Known;
+            }
+        };
+        addCountRow(kpidNumSubDirs, numDirs, completeDirCount);
+        addCountRow(kpidNumSubFiles, numFiles, completeFileCount);
         AddPropertyString(kpidSize, unpackSize, message);
         auto size = message.nativeValues.find(message.Strings.Size() - 1);
         if (size != message.nativeValues.end() && size->id == kpidSize) {
             if (!hasReportedSize)
                 size->availability = QtPropertyReport::Availability::Unknown;
-            else if (completeFileSize && !message.overflowedTotals.contains(kpidSize))
+            else if (completeSize && !message.overflowedTotals.contains(kpidSize))
                 size->availability = QtPropertyReport::Availability::Known;
         }
         AddPropertyString(kpidPackSize, packSize, message);

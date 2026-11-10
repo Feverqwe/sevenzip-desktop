@@ -20,18 +20,13 @@ void QtFileManagerCommands::AttachDirectoryActions() {
 bool QtFileManagerCommands::CanCalculateDirectorySize() const {
     auto &panel = window_.app_.GetFocusedPanel();
     auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
-    CMyComPtr<IFolderCalcItemFullSize> filesystem;
-    if (panel.IsFSFolder() && panel.GetFolder())
-        panel.GetFolder()->QueryInterface(IID_IFolderCalcItemFullSize,
-                                          reinterpret_cast<void **>(&filesystem));
-    if (!folder && !filesystem)
-        return false;
     CUIntVector indices;
     panel.Get_ItemIndices_Operated(indices);
-    FOR_VECTOR(i, indices)
-    if (panel.IsItem_Folder(indices[i])) {
-        if (filesystem)
+    FOR_VECTOR(i, indices) {
+        if (panel.CanCalculateFilesystemItemSize(indices[i]))
             return true;
+        if (!folder || !panel.IsItem_Folder(indices[i]))
+            continue;
         const int nativeIndex = folder->GetRealIndex(indices[i]);
         if (nativeIndex >= 0 && !folder->DirectoryItemSubtreeComplete(UInt32(nativeIndex)))
             return true;
@@ -44,7 +39,7 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     auto &panel = window_.app_.GetFocusedPanel();
     if (panel.IsFSFolder()) {
         if (CanCalculateDirectorySize())
-            panel.EditItem(false); // Native filesystem folder-size path also used by F3.
+            EditItem(false); // Native filesystem folder-size path also used by F3.
         return;
     }
     CMyComPtr<IFolderFolder> owner = panel.GetFolder();
@@ -55,6 +50,7 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     panel.Get_ItemIndices_Operated(indices);
     CSelectedState selection;
     panel.SaveSelectedState(selection);
+    selection.PreserveAddress = true;
     HRESULT result;
     {
         QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
@@ -65,8 +61,7 @@ void QtFileManagerCommands::CalculateDirectorySizes() {
     // A cancelled recursive read can still have completed individual folders.
     // Refresh the projection from the retained reader, preserving selection.
     window_.withPanelProjection(source, [&] {
-        if (window_.renderBoundFolder(false) == S_OK)
-            window_.restoreListSelection(selection);
+        window_.reloadProjectedPanel(selection);
         if (result != S_OK && result != E_ABORT)
             panel.MessageBox_Error_HRESULT(result);
         window_.refreshActions();

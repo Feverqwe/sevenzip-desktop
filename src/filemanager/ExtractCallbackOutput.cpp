@@ -1,6 +1,5 @@
 // Entry output callbacks adapted from 7-Zip UI/FileManager/ExtractCallback.cpp.
 // Igor Pavlov, LGPL-2.1-or-later; see third_party/7zip/License.txt.
-#include "7zip/Common/FilePathAutoRename.h"
 #include "Common/ComTry.h"
 #include "Common/StringConvert.h"
 #include "Windows/FileFind.h"
@@ -10,11 +9,17 @@
 #include "dialogs/overwrite/OverwriteDialog.h"
 #include "filemanager/ExtractCallback.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/paths/qtautorename.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 
 using namespace NWindows;
 using namespace NFile;
 using namespace NFind;
+
+void CExtractCallbackImp::ReportSkippedExisting(const wchar_t *path) {
+    SomeItemsSkipped = true;
+    ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, path);
+}
 
 Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const FILETIME *existTime,
                                                const UInt64 *existSize, const wchar_t *newName,
@@ -38,10 +43,8 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskOverwrite(const wchar_t *existName, const F
         if (mapped == NOverwriteAnswer::kCancel && writeAnswer != IDCANCEL)
             return E_FAIL;
         *answer = mapped;
-        if (mapped == NOverwriteAnswer::kNo || mapped == NOverwriteAnswer::kNoToAll) {
-            SomeItemsSkipped = true;
-            ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, newName);
-        }
+        if (mapped == NOverwriteAnswer::kNo || mapped == NOverwriteAnswer::kNoToAll)
+            ReportSkippedExisting(newName);
         return writeAnswer == IDCANCEL ? E_ABORT : S_OK;
     });
 }
@@ -87,8 +90,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
 
         switch ((int)OverwriteMode) {
         case NExtract::NOverwriteMode::kSkip:
-            SomeItemsSkipped = true;
-            ProgressDialog->Sync.AddError_Message_Name(_lang_Skipping, srcPath);
+            ReportSkippedExisting(srcPath);
             return S_OK;
         case NExtract::NOverwriteMode::kAsk: {
             Int32 overwriteResult;
@@ -131,7 +133,7 @@ Z7_COM7F_IMF(CExtractCallbackImp::AskWrite(const wchar_t *srcPath, Int32 srcIsFo
         }
 
         if (renameOnce || OverwriteMode == NExtract::NOverwriteMode::kRename) {
-            if (!AutoRenamePath(destPathSys)) {
+            if (!QtAutoRenamePath(destPathSys)) {
                 RINOK(MessageError(
                     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot create name for file"),
                     destPathSys))

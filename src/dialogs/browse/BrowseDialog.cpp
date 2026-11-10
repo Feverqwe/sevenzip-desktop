@@ -112,6 +112,7 @@ void CBrowseDialog::OnInit() {
     CFmSettings st;
     st.Load(FmSettingsPath());
     _showDots = st.ShowDots;
+    _showHiddenFolders = st.ShowHiddenFolders;
 
     unsigned rootSize = GetRootPrefixSize(FilePath);
 #ifdef _WIN32
@@ -292,6 +293,9 @@ HRESULT CBrowseDialog::Reload(UString pathPrefix, const UString &selectedName) {
                 return GetLastError_noZero_HRESULT();
             if (!found)
                 break;
+            if (!_showHiddenFolders && fi.IsDir() &&
+                QFileInfo(ToQString(pathPrefix + fs2us(fi.Name))).isHidden())
+                continue;
             if (!fi.IsDir()) {
                 if (FolderMode)
                     continue;
@@ -398,7 +402,15 @@ void CBrowseDialog::CreateDirFromDraft() {
         return;
     }
     _folderDraft->hide();
-    Reload(DirPrefix, name);
+    UString visibleName;
+    if (!DirPrefix.IsEmpty()) {
+        const QDir current(QDir::fromNativeSeparators(ToQString(DirPrefix)));
+        const QString relative =
+            current.relativeFilePath(QDir::fromNativeSeparators(ToQString(fs2us(destPath))));
+        if (!QDir::isAbsolutePath(relative) && relative != ".." && !relative.startsWith("../"))
+            visibleName = ToUString(relative.section('/', 0, 0));
+    }
+    Reload(DirPrefix, visibleName);
     SetPathEditText();
     if (FolderMode) {
         _pathEdit->setText(ToQString(fs2us(destPath)));
@@ -443,21 +455,26 @@ void CBrowseDialog::FinishOnOK() {
     }
     if (FolderMode || SaveMode) {
         QString candidate = QDir::cleanPath(ToQString(fs2us(destPath)));
-        if (!FolderMode)
-            candidate = QFileInfo(candidate).absolutePath();
-        for (;;) {
-            const QFileInfo entry(candidate);
-            if (entry.isDir())
-                break;
-            if (entry.exists() || entry.isSymLink()) {
+        if (!FolderMode) {
+            if (QFileInfo(candidate).isDir()) {
                 MessageBox_HResError(this, kInvalidNameError,
                                      ToUString(QDir::toNativeSeparators(candidate)));
                 _pathEdit->setFocus();
                 return;
             }
-            const QString parent = entry.absolutePath();
-            if (parent == candidate)
+            candidate = QFileInfo(candidate).absolutePath();
+        }
+        for (;;) {
+            const QFileInfo entry(candidate);
+            if (entry.isDir())
                 break;
+            const QString parent = entry.absolutePath();
+            if (entry.exists() || entry.isSymLink() || parent == candidate) {
+                MessageBox_HResError(this, kInvalidNameError,
+                                     ToUString(QDir::toNativeSeparators(candidate)));
+                _pathEdit->setFocus();
+                return;
+            }
             candidate = parent;
         }
     }

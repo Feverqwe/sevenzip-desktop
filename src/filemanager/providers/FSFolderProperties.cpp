@@ -65,18 +65,25 @@ HRESULT CFsFolderStat::Enumerate() {
 #ifndef _WIN32
     NWindows::NFile::NFind::CDirEntry entry;
 #endif
+    unsigned entries = 0;
     for (;;) {
+        if (Progress && ++entries % 256 == 0)
+            RINOK(Progress->SetCompleted(NULL))
 #ifdef _WIN32
-        if (!enumerator.Next(fi))
+        if (!enumerator.Next(fi)) {
+            const DWORD error = ::GetLastError();
+            if (error != ERROR_NO_MORE_FILES && error != ERROR_FILE_NOT_FOUND)
+                return GetLastError_noZero_HRESULT();
             break;
+        }
 #else
         bool found;
         if (!enumerator.Next(entry, found))
-            break;
+            return GetLastError_noZero_HRESULT();
         if (!found)
             break;
         if (!enumerator.Fill_FileInfo(entry, fi, false))
-            return E_FAIL;
+            return GetLastError_noZero_HRESULT();
 #endif
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             NumFolders++;
@@ -185,19 +192,39 @@ void CFSFolder::ReadChangeTime(CDirItem &di) {
 #endif
 }
 
-Z7_COM7F_IMF(CFSFolder::CalcItemFullSize(UInt32 index, IProgress *progress)) {
-    if (index >= Files.Size())
-        return S_OK;
+bool CFSFolder::CanCalculateItemFullSize(UInt32 index) const {
+    return index < Files.Size() && Files[index].IsDir() && !Files[index].IsOsSymLink();
+}
+
+FString CFSFolder::ItemFullSizePath(UInt32 index) const { return _path + GetRelPath(Files[index]); }
+
+CFsFolderSizeResult MeasureFolderSize(const FString &path, IProgress *progress) {
+    CFsFolderStat stat(path, progress);
+    const HRESULT result = stat.Enumerate();
+    return {result, stat.Size, stat.NumFolders, stat.NumFiles};
+}
+
+void CFSFolder::ApplyItemFullSize(UInt32 index, const CFsFolderSizeResult &result) {
     CDirItem &fi = Files[index];
-    if (!fi.IsDir() || fi.IsOsSymLink())
-        return S_OK;
-    CFsFolderStat stat(_path + GetRelPath(fi), progress);
-    RINOK(stat.Enumerate())
-    fi.Size = stat.Size;
-    fi.NumFolders = stat.NumFolders;
-    fi.NumFiles = stat.NumFiles;
+    if (result.Status != S_OK) {
+        if (result.Status != E_ABORT) {
+            fi.FolderStat_Defined = false;
+            fi.Size = 0;
+        }
+        return;
+    }
+    fi.Size = result.Size;
+    fi.NumFolders = result.NumFolders;
+    fi.NumFiles = result.NumFiles;
     fi.FolderStat_Defined = true;
-    return S_OK;
+}
+
+Z7_COM7F_IMF(CFSFolder::CalcItemFullSize(UInt32 index, IProgress *progress)) {
+    if (!CanCalculateItemFullSize(index))
+        return S_OK;
+    const auto result = MeasureFolderSize(ItemFullSizePath(index), progress);
+    ApplyItemFullSize(index, result);
+    return result.Status;
 }
 
 #ifdef USE_UNICODE_FSTRING
@@ -458,10 +485,21 @@ Z7_COM7F_IMF2(Int32, CFSFolder::CompareItems(UInt32 index1, UInt32 index2, PROPI
         */
         return comp;
     }
-    case kpidSize:
-        return MyCompare(
-            /* ss1 ? ss1->Size : */ fi1.Size,
-            /* ss2 ? ss2->Size : */ fi2.Size);
+    case kpidSize: {
+        const bool defined1 = !fi1.IsDir() || fi1.FolderStat_Defined;
+        const bool defined2 = !fi2.IsDir() || fi2.FolderStat_Defined;
+        if (defined1 != defined2)
+            return defined1 ? 1 : -1;
+        return defined1 ? MyCompare(fi1.Size, fi2.Size) : 0;
+    }
+    case kpidNumSubDirs:
+    case kpidNumSubFiles:
+        if (fi1.FolderStat_Defined != fi2.FolderStat_Defined)
+            return fi1.FolderStat_Defined ? 1 : -1;
+        if (!fi1.FolderStat_Defined)
+            return 0;
+        return propID == kpidNumSubDirs ? MyCompare(fi1.NumFolders, fi2.NumFolders)
+                                        : MyCompare(fi1.NumFiles, fi2.NumFiles);
     case kpidAttrib:
         return MyCompare(fi1.GetWinAttrib(), fi2.GetWinAttrib());
     case kpidCTime:

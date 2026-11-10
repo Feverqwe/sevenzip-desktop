@@ -33,6 +33,7 @@ class CExtractDialog : public QDialog {
     QtDisclosure *_sourcesSection = nullptr;
     QPlainTextEdit *_sourcePaths = nullptr;
     QStringList _archiveSources;
+    bool _validateSourcePaths = false;
     bool _allContents = true;
     QSize _initialPresentationSize;
     bool _initialPresentation = true;
@@ -44,6 +45,7 @@ class CExtractDialog : public QDialog {
     void OnOK();
     UString DraftDestination() const;
     void OnButtonSetPath();
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void showEvent(QShowEvent *event) override;
     static QString settingsPath();
@@ -72,7 +74,7 @@ class CExtractDialog : public QDialog {
                            NExtract::NOverwriteMode::EEnum overwriteMode, const QString &password);
     void SetMetadataOptions(const CBoolPair &elimDup, const CBoolPair &ntSecurity);
     // Display the caller's existing sources and effective selection scope.
-    void SetArchiveSources(const QStringList &sources, bool allContents);
+    void SetArchiveSources(const QStringList &sources, bool allContents, bool validatePaths = false);
   public slots:
     void accept() override { OnOK(); }
 };

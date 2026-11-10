@@ -1,5 +1,7 @@
 #include "Windows/PropVariant.h"
 #include "Windows/PropVariantConv.h"
+#include "archive/support/source_extract_fixture.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "ui/support/layout_inspection.h"
 #include "window_operations.h"
 #include <QLineEdit>
@@ -90,6 +92,48 @@ void MainWindowOperationsTests::backendOverwriteDisplaysNativeMetadata() {
     QCOMPARE(original.readAll(), QByteArray("keep"));
 }
 
+void MainWindowOperationsTests::extractionRefreshesAnOpenDestinationWithoutLosingItsDraft() {
+    using namespace SourceExtractFixture;
+    QTemporaryDir fixture;
+    QVERIFY(fixture.isValid());
+    const QString archive = fixture.filePath("source.zip");
+    QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "archive bytes"}}, "zip"));
+    const QString output = fixture.filePath("output");
+    const QString existing = QDir(output).filePath("selected.txt");
+    QVERIFY(writeFile(existing, "previous bytes"));
+    QtWorkspaceApplication application(*qApp);
+    MainWindow destination, source;
+    destination.show();
+    destination.openPath(output);
+    auto *files = table(destination);
+    QTRY_VERIFY(files->isEnabled() && filesystemRow(destination, "selected.txt") >= 0);
+    files->sourcePanel->Set_AutoRefresh_Mode(false);
+    const int row = filesystemRow(destination, "selected.txt");
+    files->setCurrentCell(row, 0);
+    files->selectRow(row);
+    QVERIFY(WindowActivation::waitForActive(destination));
+    auto *address = destination.findChild<QLineEdit *>("archivePath");
+    PanelKeys::focusAddress(address);
+    QTRY_VERIFY(address->hasFocus());
+    address->selectAll();
+    QTest::keyClicks(address, "unfinished path");
+    address->setSelection(10, -4);
+    const QString selection = address->selectedText();
+
+    source.show();
+    source.openArchive(archive);
+    QTRY_VERIFY(table(source)->sourcePanel->IsArcFolder());
+    source.extractTo(output, false);
+    QTRY_VERIFY(files->isEnabled() && filesystemRow(destination, "entry.txt") >= 0);
+    QCOMPARE(readFile(QDir(output).filePath("entry.txt")), QByteArray("archive bytes"));
+    QCOMPARE(readFile(existing), QByteArray("previous bytes"));
+    QCOMPARE(files->currentIndex().data().toString(), QString("selected.txt"));
+    QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
+    QCOMPARE(address->text(), QString("unfinished path"));
+    QCOMPARE(address->selectedText(), selection);
+    QVERIFY(address->isModified());
+}
+
 void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
@@ -123,11 +167,16 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     QSignalSpy preflight(&backend, &ArchiveBackend::overwriteRequired);
     bool answered = false;
     QByteArray choice("overwriteYes");
+    QString report;
     QTimer answer;
     connect(&answer, &QTimer::timeout, &window, [&] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
-            if (TestProgressDialog::DismissVisibleResult(widget))
+            if (auto *result = TestProgressDialog::ResultWindow(widget);
+                result && result->isVisible()) {
+                report = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
                 continue;
+            }
             if (auto *dialog = dynamic_cast<COverwriteDialog *>(widget);
                 dialog && dialog->isVisible()) {
                 answered = true;
@@ -189,10 +238,12 @@ void MainWindowOperationsTests::extractAskUsesSourceOverwriteDialog() {
     old.close();
 
     answered = false;
+    report.clear();
     ExtractionOptions skip = options;
     skip.overwriteMode = ExtractionOptions::OverwriteMode::SkipExisting;
     window.extractTo(temp.filePath("destination"), true, {}, skip);
     QVERIFY(!answered);
+    QVERIFY(report.contains(QStringLiteral("архивный файл.txt")));
     QCOMPARE(preflight.size(), 0);
     QCOMPARE(window.statusBar()->currentMessage(),
              QCoreApplication::translate("ProgressRedesign",

@@ -14,6 +14,7 @@ class QtWindowStatusBar final : public QStatusBar {
     void SetSummary(QObject *context, const QString &summary, const QString &size,
                     const QString &exactSize, bool loading);
     void SetMessage(QObject *context, const QString &message, int timeout = 5000);
+    void ClearMessageIf(QObject *context, const QString &message);
 
   private:
     struct Feedback {

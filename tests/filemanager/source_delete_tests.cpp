@@ -14,6 +14,7 @@
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
+#include "ui/controls/qtdisclosure.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
@@ -77,7 +78,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         errors.start(1);
         UStringVector paths;
         paths.Add(ToUString(path));
-        QCOMPARE(QtMoveItemsToTrash(paths, trash, nullptr), S_OK);
+        QCOMPARE(QtMoveItemsToTrash(paths, fixture.path(), trash, nullptr), S_OK);
         QVERIFY(!QFileInfo::exists(path));
         QVERIFY(!trash.moved.isEmpty());
         QFile moved(trash.moved);
@@ -149,9 +150,22 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 QTRY_VERIFY(progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME")
                                 ->text()
                                 .contains(first));
-                QVERIFY(UiInspection::writeReport(*progress, "trash-progress-before-cancel"));
+                auto *locations = progress->findChild<QtDisclosure *>("progressLocations");
+                QVERIFY(locations);
+                locations->setExpanded(true);
+                auto *source = progress->findChild<QLabel *>("progressSource");
+                QVERIFY(source && source->isVisible());
+                const QDir base(QDir(fixture.path()).canonicalPath());
+                const QString expected = lastItem ? base.filePath(first) : base.path();
+                QCOMPARE(
+                    QDir::cleanPath(QDir::fromNativeSeparators(source->accessibleDescription())),
+                    QFileInfo(expected).absoluteFilePath());
                 auto *cancel = progress->findChild<QPushButton *>("IDCANCEL");
                 QVERIFY(cancel);
+                QTRY_VERIFY(UiInspection::fullyVisible(*source, *progress));
+                QVERIFY(UiInspection::fullyVisible(*cancel, *progress));
+                QVERIFY(UiInspection::writeReport(*progress, lastItem ? "trash-progress-single"
+                                                                      : "trash-progress-batch"));
                 stopped = true;
                 cancel->click();
             }
@@ -166,7 +180,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(!review);
         } else {
             QVERIFY(review);
-            QVERIFY(review->contains(QStringLiteral("Items moved to Trash (1)")));
+            QVERIFY(review->contains(QStringLiteral("Items moved to Trash (1 of 2)")));
         }
         QVERIFY(stopped);
         QCOMPARE(trash.calls, 1);
@@ -174,11 +188,27 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QFile remaining(fixture.filePath(second));
         QVERIFY(remaining.open(QIODevice::ReadOnly));
         QCOMPARE(remaining.readAll(), QByteArray("protected"));
+        remaining.close();
         QTRY_COMPARE(view->rowCount(), 1);
         QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), second);
         if (!lastItem)
             QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(panel.ShouldProcessNotifications());
+        if (!lastItem) {
+            trash.during = {};
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_COMPARE(window.focusWidget(), view);
+            responder.start(1);
+#ifdef Q_OS_MACOS
+            PanelKeys::command(view, Qt::Key_Backspace, Qt::ControlModifier);
+#else
+            QTest::keyClick(view, Qt::Key_Delete);
+#endif
+            responder.stop();
+            QCOMPARE(trash.calls, 2);
+            QTRY_COMPARE(view->rowCount(), 0);
+            QVERIFY(!QFileInfo::exists(remaining.fileName()));
+        }
     }
     void folderAndLinkConsequences_data() {
         QTest::addColumn<bool>("link");
@@ -413,6 +443,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         const auto selection = view->selectionModel()->selection();
         bool observed = false;
         bool cancelDefault = false;
+        bool reviewedByKeyboard = false;
         QString title, message;
         QStringList listedNames;
         bool reports = true;
@@ -426,9 +457,9 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             cancelDefault = box->findChild<QPushButton *>("deleteCancel")->isDefault();
             title = box->windowTitle();
             message = box->findChild<QWidget *>("deleteSourceSummary")->accessibleName();
-            if (auto *names = box->findChild<QWidget *>("deleteSelectedNames"))
-                for (auto *label : names->findChildren<QLabel *>())
-                    listedNames.append(label->accessibleName());
+            if (auto *names = box->findChild<QListView *>("deleteSelectedNames"))
+                for (int row = 0; row < names->model()->rowCount(); ++row)
+                    listedNames.append(names->model()->index(row, 0).data().toString());
             for (const QSize size : {QSize(400, 200), QSize(300, 180)}) {
                 box->resize(size);
                 QApplication::processEvents();
@@ -441,6 +472,17 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QFile external(fixture.filePath("external.bin"));
             if (external.open(QIODevice::WriteOnly))
                 external.write("external bytes");
+            if (batch) {
+                auto *names = box->findChild<QListView *>("deleteSelectedNames");
+                for (int step = 0; names && !names->hasFocus() && step < 8; ++step)
+                    QTest::keyClick(box->focusWidget(), Qt::Key_Tab);
+                reviewedByKeyboard = names && names->hasFocus();
+                if (reviewedByKeyboard) {
+                    QTest::keyClick(names, Qt::Key_End);
+                    QTest::keyClick(names, Qt::Key_Escape);
+                    return;
+                }
+            }
             QTest::keyClick(box, cancel ? Qt::Key_Escape : Qt::Key_Return);
         });
         refusal.start(5);
@@ -453,9 +495,10 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QVERIFY(observed);
         QVERIFY(cancelDefault);
         QCOMPARE(title, QCoreApplication::translate("DeleteRedesign", "Move to Trash?"));
-        if (batch)
+        if (batch) {
+            QVERIFY(reviewedByKeyboard);
             QCOMPARE(listedNames, (QStringList{name, otherName}));
-        else
+        } else
             QVERIFY(message.contains(name));
         QVERIFY(reports);
         // Original Delete returns before RefreshListCtrl on No or Cancel.
@@ -679,8 +722,8 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(refreshedBeforeReview);
             QVERIFY(errorDetails.contains(secondDeleted));
             QVERIFY(errorDetails.contains(language == "ru"
-                                              ? QStringLiteral("Перемещено в Корзину (1)")
-                                              : QStringLiteral("Items moved to Trash (1)")));
+                                              ? QStringLiteral("Перемещено в Корзину (1 из 2)")
+                                              : QStringLiteral("Items moved to Trash (1 of 2)")));
             QVERIFY(errorDetails.contains(
                 language == "ru" ? QStringLiteral("Не удалось переместить объект в Корзину.")
                                  : QStringLiteral("Could not move the item to Trash.")));

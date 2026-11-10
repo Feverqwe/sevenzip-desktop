@@ -106,6 +106,7 @@ void CDataObject::CopyFromPanelTo_Folder(CPanel *source) {
     try {
         CCopyToOptions options;
         options.folder = SrcDirPrefix_Temp;
+        options.CancellationMayLeaveChanges = false;
         // Qt owns mouse capture; CopyTo uses the existing progress adapter.
         Copy_WasCalled = true;
         Copy_HRESULT = E_FAIL;

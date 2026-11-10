@@ -375,6 +375,7 @@ void CPanel::TestArchives(IQtCompressCallServices *services) {
         options.streamMode = true;
         options.showErrorMessages = true;
         options.testMode = true;
+        options.CancellationMayLeaveChanges = false;
         UInt32 folderItems = 0;
         const char *scope = QT_TRANSLATE_NOOP("ArchiveTest", "Scope: selected items");
         if (_folder->GetNumberOfItems(&folderItems) == S_OK && indices.Size() == folderItems) {
@@ -384,12 +385,10 @@ void CPanel::TestArchives(IQtCompressCallServices *services) {
         }
         options.TestScope = ToUString(QCoreApplication::translate("ArchiveTest", scope));
 
-        UStringVector messages;
-        HRESULT res = CopyTo(options, indices, &messages);
-        if (res != S_OK) {
-            if (res != E_ABORT)
-                MessageBox_Error_HRESULT(res);
-        }
+        QtArchiveExtractReport report;
+        const HRESULT res = CopyTo(options, indices, nullptr, &report);
+        if (res != S_OK && res != E_ABORT && !report.ResultPresented)
+            MessageBox_Error_HRESULT(res);
         return;
     }
     if (!IsFSFolder()) {

@@ -43,6 +43,7 @@ class QtFileManagerDrag final : public QObject,
     void ResetDropTarget();
     MainWindow &window_;
     CDataObject external_;
+    QPointer<const QMimeData> externalUrlSource_;
 #ifdef _WIN32
     QPointer<QtNativePanelDragConverter> nativeConverter_;
 #endif

@@ -55,15 +55,18 @@ bool SafeExtractionPath(const QString &path) {
 bool ValidateExtractionNodes(const QString &output, bool directory, QString *error) {
     QString candidate = output;
     bool leaf = true;
+    bool hasExistingNode = false;
     while (true) {
         const QFileInfo existing(candidate);
+        const bool exists = existing.exists();
+        hasExistingNode |= exists;
 #ifdef Q_OS_MACOS
         const bool systemAlias = candidate == "/var" || candidate == "/tmp" || candidate == "/etc";
 #else
         const bool systemAlias = false;
 #endif
         if ((existing.isSymLink() && !systemAlias) ||
-            (existing.exists() && (leaf && !directory ? !existing.isFile() : !existing.isDir()))) {
+            (exists && (leaf && !directory ? !existing.isFile() : !existing.isDir()))) {
             *error =
                 QCoreApplication::translate("archivebackend_validation",
                                             "Destination path is occupied by a file or link: %1")
@@ -76,7 +79,11 @@ bool ValidateExtractionNodes(const QString &output, bool directory, QString *err
         candidate = parent;
         leaf = false;
     }
-    return true;
+    if (hasExistingNode)
+        return true;
+    *error = QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                 .arg(QDir::toNativeSeparators(candidate));
+    return false;
 }
 
 struct ExtractionPathContext {

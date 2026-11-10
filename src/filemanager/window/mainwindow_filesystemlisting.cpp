@@ -9,6 +9,7 @@
 #include "filemanager/window/qtapppresentation.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "localization/qtlangcontrols.h"
+#include "ui/controls/qtwindowstatusbar.h"
 #include <QScopeGuard>
 
 HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateAddress) {
@@ -59,9 +60,24 @@ HRESULT MainWindow::finishSynchronousFilesystemListing(HRESULT result) {
     applySortMode(true);
     setState(State::Filesystem);
     if (result != S_OK)
-        showStatusMessage(
-            QCoreApplication::translate("mainwindow_filelist", "Could not read folder."));
+        workspace_->ReportNavigationFailure(recordFilesystemReadError());
+    else
+        clearFilesystemReadError();
     return result;
+}
+
+QString MainWindow::recordFilesystemReadError() {
+    auto &ui = projectedUi();
+    ui.filesystemReadError =
+        QCoreApplication::translate("FSFolderCopy", "Could not read folder: %1")
+            .arg(QDir::toNativeSeparators(ui.directory));
+    return ui.filesystemReadError;
+}
+
+void MainWindow::clearFilesystemReadError() {
+    const QString &message = projectedUi().filesystemReadError;
+    if (!message.isEmpty())
+        statusStrip_->ClearMessageIf(&app_.GetFocusedPanel(), message);
 }
 
 HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder) {
@@ -74,8 +90,6 @@ HRESULT MainWindow::startFilesystemScan(IFolderFolder *folder) {
 }
 
 HRESULT MainWindow::appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex) {
-    QIcon icon;
-    RINOK(app_.GetFocusedPanel().GetItemIcon(sourceIndex, icon))
     auto *folder = static_cast<NFsFolder::CFSFolder *>(app_.GetFocusedPanel().GetFolder());
     const QFileInfo file(
         QDir(baseDirectory)
@@ -84,6 +98,10 @@ HRESULT MainWindow::appendFilesystemEntry(const QString &baseDirectory, quint32 
     panelUi_[projectedPanel_].autoRefreshSnapshot.insert(
         file.absoluteFilePath(), filesystemSignature(file.absoluteFilePath()));
 #endif
+    if (!fileListSettings_.ShowHiddenFolders && file.isHidden() && file.isDir())
+        return S_OK;
+    QIcon icon;
+    RINOK(app_.GetFocusedPanel().GetItemIcon(sourceIndex, icon))
     NWindows::NCOM::CPropVariant name;
     folder->GetProperty(sourceIndex, kpidName, &name);
     const bool directory = app_.GetFocusedPanel().IsItem_Folder(sourceIndex);
@@ -121,6 +139,6 @@ void MainWindow::failFilesystemListing(HRESULT result) {
         return;
     projectedUi().scanningDisk = false;
     setState(State::Filesystem);
-    showStatusMessage(QCoreApplication::translate("mainwindow", "Could not read folder."));
+    showStatusMessage(recordFilesystemReadError());
     workspace_->NavigationFinished(result);
 }

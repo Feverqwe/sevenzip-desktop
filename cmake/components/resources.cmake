@@ -99,6 +99,7 @@ add_library(sevenzip_filesystem STATIC
     src/archive/callbacks/ArchiveOpenCallback.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/UI/Common/SetProperties.cpp
     ${SEVENZIP_7ZIP_SOURCE_DIR}/CPP/7zip/Common/FilePathAutoRename.cpp
+    src/fileops/paths/qtautorename.cpp src/fileops/paths/qtautorename.h
     src/filemanager/providers/FSFolder.cpp
     src/filemanager/providers/FSFolderComments.cpp
     src/filemanager/providers/FSFolderProperties.cpp

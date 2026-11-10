@@ -179,8 +179,10 @@ class FileSelectionGesture final : public QObject {
             return false;
         if (event->type() == QEvent::MouseButtonPress) {
             const auto &mouse = *static_cast<QMouseEvent *>(event);
-            if (mouse.button() != Qt::LeftButton || !view->isEnabled() ||
-                view->selectionMode() != QAbstractItemView::ExtendedSelection ||
+            if (mouse.button() != Qt::LeftButton || !view->isEnabled())
+                return false;
+            view->keyboardSearch({});
+            if (view->selectionMode() != QAbstractItemView::ExtendedSelection ||
                 geometry_.hitItem(mouse.position().toPoint()))
                 return false;
             if (activate_ && !activate_())

@@ -112,6 +112,10 @@
             <translation>Папка доступна только для чтения: %1</translation>
         </message>
         <message>
+            <source>Cannot access folder: %1</source>
+            <translation>Нет доступа к папке: %1</translation>
+        </message>
+        <message>
             <source>Choose another destination or change the name.</source>
             <translation>Выберите другое назначение или измените имя.</translation>
         </message>
@@ -162,6 +166,7 @@
         <message><source>(stored metadata)</source><translation>(из метаданных)</translation></message>
         <message><source>Reported packed size (may be partial)</source><translation>Сжатый размер по данным источника (может быть неполным)</translation></message>
         <message><source>Reported size (may be partial)</source><translation>Размер по данным источника (может быть неполным)</translation></message>
+        <message><source>At least %1</source><translation>Не менее %1</translation></message>
     </context>
     <context>
         <name>AboutDialog</name>
@@ -1376,6 +1381,10 @@ Are you sure you want to split archive into such volumes?</source>
     </context>
     <context>
         <name>SettingsRedesign</name>
+        <message>
+            <source>Show hidden folders</source>
+            <translation>Показывать скрытые папки</translation>
+        </message>
         <message>
             <location filename="../src/settings/qtfmoptionslayout.cpp" line="+168" />
             <source>Interface language</source>
@@ -6307,6 +6316,14 @@ Use `Revert` to recover timestamp.</source>
             <source>Open file</source>
             <translation>Открыть файл</translation>
         </message>
+        <message>
+            <source>Open folder</source>
+            <translation>Открыть папку</translation>
+        </message>
+        <message>
+            <source>Could not open folder: %1</source>
+            <translation>Не удалось открыть папку: %1</translation>
+        </message>
     </context>
     <context>
         <name>qtassociationplatform_linux</name>
@@ -7335,6 +7352,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
     <name>QtWindowWorkspace</name>
     <message><source>No recent places yet.</source><translation>Недавних мест пока нет.</translation></message>
     <message><source>The archive changed. Reopen it to see the saved changes. The previous view is available for copying.</source><translation>Архив изменился. Откройте его заново, чтобы увидеть сохранённые изменения. Из прежнего представления можно копировать файлы.</translation></message>
+    <message><source>Archive unavailable: %1. You can still copy from the previous view.</source><translation>Архив недоступен: %1. Из открытого списка по-прежнему можно копировать файлы.</translation></message>
     <message><source>The original panel is closed.</source><translation>Исходная панель закрыта.</translation></message>
     <message><source>The original panel is busy.</source><translation>Исходная панель занята.</translation></message>
     <message><source>Opening canceled.</source><translation>Открытие отменено.</translation></message>
@@ -7577,7 +7595,7 @@ Check that your distribution's CIFS support and cifs-utils are installed.</sourc
 <context>
     <name>DeleteRedesign</name>
     <message><source>Could not move the item to Trash.</source><translation>Не удалось переместить объект в Корзину.</translation></message>
-    <message><source>Items moved to Trash (%1)</source><translation>Перемещено в Корзину (%1)</translation></message>
+    <message><source>Items moved to Trash (%1 of %2)</source><translation>Перемещено в Корзину (%1 из %2)</translation></message>
     <message><source>Move to Trash?</source><translation>Переместить в Корзину?</translation></message>
     <message><source>Move to Trash</source><translation>В Корзину</translation></message>
     <message><source>You can restore the items from Trash after they have been moved successfully.</source><translation>После успешного перемещения объекты можно восстановить из Корзины.</translation></message>

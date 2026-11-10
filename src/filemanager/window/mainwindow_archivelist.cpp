@@ -34,6 +34,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     if (loaded != S_OK)
         return loaded;
     static_cast<FileTable *>(projectedUi().table)->filesystem = false;
+    panelUi_[projectedPanel_].autoRefreshProbe.reset();
     panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     panel.LoadFullPath();
     projectedUi().table->setSortingEnabled(false);
@@ -68,10 +69,12 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
                     if (result != S_OK) {
                         projectedUi().table->clearRows();
                         panelUi_[projectedPanel_].pendingSelection.reset();
+                        projectedUi().pendingViewport.reset();
                     }
                     projectedUi().scanningArchive = false;
                     applySortMode(true);
                     completeListSelection();
+                    completeListViewport();
                     setState(State::Viewing);
                     workspace_->NavigationFinished(result);
                     if (completed)

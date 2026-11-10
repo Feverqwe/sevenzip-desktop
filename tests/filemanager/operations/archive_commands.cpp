@@ -1,4 +1,5 @@
 #include "window_operations.h"
+#include <cerrno>
 
 void MainWindowOperationsTests::stage7ArchiveCommandStates() {
     ControlledBackend backend;
@@ -63,6 +64,20 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
     action(window, "createFolderAction")->trigger();
     auto *folderName = window.findChild<QLineEdit *>("inlineFolderName");
     QVERIFY(folderName && folderName->isVisible());
+    QFile archiveFile(archive);
+    QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+    const QByteArray originalArchive = archiveFile.readAll();
+    archiveFile.close();
+    for (const QString &invalid : {QStringLiteral("../outside"), QStringLiteral("/absolute")}) {
+        folderName->setText(invalid);
+        QTest::keyClick(folderName, Qt::Key_Return);
+        const auto *error = window.findChild<QLabel *>("inlineFolderError");
+        QVERIFY(error && error->isVisible());
+        QCOMPARE(folderName->selectedText(), invalid);
+        QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+        QCOMPARE(archiveFile.readAll(), originalArchive);
+        archiveFile.close();
+    }
     folderName->setText(QStringLiteral("новая папка"));
     QTest::keyClick(folderName, Qt::Key_Return);
     const auto archiveRow = [&window](const QString &name) {
@@ -73,13 +88,32 @@ void MainWindowOperationsTests::stage7ArchiveMutations() {
         return -1;
     };
     QTRY_VERIFY(archiveRow(QStringLiteral("новая папка")) >= 0);
+    QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+    const QByteArray beforeDuplicate = archiveFile.readAll();
+    archiveFile.close();
+    action(window, "createFolderAction")->trigger();
+    QTRY_VERIFY((folderName = qobject_cast<QLineEdit *>(window.focusWidget())));
+    const QString duplicate = QStringLiteral("новая папка");
+    folderName->setText(duplicate);
+    QTest::keyClick(folderName, Qt::Key_Return);
+    auto *error = folderName->parentWidget()->findChild<QLabel *>("inlineFolderError");
+    QVERIFY(error && error->isVisible());
+    QVERIFY(error->text().contains(duplicate));
+    QCOMPARE(folderName->selectedText(), duplicate);
+    QVERIFY(archiveFile.open(QIODevice::ReadOnly));
+    QCOMPARE(archiveFile.readAll(), beforeDuplicate);
+    archiveFile.close();
+    const QString corrected = QStringLiteral("другая папка");
+    folderName->setText(corrected);
+    QTest::keyClick(folderName, Qt::Key_Return);
+    QTRY_VERIFY(archiveRow(corrected) >= 0);
+    QVERIFY(WindowActivation::waitForActive(window));
     auto *view = table(window);
     const int selected = archiveRow(QStringLiteral("исходный файл.txt"));
     QVERIFY(selected >= 0);
     view->setCurrentCell(selected, 0);
     view->selectRow(selected);
     QTRY_VERIFY(view->hasFocus());
-    QFile archiveFile(archive);
     QVERIFY(archiveFile.open(QIODevice::ReadOnly));
     const QByteArray beforeDelete = archiveFile.readAll();
     archiveFile.close();

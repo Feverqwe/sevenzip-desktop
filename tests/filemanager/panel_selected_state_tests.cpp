@@ -282,7 +282,7 @@ class PanelSelectedStateTests : public QObject, protected MainWindowTestSupport 
         selection->setCurrentIndex(first, QItemSelectionModel::NoUpdate);
         icons->scrollTo(first);
         detailsAction->trigger();
-        QCOMPARE(details->currentIndex(), first);
+        QCOMPARE(details->currentIndex().siblingAtColumn(0), first);
         QCOMPARE(selection->selectedRows(), selectedRows);
         QTRY_VERIFY(details->hasFocus());
         QTRY_VERIFY(details->visualRect(first).intersects(details->viewport()->rect()));

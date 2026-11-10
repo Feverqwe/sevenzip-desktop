@@ -6,12 +6,17 @@
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivebatchopen.h"
 #include "archive/resources/qtarchiveproperties.h"
+#include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/ExtractCallback.h"
 #include "formats/rar/support/rar_memory_fixture.h"
+#include "operations/CompressCall.h"
 #include "platform/shell/qtshellarchiveservices.h"
+#include "support/progress_dialog.h"
 #include "ui/progress/ProgressDialog2.h"
 #include <QApplication>
+#include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScopeGuard>
@@ -153,6 +158,42 @@ class ArchiveOpenOptionsTests final : public QObject {
         version = probe.version();
         QVERIFY(version);
 #endif
+    }
+    void cancellingStandaloneArchiveTestReportsNoChanges() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("encrypted.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"payload.txt", "payload"}}, "zip",
+                                            QStringLiteral("test password")));
+        const QByteArray before = SourceExtractFixture::readFile(archive);
+        ArchiveBackend backend;
+        load(backend);
+        QtShellArchiveServices service(backend, nullptr);
+        UStringVector paths;
+        paths.Add(archive.toStdWString().c_str());
+
+        int prompts = 0;
+        QStringList summaries;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, this, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *password = dynamic_cast<CPasswordDialog *>(modal)) {
+                ++prompts;
+                password->reject();
+            } else if (auto *report = TestProgressDialog::ResultWindow(modal)) {
+                summaries.append(report->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text());
+                TestProgressDialog::CloseResult(*report);
+            } else if (auto *message = qobject_cast<QMessageBox *>(modal)) {
+                summaries.append(message->text());
+                message->accept();
+            }
+        });
+        responder.start(5);
+        QCOMPARE(TestArchives(paths, false, service), E_ABORT);
+        QCOMPARE(prompts, 1);
+        QCOMPARE(summaries, QStringList{"The operation was cancelled."});
+        QCOMPARE(SourceExtractFixture::readFile(archive), before);
+        QCOMPARE(QDir(fixture.path()).entryList(QDir::Files), QStringList{"encrypted.zip"});
     }
     void excludedZipIsNotOpened_data() {
         QTest::addColumn<bool>("excluded");

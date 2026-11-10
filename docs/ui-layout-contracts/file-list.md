@@ -27,7 +27,8 @@
 
 The file panel offers the table and Large Icons. Older preferences for Small
 Icons or List open the table. Switching views preserves the shared selection
-and brings the current file into view.
+and brings the current file into view. Returning to the table preserves its
+horizontal scroll position.
 Large Icons centers wrapped labels below the icons. Cell geometry accommodates
 the platform icon and two lines of the active font; longer names remain available
 through the full-path tooltip. Font/style changes recalculate geometry, and
@@ -59,9 +60,10 @@ state without loading rows. `panel_rename_state` covers both panes and EN/RU;
 440×220/340×220. macOS backing-widget reports fit400×116. Native Cocoa text/icon
 checks do not use its hidden backing-widget geometry as rendered native proof.
 
-Archive Rename accepts safe relative paths and rejects absolute paths and parent
-traversal before writing. When a relative Rename leaves the result under the
-current folder, the panel selects the renamed item or its first visible parent.
+Inside an archive, Rename and Create Folder accept safe relative paths and
+reject absolute paths and parent traversal before writing. When a relative
+Rename leaves the result under the current folder, the panel selects the renamed
+item or its first visible parent.
 ZIP/7z file and implicit-folder scenarios
 inspect the table at980×620/640×400 in eight `archive-rename-relative-*` reports.
 Their geometry checks do not establish rendered Windows pixel parity.

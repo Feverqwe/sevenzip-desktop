@@ -1,4 +1,5 @@
 #include "archive/support/native_archive_fixture.h"
+#include "dialogs/copy/alias.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/panels/qtpanellist.h"
 #include "filemanager/support/window_state_support.h"
@@ -445,6 +446,68 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("child.7z"));
         QCOMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral("folder"));
     }
+    void archiveParentCanBeRetriedAfterDirectoryReturns_data() {
+        QTest::addColumn<bool>("parentRow");
+        QTest::newRow("button") << false;
+        QTest::newRow("parent-row") << true;
+    }
+    void archiveParentCanBeRetriedAfterDirectoryReturns() {
+        QFETCH(bool, parentRow);
+#ifndef Q_OS_UNIX
+        QSKIP("Requires renaming a folder while its archive is open");
+#endif
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath(QStringLiteral("папка архива"));
+        const QString parked = fixture.filePath("renamed");
+        QVERIFY(QDir().mkdir(folder));
+        const QString path = QDir(folder).filePath("source.zip");
+        QVERIFY(NativeArchiveFixture::Write(path, {{"entry.txt", "payload"}}, "zip"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openArchive(path);
+        auto *list = table(window);
+        QTRY_COMPARE(list->rowCount(), 2);
+        QCOMPARE(list->model()->index(0, 0).data().toString(), QString(".."));
+        QVERIFY(WindowActivation::waitForActive(window));
+        list->setCurrentCell(parentRow ? 0 : 1, 0);
+        list->selectRow(list->currentRow());
+        list->setFocus();
+        QTRY_VERIFY(list->hasFocus());
+        auto *button = window.findChild<QPushButton *>("panelParentButton0");
+        QVERIFY(button);
+        const auto openParent = [&] {
+            if (parentRow)
+                PanelKeys::openSelection(list);
+            else
+                QTest::mouseClick(button, Qt::LeftButton);
+        };
+        QVERIFY(QDir().rename(folder, parked));
+        QString message;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                message = error->text();
+                error->accept();
+            }
+        });
+        dismiss.start(5);
+        openParent();
+        QVERIFY(message.contains(folder));
+        QVERIFY(list->sourcePanel->IsArcFolder());
+        QCOMPARE(list->model()->index(1, 0).data().toString(), QString("entry.txt"));
+        QCOMPARE(list->currentRow(), parentRow ? 0 : 1);
+
+        QVERIFY(QDir().rename(parked, folder));
+        QVERIFY(WindowActivation::waitForActive(window));
+        openParent();
+        QTRY_VERIFY(list->sourcePanel->IsFSFolder());
+        QTRY_COMPARE(list->currentIndex().data().toString(), QString("source.zip"));
+    }
     void parentButtonBelongsToItsPanel_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("peerRoot");
@@ -648,6 +711,71 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QCOMPARE(list->currentRow(), 0);
         QVERIFY(view->selectionModel()->isRowSelected(0, {}));
     }
+    void addingToPeerArchiveKeepsItsVisibleEntry() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("input");
+        QVERIFY(QDir().mkpath(input));
+        QFile added(QDir(input).filePath("a added.txt"));
+        QVERIFY(added.open(QIODevice::WriteOnly));
+        QCOMPARE(added.write("new payload"), 11);
+        added.close();
+        const QString archive = fixture.filePath("target.zip");
+        QList<NativeArchiveFixture::Item> items;
+        for (int index = 0; index < 270; ++index)
+            items.append({QString("file-%1.txt").arg(index, 3, 10, QChar('0')), "payload"});
+        QVERIFY(NativeArchiveFixture::Write(archive, items, "zip"));
+        MainWindow window;
+        window.resize(800, 440);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "twoPanelsAction")->trigger();
+        openFilesystemPanel(window, 0, input);
+        auto *peer = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peer);
+        auto *address = peer->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(archive);
+        QTest::keyClick(address, Qt::Key_Return);
+        auto *target = peer->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(target->isEnabled());
+        QTRY_COMPARE(target->rowCount(), items.size());
+        target->setCurrentCell(0, 0);
+        target->selectRow(0);
+        auto *source =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        QVERIFY(WindowActivation::waitForActive(window));
+        source->setFocus();
+        QTRY_VERIFY(source->hasFocus());
+        source->setCurrentCell(0, 0);
+        source->selectRow(0);
+        target->scrollTo(target->model()->index(100, 0), QAbstractItemView::PositionAtTop);
+        const int top = target->rowAt(0);
+        QVERIFY(top > 0);
+        const auto anchor = target->model()->index(top, 0).data();
+        const int offset = target->rowViewportPosition(top);
+
+        QTimer respond;
+        connect(&respond, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *copy = dynamic_cast<CopyDialog *>(modal))
+                copy->accept();
+            else if (auto *warning = qobject_cast<QMessageBox *>(modal))
+                warning->reject();
+        });
+        respond.start(5);
+        QTest::keyClick(source, Qt::Key_F5);
+        QTRY_VERIFY(target->isEnabled() && target->rowCount() == items.size() + 1);
+        QCOMPARE(target->rowAt(0), top + 1);
+        QCOMPARE(target->model()->index(target->rowAt(0), 0).data(), anchor);
+        QCOMPARE(target->rowViewportPosition(target->rowAt(0)), offset);
+        QCOMPARE(target->currentIndex().data().toString(), QString("file-000.txt"));
+        QVERIFY(target->selectionModel()->isRowSelected(target->currentRow(), {}));
+        QTRY_COMPARE(window.focusWidget(), source);
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(source->hasFocus());
+    }
     void archiveOpenCompletion_data() {
         QTest::addColumn<int>("origin");
         QTest::addColumn<bool>("cancel");
@@ -655,6 +783,72 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             for (bool cancel : {false, true})
                 QTest::newRow(qPrintable(QString("%1-%2").arg(origin).arg(cancel)))
                     << origin << cancel;
+    }
+    void unreadableArchiveShowsItsPathAndCanBeRetried_data() {
+        QTest::addColumn<bool>("typed");
+        QTest::newRow("list") << false;
+        QTest::newRow("address") << true;
+    }
+    void unreadableArchiveShowsItsPathAndCanBeRetried() {
+        QFETCH(bool, typed);
+#ifndef Q_OS_UNIX
+        QSKIP("Requires file permissions that deny reading without hiding the entry");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.filePath(QStringLiteral("архив без доступа.zip"));
+        QVERIFY(NativeArchiveFixture::Write(path, {{"entry.txt", "payload"}}, "zip"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        openFilesystemPanel(window, 0, fixture.path());
+        auto *view = table(window);
+        view->selectRow(0);
+        view->setCurrentCell(0, 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QWidget *editor = view;
+        if (typed) {
+            PanelKeys::focusAddress(address);
+            address->setText(path);
+            address->setModified(true);
+            editor = address;
+        } else {
+            view->setFocus();
+        }
+        QTRY_VERIFY(editor->hasFocus());
+        const auto open = [&] {
+            if (typed)
+                QTest::keyClick(editor, Qt::Key_Return);
+            else
+                PanelKeys::openSelection(editor);
+        };
+
+        const auto permissions = QFile::permissions(path);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(path, permissions); });
+        QVERIFY(QFile::setPermissions(path, QFile::WriteOwner));
+        QFile unreadable(path);
+        if (unreadable.open(QIODevice::ReadOnly))
+            QSKIP("The test process can still read the archive");
+        QString message;
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [&] {
+            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                message = error->text();
+                error->accept();
+            }
+        });
+        dismiss.start(5);
+        open();
+        QVERIFY(message.contains(path));
+        QCOMPARE(view->currentIndex().data().toString(), QFileInfo(path).fileName());
+
+        QVERIFY(QFile::setPermissions(path, permissions));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(editor->hasFocus());
+        if (typed)
+            QCOMPARE(address->text(), path);
+        open();
+        QTRY_COMPARE(view->model()->index(0, 0).data().toString(), QString("entry.txt"));
     }
     void encryptedArchivePassword_data() {
         QTest::addColumn<QString>("password");
@@ -1011,6 +1205,12 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTest::keyClick(address, Qt::Key_Return);
         QCOMPARE(table->rowCount(), 1);
         QCOMPARE(address->text(), archive);
+        QVERIFY(window.statusBar()->currentMessage().contains("missing/deeper"));
+        PanelKeys::focusAddress(address);
+        address->setText(archive + '/');
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(address->text(), archive);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         table->selectRow(0);
         QVERIFY(payload.open(QIODevice::WriteOnly | QIODevice::Truncate));
         QCOMPARE(payload.write("after refresh with a different size"), 35);

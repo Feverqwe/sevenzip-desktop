@@ -1,5 +1,8 @@
+#include "7zip/UI/GUI/ExtractRes.h"
+#include "archive/resources/archiveinputpath.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "dialogs/taskresult/qttaskresultdialog.h"
+#include "filemanager/FormatUtils.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
@@ -58,7 +61,9 @@ bool MainWindow::canLaunchGuiFilesystemOperation() {
 
 HRESULT MainWindow::launchGuiArchiveTest(const UStringVector &paths, bool hashMode) {
     const QStringList archives = ArchivePaths(paths);
-    if (archives.size() == 1 && !QFileInfo::exists(archives.front())) {
+    if (!archives.isEmpty() &&
+        std::none_of(archives.cbegin(), archives.cend(),
+                     [](const QString &path) { return QFileInfo::exists(path); })) {
         showStatusMessage(MissingInputMessage(archives.front()));
         return E_FAIL;
     }
@@ -84,11 +89,11 @@ HRESULT MainWindow::launchGuiArchiveCompress(const UString &folder, const UStrin
                                              bool showDialog) {
     QString error;
     const QStringList sources = ArchivePaths(paths);
-    if (sources.size() == 1 && !QFileInfo::exists(sources.front()) &&
-        !QtIsFileSystemLink(sources.front())) {
-        showStatusMessage(MissingInputMessage(sources.front()));
-        return E_FAIL;
-    }
+    for (const auto &source : sources)
+        if (!QFileInfo::exists(source) && !QtIsFileSystemLink(source)) {
+            showStatusMessage(MissingInputMessage(source));
+            return E_FAIL;
+        }
     auto *operation = backend_->startGuiCompress(
         QFileInfo(QString::fromWCharArray(folder + name)).absoluteFilePath(),
         QString::fromWCharArray(type), addExtension, sources, email, showDialog, error);
@@ -100,11 +105,16 @@ HRESULT MainWindow::launchGuiArchiveCompress(const UString &folder, const UStrin
 HRESULT MainWindow::launchGuiArchiveExtract(const UStringVector &paths, const UString &folder,
                                             bool showDialog, bool elimDup, UInt32 writeZone) {
     const QStringList archives = ArchivePaths(paths);
-    for (const auto &path : archives)
-        if (!QFileInfo::exists(path)) {
-            showStatusMessage(MissingInputMessage(path));
+    for (const auto &path : archives) {
+        const QFileInfo file(path);
+        if (!IsArchiveFileOrPackage(file)) {
+            showStatusMessage(
+                file.exists() ? ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE,
+                                                      ToUString(QDir::toNativeSeparators(path))))
+                              : MissingInputMessage(path));
             return E_FAIL;
         }
+    }
     QString error;
     auto *operation = backend_->startGuiExtract(archives, QString::fromWCharArray(folder),
                                                 showDialog, elimDup, writeZone, error);
@@ -169,10 +179,9 @@ void MainWindow::refreshGuiOutputPanel(unsigned index, const QtGuiOutputRefresh:
         return;
     if (panel.IsArcFolder()) {
         const auto &parents = panel.GetParentFolders();
-        if (parents.Size() > 1 && !output.directories.isEmpty()) {
+        if (!parents.IsEmpty() && !output.directories.isEmpty()) {
             const QString outer = ToQString(parents.Front().VirtualPath);
-            if (!QFileInfo::exists(outer) &&
-                std::any_of(output.directories.cbegin(), output.directories.cend(),
+            if (std::any_of(output.directories.cbegin(), output.directories.cend(),
                             [&](const QString &directory) {
                                 return ContainsDirectory(NormalPath(directory), NormalPath(outer));
                             }) &&

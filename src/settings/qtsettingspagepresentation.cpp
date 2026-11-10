@@ -48,6 +48,12 @@ void CSettingsPage::BuildControls(bool embedded) {
     _showDots->setObjectName(QStringLiteral("showDotsOption"));
     listLayout->addWidget(_showDots);
     connect(_showDots, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
+    _showHiddenFolders = new QCheckBox(this);
+    _showHiddenFolders->setObjectName("showHiddenFoldersOption");
+    QtBindLocalText(_showHiddenFolders, "SettingsRedesign",
+                    QT_TRANSLATE_NOOP("SettingsRedesign", "Show hidden folders"));
+    listLayout->addWidget(_showHiddenFolders);
+    connect(_showHiddenFolders, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
     auto *memoryLayout = group(_memoryControls);
     auto *memoryLabel = new QLabel(this);
     QtBindResourceText(memoryLabel, IDT_MEM_USAGE_EXTRACT,

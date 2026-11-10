@@ -5,7 +5,9 @@
 #include "filemanager/panels/qtmacfilepromisedrag.h"
 #endif
 #include <QContextMenuEvent>
+#include <QDir>
 #include <QDropEvent>
+#include <QFileInfo>
 #include <QMouseEvent>
 #include <QScopeGuard>
 
@@ -24,6 +26,7 @@ bool QtFileManagerDrag::eventFilter(QObject *object, QEvent *event) {
     }
 }
 CDataObject *QtFileManagerDrag::ReadData(const QMimeData &mime) {
+    externalUrlSource_.clear();
     if (auto *internal = dynamic_cast<const QtPanelDragMime *>(&mime))
         return &internal->Data();
 #ifdef Q_OS_MACOS
@@ -44,7 +47,10 @@ CDataObject *QtFileManagerDrag::ReadData(const QMimeData &mime) {
             return nullptr;
         external_.Names.Add(ToUString(path));
     }
-    return external_.Names.IsEmpty() ? nullptr : &external_;
+    if (external_.Names.IsEmpty())
+        return nullptr;
+    externalUrlSource_ = &mime;
+    return &external_;
 }
 static DWORD DropKeys(const QDropEvent &drop) {
     DWORD keys = 0;
@@ -130,7 +136,14 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
                          window_.backend_->busy() || QApplication::activeModalWidget() ||
                          (window_.sourceArchiveProgress_ && !active_) ||
                          (panel >= 0 && !PanelEnabled(unsigned(panel)));
-    CDataObject *data = blocked ? nullptr : ReadData(*drop.mimeData());
+    CDataObject *data = nullptr;
+    if (!blocked) {
+        if (event.type() == QEvent::DragMove && target.HasDragData() &&
+            externalUrlSource_ == drop.mimeData())
+            data = &external_;
+        else
+            data = ReadData(*drop.mimeData());
+    }
     if (!data) {
         if (blocked && target.HasDragData())
             target.DragLeave();
@@ -161,6 +174,27 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
         result = target.DragEnter(data, keys, position.x(), position.y(), &effect);
     else
         result = target.DragOver(keys, position.x(), position.y(), &effect);
+    if (result == S_OK && effect && data->Panel && target.IsFsFolderPath() &&
+        target.TargetPanel()->IsFSFolder()) {
+        const QFileInfo directory(QDir::cleanPath(ToQString(target.GetTargetPath())));
+        bool writable = directory.isDir() && directory.isWritable();
+#ifdef Q_OS_UNIX
+        writable = writable && directory.isExecutable();
+#endif
+        bool sameDirectory = false;
+        if (writable && !target.IsMenuDrop() && data->Panel->IsFSFolder() &&
+            !data->Panel->GetFlatMode()) {
+            const QString destination = directory.canonicalFilePath();
+            const QFileInfo source(QDir::cleanPath(ToQString(data->Panel->GetFsPath())));
+            sameDirectory = !destination.isEmpty() && destination == source.canonicalFilePath();
+        }
+        if (!writable || sameDirectory) {
+            target.DragLeave();
+            ResetDropTarget();
+            drop.ignore();
+            return true;
+        }
+    }
     if (event.type() == QEvent::Drop && result == S_OK && effect) {
         if (target.IsMenuDrop())
             effect = allowedEffects;
@@ -183,5 +217,6 @@ bool QtFileManagerDrag::HandleDropEvent(QWidget &widget, QEvent &event) {
 
 void QtFileManagerDrag::ResetDropTarget() {
     window_.app_.DropTarget().ClearState();
+    externalUrlSource_.clear();
     external_.NativeData.reset();
 }

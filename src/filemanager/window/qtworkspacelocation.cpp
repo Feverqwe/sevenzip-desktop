@@ -50,11 +50,17 @@ void QtWindowWorkspace::NavigateBreadcrumb(unsigned index, const QString &path) 
             }
         }
     }
-    if (!current && !immediateParent && !ui.locationUnavailable &&
-        ui.state == MainWindow::State::Filesystem && QDir::isAbsolutePath(target)) {
+    if (!current && !immediateParent && !ui.locationUnavailable && branch.isEmpty() &&
+        QDir::isAbsolutePath(target)) {
+        QString origin;
+        if (ui.state == MainWindow::State::Filesystem)
+            origin = ui.directory;
+        else if (ui.state == MainWindow::State::Viewing && !panel.GetParentFolders().IsEmpty())
+            origin =
+                QDir::fromNativeSeparators(ToQString(panel.GetParentFolders().Front().VirtualPath));
         const QString prefix = target.endsWith(u'/') ? target : target + u'/';
-        if (ui.directory.startsWith(prefix))
-            branch = ui.directory.mid(prefix.size()).section(u'/', 0, 0);
+        if (origin.startsWith(prefix))
+            branch = origin.mid(prefix.size()).section(u'/', 0, 0);
     }
     const HRESULT result = current           ? S_OK
                            : immediateParent ? Navigate([this] { return window_.goParentImpl(); })
@@ -192,7 +198,7 @@ HRESULT QtWindowWorkspace::OpenRecordedLocation(unsigned panel, const QString &p
     return LocationMatches(panel, target) ? S_OK : S_FALSE;
 }
 
-HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
+HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel, QString *failure) {
     auto &locationState = panels_[panel].location;
     if (locationState.diskFolder && !QFileInfo(QDir::cleanPath(locationState.path)).isDir())
         return S_FALSE;
@@ -200,7 +206,7 @@ HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
     const bool recorded =
         !identity.isEmpty() || !locationState.archiveLocation.physicalPath.isEmpty();
     const HRESULT result = recorded ? OpenRecordedLocation(panel, locationState.path, identity,
-                                                           locationState.archiveLocation)
+                                                           locationState.archiveLocation, failure)
                                     : window_.navigateTo(locationState.path, true);
     if (!identity.isEmpty() && result == S_OK) {
         auto &source = window_.app_.Panels[panel];
@@ -212,14 +218,27 @@ HRESULT QtWindowWorkspace::OpenPanelLocation(unsigned panel) {
 }
 
 void QtWindowWorkspace::RestoreViewPosition(CPanel &source, QAbstractItemView &view,
-                                            const QPoint &position) {
+                                            const Visit &visit) {
     const UInt64 revision = source.FolderBindingRevision();
     const auto interaction = interactionRevision_;
     auto restore = [this, owner = QPointer<CPanel>(&source),
-                    target = QPointer<QAbstractItemView>(&view), position, revision, interaction] {
+                    target = QPointer<QAbstractItemView>(&view), position = visit.scroll,
+                    cursorColumn = visit.cursorColumn, revision, interaction] {
         if (interactionRevision_ != interaction || !owner ||
             owner->FolderBindingRevision() != revision || !target || !target->isVisible())
             return;
+        if (auto *table = qobject_cast<FileTable *>(target.data());
+            table && cursorColumn && table->currentIndex().isValid()) {
+            const auto [property, raw] = *cursorColumn;
+            for (int column = 0; column < table->columnCount(); ++column)
+                if (!table->isColumnHidden(column) && table->propertyId(column) == property &&
+                    table->isRawProperty(column) == raw) {
+                    table->selectionModel()->setCurrentIndex(
+                        table->currentIndex().siblingAtColumn(column),
+                        QItemSelectionModel::NoUpdate);
+                    break;
+                }
+        }
         target->doItemsLayout();
         target->horizontalScrollBar()->setValue(position.x());
         target->verticalScrollBar()->setValue(position.y());
@@ -245,7 +264,8 @@ bool QtWindowWorkspace::LocationMatches(unsigned panel, const QString &path) {
     return matched;
 }
 
-void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result) {
+void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result,
+                                             const QString &failure) {
     auto &ui = window_.panelUi_[panel];
     auto &locationState = panels_[panel].location;
     locationState.unavailable = result != S_OK || !LocationMatches(panel, path);
@@ -260,8 +280,9 @@ void QtWindowWorkspace::CompleteLocationOpen(unsigned panel, const QString &path
     window_.showPanelStatus(panel, {});
     ui.path->setText(path);
     ui.navigation->SetLocation(path);
-    const QString message = result == E_ABORT ? tr("Opening canceled: %1").arg(path)
-                                              : tr("Location unavailable: %1").arg(path);
+    const QString message = result == E_ABORT   ? tr("Opening canceled: %1").arg(path)
+                            : failure.isEmpty() ? tr("Location unavailable: %1").arg(path)
+                                                : failure;
     ui.navigationError->setText(message);
     ui.navigationNotice->show();
     window_.showStatusMessage(message);
@@ -296,18 +317,21 @@ void QtWindowWorkspace::RetryLocation(unsigned panel, bool parent) {
     const QString requested = locationState.path;
     const auto interaction = interactionRevision_;
     window_.withPanelProjection(panel, [this, panel, &requested, interaction] {
+        QString failure;
         const HRESULT result = Navigate(
-            [this, panel]() -> HRESULT {
+            [this, panel, &failure]() -> HRESULT {
                 ProtectNavigation();
                 const QScopedValueRollback<bool> changing(changing_, true);
-                return OpenPanelLocation(panel);
+                return OpenPanelLocation(panel, &failure);
             },
             [this, panel, interaction](HRESULT result) {
-                if (result == S_OK)
+                if (result == S_OK) {
+                    window_.statusStrip_->SetMessage(&window_.app_.Panels[panel], {});
                     FocusListAfterLocationOpen(panel, interaction);
+                }
             });
         if (result != S_OK)
-            CompleteLocationOpen(panel, requested, result);
+            CompleteLocationOpen(panel, requested, result, failure);
     });
     window_.refreshActions();
 }

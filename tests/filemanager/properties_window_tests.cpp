@@ -13,6 +13,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -125,9 +126,10 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
     }
     void unknownZeroFoldersAndPartialSelectionStayDistinct() {
         CMyComPtr<IFolderFolder> folder;
+        const QString literalName = QStringLiteral("  <b>unknown & file  ");
         QCOMPARE(
             CreateArchiveFolder(
-                {{"unknown", -1, -1}, {"zero", 0, 0}, {"known", 11, 7}, {"folder/child", 13, 5}},
+                {{literalName, -1, -1}, {"zero", 0, 0}, {"known", 11, 7}, {"folder/child", 13, 5}},
                 UString("zip"), &folder),
             S_OK);
         UInt32 count = 0;
@@ -137,7 +139,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             NWindows::NCOM::CPropVariant value;
             QCOMPARE(folder->GetProperty(i, kpidName, &value), S_OK);
             const QString name = QString::fromWCharArray(value.bstrVal);
-            if (name == "unknown")
+            if (name == literalName)
                 unknown = i;
             else if (name == "zero")
                 zero = i;
@@ -152,6 +154,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QtPropertiesWindow contents(collect(folder, {*directory}));
         QtPropertiesWindow multiple(collect(folder, {*unknown, *zero, *directory}));
         QtPropertiesWindow knownFiles(collect(folder, {*zero, *known}));
+        QtPropertiesWindow knownFolderAndFile(collect(folder, {*directory, *known}));
         QCOMPARE(shownSize(missing), QString::fromUtf8("—"));
         QVERIFY(missing.findChild<QWidget *>("propertiesIdentity")->toolTip().isEmpty());
         QCOMPARE(shownSize(empty), QtRegionalFormat::bytes(0));
@@ -159,6 +162,12 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(contents.Information().contains("Size: " + QtRegionalFormat::bytes(13)));
         QCOMPARE(shownSize(multiple), QString("Not calculated"));
         QCOMPARE(shownSize(knownFiles), QtRegionalFormat::bytes(11));
+        QCOMPARE(shownSize(knownFolderAndFile), QtRegionalFormat::bytes(24));
+        QCOMPARE(knownFolderAndFile.findChild<QLabel *>("propertiesSize")->toolTip(),
+                 QtRegionalFormat::exactBytes(24));
+        QVERIFY(multiple.findChild<QLabel *>("propertiesSize")->toolTip().isEmpty());
+        copy(knownFolderAndFile);
+        QVERIFY(QApplication::clipboard()->text().contains("Size: " + QtRegionalFormat::bytes(24)));
         copy(knownFiles);
         QVERIFY(QApplication::clipboard()->text().contains("Size: " + QtRegionalFormat::bytes(11)));
         QVERIFY(multiple.Information().contains("Files: 2 · Folders: 1"));
@@ -169,6 +178,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         copy(multiple);
         const QString englishReport = QApplication::clipboard()->text();
         QVERIFY(englishReport.contains(englishSelection));
+        QVERIFY(englishReport.split(u'\n').contains(literalName));
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(UString("ru"), settings);
         ReloadLang(settings);
@@ -177,8 +187,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         const QString russianReport = QApplication::clipboard()->text();
         QVERIFY(!russianReport.contains(englishSelection));
         QVERIFY(russianReport.contains(QtSelectedItemsText(3)));
-        for (const QString &name :
-             {QStringLiteral("unknown"), QStringLiteral("zero"), QStringLiteral("folder")})
+        for (const QString &name : {literalName, QStringLiteral("zero"), QStringLiteral("folder")})
             QVERIFY(russianReport.split(u'\n').contains(name));
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
@@ -191,9 +200,45 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             window->resize(520, 360);
             window->show();
             QVERIFY(QTest::qWaitForWindowExposed(window));
+            if (window == &multiple) {
+                auto *names = window->findChild<QPlainTextEdit *>("propertiesSelectedNames");
+                QVERIFY(names && names->isVisible());
+                QVERIFY(names->find(literalName));
+                QTest::keySequence(names, QKeySequence::Copy);
+                QCOMPARE(QApplication::clipboard()->text(), literalName);
+                for (auto *section : window->findChildren<QtDisclosure *>())
+                    section->setExpanded(true);
+                QLabel *caption = nullptr;
+                for (auto *label : window->findChildren<QLabel *>())
+                    if (label->text() == QStringLiteral("Reported size (may be partial)"))
+                        caption = label;
+                QVERIFY(caption && caption->isVisible());
+                QTRY_VERIFY(UiInspection::labelFits(*caption));
+            }
             QVERIFY(UiInspection::writeReport(*window, QString("properties-info-%1").arg(tag)));
             window->hide();
         }
+    }
+    void longSelectionCanBeReviewedWithoutScrollingTheWholeReport() {
+        QtPropertyReport report;
+        for (int i = 0; i < 100; ++i)
+            report.items.append({QString("selected-%1.txt").arg(i), false, {}});
+        const QString lastName = report.items.last().name;
+        QtPropertiesWindow window(std::move(report));
+        window.resize(420, 360);
+        window.show();
+        auto *names = window.findChild<QPlainTextEdit *>("propertiesSelectedNames");
+        QVERIFY(names);
+        QTRY_VERIFY(names->isVisible());
+        QVERIFY(names->verticalScrollBar()->maximum() > 0);
+        names->setFocus();
+        QTest::keySequence(names, QKeySequence::MoveToEndOfDocument);
+        QCOMPARE(names->verticalScrollBar()->value(), names->verticalScrollBar()->maximum());
+        QVERIFY(UiInspection::fullyVisible(
+            *window.findChild<QPushButton *>("propertiesCopyInformation"), window));
+        QVERIFY(UiInspection::writeReport(window, "properties-long-selection"));
+        copy(window);
+        QVERIFY(QApplication::clipboard()->text().split(u'\n').contains(lastName));
     }
     void navigationDoesNotRetargetIndependentWindows_data() {
         QTest::addColumn<bool>("switchToIcons");

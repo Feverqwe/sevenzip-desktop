@@ -157,6 +157,7 @@ class WorkspacePlacesTests final : public QObject {
         QTRY_COMPARE(window.focusWidget(), retry);
         QTest::keyClick(window.focusWidget(), Qt::Key_Space);
         QTRY_VERIFY(errorVisible());
+        QVERIFY(window.statusBar()->currentMessage().contains(missing));
         QTRY_COMPARE(window.focusWidget(), retry);
         QVERIFY(!window.findChild<QAction *>("createFolderAction")->isEnabled());
         QVERIFY(!QSettings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat)
@@ -168,6 +169,7 @@ class WorkspacePlacesTests final : public QObject {
         QTRY_VERIFY(window.findChild<QAction *>("createFolderAction")->isEnabled());
         QTRY_COMPARE(window.focusWidget(), files);
         QCOMPARE(QDir::cleanPath(ToQString(files->sourcePanel->GetCurrentFolderPrefix())), missing);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         window.findChild<QAction *>("backAction")->trigger();
         QTRY_VERIFY(files->sourcePanel->IsFSDrivesFolder());
         window.findChild<QAction *>("forwardAction")->trigger();

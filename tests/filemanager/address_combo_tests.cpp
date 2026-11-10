@@ -136,6 +136,38 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(files->model()->index(0, 0).data().toString(), QString("keep.txt"));
         QCOMPARE(backend.listCalls, 0);
     }
+    void typedRelativePathDoesNotCompleteFromHierarchy() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString current = fixture.filePath("project reports");
+        const QString child = QDir(current).filePath("project");
+        QVERIFY(QDir().mkpath(child));
+        QVERIFY(ExternalEditorFixture::write(QDir(child).filePath("keep.txt"), "contents"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(current);
+        auto *combo = window.findChild<QComboBox *>("pathCombo");
+        auto *address = combo->lineEdit();
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled());
+        PanelKeys::focusAddress(address);
+        AddressPopupSupport::show(*combo);
+        QTRY_VERIFY(combo->view()->isVisible());
+        combo->hidePopup();
+        QVERIFY(WindowActivation::waitForActive(window));
+        PanelKeys::focusAddress(address);
+        address->selectAll();
+        QTest::keyClicks(address, "project");
+        QCOMPARE(address->text(), QString("project"));
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(filesystemRow(window, "keep.txt"), 0);
+        QCOMPARE(
+            QFileInfo(ToQString(files->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
+            QFileInfo(child).canonicalFilePath());
+    }
+
     void decorativeIconAllowsPaddingClipButRejectsGlyphClip() {
         QWidget window;
         window.resize(320, 80);
@@ -335,6 +367,22 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("keep.txt"));
         QCOMPARE(currentIcon->icon().pixmap(16, 16).toImage(),
                  QFileIconProvider().icon(QFileIconProvider::Folder).pixmap(16, 16).toImage());
+        const QString subfolderAddress =
+            archiveAddress + QStringLiteral(" / внешняя space/内側 密碼");
+        QTRY_COMPARE(address->text(), subfolderAddress);
+        QVERIFY(WindowActivation::waitForActive(window));
+        action(window, "viewMode3Action")->trigger();
+        QTRY_VERIFY(table(window)->isVisible() && table(window)->isEnabled());
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->selectAll();
+        QTest::keyClicks(address, "unfinished address");
+        QTest::keyClick(address, Qt::Key_Escape);
+        QTRY_COMPARE(address->text(), subfolderAddress);
+        QTRY_VERIFY2(table(window)->hasFocus(),
+                     qPrintable(window.focusWidget() ? window.focusWidget()->objectName()
+                                                     : QStringLiteral("no focused widget")));
+        QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral("keep.txt"));
         PanelKeys::focusAddress(address);
         AddressPopupSupport::show(*combo);
         QApplication::processEvents();
@@ -490,7 +538,9 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
             auto *address = panels[i]->findChild<QLineEdit *>("archivePath");
             PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
-            PanelKeys::focusAddress(address);
+            address->selectAll();
+            QTest::keyClicks(address, "uncommitted address");
+            address->setSelection(11, -4);
             AddressPopupSupport::show(*combo);
             QApplication::processEvents();
             QStringList rows;
@@ -503,9 +553,12 @@ class AddressComboTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(combo->findText(i == 0 ? QStringLiteral("右") : QStringLiteral("левый")) < 0);
             combo->hidePopup();
             QVERIFY(WindowActivation::waitForActive(window));
+            QCOMPARE(address->text(), QStringLiteral("uncommitted address"));
+            QCOMPARE(address->selectedText(), QStringLiteral("tted"));
+            QCOMPARE(address->cursorPosition(), 7);
+            QVERIFY(address->isModified());
             PanelKeys::focusAddress(address);
             QTRY_VERIFY(address->hasFocus());
-            address->setText(QStringLiteral("uncommitted address"));
             QTest::keyClick(address, Qt::Key_Escape);
             QCOMPARE(QDir::cleanPath(address->text()), QFileInfo(paths[i]).canonicalFilePath());
             QTRY_VERIFY(panels[i]->findChild<FileTable *>("archiveTable")->hasFocus());

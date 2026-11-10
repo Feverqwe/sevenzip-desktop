@@ -157,6 +157,10 @@ class CompressionPathTests final : public QObject {
         name->setText("report.with.dot");
         format->setCurrentText("zip");
         QCOMPARE(name->text(), QStringLiteral("report.with.dot.zip"));
+        format->setCurrentText("7z");
+        name->setText("report.with.dot.7z ");
+        format->setCurrentText("zip");
+        QCOMPARE(name->text(), QStringLiteral("report.with.dot.zip"));
         CreateArchiveDialog single(dir_.path(), {source_}, nullptr, catalog);
         QCOMPARE(single.sources(), QStringList{source_});
         single.findChild<QLineEdit *>("archiveName")->setText("report.with.dot");
@@ -239,6 +243,108 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(archive.readAll(), QByteArray("untouched existing bytes"));
 #endif
     }
+    void sourceCanReturnBeforeRetryingTheDialog_data() {
+        QTest::addColumn<bool>("unreadable");
+        QTest::newRow("missing") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("unreadable") << true;
+#endif
+    }
+    void sourceCanReturnBeforeRetryingTheDialog() {
+        QFETCH(bool, unreadable);
+#ifndef SEVENZIP_CODEC_MODULE
+        QSKIP("Official codec module unavailable");
+#else
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString input = fixture.filePath("selected file.txt");
+        const QString parked = fixture.filePath("parked.txt");
+        QFile file(input);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("payload"), 7);
+        file.close();
+        const auto permissions = QFile::permissions(input);
+        const auto restore = qScopeGuard([&] {
+            if (unreadable)
+                QFile::setPermissions(input, permissions);
+        });
+        if (unreadable) {
+            QVERIFY(QFile::setPermissions(input, QFile::WriteOwner));
+            if (QFileInfo(input).isReadable())
+                QSKIP("The current user can still read the input");
+        }
+        const auto catalog =
+            std::make_shared<ArchiveCodecCatalog>(QString::fromUtf8(SEVENZIP_CODEC_MODULE), 0);
+        QCOMPARE(catalog->result(), S_OK);
+        const QString target = fixture.filePath("retry.zip");
+        CCompressDialog source;
+        source.Info.FormatIndex = catalog->formatIndex("zip");
+        source.Info.ArcPath = target.toStdWString().c_str();
+        NWildcard::CCensor censor;
+        censor.AddPreItem_NoWildcard(source_.toStdWString().c_str());
+        censor.AddPreItem_NoWildcard(input.toStdWString().c_str());
+        QCOMPARE(NCompressDialog::PrepareFormatSelection(source, catalog->nativeCodecs(),
+                                                         censor.CensorPaths),
+                 S_OK);
+        bool responded = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, this, [&] {
+            auto *dialog = qobject_cast<CreateArchiveDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            responder.stop();
+            const auto reject = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *name = dialog->findChild<QLineEdit *>("archiveName");
+            name->setText(target);
+            auto *volume = dialog->findChild<QComboBox *>("archiveVolumeSize");
+            QVERIFY(volume);
+            volume->setEditText("64K");
+            if (!unreadable)
+                QVERIFY(QFile::rename(input, parked));
+            QStringList errors;
+            int confirmations = 0;
+            QTimer dismiss;
+            connect(&dismiss, &QTimer::timeout, dialog, [&] {
+                if (auto *message =
+                        qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    if (auto *yes = message->button(QMessageBox::Yes)) {
+                        ++confirmations;
+                        yes->click();
+                    } else {
+                        errors.append(message->text());
+                        message->accept();
+                    }
+                }
+            });
+            dismiss.start(1);
+            submit(*dialog);
+            QVERIFY(dialog->isVisible());
+            QCOMPARE(confirmations, 0);
+            QCOMPARE(errors.size(), 1);
+            QVERIFY(errors.first().contains("selected file.txt"));
+            QCOMPARE(name->text(), target);
+            QCOMPARE(volume->currentText(), QString("64K"));
+            if (unreadable)
+                QVERIFY(QFile::setPermissions(input, permissions));
+            else
+                QVERIFY(QFile::rename(parked, input));
+            submit(*dialog);
+            QCOMPARE(dialog->result(), int(QDialog::Accepted));
+            QCOMPARE(confirmations, 1);
+            responded = true;
+        });
+        responder.start(5);
+        QCOMPARE(CreateArchiveDialog::PresentSource(source, censor.CensorPaths, catalog, nullptr),
+                 S_OK);
+        QVERIFY(responded);
+        QCOMPARE(QDir::fromNativeSeparators(QString::fromWCharArray(source.Info.ArcPath.Ptr())),
+                 target);
+#endif
+    }
+
     void unavailableMetadataDisablesSubmission() {
         const auto catalog =
             std::make_shared<ArchiveCodecCatalog>(dir_.filePath("missing module"), 1);
@@ -345,6 +451,59 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(QDir::fromNativeSeparators(history->itemText(1)), upper);
     }
 
+    void historyRestoresTheArchiveWithItsInferredExtension() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("report.zip");
+        {
+            CreateArchiveDialog dialog(fixture.path(), {source_});
+            dialog.findChild<QComboBox *>("archiveFormat")->setCurrentText("zip");
+            dialog.findChild<QLineEdit *>("archiveName")->setText("report");
+            submit(dialog);
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        }
+
+        CreateArchiveDialog reopened(dir_.path(), {source_});
+        auto *format = reopened.findChild<QComboBox *>("archiveFormat");
+        format->setCurrentText("7z");
+        auto *history = reopened.findChild<QComboBox *>("archivePath");
+        history->setCurrentIndex(0);
+        QVERIFY(QMetaObject::invokeMethod(history, "activated", Q_ARG(int, 0)));
+        QCOMPARE(format->currentText(), QString("zip"));
+        submit(reopened);
+        QCOMPARE(reopened.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(reopened.target()), archive);
+    }
+
+    void typingArchivePathKeepsTheTypedNameAndSelectedFormat_data() {
+        QTest::addColumn<QString>("historySuffix");
+        QTest::newRow("exact-history-match") << QString();
+        QTest::newRow("prefix-of-history") << QString(".old");
+    }
+
+    void typingArchivePathKeepsTheTypedNameAndSelectedFormat() {
+        QFETCH(QString, historySuffix);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath("previous.zip");
+        NCompression::CInfo registry;
+        registry.ArcPaths.Add(target + historySuffix);
+        registry.Save(settings_);
+        CreateArchiveDialog dialog(dir_.path(), {source_});
+        dialog.show();
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        auto *format = dialog.findChild<QComboBox *>("archiveFormat");
+        format->setCurrentText("7z");
+        QCOMPARE(format->currentText(), QString("7z"));
+        name->setFocus();
+        name->selectAll();
+        QTest::keyClicks(name, target);
+        QTest::keyClick(name, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), target);
+        QCOMPARE(dialog.compressionOptions().format, QString("7z"));
+    }
+
     void historySelectionAndCancel() {
         NCompression::CInfo registry;
         QTemporaryDir fixture;
@@ -444,16 +603,21 @@ class CompressionPathTests final : public QObject {
 #ifdef Q_OS_WIN
         QTest::newRow("empty-windows-component") << QString("empty-component");
         QTest::newRow("windows-wildcard") << QString("wildcard");
+        QTest::newRow("unavailable-drive") << QString("unavailable-drive");
 #endif
 #ifndef Q_OS_WIN
         QTest::newRow("dangling-link") << QString("link");
         QTest::newRow("read-only") << QString("permissions");
+#endif
+#ifdef Q_OS_UNIX
+        QTest::newRow("no-directory-search") << QString("search-denied");
 #endif
     }
     void occupiedDestinationCanBeCorrectedWithoutLosingTheArchiveName() {
         QFETCH(QString, obstruction);
         const bool danglingLink = obstruction == "link";
         const bool readOnly = obstruction == "permissions";
+        const bool searchDenied = obstruction == "search-denied";
         const bool wildcard = obstruction == "wildcard";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -466,11 +630,26 @@ class CompressionPathTests final : public QObject {
         QCOMPARE(occupied.write("keep"), qint64(4));
         occupied.close();
         const QString missing = fixture.filePath("missing folder");
-        const QString blocker = obstruction == "empty-component" ? fixture.filePath(" ... ")
-                                : wildcard                       ? fixture.filePath("wrong?")
-                                : danglingLink                   ? fixture.filePath("old shortcut")
-                                : readOnly                       ? fixture.filePath("read only")
-                                                                 : occupied.fileName();
+        QString blocker = obstruction == "empty-component" ? fixture.filePath(" ... ")
+                          : wildcard                       ? fixture.filePath("wrong?")
+                          : danglingLink                   ? fixture.filePath("old shortcut")
+                          : readOnly                       ? fixture.filePath("read only")
+                          : searchDenied                   ? fixture.filePath("no access")
+                                                           : occupied.fileName();
+#ifdef Q_OS_WIN
+        if (obstruction == "unavailable-drive") {
+            blocker.clear();
+            for (QChar letter = u'Z'; letter >= u'D'; letter = QChar(letter.unicode() - 1)) {
+                const QString root = QString(letter) + ":/";
+                if (!QDir(root).exists()) {
+                    blocker = root;
+                    break;
+                }
+            }
+            if (blocker.isEmpty())
+                QSKIP("No unavailable drive letter");
+        }
+#endif
         if (danglingLink)
             QVERIFY(QFile::link(missing, blocker));
         const QString name = QStringLiteral("архив с пробелом.7z");
@@ -481,18 +660,20 @@ class CompressionPathTests final : public QObject {
             if (originalPermissions)
                 QFile::setPermissions(blocker, originalPermissions);
         });
-        if (readOnly) {
+        if (readOnly || searchDenied) {
             QVERIFY(QDir().mkpath(blocker + "/writable"));
             originalPermissions = QFile::permissions(blocker);
-            if (!QFile::setPermissions(blocker, QFile::ReadOwner | QFile::ExeOwner) ||
-                QFileInfo(blocker).isWritable())
+            QVERIFY(QFile::setPermissions(
+                blocker, QFile::ReadOwner | (readOnly ? QFile::ExeOwner : QFile::WriteOwner)));
+            const QFileInfo entry(blocker);
+            if (readOnly ? entry.isWritable() : (!entry.isWritable() || entry.isExecutable()))
                 QSKIP("The test filesystem does not enforce this directory permission");
         }
         CreateArchiveDialog dialog(fixture.path(), {source_});
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *archiveName = dialog.findChild<QLineEdit *>("archiveName");
         archiveName->setText(name);
-        const QString blocked = QDir::toNativeSeparators(blocker + "/child");
+        const QString blocked = QDir::toNativeSeparators(QDir(blocker).filePath("child"));
         folder->setText(blocked);
         dialog.show();
         QString diagnostic;
@@ -586,14 +767,18 @@ class CompressionPathTests final : public QObject {
         QTest::addColumn<QString>("obstruction");
 #ifdef Q_OS_UNIX
         QTest::newRow("dangling-link") << QString("link");
+        QTest::newRow("write-only-archive") << QString("write-only");
 #endif
         QTest::newRow("read-only-archive") << QString("read-only");
         QTest::newRow("existing-folder") << QString("folder");
+        QTest::newRow("folder-with-inferred-extension") << QString("inferred-extension");
     }
     void occupiedArchiveNameCanBeCorrected() {
         QFETCH(QString, obstruction);
         const bool dangling = obstruction == "link";
-        const bool folder = obstruction == "folder";
+        const bool writeOnly = obstruction == "write-only";
+        const bool inferredExtension = obstruction == "inferred-extension";
+        const bool folder = obstruction == "folder" || inferredExtension;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString missing = fixture.filePath("missing.7z");
@@ -616,13 +801,17 @@ class CompressionPathTests final : public QObject {
             QVERIFY(archive.open(QIODevice::ReadOnly));
             original = archive.readAll();
             archive.close();
-            QVERIFY(QFile::setPermissions(occupied, QFile::ReadOwner | QFile::ReadUser));
+            QVERIFY(QFile::setPermissions(
+                occupied, writeOnly ? QFile::WriteOwner : QFile::ReadOwner | QFile::ReadUser));
+            if (writeOnly && QFileInfo(occupied).isReadable())
+                QSKIP("The current user can still read the archive");
         }
         QVERIFY(SourceCreationFixture::Create(backend, occupied, {source_}) != S_OK);
 
         CreateArchiveDialog dialog(fixture.path(), {source_});
         auto *name = dialog.findChild<QLineEdit *>("archiveName");
-        const auto draft = QDir::toNativeSeparators("./old.7z");
+        const QString enteredName = inferredExtension ? "old" : "old.7z";
+        const auto draft = QDir::toNativeSeparators("./" + enteredName);
         name->setText(draft);
         auto *level = dialog.findChild<QComboBox *>("compressionLevel");
         QVERIFY(level);
@@ -643,7 +832,7 @@ class CompressionPathTests final : public QObject {
         if (folder)
             QVERIFY2(diagnostic.contains("Archive path is a folder"), qPrintable(diagnostic));
         QCOMPARE(name->text(), draft);
-        QCOMPARE(name->selectedText(), QString("old.7z"));
+        QCOMPARE(name->selectedText(), enteredName);
         auto *editor = dialog.focusWidget();
         QVERIFY(editor);
         QTest::keyClicks(editor, "new.7z");
@@ -662,6 +851,8 @@ class CompressionPathTests final : public QObject {
             QVERIFY(QFileInfo(occupied).isSymLink());
             QVERIFY(!QFileInfo::exists(missing));
         } else {
+            if (writeOnly)
+                QVERIFY(QFile::setPermissions(occupied, originalPermissions));
             QFile archive(occupied);
             QVERIFY(archive.open(QIODevice::ReadOnly));
             QCOMPARE(archive.readAll(), original);
@@ -718,6 +909,8 @@ class CompressionPathTests final : public QObject {
         QTest::newRow("relative-destination") << QString("relative-destination");
         QTest::newRow("missing-folder") << QString("missing");
         QTest::newRow("invalid-folder") << QString("invalid");
+        QTest::newRow("invalid-folder-unicode-space") << QString("invalid-folder-unicode-space");
+        QTest::newRow("invalid-name") << QString("invalid-name");
         QTest::newRow("directory-with-separator") << QString("directory-separator");
         QTest::newRow("directory-with-dot") << QString("directory-dot");
     }
@@ -726,6 +919,9 @@ class CompressionPathTests final : public QObject {
         const bool directoryDraft = form.startsWith("directory-");
         const bool relativeDestination = form == "relative-destination";
         const bool zip = form == "relative-zip";
+        const bool invalidName = form == "invalid-name";
+        const bool trailingSpace = form == "invalid-folder-unicode-space";
+        const bool invalidFolder = form == "invalid" || trailingSpace;
         const QString selectedFormat = zip ? "zip" : "7z";
         QTemporaryDir destination;
         QTemporaryDir original;
@@ -740,17 +936,20 @@ class CompressionPathTests final : public QObject {
         auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
         auto *format = dialog.findChild<QComboBox *>("archiveFormat");
         format->setCurrentText(selectedFormat);
-        const QString draft = QStringLiteral("имя with spaces 空.") + selectedFormat;
+        const QString draft = QStringLiteral("имя with spaces 空.") + selectedFormat +
+                              (trailingSpace ? QString(QChar(0x00a0)) : QString());
+        const QString invalidLeaf = draft.left(3) + QChar::Null + draft.mid(3);
         QVERIFY(QDir(original.path()).mkdir("nested"));
         folder->setText(relativeDestination ? QStringLiteral("nested")
                         : form == "missing" ? original.filePath("nested/not created/deeper")
-                        : form == "invalid" ? original.path() + QChar::Null
+                        : invalidFolder     ? original.path() + QChar::Null
                                             : original.path());
         const QString entered = directoryDraft ? (form == "directory-dot" ? "nested/." : "nested/")
                                 : form == "absolute"
                                     ? QDir::toNativeSeparators(original.filePath(draft))
-                                : form == "relative" || zip || form == "invalid" ? "nested/" + draft
-                                                                                 : draft;
+                                : invalidName ? "nested/" + invalidLeaf
+                                : form == "relative" || zip || invalidFolder ? "nested/" + draft
+                                                                             : draft;
         name->setText(entered);
         dialog.show();
         auto *browse = dialog.findChild<QPushButton *>("archiveBrowse");
@@ -770,7 +969,7 @@ class CompressionPathTests final : public QObject {
                             picker->reject();
                     });
                     QCOMPARE(picker->fileMode(), QFileDialog::Directory);
-                    const QString initial = form == "invalid" ? dir_.path()
+                    const QString initial = invalidFolder || invalidName ? dir_.path()
                                             : form == "relative" || zip || form == "missing" ||
                                                     directoryDraft || relativeDestination
                                                 ? original.filePath("nested")
@@ -793,7 +992,10 @@ class CompressionPathTests final : public QObject {
             browse->click();
             answer.stop();
             QVERIFY(observed);
-            QCOMPARE(name->text(), accept ? (directoryDraft ? QString() : draft) : entered);
+            QCOMPARE(name->text(), accept ? (directoryDraft ? QString()
+                                             : invalidName  ? invalidLeaf
+                                                            : draft)
+                                          : entered);
             QCOMPARE(format->currentText(), selectedFormat);
             if (accept)
                 QCOMPARE(QFileInfo(folder->text()).canonicalFilePath(),
@@ -801,13 +1003,29 @@ class CompressionPathTests final : public QObject {
             else
                 QCOMPARE(folder->text(), previousFolder);
         }
+        if (invalidName) {
+            QTimer::singleShot(0, &dialog, [] {
+                if (auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                    message->accept();
+            });
+            submit(dialog);
+            QCOMPARE(dialog.result(), 0);
+            QCOMPARE(name->text(), invalidLeaf);
+            name->setText(draft);
+        }
         const QString expectedName = directoryDraft ? QStringLiteral("archive.7z") : draft;
         if (directoryDraft) {
             QTRY_COMPARE(dialog.focusWidget(), name->focusProxy() ? name->focusProxy() : name);
             QTest::keyClicks(dialog.focusWidget(), expectedName);
             QCOMPARE(name->text(), expectedName);
         }
-        submit(dialog);
+        if (invalidName) {
+            submit(dialog);
+        } else {
+            if (!directoryDraft)
+                QTRY_COMPARE(dialog.focusWidget(), folder);
+            QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
+        }
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(dialog.target()), destination.filePath(expectedName));
         QCOMPARE(dialog.compressionOptions().format, selectedFormat);
@@ -822,6 +1040,38 @@ class CompressionPathTests final : public QObject {
             QVERIFY(!QFileInfo::exists(original.filePath("nested/" + draft)));
         }
     }
+    void absoluteArchiveNameCanBypassAnInvalidFolderDraft() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        CreateArchiveDialog dialog(dir_.path(), {source_});
+        auto *name = dialog.findChild<QLineEdit *>("archiveName");
+        auto *folder = dialog.findChild<QLineEdit *>("archiveFolder");
+        const QString invalidFolder = fixture.path() + QChar::Null + "/invalid";
+        folder->setText(invalidFolder);
+        name->setText("report.7z");
+        dialog.show();
+        bool rejected = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                rejected = true;
+                warning->accept();
+            }
+        });
+        submit(dialog);
+        QVERIFY(rejected && dialog.isVisible());
+        QCOMPARE(folder->selectedText(), invalidFolder);
+
+        const QString target = fixture.filePath("report.7z");
+        name->setText(QDir::toNativeSeparators(target));
+        QTimer::singleShot(0, &dialog, [] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                warning->accept();
+        });
+        submit(dialog);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::fromNativeSeparators(dialog.target()), target);
+    }
+
     void emptyDestinationKeepsInitialPrefixForBrowseAndAccept() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());

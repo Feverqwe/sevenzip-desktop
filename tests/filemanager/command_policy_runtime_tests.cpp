@@ -1,9 +1,42 @@
 #include "filemanager/support/panel_model_support.h"
 #include "filemanager/support/window_state_support.h"
+#include <QScopeGuard>
 
 class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
   private slots:
+    void filesystemRootParentOnlyOpensInside() {
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        const auto previous = settings.value("FM/ShowDots");
+        const auto restore = qScopeGuard([&] {
+            if (previous.isValid())
+                settings.setValue("FM/ShowDots", previous);
+            else
+                settings.remove("FM/ShowDots");
+        });
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        ControlledBackend backend;
+        int opened = 0;
+        MainWindow window(&backend, [&](const QUrl &) {
+            ++opened;
+            return true;
+        });
+        window.show();
+        window.openPath(QDir::rootPath());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && view->rowCount() > 0);
+        QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        view->setFocus();
+        QVERIFY(action(window, "openItemAction")->isEnabled());
+        QVERIFY(!action(window, "openOutsideAction")->isEnabled());
+        QTest::keyClick(view, Qt::Key_Return, Qt::ShiftModifier);
+        QCOMPARE(opened, 0);
+        QVERIFY(view->sourcePanel->IsFSFolder());
+    }
+
     void filesystemCannotForgeMountCapability() {
         QTemporaryDir fixture;
         ControlledBackend backend;
@@ -115,19 +148,23 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
             paths.append(
                 QFileInfo(path).canonicalFilePath().normalized(QString::NormalizationForm_C));
         }
+        const QString folder = temp.filePath(QStringLiteral("Папка 空"));
+        QVERIFY(QDir().mkdir(folder));
+        paths.append(QFileInfo(folder).canonicalFilePath().normalized(QString::NormalizationForm_C));
         ControlledBackend backend;
         QStringList opened;
         MainWindow window(&backend, [&](const QUrl &url) {
-            opened.append(url.toLocalFile().normalized(QString::NormalizationForm_C));
+            opened.append(
+                QDir::cleanPath(url.toLocalFile()).normalized(QString::NormalizationForm_C));
             return true;
         });
         auto *address = window.findChild<QLineEdit *>("archivePath");
         address->setText(temp.path());
         QTest::keyClick(address, Qt::Key_Return);
         auto *view = table(window);
-        QCOMPARE(view->rowCount(), 2);
+        QCOMPARE(view->rowCount(), paths.size());
         view->selectAll();
-        for (int row = 0; row < 2; ++row) {
+        for (int row = 0; row < view->rowCount(); ++row) {
             SetPanelData(view->model()->index(row, 0), "forged name", Qt::EditRole);
             SetPanelData(view->model()->index(row, 1), "/missing/forged path", Qt::EditRole);
         }
@@ -136,7 +173,48 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
         opened.sort();
         paths.sort();
         QCOMPARE(opened, paths);
-        QCOMPARE(view->selectionModel()->selectedRows().size(), 2);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), paths.size());
+        QCOMPARE(QDir(address->text()).canonicalPath(), QDir(temp.path()).canonicalPath());
+    }
+    void archiveFolderDisablesExternalOpen() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        ControlledBackend backend;
+        QStringList opened;
+        MainWindow window(&backend, [&](const QUrl &url) {
+            opened.append(url.toLocalFile());
+            return true;
+        });
+        window.show();
+        openListedArchive(
+            window, backend, temp.filePath("folders.7z"),
+            {ArchiveEntry{"folder/child.txt", 1, 1}, ArchiveEntry{"document.txt", 1, 1}});
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 2);
+        const auto folder = view->model()->match(view->model()->index(0, 0), Qt::DisplayRole,
+                                                 "folder", 1, Qt::MatchExactly);
+        QCOMPARE(folder.size(), 1);
+        const int folderRow = folder.front().row();
+        auto *outside = action(window, "openOutsideAction");
+        view->setFocus();
+        view->selectRow(folderRow);
+        QVERIFY(!outside->isEnabled());
+        outside->setEnabled(true);
+        outside->trigger();
+        QTest::keyClick(view, Qt::Key_Return, Qt::ShiftModifier);
+        QVERIFY(opened.isEmpty());
+        view->selectAll();
+        QVERIFY(!outside->isEnabled());
+        QTest::keyClick(view, Qt::Key_Return, Qt::ShiftModifier);
+        QVERIFY(opened.isEmpty());
+        QCOMPARE(backend.extractCalls, 0);
+        const auto file = view->model()->match(view->model()->index(0, 0), Qt::DisplayRole,
+                                               "document.txt", 1, Qt::MatchExactly);
+        QCOMPARE(file.size(), 1);
+        view->selectionModel()->select(file.front(), QItemSelectionModel::ClearAndSelect |
+                                                         QItemSelectionModel::Rows);
+        QCOMPARE(view->selectionModel()->selectedRows(), QModelIndexList{file.front()});
+        QTRY_VERIFY(outside->isEnabled());
     }
     void staleEnabledActionsCannotBypassBusyOwnerOrClosedLifecycle() {
         QTemporaryDir temp;
@@ -149,7 +227,13 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
         });
         openListedArchive(window, backend, temp.filePath("busy архив.7z"),
                           {ArchiveEntry{"file.txt", 1, 1}});
-        table(window)->selectRow(0);
+        auto *view = table(window);
+        const auto file = view->model()->match(view->model()->index(0, 0), Qt::DisplayRole,
+                                               "file.txt", 1, Qt::MatchExactly);
+        QCOMPARE(file.size(), 1);
+        view->selectionModel()->select(file.front(), QItemSelectionModel::ClearAndSelect |
+                                                         QItemSelectionModel::Rows);
+        QVERIFY(action(window, "openOutsideAction")->isEnabled());
         action(window, "testArchiveAction")->trigger();
         QCOMPARE(backend.testCalls, 1);
         const bool twoPanels = action(window, "twoPanelsAction")->isChecked();
@@ -168,7 +252,7 @@ class CommandPolicyRuntimeTests : public QObject, protected MainWindowTestSuppor
         QVERIFY(!window.findChild<QDialog *>("comboDialog"));
         backend.completeExtraction();
         auto *outside = action(window, "openOutsideAction");
-        QVERIFY(outside->isEnabled());
+        QTRY_VERIFY(outside->isEnabled());
         auto *panels = action(window, "twoPanelsAction");
         QVERIFY(panels->isEnabled());
         panels->trigger();

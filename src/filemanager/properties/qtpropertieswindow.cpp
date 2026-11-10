@@ -18,6 +18,7 @@
 #include <QDir>
 #include <QEvent>
 #include <QFileInfo>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
 #include <QShowEvent>
@@ -91,15 +92,12 @@ QtPropertiesWindow::QtPropertiesWindow(QtPropertyReport report, QWidget *parent,
                         "propertiesModified");
     layout->addWidget(primary);
     if (report_.items.size() > 1) {
-        QStringList names;
-        for (const auto &item : report_.items)
-            names.append(item.name);
-        auto *list = new QtWrappingLabel(names.join('\n'), this);
+        auto *list = new QPlainTextEdit(this);
         selectedNames_ = list;
         list->setObjectName("propertiesSelectedNames");
-        list->setTextFormat(Qt::PlainText);
-        list->setWordWrap(true);
+        list->setReadOnly(true);
         list->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
+        list->setMaximumHeight(fontMetrics().lineSpacing() * 6);
         auto *section = new QtDisclosure(list, this);
         section->setExpanded(true);
         section->setObjectName("propertiesSelectedObjects");
@@ -248,6 +246,10 @@ QString QtPropertiesWindow::Caption(unsigned row, Scope scope, bool compact) con
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Metadata changed"));
     if (compact && scope == Scope::Selection && id == kpidPackSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Packed size"));
+    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize &&
+        native != report_.nativeValues.cend() &&
+        native->availability != QtPropertyReport::Availability::Known)
+        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported size (may be partial)"));
     if (compact && scope == Scope::Selection && id == kpidSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Size"));
     if (compact)
@@ -257,10 +259,6 @@ QString QtPropertiesWindow::Caption(unsigned row, Scope scope, bool compact) con
                text(QT_TRANSLATE_NOOP("PropertiesWindow", "(stored metadata)"));
     if (scope == Scope::Selection && id == kpidPackSize)
         return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported packed size (may be partial)"));
-    if (scope == Scope::Selection && report_.items.size() > 1 && id == kpidSize &&
-        native != report_.nativeValues.cend() &&
-        native->availability != QtPropertyReport::Availability::Known)
-        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "Reported size (may be partial)"));
     return ToQString(report_.Strings[row]);
 }
 QString QtPropertiesWindow::Value(unsigned row) const {
@@ -268,6 +266,11 @@ QString QtPropertiesWindow::Value(unsigned row) const {
     if (source != report_.nativeValues.cend() &&
         source->availability == QtPropertyReport::Availability::Unknown)
         return available({});
+    if (source != report_.nativeValues.cend() &&
+        source->availability == QtPropertyReport::Availability::Partial &&
+        (source->id == kpidNumSubDirs || source->id == kpidNumSubFiles))
+        return text(QT_TRANSLATE_NOOP("PropertiesWindow", "At least %1"))
+            .arg(ToQString(report_.Values[row]));
     if (source != report_.nativeValues.cend() && IsByteSizeProp(source->id)) {
         if (const auto value = QtUnsignedPropertyValue(source->value))
             return QtRegionalFormat::exactBytes(*value);
@@ -308,15 +311,18 @@ void QtPropertiesWindow::Refresh() {
     modified_->setToolTip({});
     const auto primaryScope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
-        if (group.scope == primaryScope && report_.items.size() <= 1) {
+        if (group.scope == primaryScope) {
             size_->setToolTip(PropertyValue(group, kpidSize, true));
-            modified_->setToolTip(PropertyValue(group, kpidMTime, true));
+            if (report_.items.size() <= 1)
+                modified_->setToolTip(PropertyValue(group, kpidMTime, true));
         }
     if (selectedNames_) {
         QStringList names;
         for (const auto &item : report_.items)
             names.append(item.prefix + available(item.name));
-        selectedNames_->setText(names.join('\n'));
+        const QString list = names.join('\n');
+        if (selectedNames_->toPlainText() != list)
+            selectedNames_->setPlainText(list);
     }
     for (const auto &row : rows_) {
         const QString caption = Caption(row.source, row.scope, true);

@@ -1,17 +1,78 @@
 #include "archive/agent/Agent.h"
+#include "archive/resources/qtarchivewritelease.h"
 #include "archive/support/native_archive_fixture.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
 #include "platform/support/external_editor_fixture.h"
+#include "support/progress_dialog.h"
+#include "support/window_activation.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QEventLoop>
 #include <QMessageBox>
+#include <QScrollBar>
 #include <QTimer>
 
 class ArchiveRenameWindowTests final : public QObject, protected MainWindowTestSupport {
     Q_OBJECT
   private slots:
+    void failedWriteKeepsListPositionForRenameRetry() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("files.zip");
+        QList<NativeArchiveFixture::Item> items;
+        for (int i = 0; i < 90; ++i)
+            items.append({QString("file-%1.txt").arg(i, 3, 10, u'0'), "payload"});
+        QVERIFY(NativeArchiveFixture::Write(archive, items, "zip"));
+        MainWindow window;
+        window.resize(640, 400);
+        window.show();
+        window.openArchive(archive);
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), items.size());
+        view->setFocus();
+        view->selectRow(45);
+        auto *rename = action(window, "renameAction");
+        const auto submit = [&] {
+            QTRY_VERIFY(rename->isEnabled());
+            rename->trigger();
+            auto *editor = view->findChild<QLineEdit *>();
+            QVERIFY(editor && editor->isVisible());
+            view->scrollTo(view->currentIndex(), QAbstractItemView::PositionAtCenter);
+            editor->setText("renamed.txt");
+            QTest::keyClick(editor, Qt::Key_Return);
+        };
+        bool refused = false;
+        QTimer responder;
+        connect(&responder, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (TestProgressDialog::DismissVisibleResult(modal))
+                refused = true;
+            else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+                refused = true;
+                box->accept();
+            }
+        });
+        responder.start(2);
+        {
+            const auto lease = QtArchiveWriteLease::Acquire({archive});
+            QVERIFY(lease);
+            view->scrollTo(view->currentIndex(), QAbstractItemView::PositionAtCenter);
+            const int position = view->verticalScrollBar()->value();
+            QVERIFY(position > 0);
+            submit();
+            QTRY_VERIFY(refused && rename->isEnabled());
+            QCOMPARE(view->currentIndex().data().toString(), QString("file-045.txt"));
+            QCOMPARE(view->verticalScrollBar()->value(), position);
+        }
+        QVERIFY(WindowActivation::waitForActive(window));
+        submit();
+        QTRY_COMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
+        QCOMPARE(ExternalEditorFixture::contents(archive, "renamed.txt"), QByteArray("payload"));
+    }
+
     void archiveRenameUsesEditorText() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;

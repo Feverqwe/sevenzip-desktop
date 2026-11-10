@@ -5,7 +5,10 @@
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Windows/FileDir.h"
 #include "Windows/FileName.h"
+#include "archive/callbacks/qtguimessages.h"
+#include "archive/resources/archiveinputpath.h"
 #include "dialogs/browse/BrowseDialog.h"
+#include "filemanager/FormatUtils.h"
 #include "fileops/native/correctfspath.h"
 #include "fileops/patterns/Wildcard.h"
 #include "localization/qtlangcontrols.h"
@@ -17,6 +20,7 @@
 #include <QFileInfo>
 #include <QLabel>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QTimer>
@@ -62,6 +66,38 @@ bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
     return FindInvalidWindowsPathCharacter(path) < 0 &&
            NWindows::NFile::NDir::MyGetFullPathName(us2fs(path), resolved) &&
            !HasEmptyWindowsPathComponent(path, fs2us(resolved));
+}
+
+QString OutputDirectoryStructureError(QString path) {
+    for (;;) {
+        const QFileInfo entry(path);
+        if (entry.exists() || entry.isSymLink())
+            return entry.isDir() ? QString()
+                                 : QCoreApplication::translate(
+                                       "archivebackend_validation",
+                                       "Destination path is occupied by a file or link: %1")
+                                       .arg(path);
+        const QString parent = entry.absolutePath();
+        if (parent == path)
+            return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                .arg(QDir::toNativeSeparators(path));
+        path = parent;
+    }
+}
+
+void SplitExtractionDestination(const QString &destination, QString &parent, QString &name) {
+    UString prefix = ToUString(QDir::toNativeSeparators(destination));
+    NWindows::NFile::NName::NormalizeDirPathPrefix(prefix);
+    if (NWindows::NFile::NName::GetRootPrefixSize(prefix) == prefix.Len()) {
+        parent = destination;
+        name.clear();
+        return;
+    }
+    SplitPathToParts_Smart(destination, parent, name);
+    if (parent.isEmpty()) {
+        parent = destination;
+        name.clear();
+    }
 }
 
 static void AddComboItems(QComboBox &combo, std::span<const CExtractModeItem> modes, int curVal) {
@@ -168,11 +204,8 @@ void CExtractDialog::OnInit(const QStringList &history) {
     if (_info.SplitDest.Val) {
         _nameEnable->setChecked(true);
         QString pathName;
-        SplitPathToParts_Smart(DirPath, pathPrefix, pathName);
-        if (pathPrefix.isEmpty())
-            pathPrefix = pathName;
-        else
-            _pathName->setText(pathName);
+        SplitExtractionDestination(DirPath, pathPrefix, pathName);
+        _pathName->setText(pathName);
     } else
         _pathName->setEnabled(false);
     _path->setEditText(pathPrefix);
@@ -188,9 +221,9 @@ void CExtractDialog::OnInit(const QStringList &history) {
         }
         QString parent, name;
         const QString destination = DestinationDraft(_path->itemText(index));
-        SplitPathToParts_Smart(destination, parent, name);
-        _path->setEditText(parent.isEmpty() ? destination : parent);
-        _pathName->setText(parent.isEmpty() ? QString() : name);
+        SplitExtractionDestination(destination, parent, name);
+        _path->setEditText(parent);
+        _pathName->setText(name);
     });
     AddComboItems(*_pathMode, kPathModes, PathMode);
     AddComboItems(*_overwriteMode, kOverwriteModes, OverwriteMode);
@@ -230,8 +263,16 @@ void CExtractDialog::changeEvent(QEvent *event) {
 void CExtractDialog::OnButtonSetPath() {
     const QString draft = DestinationDraft(_path->currentText());
     FString initial;
-    if (!ResolveOutputDirectory(draft, initial))
-        initial.Empty();
+    if (!ResolveOutputDirectory(draft, initial) ||
+        !OutputDirectoryStructureError(QDir::cleanPath(ToQString(fs2us(initial)))).isEmpty()) {
+        QString originalBase = DirPath;
+        if (_info.SplitDest.Val) {
+            QString originalName;
+            SplitExtractionDestination(DirPath, originalBase, originalName);
+        }
+        if (!ResolveOutputDirectory(originalBase, initial))
+            initial.Empty();
+    }
     UString path;
     if (MyBrowseForFolder(this, ToUString(QtLangText(IDS_EXTRACT_SET_FOLDER)), fs2us(initial),
                           path)) {
@@ -251,22 +292,10 @@ void CExtractDialog::OnOK() {
             return InvalidOutputDirectory();
         if (resolvedPath)
             *resolvedPath = resolved;
-        QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
+        const QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
         if (checkOutputPolicy && _destinationErrorForPath)
             return _destinationErrorForPath(path);
-        for (;;) {
-            const QFileInfo entry(path);
-            if (entry.exists() || entry.isSymLink())
-                return entry.isDir() ? QString()
-                                     : QCoreApplication::translate(
-                                           "archivebackend_validation",
-                                           "Destination path is occupied by a file or link: %1")
-                                           .arg(path);
-            const QString parent = entry.absolutePath();
-            if (parent == path)
-                return {};
-            path = parent;
-        }
+        return OutputDirectoryStructureError(path);
     };
     FString resolvedDestination;
     QString baseError;
@@ -279,19 +308,46 @@ void CExtractDialog::OnOK() {
     if (!error.isEmpty()) {
         _destinationError->setText(error);
         _destinationError->show();
-        if (_nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error) {
-            _pathName->setFocus();
-            _pathName->selectAll();
-        } else {
-            _path->setFocus();
-            _path->lineEdit()->selectAll();
-        }
-        QTimer::singleShot(0, this, [this] {
-            if (_destinationError->isVisible())
-                if (auto *scroll = findChild<QScrollArea *>("dialogContentScroll"))
-                    scroll->ensureWidgetVisible(_destinationError);
+        auto *editor =
+            _nameEnable->isChecked() && baseError.isEmpty() && directoryError(base) != error
+                ? _pathName
+                : _path->lineEdit();
+        editor->setFocus();
+        editor->selectAll();
+        QTimer::singleShot(0, this, [this, editor] {
+            auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
+            if (!scroll || !_destinationError->isVisible())
+                return;
+            const auto bounds = [scroll](QWidget *widget) {
+                return QRect(widget->mapTo(scroll->widget(), QPoint()), widget->size());
+            };
+            const QRect field =
+                bounds(editor == _pathName ? static_cast<QWidget *>(editor) : _path);
+            const QRect combined = field.united(bounds(_destinationError));
+            const int height = scroll->viewport()->height();
+            const QRect target = combined.height() <= height ? combined : field;
+            auto *bar = scroll->verticalScrollBar();
+            const int first = qMin(target.bottom() + 1 - height, target.top());
+            bar->setValue(qBound(first, bar->value(), target.top()));
         });
         return;
+    }
+    _destinationError->hide();
+    if (_validateSourcePaths) {
+        for (const auto &source : _archiveSources) {
+            const QFileInfo file(source);
+            if (!IsArchiveFileOrPackage(file)) {
+                const QtTaskPresentation::QuestionScope validation;
+                const QString path = QDir::toNativeSeparators(source);
+                const auto message =
+                    file.exists()
+                        ? ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, ToUString(path)))
+                        : QCoreApplication::translate("mainwindow_filelist", "Path not found: ") +
+                              path;
+                ShowErrorMessageQt(this, message.toStdWString().c_str());
+                return;
+            }
+        }
     }
     const int pathMode2 = _pathMode->currentData().toInt();
     if (PathMode != NExtract::NPathMode::kCurPaths || pathMode2 != NExtract::NPathMode::kFullPaths)

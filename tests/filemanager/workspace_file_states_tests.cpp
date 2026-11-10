@@ -33,20 +33,35 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
     }
     void cleanup() { QApplication::clipboard()->clear(); }
 
+    void copyFollowsFocusBetweenAddressAndFiles_data() {
+        QTest::addColumn<bool>("switchToIcons");
+        QTest::newRow("details") << false;
+        QTest::newRow("switch-to-icons") << true;
+    }
+
     void copyFollowsFocusBetweenAddressAndFiles() {
+        QFETCH(bool, switchToIcons);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("selected 文件.txt");
         const QString source = fixture.filePath(name);
+        const QString secondName = QStringLiteral("second selection.txt");
+        const QString secondSource = fixture.filePath(secondName);
+        const QString focusedName = QStringLiteral("unselected.txt");
         write(source);
+        write(secondSource);
+        write(fixture.filePath(focusedName));
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         QVERIFY(WindowActivation::waitForActive(window));
         window.openPath(fixture.path());
         auto *files = table(window);
-        QTRY_VERIFY(files->isEnabled() && rowFor(*files, name) >= 0);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 3);
         files->selectRow(rowFor(*files, name));
+        files->selectionModel()->select(files->model()->index(rowFor(*files, secondName), 0),
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        files->setCurrentCell(rowFor(*files, focusedName), 0, QItemSelectionModel::NoUpdate);
         auto *address = window.findChild<QLineEdit *>("archivePath");
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
@@ -54,15 +69,27 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         address->selectAll();
         QTest::keyClicks(address, draft);
         address->setSelection(12, 6);
+        QAbstractItemView *visible = files;
+        if (switchToIcons) {
+            QTest::keySequence(window.focusWidget(), action(window, "viewMode0Action")->shortcut());
+            visible = window.findChild<QListView *>("iconList");
+            QTRY_VERIFY(visible && visible->isVisible());
+            QCOMPARE(address->text(), draft);
+            QCOMPARE(address->selectedText(), QString("folder"));
+        }
         auto *clipboard = QApplication::clipboard();
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
         QCOMPARE(clipboard->text(), QString("folder"));
         QVERIFY(!clipboard->mimeData()->hasUrls());
 
         QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
-        QTRY_VERIFY(files->hasFocus());
+        QTRY_VERIFY(visible->hasFocus());
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
-        QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(source)});
+        QStringList copiedPaths;
+        for (const auto &url : clipboard->mimeData()->urls())
+            copiedPaths.append(url.toLocalFile());
+        copiedPaths.sort();
+        QCOMPARE(copiedPaths, QStringList({secondSource, source}));
         PanelKeys::focusAddress(address);
         QTRY_VERIFY(address->hasFocus());
         QCOMPARE(address->text(), draft);
@@ -101,7 +128,7 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
     }
 
-    void cutFolderCanBePastedAfterRejectingItsOwnSubfolder() {
+    void cutFolderCanBePastedAfterRejectingItsOwnLocation() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source folder");
@@ -109,6 +136,9 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         const QString output = fixture.filePath("output");
         QVERIFY(QDir().mkpath(child) && QDir().mkpath(output));
         write(QDir(child).filePath("keep.txt"));
+        const QString blocker = QDir(output).filePath("source folder");
+        const QString savedBlocker = QDir(output).filePath("saved file.txt");
+        write(blocker);
 
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -123,6 +153,17 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         const QList<QUrl> urls{QUrl::fromLocalFile(source)};
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
 
+        QTest::keySequence(files, QKeySequence::Paste);
+        QVERIFY(files->isEnabled() && files->hasFocus());
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("qtfiletransfertransaction",
+                                             "Source and destination are the same: %1")
+                     .arg(QFileInfo(source).canonicalFilePath()));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QVERIFY(cut(*files, "source folder"));
+        QVERIFY(files->selectionModel()->isRowSelected(rowFor(*files, "source folder"), {}));
+
         window.openPath(child);
         QTRY_VERIFY(files->isEnabled() && files->hasFocus());
         QTest::keySequence(files, QKeySequence::Paste);
@@ -136,9 +177,23 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(!QFileInfo::exists(QDir(child).filePath("source folder")));
 
         window.openPath(output);
-        QTRY_VERIFY(files->isEnabled() && files->hasFocus());
+        QTRY_VERIFY(files->isEnabled() && files->hasFocus() &&
+                    rowFor(*files, "source folder") >= 0);
         QTest::keySequence(files, QKeySequence::Paste);
-        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "source folder") >= 0);
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate(
+                     "qtfiletransfertransaction",
+                     "Cannot replace a file with a folder or a folder with a file: %1")
+                     .arg(QFileInfo(blocker).canonicalFilePath()));
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), urls);
+        QVERIFY(QFileInfo(source).isDir());
+        QVERIFY(QFile::rename(blocker, savedBlocker));
+        QTest::keySequence(files, QKeySequence::Paste);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "saved file.txt") >= 0 &&
+                    rowFor(*files, "source folder") >= 0);
+        QFile preserved(savedBlocker);
+        QVERIFY(preserved.open(QIODevice::ReadOnly));
+        QCOMPARE(preserved.readAll(), QByteArray("file state fixture"));
         QFile moved(QDir(output).filePath("source folder/child/keep.txt"));
         QVERIFY(moved.open(QIODevice::ReadOnly));
         QCOMPARE(moved.readAll(), QByteArray("file state fixture"));
@@ -324,7 +379,13 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(QFileInfo::exists(source + "/Alpha.txt"));
     }
 
+    void fileMutationsRequireWritableFolder_data() {
+        QTest::addColumn<bool>("retryCut");
+        QTest::newRow("retry-paste") << false;
+        QTest::newRow("retry-cut") << true;
+    }
     void fileMutationsRequireWritableFolder() {
+        QFETCH(bool, retryCut);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString writable = fixture.filePath("writable");
@@ -375,9 +436,22 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(!QFileInfo::exists(target));
         const QList<QUrl> original{QUrl::fromLocalFile(source)};
         QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
+        QTest::keySequence(files, QKeySequence::Cut);
+        QCOMPARE(QApplication::clipboard()->mimeData()->urls(), original);
         QVERIFY(
             QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
         QVERIFY(!paste->isEnabled());
+        if (retryCut) {
+            QVERIFY(!cut->isEnabled());
+            QTest::keySequence(files, QKeySequence::Cut);
+            const QList<QUrl> selection{
+                QUrl::fromLocalFile(QDir(blocked).filePath("existing.txt"))};
+            QCOMPARE(QApplication::clipboard()->mimeData()->urls(), selection);
+            QVERIFY(this->cut(*files, "existing.txt"));
+            auto *copied = new QMimeData;
+            copied->setUrls(original);
+            QApplication::clipboard()->setMimeData(copied);
+        }
         QTest::keySequence(files, QKeySequence::Paste);
         QTRY_VERIFY(rowFor(*files, "incoming.txt") >= 0);
         QFile received(target);
@@ -395,6 +469,104 @@ class WorkspaceFileStatesTests final : public QObject, protected MainWindowTestS
         QVERIFY(cut->isEnabled());
         for (auto *mutation : mutations)
             QVERIFY2(mutation->isEnabled(), qPrintable(mutation->objectName()));
+    }
+
+    void pasteCanRetryAfterDirectoryAccessIsRestored() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory search permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString destination = fixture.filePath("destination");
+        const QString source = fixture.filePath("incoming.txt");
+        QVERIFY(QDir().mkdir(destination));
+        write(source);
+        write(QDir(destination).filePath("existing.txt"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(destination);
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && rowFor(*files, "existing.txt") >= 0);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        auto *clipboard = QApplication::clipboard();
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        clipboard->setMimeData(mime);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+
+        const auto permissions = QFile::permissions(destination);
+        const QString canonicalDestination = QFileInfo(destination).canonicalFilePath();
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(destination, permissions); });
+        QVERIFY(QFile::setPermissions(destination, QFile::ReadOwner | QFile::WriteOwner));
+        const QFileInfo blocked(destination);
+        if (!blocked.isWritable() || blocked.isExecutable())
+            QSKIP("Requires a writable directory without search access");
+
+        paste->trigger();
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                     .arg(canonicalDestination));
+        QCOMPARE(clipboard->mimeData()->urls(), urls);
+        QVERIFY(QFile::setPermissions(destination, permissions));
+        const QString target = QDir(destination).filePath("incoming.txt");
+        QVERIFY(!QFileInfo::exists(target));
+        paste->trigger();
+        QTRY_VERIFY(rowFor(*files, "incoming.txt") >= 0);
+        QFile received(target);
+        QVERIFY(received.open(QIODevice::ReadOnly));
+        QCOMPARE(received.readAll(), QByteArray("file state fixture"));
+        QCOMPARE(clipboard->mimeData()->urls(), urls);
+    }
+
+    void cutFolderMergeCanRetryAfterReadAccessReturns() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("folder");
+        const QString destination = fixture.filePath("destination");
+        const QString merged = QDir(destination).filePath("folder");
+        QVERIFY(QDir().mkpath(source) && QDir().mkpath(merged));
+        write(QDir(source).filePath("incoming.txt"));
+        write(QDir(merged).filePath("existing.txt"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(destination);
+        QTRY_VERIFY(table(window)->isEnabled() && rowFor(*table(window), "folder") >= 0);
+        const QList<QUrl> urls{QUrl::fromLocalFile(source)};
+        auto *clipboard = QApplication::clipboard();
+        auto *mime = new QMimeData;
+        mime->setUrls(urls);
+        mime->setData("application/x-kde-cutselection", "1");
+        clipboard->setMimeData(mime);
+        auto *paste = action(window, "pasteFilesAction");
+        QTRY_VERIFY(paste->isEnabled());
+        const auto permissions = QFile::permissions(source);
+        const auto restore = qScopeGuard([&] {
+            if (QFileInfo::exists(source))
+                QFile::setPermissions(source, permissions);
+        });
+        QVERIFY(QFile::setPermissions(source, QFile::WriteOwner | QFile::ExeOwner));
+        if (QFileInfo(source).isReadable())
+            QSKIP("The current user can still read the directory");
+        paste->trigger();
+        QVERIFY(window.statusBar()->currentMessage().contains(source));
+        QCOMPARE(clipboard->mimeData()->urls(), urls);
+        const QString incoming = QDir(merged).filePath("incoming.txt");
+        QVERIFY(!QFileInfo::exists(incoming));
+        QVERIFY(QFile::setPermissions(source, permissions));
+        paste->trigger();
+        QTRY_VERIFY(!QFileInfo::exists(source));
+        QFile received(incoming), retained(QDir(merged).filePath("existing.txt"));
+        QVERIFY(received.open(QIODevice::ReadOnly) && retained.open(QIODevice::ReadOnly));
+        QCOMPARE(received.readAll(), QByteArray("file state fixture"));
+        QCOMPARE(retained.readAll(), QByteArray("file state fixture"));
+        QTRY_VERIFY(!paste->isEnabled());
     }
 
     void pasteWaitsForTheDestinationListing() {

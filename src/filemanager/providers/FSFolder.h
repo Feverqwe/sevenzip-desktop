@@ -35,6 +35,15 @@ struct CDirItem : public NWindows::NFile::NFind::CFileInfo {
     UInt64 NumFiles = 0;
 };
 
+struct CFsFolderSizeResult {
+    HRESULT Status;
+    UInt64 Size;
+    UInt64 NumFolders;
+    UInt64 NumFiles;
+};
+
+CFsFolderSizeResult MeasureFolderSize(const FString &path, IProgress *progress);
+
 struct CFsFolderStat {
     UInt64 NumFolders = 0;
     UInt64 NumFiles = 0;
@@ -107,6 +116,9 @@ class CFSFolder final : public IFolderFolder,
     std::function<bool(const QString &)> CheckBreak;
     void AddPath(const QString &path);
     FString GetRelPath(const CDirItem &item) const;
+    bool CanCalculateItemFullSize(UInt32 index) const;
+    FString ItemFullSizePath(UInt32 index) const;
+    void ApplyItemFullSize(UInt32 index, const CFsFolderSizeResult &result);
 
   private:
     HRESULT LoadSubItems(int dirItem, const FString &relPrefix);
@@ -150,6 +162,7 @@ struct CCopyState {
     bool MoveMode = false;
     bool UseReadWriteMode = false;
     bool IsAltStreamsDest = false;
+    bool CreatedDirectory = false;
 #ifdef _WIN32
     bool CopyFile_NT(const wchar_t *oldFile, const wchar_t *newFile);
     bool CopyFile_Sys(CFSTR oldFile, CFSTR newFile);

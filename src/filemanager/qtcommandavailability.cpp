@@ -61,14 +61,10 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     c.focused = focus.Present;
     c.focusedNonParent = focus.Present && !focus.Parent;
     c.selectedParent = focus.Present && focus.Parent && focus.Selected;
+    c.openOutside = (c.operated || c.selectedParent) && panel.CanOpenItemsOutside(operated);
     c.focusedFile = panel.IsFocusedFile();
-    CMyComPtr<IFolderCalcItemFullSize> calcItemFullSize;
-    if (panel.GetFolder())
-        panel.GetFolder()->QueryInterface(IID_IFolderCalcItemFullSize,
-                                          reinterpret_cast<void **>(&calcItemFullSize));
-    if (calcItemFullSize)
-        FOR_VECTOR(i, operated)
-    if (panel.IsItem_Folder(operated[i]))
+    FOR_VECTOR(i, operated)
+    if (panel.CanCalculateFilesystemItemSize(operated[i]))
         c.folderSize = true;
     c.oneFile = c.one && !panel.IsItem_Folder(operated[0]);
     const QFileInfo directory(w.projectedUi().directory);
@@ -100,6 +96,7 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
         agent ? dynamic_cast<QtArchiveFileResource *>(agent->GetEngineResource()) : nullptr;
     c.writable = c.mutationWritable && !(resource && resource->Info.encrypted);
     c.rows = w.projectedUi().table->rowCount() > 0;
+    c.selection = w.projectedUi().table->selectionModel()->hasSelection();
     UStringVector history;
     w.app_.AppState.FolderHistory.GetList(history);
     c.foldersHistory = !history.IsEmpty();
@@ -129,12 +126,16 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
     availability[OpenArchivePicker] = windowCommands && !w.backend_->busy();
     availability[ManageMounts] = windowCommands;
     availability[IDM_FOLDERS_HISTORY] = windowCommands && !w.app_.QtOperations().active();
-    if (availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningArchive &&
-        !w.projectedUi().scanningDisk) {
+    availability[MountReadOnly] = false;
+    const bool folderCommands = windowCommands && safeFolderQueries &&
+                                !w.projectedUi().scanningArchive && !w.projectedUi().scanningDisk;
+    availability[CalculateDirectorySize] =
+        folderCommands && (panel.IsFSFolder() || availability[OpenArchivePicker]) &&
+        CanCalculateDirectorySize();
+    if (availability[OpenArchivePicker] && folderCommands) {
         const auto *folder = dynamic_cast<CAgentFolder *>(panel.GetFolder());
         availability[MountReadOnly] =
             folder && ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties());
-        availability[CalculateDirectorySize] = CanCalculateDirectorySize();
     }
     availability[OpenDevicePicker] =
         availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningDisk &&
@@ -192,7 +193,7 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_OPEN:
         return c.operated || c.selectedParent;
     case IDM_OPEN_OUTSIDE:
-        return (c.operated || c.selectedParent) && !c.root;
+        return c.openOutside && !c.root;
     case IDM_OPEN_INSIDE:
     case IDM_OPEN_INSIDE_ONE:
     case IDM_OPEN_INSIDE_PARSER:
@@ -228,7 +229,7 @@ bool QtFileManagerCommands::TransportAllows(unsigned id, const TransportCapabili
     case IDM_SELECT_ALL:
         return c.rows;
     case IDM_DESELECT_ALL:
-        return c.operated;
+        return c.selection;
     case IDM_FOLDERS_HISTORY:
         return c.foldersHistory;
     }

@@ -200,9 +200,11 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
     if (!filePaths)
         if (!_folderOperations) {
             const UString errorMessage = LangString(IDS_OPERATION_IS_NOT_SUPPORTED);
-            if (options.showErrorMessages)
+            if (options.showErrorMessages) {
                 MessageBox_Error(errorMessage);
-            else if (messages)
+                if (report)
+                    report->ResultPresented = true;
+            } else if (messages)
                 messages->Add(errorMessage);
             return E_FAIL;
         }
@@ -221,6 +223,7 @@ HRESULT CPanel::CopyTo(CCopyToOptions &options, const CRecordVector<UInt32> &ind
 
         CPanelCopyThread extracter;
         extracter.DisableUserQuestions |= options.DisableUserQuestions;
+        extracter.CancellationMayLeaveChanges = options.CancellationMayLeaveChanges;
         extracter.DeferResultReview = report && report->Purpose != QtArchiveExtractPurpose::Copy;
 
         extracter.ExtractCallback.SetFromCls(new CExtractCallbackImp);

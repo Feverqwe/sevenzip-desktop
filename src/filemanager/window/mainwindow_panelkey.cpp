@@ -247,8 +247,9 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
             app_.ExecuteCommand(action->property("nativeCommandID").toUInt());
             return true;
         }
-        // Destination permissions can change between file list updates.
-        if (clipboard_ && action == clipboard_->paste && !action->isEnabled())
+        // Folder permissions can change between file list updates.
+        if (clipboard_ && (action == clipboard_->paste || action == clipboard_->cut) &&
+            !action->isEnabled())
             clipboard_->Refresh();
         if (action->isEnabled() && action->isVisible())
             action->trigger();
@@ -287,6 +288,21 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
                                           mods.testFlag(Qt::ControlModifier), rightCtrl,
                                           mods.testFlag(Qt::ShiftModifier)},
                                          app_);
+    if (!handled) {
+        switch (virtualKey) {
+        case Qt::Key_Up:
+        case Qt::Key_Down:
+        case Qt::Key_Left:
+        case Qt::Key_Right:
+        case Qt::Key_Home:
+        case Qt::Key_End:
+        case Qt::Key_PageUp:
+        case Qt::Key_PageDown:
+            static_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget())
+                ->keyboardSearch({});
+            break;
+        }
+    }
     if (key->key() != Qt::Key_Control && key->key() != Qt::Key_Shift && key->key() != Qt::Key_Alt)
         refreshActions();
     // Qt otherwise moves focus again after the source OnTab callback.

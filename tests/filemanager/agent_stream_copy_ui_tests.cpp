@@ -7,6 +7,7 @@
 #include "filemanager/window/qtnavigationbar.h"
 #include "localization/LangUtils.h"
 #include "support/delete_reply.h"
+#include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 #include <QScrollArea>
@@ -225,6 +226,12 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         auto *source = openPanel(window, 1 - targetPane, sourceArchive ? inputArchive : input);
         QVERIFY(source);
         QTRY_VERIFY(row(*source, copied) >= 0 && row(*source, moved) >= 0);
+        auto *targetAddress = window.findChild<QWidget *>(QString("filePanel%1").arg(targetPane))
+                                  ->findChild<QLineEdit *>("archivePath");
+        QVERIFY(targetAddress);
+        const QString draft = QStringLiteral("unfinished адрес");
+        targetAddress->setText(draft);
+        targetAddress->setModified(true);
         const int sourceRows = source->rowCount();
         const QString tag =
             QString("agent-stream-copy-%1-%2-%3").arg(targetPane).arg(language).arg(sourceArchive);
@@ -246,6 +253,13 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
             if (QTest::currentTestFailed())
                 return;
             QVERIFY(asked);
+            CProgressDialog *report = nullptr;
+            QTRY_VERIFY(
+                (report = TestProgressDialog::ResultWindow(QApplication::activeModalWidget())));
+            QVERIFY(TestProgressDialog::ReportText(*report).contains(QCoreApplication::translate(
+                "mainwindow_archive_transfer", "The destination archive was restored.")));
+            TestProgressDialog::CloseResult(*report);
+            QCOMPARE(targetAddress->text(), draft);
             QCOMPARE(readFile(archive), targetBeforeMove);
             QCOMPARE(readFile(inputArchive), sourceBefore);
             QTRY_VERIFY(row(*target, moved) < 0);
@@ -285,6 +299,7 @@ class AgentStreamCopyUiTests final : public QObject, protected MainWindowTestSup
         QVERIFY(row(*target, oldStream) >= 0);
         QTRY_COMPARE(source->rowCount(), sourceRows - 1);
         verifySelection(*target, targetSelection, "after Copy and Move");
+        QCOMPARE(targetAddress->text(), draft);
         if (QTest::currentTestFailed())
             return;
         QVERIFY(source->sourcePanel->ShouldProcessNotifications() &&

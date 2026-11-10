@@ -1,3 +1,4 @@
+#include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/recent_places_menu.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtfavoritestore.h"
@@ -72,6 +73,89 @@ class RecentPlacesTests final : public QObject, protected MainWindowTestSupport 
         store().Reload();
         SaveRegLang(UString("-"), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+    }
+
+    void savedArchiveExplainsWrongPassword_data() {
+        QTest::addColumn<bool>("favorite");
+        QTest::newRow("recent") << false;
+        QTest::newRow("favorite") << true;
+    }
+    void savedArchiveExplainsWrongPassword() {
+        QFETCH(bool, favorite);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("origin");
+        const QString archive = fixture.filePath("encrypted.7z");
+        const QString password = QStringLiteral("fixture password");
+        directory(folder);
+        QVERIFY(ExternalEditorFixture::createArchive(fixture.path(), archive, "origin", "7z",
+                                                     password));
+        MainWindow window;
+        window.show();
+        QString suppliedPassword = password;
+        int prompts = 0;
+        QTimer answer;
+        dialogs_.connectResponder(answer, &window, [&] {
+            if (auto *dialog = dynamic_cast<CPasswordDialog *>(dialogs_.activeDialog())) {
+                ++prompts;
+                dialog->findChild<QLineEdit *>("passwordEdit")->setText(suppliedPassword);
+                dialog->accept();
+            }
+        });
+        answer.start(1);
+        window.openArchive(archive);
+        QTRY_VERIFY(active(window)->sourcePanel->IsArcFolder());
+        if (favorite)
+            addFavorite(window, "Saved archive");
+        window.openPath(folder);
+        QTRY_COMPARE(location(window), folder);
+        const auto openRecent = [&] {
+            action(window, "foldersHistoryAction")->trigger();
+            QTRY_VERIFY(RecentPlacesMenu::Visible(window));
+            auto *menu = RecentPlacesMenu::Visible(window);
+            auto *entry = RecentPlacesMenu::Find(*menu, archive);
+            QVERIFY(entry);
+            RecentPlacesMenu::Choose(*menu, *entry);
+        };
+        suppliedPassword = QStringLiteral("incorrect");
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        const QString draft = QStringLiteral("unfinished folder");
+        if (favorite)
+            openFavorite(window, "Saved archive");
+        else {
+            PanelKeys::focusAddress(address);
+            address->selectAll();
+            QTest::keyClicks(address, draft);
+            address->setSelection(0, 10);
+            openRecent();
+        }
+        QTRY_COMPARE(prompts, 2);
+        const auto showsError = [&] {
+            const QString message = window.statusBar()->currentMessage();
+            return QDir::fromNativeSeparators(message).contains(archive) &&
+                   message.contains("password", Qt::CaseInsensitive);
+        };
+        QTRY_VERIFY(showsError());
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        QVERIFY(retry);
+        if (favorite) {
+            QTRY_VERIFY(retry->isVisible());
+            retry->click();
+            QTRY_COMPARE(prompts, 3);
+            QTRY_VERIFY(showsError());
+        } else {
+            QCOMPARE(location(window), folder);
+            QCOMPARE(address->text(), draft);
+            QCOMPARE(address->selectedText(), QStringLiteral("unfinished"));
+        }
+        suppliedPassword = password;
+        if (favorite)
+            retry->click();
+        else
+            openRecent();
+        QTRY_VERIFY(active(window)->sourcePanel->IsArcFolder());
+        QTRY_VERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
     void recentPlacesReenableAfterFolderScan() {

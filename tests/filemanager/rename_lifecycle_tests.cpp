@@ -171,15 +171,41 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
         QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
                      QFileInfo(child).canonicalFilePath());
         QVERIFY(QFileInfo(child).isDir());
-        action(window, "backAction")->trigger();
-        QTRY_COMPARE(window.focusWidget(), view);
+    }
+
+    void cancelledRenameAllowsImmediateOpen_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+
+    void cancelledRenameAllowsImmediateOpen() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString child = fixture.filePath("child directory");
+        QVERIFY(QDir().mkpath(child));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
         QTRY_COMPARE(view->rowCount(), 1);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        action(window, icons ? "viewMode0Action" : "viewMode3Action")->trigger();
+        auto *active =
+            icons ? static_cast<QAbstractItemView *>(window.findChild<QListView *>("iconList"))
+                  : static_cast<QAbstractItemView *>(view);
+        QVERIFY(active);
+        active->setFocus();
+        QTRY_COMPARE(window.focusWidget(), active);
         QTest::keyClick(window.focusWidget(), Qt::Key_F2);
         auto *editor = qobject_cast<QLineEdit *>(window.focusWidget());
         QVERIFY(editor);
         QTest::keyClicks(editor, "discarded folder");
         QTest::keyClick(editor, Qt::Key_Escape);
-        QCOMPARE(window.focusWidget(), view);
+        QCOMPARE(window.focusWidget(), active);
         PanelKeys::openSelection(window.focusWidget());
         QTRY_COMPARE(QDir::cleanPath(window.findChild<QLineEdit *>("archivePath")->text()),
                      QFileInfo(child).canonicalFilePath());

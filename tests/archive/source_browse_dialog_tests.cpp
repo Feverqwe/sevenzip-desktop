@@ -370,13 +370,19 @@ class SourceBrowseDialogTests final : public QObject {
             auto *path = dialog->findChild<QLineEdit *>("browsePath");
             auto *folder = dialog->findChild<QLabel *>("browseFolder");
             auto *parentButton = dialog->findChild<QPushButton *>("browseParent");
+            auto *createButton = dialog->findChild<QPushButton *>("browseCreateFolder");
+            auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
             auto *buttons = dialog->findChild<QDialogButtonBox *>("browseButtons");
-            QVERIFY(list && path && folder && parentButton && buttons);
+            QVERIFY(list && path && folder && parentButton && createButton && name && buttons);
             const auto matches = list->findItems("Child", Qt::MatchExactly);
             QCOMPARE(matches.size(), 1);
             list->setCurrentItem(matches.front());
             const QString draft = QStringLiteral("  введённый путь 空  ");
             path->setText(draft);
+            const QString folderDraft = QStringLiteral("новая папка 空");
+            createButton->click();
+            QVERIFY(name->isVisible());
+            name->setText(folderDraft);
             const auto navigate = [&] {
                 if (command == "button")
                     parentButton->click();
@@ -401,12 +407,20 @@ class SourceBrowseDialogTests final : public QObject {
             QVERIFY(QDir().rename(parked, target));
             QVERIFY(error.contains(QDir::toNativeSeparators(target)));
             QCOMPARE(path->text(), draft);
+            QVERIFY(name->isVisible());
+            QCOMPARE(name->text(), folderDraft);
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(folder->toolTip())), current);
             QCOMPARE(list->currentItem()->text(0), QString("Child"));
 
             navigate();
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(folder->toolTip())), target);
             QVERIFY(path->text() != draft);
+            QVERIFY(!name->isVisible());
+            createButton->click();
+            QVERIFY(name->isVisible());
+            QVERIFY(name->text().isEmpty());
+            QTest::keyClick(name, Qt::Key_Escape);
+            QVERIFY(!QFileInfo::exists(QDir(target).filePath(folderDraft)));
             path->setText(target);
             path->setFocus();
             buttons->button(QDialogButtonBox::Ok)->click();
@@ -526,13 +540,13 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(output.IsEmpty());
     }
 
-    void pickerRejectsAPathBeneathAFileAndAllowsRetry_data() {
+    void pickerRejectsConflictingPathsAndAllowsRetry_data() {
         QTest::addColumn<bool>("folder");
         QTest::newRow("folder") << true;
         QTest::newRow("save") << false;
     }
 
-    void pickerRejectsAPathBeneathAFileAndAllowsRetry() {
+    void pickerRejectsConflictingPathsAndAllowsRetry() {
         QFETCH(bool, folder);
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);
@@ -541,6 +555,7 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("original"), qint64(8));
         file.close();
+        QVERIFY(QDir().mkdir(directory + "/occupied-folder.7z"));
         QTimer::singleShot(0, [&] {
             auto *dialog = Dialog();
             QVERIFY(dialog);
@@ -560,14 +575,23 @@ class SourceBrowseDialogTests final : public QObject {
                 }
             });
             reply.start(1);
-            const QStringList invalidPaths =
+            QStringList invalidPaths =
                 folder ? QStringList{"occupied.txt/", "occupied.txt/child/deeper"}
-                       : QStringList{"occupied.txt/child/archive.7z"};
+                       : QStringList{"occupied.txt/child/archive.7z", "occupied-folder.7z"};
+#ifdef Q_OS_WIN
+            for (char16_t letter = u'Z'; letter >= u'D'; --letter) {
+                const QString root = QString(QChar(letter)) + ":/";
+                if (!QDir(root).exists()) {
+                    invalidPaths.append(root + (folder ? "folder/child" : "folder/archive.7z"));
+                    break;
+                }
+            }
+#endif
             for (const auto &draft : invalidPaths) {
                 error.clear();
                 path->setText(draft);
                 dialog->accept();
-                QVERIFY(error.contains("occupied.txt"));
+                QVERIFY(error.contains(draft.section('/', 0, 0)));
                 QVERIFY(dialog->isVisible());
                 QCOMPARE(path->text(), draft);
                 QCOMPARE(dialog->focusWidget(), path);
@@ -590,6 +614,41 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(!QFileInfo::exists(directory + "/new folder"));
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("original"));
+    }
+
+    void hiddenFolderCanBeChosenByPath() {
+        QTemporaryDir fixture;
+        const QString directory = LongDirectory(fixture);
+        const QString hidden = directory + "/.private";
+        QVERIFY(QDir().mkpath(hidden));
+        QVERIFY(QDir().mkdir(directory + "/visible"));
+        if (!QFileInfo(hidden).isHidden())
+            QSKIP("Dot-prefixed directories are not hidden on this filesystem");
+        CFmSettings settings;
+        settings.Load(FmSettingsPath());
+        const auto restoreSettings = qScopeGuard([settings] { settings.Save(FmSettingsPath()); });
+        settings.ShowHiddenFolders = false;
+        settings.Save(FmSettingsPath());
+        QTimer::singleShot(0, [&] {
+            auto *dialog = Dialog();
+            QVERIFY(dialog);
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *list = dialog->findChild<QTreeWidget *>("browseList");
+            QVERIFY(list);
+            QVERIFY(Names(*list).contains("visible"));
+            QVERIFY(!Names(*list).contains(".private"));
+            auto *path = dialog->findChild<QLineEdit *>("browsePath");
+            QVERIFY(path);
+            path->setText(".private");
+            path->setFocus();
+            QTest::keyClick(path, Qt::Key_Return);
+        });
+        UString output;
+        QVERIFY(MyBrowseForFolder(nullptr, L"Folder", ToUString(directory), output));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(ToQString(output))), hidden);
     }
 
     void saveModePreservesSpacesInNewName() {
@@ -616,7 +675,14 @@ class SourceBrowseDialogTests final : public QObject {
         QVERIFY(!QFile::exists(ToQString(browse.FilePath)));
     }
 
+    void saveNameFollowsNavigationIntoNewFolder_data() {
+        QTest::addColumn<QString>("folder");
+        QTest::newRow("direct") << QString("new folder");
+        QTest::newRow("nested") << QString("new folder/child");
+    }
+
     void saveNameFollowsNavigationIntoNewFolder() {
+        QFETCH(QString, folder);
         QTemporaryDir fixture;
         const QString directory = LongDirectory(fixture);
         QVERIFY(QDir().mkpath(directory));
@@ -643,10 +709,16 @@ class SourceBrowseDialogTests final : public QObject {
             QTest::keyClick(list, Qt::Key_F7);
             auto *name = dialog->findChild<QLineEdit *>("inlineFolderName");
             QVERIFY(name && name->isVisible());
-            QTest::keyClicks(name, "new folder");
+            QTest::keyClicks(name, folder);
             QTest::keyClick(name, Qt::Key_Return);
             QCOMPARE(dialog->focusWidget(), list);
             QTest::keyClick(list, Qt::Key_Return);
+            if (folder.contains('/')) {
+                const auto child = list->findItems("child", Qt::MatchExactly);
+                QCOMPARE(child.size(), 1);
+                list->setCurrentItem(child.front());
+                QTest::keyClick(list, Qt::Key_Return);
+            }
             QCOMPARE(path->text(), draft);
             path->setFocus();
             QTest::keyClick(path, Qt::Key_Return);
@@ -657,7 +729,7 @@ class SourceBrowseDialogTests final : public QObject {
         browse.FilterIndex = 0;
         QVERIFY(browse.BrowseForFile(Filters()));
         QCOMPARE(QDir::fromNativeSeparators(ToQString(browse.FilePath)),
-                 directory + "/new folder/" + draft);
+                 directory + '/' + folder + '/' + draft);
         QCOMPARE(browse.FilterIndex, 0);
     }
 

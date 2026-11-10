@@ -471,6 +471,21 @@ class ExtractDialogTests final : public QObject {
         saved.Load(settings_);
         QCOMPARE(saved.PathMode, NExtract::NPathMode::kFullPaths);
     }
+    void typedDestinationCanBeAPrefixOfHistory() {
+        const QString destination = dir_.filePath("completed");
+        CExtractDialog dialog(dir_.path(), {destination + " destination"});
+        auto *combo = path(dialog);
+        auto *editor = combo->lineEdit();
+        dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+        dialog.show();
+        editor->setFocus();
+        editor->setText(dir_.path() + '/');
+        QTest::keyClicks(editor, "completed");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())), destination);
+    }
+
     void originalHistoryRules() {
         const QString initial = dir_.filePath("initial");
         const QString edited = dir_.filePath(QStringLiteral("новая папка/δ space"));
@@ -574,10 +589,20 @@ class ExtractDialogTests final : public QObject {
         const QString output = fixture.filePath(QFileInfo(target).completeBaseName() + "_1.zip");
         QCOMPARE(SourceExtractFixture::readFile(output), payload);
     }
+    void compactDestinationErrorKeepsFieldAndButtonsVisible_data() {
+        QTest::addColumn<bool>("split");
+        QTest::addColumn<int>("height");
+        QTest::newRow("destination") << false << 300;
+        QTest::newRow("subfolder") << true << 340;
+        QTest::newRow("short-subfolder") << true << 260;
+    }
     void compactDestinationErrorKeepsFieldAndButtonsVisible() {
+        QFETCH(bool, split);
+        QFETCH(int, height);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString blocked = fixture.filePath(QString(180, u'w'));
+        const QString name(180, u'w');
+        const QString blocked = fixture.filePath(name);
         QVERIFY(SourceExtractFixture::writeFile(blocked, "unchanged"));
         CExtractDialog dialog(fixture.path(), {});
         auto *destination = path(dialog);
@@ -588,101 +613,263 @@ class ExtractDialogTests final : public QObject {
         dialog.show();
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         QApplication::processEvents();
-        dialog.resize(360, 300);
+        dialog.resize(360, height);
         dialog.findChild<QToolButton *>("extractAdvancedToggle")->setChecked(true);
         QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
-        destination->setEditText(blocked);
+        dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(split);
+        destination->setEditText(split ? fixture.path() : blocked);
+        auto *edit =
+            split ? dialog.findChild<QLineEdit *>("extractPathName") : destination->lineEdit();
+        if (split)
+            edit->setText(name);
         QApplication::processEvents();
         scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
         const QSize before = dialog.size();
         buttons->button(QDialogButtonBox::Ok)->click();
         QVERIFY(dialog.isVisible());
         QVERIFY(error->text().contains(blocked));
-        QTRY_VERIFY(UiInspection::fullyVisible(*error, dialog));
+        const QWidget *field = split ? static_cast<QWidget *>(edit) : destination;
+        QTRY_VERIFY(UiInspection::fullyVisible(*field, dialog));
+        const QRect fieldBounds(field->mapTo(scroll->widget(), QPoint()), field->size());
+        const QRect errorBounds(error->mapTo(scroll->widget(), QPoint()), error->size());
+        if (fieldBounds.united(errorBounds).height() <= scroll->viewport()->height())
+            QVERIFY(UiInspection::fullyVisible(*error, dialog));
         QVERIFY(UiInspection::labelFits(*error));
-        QVERIFY(UiInspection::fullyVisible(*destination, dialog));
         QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
         QCOMPARE(dialog.size(), before);
         QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
-        QVERIFY(UiInspection::writeReport(dialog, "extract-compact-destination-error"));
-        auto *edit = destination->lineEdit();
+        QVERIFY(UiInspection::writeReport(
+            dialog, QString("extract-compact-destination-error-%1").arg(QTest::currentDataTag())));
         QVERIFY(edit->hasFocus());
-        QCOMPARE(edit->selectedText(), blocked);
+        QCOMPARE(edit->selectedText(), split ? name : blocked);
         const QString corrected = fixture.filePath(QStringLiteral("исправленный путь"));
         auto *clipboard = QApplication::clipboard();
         const auto clearClipboard = qScopeGuard([clipboard] { clipboard->clear(); });
-        clipboard->setText(corrected);
+        clipboard->setText(split ? QFileInfo(corrected).fileName() : corrected);
         QTest::keySequence(edit, QKeySequence::Paste);
-        QCOMPARE(destination->currentText(), corrected);
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())), corrected);
         dialog.accept();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
     }
 
+    void folderPickerKeepsExtractionDraftAndOptions_data() {
+        QTest::addColumn<QString>("draftKind");
+        QTest::newRow("valid") << QString("valid");
+        QTest::newRow("invalid") << QString("invalid");
+        QTest::newRow("occupied-parent") << QString("occupied-parent");
+    }
     void folderPickerKeepsExtractionDraftAndOptions() {
+        QFETCH(QString, draftKind);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString selected = fixture.filePath("selected folder");
         QVERIFY(QDir().mkpath(selected));
-        CExtractDialog dialog(fixture.path(), {});
-        dialog.show();
-        auto *destination = path(dialog);
-        auto *edit = destination->lineEdit();
-        dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(true);
-        auto *subfolder = dialog.findChild<QLineEdit *>("extractPathName");
-        subfolder->setText(QStringLiteral("выход 空"));
-        const int overwriteIndex =
-            overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
-        QVERIFY(overwriteIndex >= 0);
-        overwrite(dialog)->setCurrentIndex(overwriteIndex);
-        const QString draft = edit->text();
-        edit->setFocus();
-        edit->setSelection(5, -4);
-        auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
-        for (const bool choose : {false, true}) {
-            bool found = false;
-            QTimer::singleShot(0, &dialog, [&] {
-                auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
-                if (!picker)
-                    return;
-                found = true;
-                const auto close = qScopeGuard([&] {
-                    if (picker->isVisible())
-                        picker->reject();
-                });
-                if (choose) {
-                    picker->setDirectory(selected);
-                    picker->selectFile(selected);
-                    QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
-                }
+        const QString subfolderName = QStringLiteral("выход 空");
+        const QString output = QDir(selected).filePath(subfolderName);
+        QVERIFY(QDir().mkpath(output));
+        const QString existing = QDir(output).filePath("existing.txt");
+        QVERIFY(SourceExtractFixture::writeFile(existing, "keep"));
+        const QString archive = fixture.filePath("picker.zip");
+        QVERIFY(NativeArchiveFixture::Write(
+            archive, {{"entry.txt", "payload"}, {"existing.txt", "replacement"}}, "zip"));
+        ArchiveBackend backend;
+        const auto interact = [&](CExtractDialog &dialog) {
+            const auto close = qScopeGuard([&] {
+                if (dialog.isVisible())
+                    dialog.reject();
             });
-            QTest::mouseClick(browse, Qt::LeftButton);
-            QVERIFY(found);
-            QCOMPARE(subfolder->text(), QStringLiteral("выход 空"));
-            QCOMPARE(overwrite(dialog)->currentIndex(), overwriteIndex);
-            if (choose)
-                QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(edit->text())), selected);
-            else {
-                QCOMPARE(edit->text(), draft);
-                QCOMPARE(edit->selectedText(), draft.mid(1, 4));
-                QCOMPARE(edit->cursorPosition(), 1);
+            auto *destination = path(dialog);
+            auto *edit = destination->lineEdit();
+            dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(true);
+            auto *subfolder = dialog.findChild<QLineEdit *>("extractPathName");
+            const QString nameDraft = subfolder->text();
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(nameDraft)), subfolderName);
+            const int overwriteIndex =
+                overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
+            QVERIFY(overwriteIndex >= 0);
+            overwrite(dialog)->setCurrentIndex(overwriteIndex);
+            if (draftKind == "invalid")
+                destination->setEditText(QStringLiteral("invalid") + QChar::Null + "/path");
+            if (draftKind == "occupied-parent") {
+                const QString occupied = QDir(selected).filePath("occupied.txt");
+                QVERIFY(SourceExtractFixture::writeFile(occupied, "unchanged"));
+                destination->setEditText(occupied + "/output");
+            }
+            const QString draft = edit->text();
+            edit->setFocus();
+            edit->setSelection(5, -4);
+            auto *browse = dialog.findChild<QPushButton *>("extractBrowseButton");
+            for (const bool choose : {false, true}) {
+                bool found = false;
+                QTimer::singleShot(0, &dialog, [&] {
+                    auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+                    if (!picker)
+                        return;
+                    found = true;
+                    const auto close = qScopeGuard([&] {
+                        if (picker->isVisible())
+                            picker->reject();
+                    });
+                    QCOMPARE(picker->directory().canonicalPath(),
+                             QDir(fixture.path()).canonicalPath());
+                    if (choose) {
+                        picker->setDirectory(selected);
+                        picker->selectFile(selected);
+                        QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
+                    }
+                });
+                QTest::mouseClick(browse, Qt::LeftButton);
+                QVERIFY(found);
+                QCOMPARE(subfolder->text(), nameDraft);
+                QCOMPARE(overwrite(dialog)->currentIndex(), overwriteIndex);
+                if (choose)
+                    QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(edit->text())), selected);
+                else {
+                    QCOMPARE(edit->text(), draft);
+                    QCOMPARE(edit->selectedText(), draft.mid(1, 4));
+                    QCOMPARE(edit->cursorPosition(), 1);
+                }
+            }
+            QTRY_VERIFY(dialog.focusWidget() == edit || dialog.focusWidget() == destination);
+            QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())), output);
+            QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kSkip);
+        };
+        const auto result =
+            ExtractDialogFixture::Run(backend, archive, fixture.filePath(subfolderName), interact);
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath("entry.txt")),
+                 QByteArray("payload"));
+        QCOMPARE(SourceExtractFixture::readFile(existing), QByteArray("keep"));
+        QVERIFY(!QFileInfo::exists(fixture.filePath(subfolderName)));
+    }
+
+    void unavailableArchiveKeepsExtractionOptionsForRetry_data() {
+        QTest::addColumn<bool>("replacedByDirectory");
+        QTest::newRow("missing") << false;
+        QTest::newRow("directory") << true;
+    }
+
+    void unavailableArchiveKeepsExtractionOptionsForRetry() {
+        QFETCH(bool, replacedByDirectory);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("selected archive.zip");
+        const QString parked = fixture.filePath("parked.zip");
+        const QString output = fixture.filePath("chosen destination");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "zip"));
+        ArchiveBackend backend;
+        const auto result = ExtractDialogFixture::Run(
+            backend, archive, fixture.path(), [&](CExtractDialog &dialog) {
+                const auto close = qScopeGuard([&] {
+                    if (dialog.isVisible())
+                        dialog.reject();
+                });
+                auto *destination = path(dialog);
+                destination->setEditText(output);
+                dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+                const int skip = overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
+                QVERIFY(skip >= 0);
+                overwrite(dialog)->setCurrentIndex(skip);
+                QVERIFY(SourceExtractFixture::writeFile(output, "destination blocker"));
+                dialog.accept();
+                auto *destinationError = dialog.findChild<QLabel *>("extractDestinationError");
+                QVERIFY(dialog.isVisible());
+                QVERIFY(destinationError && destinationError->isVisible());
+                QVERIFY(QFile::remove(output));
+                QVERIFY(QFile::rename(archive, parked));
+                if (replacedByDirectory)
+                    QVERIFY(QDir().mkdir(archive));
+                QTimer::singleShot(0, &dialog, [] {
+                    if (auto *message =
+                            qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                        message->accept();
+                });
+                dialog.accept();
+                QVERIFY(dialog.isVisible());
+                QVERIFY(!destinationError->isVisible());
+                QCOMPARE(destination->currentText(), output);
+                QCOMPARE(overwrite(dialog)->currentIndex(), skip);
+                QVERIFY(!QFileInfo::exists(output));
+                if (replacedByDirectory)
+                    QVERIFY(QDir().rmdir(archive));
+                QVERIFY(QFile::rename(parked, archive));
+                dialog.accept();
+                QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            });
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(QDir(output).filePath("entry.txt")),
+                 QByteArray("payload"));
+    }
+
+#ifdef Q_OS_WIN
+    void unavailableDestinationDriveCanBeCorrected() {
+        QString root;
+        for (char16_t letter = u'Z'; letter >= u'D'; --letter) {
+            const QString candidate = QString(QChar(letter)) + ":/";
+            if (!QDir(candidate).exists()) {
+                root = candidate;
+                break;
             }
         }
-        QTRY_VERIFY(dialog.focusWidget() == edit || dialog.focusWidget() == destination);
-        QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
-        QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(dialog.destination())),
-                 QDir(selected).filePath(subfolder->text()));
-        QCOMPARE(dialog.OverwriteMode, NExtract::NOverwriteMode::kSkip);
+        if (root.isEmpty())
+            QSKIP("No unavailable drive letter");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString archive = fixture.filePath("archive.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"entry.txt", "payload"}}, "zip"));
+        const QString unavailable = QDir::toNativeSeparators(root + "new folder");
+        const QString corrected = fixture.filePath("new/output");
+        const auto correctDestination = [&](CExtractDialog &dialog) {
+            const auto close = qScopeGuard([&] {
+                if (dialog.isVisible())
+                    dialog.reject();
+            });
+            auto *destination = path(dialog);
+            dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(false);
+            destination->setEditText(unavailable);
+            dialog.accept();
+            QVERIFY(dialog.isVisible());
+            auto *error = dialog.findChild<QLabel *>("extractDestinationError");
+            QVERIFY(error && error->isVisible());
+            QVERIFY2(error->text().contains(QDir::toNativeSeparators(root)),
+                     qPrintable(error->text()));
+            QCOMPARE(destination->lineEdit()->selectedText(), unavailable);
+            auto *clipboard = QApplication::clipboard();
+            const auto clear = qScopeGuard([clipboard] { clipboard->clear(); });
+            clipboard->setText(QDir::toNativeSeparators(corrected));
+            QTest::keySequence(destination->lineEdit(), QKeySequence::Paste);
+            dialog.accept();
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        };
+        CExtractDialog direct(fixture.path(), {});
+        direct.show();
+        correctDestination(direct);
+        QCOMPARE(direct.result(), int(QDialog::Accepted));
+        ArchiveBackend backend;
+        const auto result =
+            ExtractDialogFixture::Run(backend, archive, fixture.path(), correctDestination);
+        QCOMPARE(result.Result, S_OK);
+        QVERIFY(result.CallbackOK);
+        QCOMPARE(SourceExtractFixture::readFile(QDir(corrected).filePath("entry.txt")),
+                 QByteArray("payload"));
     }
+#endif
 
     void blockedDestinationCanBeCorrected_data() {
         QTest::addColumn<bool>("split");
-        QTest::newRow("base-folder") << false;
-        QTest::newRow("subfolder") << true;
+        QTest::addColumn<bool>("searchDenied");
+        QTest::newRow("base-folder") << false << false;
+        QTest::newRow("subfolder") << true << false;
+        QTest::newRow("subfolder-without-search-access") << true << true;
     }
 
     void blockedDestinationCanBeCorrected() {
         QFETCH(bool, split);
+        QFETCH(bool, searchDenied);
 #ifndef Q_OS_UNIX
         QSKIP("Requires a searchable, read-only directory with a writable child");
 #endif
@@ -693,6 +880,17 @@ class ExtractDialogTests final : public QObject {
         QVERIFY(QDir().mkpath(writable));
         const QString occupied = QDir(writable).filePath("occupied");
         QVERIFY(SourceExtractFixture::writeFile(occupied, "unchanged"));
+        const QString blocked = QDir(writable).filePath("blocked");
+        QVERIFY(QDir().mkdir(blocked));
+        const auto blockedPermissions = QFile::permissions(blocked);
+        const auto restoreBlocked =
+            qScopeGuard([&] { QFile::setPermissions(blocked, blockedPermissions); });
+        if (searchDenied) {
+            QVERIFY(QFile::setPermissions(blocked, QFile::ReadOwner | QFile::WriteOwner));
+            const QFileInfo entry(blocked);
+            if (!entry.isWritable() || entry.isExecutable())
+                QSKIP("Fixture must allow writing while denying directory search");
+        }
         const QString output = QDir(writable).filePath("output");
         QVERIFY(QDir().mkpath(output));
         const QString retained = QDir(output).filePath("retained.txt");
@@ -717,18 +915,24 @@ class ExtractDialogTests final : public QObject {
                 destination->setEditText(base);
                 dialog.findChild<QCheckBox *>("extractNameEnable")->setChecked(split);
                 auto *subfolder = dialog.findChild<QLineEdit *>("extractPathName");
+                const QString invalidName =
+                    searchDenied ? QString("writable/blocked/new") : QString("writable/occupied");
                 if (split)
-                    subfolder->setText("writable/occupied");
+                    subfolder->setText(invalidName);
                 const int skip = overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
                 QVERIFY(skip >= 0);
                 overwrite(dialog)->setCurrentIndex(skip);
                 dialog.accept();
                 QVERIFY(dialog.isVisible());
                 QCOMPARE(destination->currentText(), base);
+                if (searchDenied)
+                    QVERIFY(dialog.findChild<QLabel *>("extractDestinationError")
+                                ->text()
+                                .contains(blocked));
                 auto *editor = split ? subfolder : destination->lineEdit();
                 QVERIFY(dialog.focusWidget() == editor ||
                         (!split && dialog.focusWidget() == destination));
-                QCOMPARE(editor->selectedText(), split ? QString("writable/occupied") : base);
+                QCOMPARE(editor->selectedText(), split ? invalidName : base);
                 auto *clipboard = QApplication::clipboard();
                 const auto clear = qScopeGuard([clipboard] { clipboard->clear(); });
                 clipboard->setText(split ? QString("writable/output") : output);

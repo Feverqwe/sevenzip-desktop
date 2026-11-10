@@ -9,6 +9,7 @@
 #include "support/panel_keys.h"
 #include "support/progress_dialog.h"
 #include "ui/support/layout_inspection.h"
+#include <QClipboard>
 #include <QEventLoop>
 #include <QFile>
 #include <QFocusFrame>
@@ -16,6 +17,7 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
@@ -132,6 +134,45 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(payload.readAll(), QByteArray("original bytes"));
     }
 
+#ifndef Q_OS_WIN
+    void hidingTheLastFolderDoesNotSelectParent() {
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        CFmSettings preferences;
+        preferences.Load(settings);
+        const auto restorePreferences = qScopeGuard([&] { preferences.Save(settings); });
+        auto options = preferences;
+        options.ShowDots = true;
+        options.ShowHiddenFolders = false;
+        options.Save(settings);
+
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(QDir(fixture.path()).mkdir("visible"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_COMPARE(view->rowCount(), 2);
+        const int row = filesystemRow(window, "visible");
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        view->setFocus();
+        action(window, "renameAction")->trigger();
+        auto *editor = view->findChild<QLineEdit *>();
+        QVERIFY(editor && editor->isVisible());
+        editor->setText(".hidden");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_COMPARE(view->rowCount(), 1);
+        QVERIFY(QFileInfo(fixture.filePath(".hidden")).isDir());
+        QCOMPARE(view->currentIndex().data().toString(), QString(".."));
+        QVERIFY(view->selectionModel()->selectedRows().isEmpty());
+        QVERIFY(!action(window, "openItemAction")->isEnabled());
+    }
+#endif
+
     void activationUsesFocusedRow_data() {
         QTest::addColumn<unsigned>("pane");
         QTest::addColumn<bool>("icons");
@@ -237,6 +278,18 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(remainingMarks.Size(), savedMarks.Size());
         FOR_VECTOR(i, savedMarks)
         QCOMPARE(remainingMarks[i], savedMarks[i]);
+        if (!icons)
+            for (const auto key : {Qt::Key_Escape, Qt::Key_Return}) {
+                view->horizontalScrollBar()->setValue(view->horizontalScrollBar()->maximum());
+                const int beforeEdit = view->horizontalScrollBar()->value();
+                QVERIFY(beforeEdit > 0);
+                QTest::keyClick(active, Qt::Key_F2);
+                editor = active->findChild<QLineEdit *>();
+                QVERIFY(editor);
+                QVERIFY(view->horizontalScrollBar()->value() < beforeEdit);
+                QTest::keyClick(editor, key);
+                QTRY_COMPARE(view->horizontalScrollBar()->value(), beforeEdit);
+            }
         action(window, "renameAction")->trigger();
         editor = active->findChild<QLineEdit *>();
         QVERIFY(editor);
@@ -257,7 +310,66 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(untouched.open(QIODevice::ReadOnly));
             QCOMPARE(untouched.readAll(), QByteArray("focus bytes"));
         }
+        auto *clipboard = QApplication::clipboard();
+        clipboard->clear();
+        const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
+        QTRY_COMPARE(window.focusWidget(), static_cast<QWidget *>(active));
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        QTRY_VERIFY(clipboard->mimeData() && clipboard->mimeData()->hasUrls());
+        const auto copied = clipboard->mimeData()->urls();
+        const QDir listed(QFileInfo(fixture.path()).canonicalFilePath());
+        QCOMPARE(copied.size(), 2);
+        QVERIFY(copied.contains(QUrl::fromLocalFile(listed.filePath(renamed))));
+        QVERIFY(copied.contains(QUrl::fromLocalFile(listed.filePath(peer))));
     }
+    void tabFinishesOneRename_data() {
+        QTest::addColumn<bool>("reverse");
+        QTest::newRow("tab") << false;
+        QTest::newRow("shift-tab") << true;
+    }
+
+    void tabFinishesOneRename() {
+        QFETCH(bool, reverse);
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        QVERIFY(write(fixture.filePath("a.txt"), "first"));
+        QVERIFY(write(fixture.filePath("b.txt"), "rename me"));
+        QVERIFY(write(fixture.filePath("c.txt"), "last"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "b.txt") >= 0);
+        view->setFocus();
+        view->setCurrentCell(filesystemRow(window, "b.txt"), 0);
+        view->selectRow(view->currentRow());
+        QTest::keyClick(view, Qt::Key_F2);
+        auto *editor = qobject_cast<QLineEdit *>(window.focusWidget());
+        QVERIFY(editor && view->isAncestorOf(editor));
+        editor->setText("renamed.txt");
+        QTest::keyClick(editor, reverse ? Qt::Key_Backtab : Qt::Key_Tab,
+                        reverse ? Qt::ShiftModifier : Qt::NoModifier);
+        QCOMPARE(window.focusWidget(), view);
+        QTRY_VERIFY(filesystemRow(window, "renamed.txt") >= 0);
+        QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
+        QTest::keyClick(view, Qt::Key_F2);
+        editor = qobject_cast<QLineEdit *>(window.focusWidget());
+        QVERIFY(editor && view->isAncestorOf(editor));
+        QCOMPARE(editor->text(), QString("renamed.txt"));
+        editor->setText("finished.txt");
+        QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(filesystemRow(window, "finished.txt") >= 0);
+        QVERIFY(!QFileInfo::exists(fixture.filePath("b.txt")));
+        QVERIFY(!QFileInfo::exists(fixture.filePath("renamed.txt")));
+        QFile finished(fixture.filePath("finished.txt"));
+        QVERIFY(finished.open(QIODevice::ReadOnly));
+        QCOMPARE(finished.readAll(), QByteArray("rename me"));
+    }
+
     void editorPreservesSavedSelection_data() {
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<QString>("language");
@@ -348,6 +460,13 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
             action(window, "viewMode0Action")->trigger();
         auto *active = icons ? ui->findChild<QAbstractItemView *>("iconList") : view;
         QTRY_COMPARE(window.focusWidget(), active);
+        const int sizeColumn = view->columnForProperty(kpidSize);
+        if (!icons) {
+            QVERIFY(sizeColumn > 0 && !view->isColumnHidden(sizeColumn));
+            view->setCurrentCell(sourceRow, sizeColumn, QItemSelectionModel::NoUpdate);
+            view->horizontalScrollBar()->setValue(view->horizontalScrollBar()->maximum());
+        }
+        const int horizontalPosition = view->horizontalScrollBar()->value();
         QVERIFY(action(window, "renameAction")->isEnabled());
         action(window, "renameAction")->trigger();
         auto *editor = active->findChild<QLineEdit *>();
@@ -367,7 +486,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QTimer closeError;
         connect(&closeError, &QTimer::timeout, &window, [&] {
             for (QWidget *widget : QApplication::topLevelWidgets()) {
-                if (collision && TestProgressDialog::DismissVisibleResult(widget)) {
+                auto *report = collision ? TestProgressDialog::ResultWindow(widget) : nullptr;
+                if (report && report->isVisible()) {
+                    errorText = TestProgressDialog::ReportText(*report);
+                    TestProgressDialog::CloseResult(*report);
                     errorShown = true;
                     errorDelivery.quit();
                     continue;
@@ -416,6 +538,8 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
                 errorDelivery.exec();
             QVERIFY(errorShown);
         }
+        if (collision)
+            QVERIFY(QDir::fromNativeSeparators(errorText).contains(fixture.filePath(renamed)));
         if (invalid) {
             QCOMPARE(errorIcon, QMessageBox::Critical);
             QCOMPARE(errorText, ToQString(HResultToMessage(E_INVALIDARG)));
@@ -423,6 +547,10 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         }
         QTRY_COMPARE(view->model()->index(view->currentRow(), 0).data(Qt::UserRole + 3).toString(),
                      collision || invalid ? original : renamed);
+        if (!icons) {
+            QCOMPARE(view->currentIndex().column(), sizeColumn);
+            QCOMPARE(view->horizontalScrollBar()->value(), horizontalPosition);
+        }
         QCOMPARE(view->selectionModel()->selectedRows().size(), expectedMarks);
         if (!markFocused)
             QCOMPARE(view->selectionModel()->selectedRows().front().data().toString(), peer);

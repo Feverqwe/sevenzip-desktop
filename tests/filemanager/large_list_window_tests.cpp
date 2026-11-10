@@ -145,26 +145,38 @@ class LargeListWindowTests final : public QObject, protected MainWindowTestSuppo
             heartbeatRows > 0 && heartbeatRows < count,
             qPrintable(QString("GUI resumed only at %1 rows of %2").arg(heartbeatRows).arg(count)));
         const QString selectedName = QStringLiteral("имя с пробелом 04095.txt");
+        QElapsedTimer selectionTime;
+        selectionTime.start();
+        action(window, "selectAllAction")->trigger();
+        const qint64 selectAllMs = selectionTime.restart();
+        QCOMPARE(list->selectionModel()->selectedRows().size(), count);
+        action(window, "deselectAllAction")->trigger();
+        const qint64 deselectAllMs = selectionTime.elapsed();
+        QVERIFY(list->selectionModel()->selectedRows().isEmpty());
+        QVERIFY2(selectAllMs < 1000 && deselectAllMs < 1000,
+                 qPrintable(QString("Selecting took %1 ms, clearing took %2 ms")
+                                .arg(selectAllMs)
+                                .arg(deselectAllMs)));
         int selectedRow = -1;
         for (int row = 0; row < list->rowCount(); ++row)
             if (list->model()->index(row, 0).data().toString() == selectedName)
                 selectedRow = row;
         QVERIFY(selectedRow >= 0);
-        list->setCurrentCell(selectedRow, 0);
-        list->selectRow(selectedRow);
+        action(window, "selectAllAction")->trigger();
+        const auto focused = list->model()->index(selectedRow, 0);
+        list->selectionModel()->setCurrentIndex(focused, QItemSelectionModel::NoUpdate);
+        list->selectionModel()->select(focused,
+                                       QItemSelectionModel::Deselect | QItemSelectionModel::Rows);
+        QCOMPARE(list->selectionModel()->selectedRows().size(), count - 1);
         const int calls = backend.listCalls;
         QSignalSpy publication(list->model(), &QAbstractItemModel::rowsRemoved);
         action(window, "refreshAction")->trigger();
         QCOMPARE(backend.listCalls, calls);
         QTRY_VERIFY(!publication.isEmpty());
         QTRY_VERIFY_WITH_TIMEOUT(list->isEnabled() && list->rowCount() >= count, 15000);
-        QCOMPARE(list->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(list->selectionModel()->selectedRows().size(), count - 1);
         QCOMPARE(list->currentIndex().data().toString(), selectedName);
-        QCOMPARE(list->model()
-                     ->index(list->selectionModel()->selectedRows().first().row(), 0)
-                     .data()
-                     .toString(),
-                 selectedName);
+        QVERIFY(!list->selectionModel()->isRowSelected(list->currentIndex().row(), {}));
     }
     void enteringLargeArchiveFolderRestoresCommands() {
         QTemporaryDir fixture;

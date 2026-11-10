@@ -18,6 +18,7 @@ class CThreadFolderOperations : public CProgressThreadVirt {
   public:
     EFolderOpType OpType;
     UString Name;
+    FString RenameDestination;
     UInt32 Index;
     CRecordVector<UInt32> Indices;
     CMyComPtr<IFolderOperations> FolderOperations;

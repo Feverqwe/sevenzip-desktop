@@ -96,7 +96,8 @@ class QtFileManagerCommands final : public IQtFileManagerMenuCommandServices {
         QHash<unsigned, bool> hashMethods;
         bool one = false, oneFile = false, operated = false, focused = false;
         bool focusedFile = false, folderSize = false, selectedParent = false;
-        bool rows = false, foldersHistory = false;
+        bool openOutside = false;
+        bool rows = false, selection = false, foldersHistory = false;
     };
     TransportCapabilities ReadTransportCapabilities();
     bool TransportAllows(unsigned id, const TransportCapabilities &capabilities) const;

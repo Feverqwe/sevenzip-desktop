@@ -10,6 +10,7 @@
 #include "support/scoped_environment.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonDocument>
+#include <QRandomGenerator>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSplitter>
@@ -136,18 +137,21 @@ class OperationsMenuTests final : public QObject {
         selected->trigger();
         QTRY_VERIFY(!WindowReport(fixture.filePath("1.json")).value("minimized").toBool());
         QVERIFY(WindowReport(fixture.filePath("0.json")).value("minimized").toBool());
+        menu->popup(peerButton->mapToGlobal(QPoint(0, peerButton->height())));
+        QTRY_VERIFY(menu->isVisible());
+        auto *remaining = Entry(*menu, ids[0]);
+        QVERIFY(remaining && remaining->isEnabled());
+        menu->setActiveAction(remaining);
         QSignalSpy finished(operations[1], &QtOperationLauncher::finished);
         QVERIFY(SourceExtractFixture::writeFile(fixture.filePath("1.release"), "close result"));
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
         QCOMPARE(qvariant_cast<QtOperationResult>(finished[0][0]).Status,
                  QtOperationResult::Outcome::Success);
-        // A menu opened before completion must never re-run the old operation.
-        selected->trigger();
-        menu->popup(peerButton->mapToGlobal(QPoint(0, peerButton->height())));
-        QTRY_VERIFY(menu->isVisible());
+        QVERIFY(menu->isVisible());
         auto *done = Entry(*menu, ids[1]);
         QVERIFY(done && !done->isEnabled());
         QVERIFY(Entry(*menu, ids[0])->isEnabled());
+        QCOMPARE(menu->activeAction(), Entry(*menu, ids[0]));
         menu->hide();
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
         QVERIFY(!QFileInfo::exists(fixture.filePath("not extracted")));
@@ -161,18 +165,20 @@ class OperationsMenuTests final : public QObject {
         QTemporaryDir fixture;
         const auto archive = makeArchive(fixture.path(), "incoming bytes");
         QVERIFY(!archive.isEmpty());
-        const auto output = fixture.filePath("output");
+        const auto output = fixture.filePath("edited output");
         const auto existing = QDir(output).filePath(kName);
         QVERIFY(writeFile(existing, "retained bytes"));
         const ScopedTestEnvironment answer("SEVENZIP_OPERATION_OVERWRITE", "overwriteNo");
+        const ScopedTestEnvironment accept("SEVENZIP_OPERATION_EXTRACT_DECISION", "accept");
+        const ScopedTestEnvironment destination("SEVENZIP_OPERATION_DESTINATION", output);
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
         QtOperationJob job;
         job.Operation = QtOperationJob::Command::Extract;
         job.Paths = {archive};
-        job.Destination = output;
-        job.ShowDialog = false;
+        job.Destination = fixture.filePath("initial output");
+        job.ShowDialog = true;
         QString error;
         QPointer<QtOperationLauncher> operation =
             QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
@@ -190,16 +196,90 @@ class OperationsMenuTests final : public QObject {
         QCOMPARE(readFile(existing), QByteArray("retained bytes"));
         auto *button = window.findChild<QToolButton *>("operationsButton");
         QVERIFY(button && button->isVisible());
+        const QString warningStatus =
+            QCoreApplication::translate("QtOperationsButton", "Done with warnings");
+        QVERIFY(button->accessibleName().contains(warningStatus));
+        QVERIFY(button->toolTip().contains(warningStatus));
         auto *menu = button->menu();
         menu->popup(button->mapToGlobal(QPoint(0, button->height())));
         QTRY_VERIFY(menu->isVisible());
         const auto *warning = Entry(*menu, id);
         QVERIFY(warning && !warning->isEnabled());
-        QVERIFY(warning->text().contains(
-            QCoreApplication::translate("QtOperationsButton", "Done with warnings")));
+        QVERIFY(warning->text().contains(warningStatus));
+        QVERIFY(warning->text().contains("edited output"));
+        QVERIFY(warning->toolTip().contains("edited output"));
+        QVERIFY(!warning->toolTip().contains("initial output"));
         QVERIFY(UiInspection::writeReport(*menu, "operations-extraction-warning"));
         menu->hide();
     }
+    void compressionNamesTheWrittenArchive_data() {
+        QTest::addColumn<bool>("split");
+        QTest::newRow("single-with-warning") << false;
+        QTest::newRow("split-with-edited-name") << true;
+    }
+    void compressionNamesTheWrittenArchive() {
+        QFETCH(bool, split);
+        using namespace SourceExtractFixture;
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("input.txt");
+        QByteArray payload("payload");
+        if (split) {
+            payload.resize(256 * 1024);
+            QRandomGenerator random(42);
+            for (auto &byte : payload)
+                byte = char(random.generate() & 0xff);
+        }
+        QVERIFY(writeFile(source, payload));
+        const QString target = fixture.filePath("result archive.zip");
+        const ScopedTestEnvironment decision("SEVENZIP_OPERATION_CREATE_DECISION",
+                                             split ? "accept" : "");
+        const ScopedTestEnvironment output("SEVENZIP_OPERATION_CREATE_TARGET", target);
+        const ScopedTestEnvironment volume("SEVENZIP_OPERATION_VOLUME", split ? "128K" : "");
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QtOperationJob job;
+        job.Operation = QtOperationJob::Command::Compress;
+        job.Paths = {source};
+        if (!split)
+            job.Paths.append(fixture.filePath("missing.txt"));
+        job.ArchivePath = fixture.filePath(split ? "initial archive" : "result archive");
+        job.ArchiveType = "zip";
+        job.AddExtension = true;
+        job.ShowDialog = split;
+        QString error;
+        QPointer<QtOperationLauncher> operation =
+            QtOperationLauncher::Launch(QStringLiteral(SEVENZIP_OPERATION_HOST), job, error);
+        QVERIFY2(operation, qPrintable(error));
+        const auto cleanup = qScopeGuard([&] {
+            if (operation && operation->active())
+                KillOperationProbe(operation->processId());
+        });
+        const auto id = QtOperationRegistry::Application().Registration(*operation);
+        QSignalSpy finished(operation, &QtOperationLauncher::finished);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 15000);
+        using Outcome = QtOperationResult::Outcome;
+        QCOMPARE(qvariant_cast<QtOperationResult>(finished[0][0]).Status,
+                 split ? Outcome::Success : Outcome::Warning);
+        const QString written = split ? target + ".001" : target;
+        QVERIFY(QFileInfo(written).isFile());
+        if (split) {
+            QVERIFY(QFileInfo(target + ".002").isFile());
+            QVERIFY(!QFileInfo::exists(target));
+        }
+        auto *button = window.findChild<QToolButton *>("operationsButton");
+        QVERIFY(button && button->isVisible());
+        auto *menu = button->menu();
+        menu->popup(button->mapToGlobal(QPoint(0, button->height())));
+        QTRY_VERIFY(menu->isVisible());
+        const auto *result = Entry(*menu, id);
+        QVERIFY(result);
+        QVERIFY(result->text().contains(QFileInfo(written).fileName()));
+        QVERIFY(result->toolTip().contains(QFileInfo(written).fileName()));
+        menu->hide();
+    }
+
     void reopensSamePendingResultAfterLanguageSwitch() {
         QTemporaryDir fixture;
         const auto archive = SourceExtractFixture::makeArchive(fixture.path(), "retained bytes");

@@ -121,6 +121,8 @@ navigation cannot silently change it. Windows ordinary files retain the native
 shell sheet. [Source comparison and adaptations](../upstream-port-audit/property-report-ownership.md#selected-properties-snapshot-and-information-window--2026-11-07).
 
 SourceSummary shows the selected name/type or selected-object counts.
+The selected names have a bounded, keyboard-scrollable area and remain
+available for text selection and copying.
 MetadataRows shows location, data size and known modification text. Unknown
 is distinct from zero; folder and multiple-selection contents are not newly
 calculated. Existing source totals remain in additional information, qualified
@@ -176,6 +178,10 @@ reached progress. It is available only when supported by that operation's
 transport. Callback-only filesystem/volume operations hide it. Pause/Continue and Stop remain reachable
 in the footer, and the title bar provides Minimize. Full locations come from the
 accepted operation plan, not from the changing current-file string.
+Expanding locations brings the paths into view while the footer stays in place.
+For a batch sent to Trash, the source location is the starting folder.
+When a transfer has many source paths, they scroll independently of the
+destination and the footer.
 
 Stop and closing a running window ask Continue working / Stop. Continue is the
 default and Escape answer. Refusal restores the former pause state. Confirmed

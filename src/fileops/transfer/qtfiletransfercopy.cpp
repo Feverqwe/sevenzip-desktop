@@ -1,6 +1,7 @@
 #include "Common/StringConvert.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
+#include "fileops/paths/qtautorename.h"
 #include "fileops/transfer/qtfiletransfercopycallback.h"
 #include "fileops/transfer/qtfiletransfertransaction.h"
 #include "localization/qtlanguageservices.h"
@@ -60,10 +61,11 @@ bool QtFileTransferTransaction::copyEntry(const QString &source, const QString &
 
 bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString &stage,
                                            const QString &target, QStringList *writtenSources,
-                                           QString *error) {
+                                           bool &publish, QString *error) {
     QString conflict;
+    bool skippedConflict = false;
     CFileTransferCopyCallback callback(
-        [this, &source, &stage, &conflict,
+        [this, &source, &stage, &conflict, &skippedConflict,
          &target](const OverwriteQuestion::File &incoming,
                   const QString &requested) -> CFileTransferCopyCallback::WriteDecision {
             if (worker_.canceled_)
@@ -85,12 +87,14 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
             if (existing.exists()) {
                 switch (decideOverwrite({requested, visible, incoming})) {
                 case OverwriteDecision::Skip:
+                    skippedConflict = true;
                     return std::nullopt;
                 case OverwriteDecision::Rename: {
-                    effective = availableName(requested, [&source, &stage](const QString &name) {
-                        const QString original = source + name.mid(stage.size());
-                        return QFileInfo::exists(original) || QtIsFileSystemLink(original);
-                    });
+                    effective =
+                        QtAvailableRenamePath(requested, [&source, &stage](const QString &name) {
+                            const QString original = source + name.mid(stage.size());
+                            return QFileInfo::exists(original) || QtIsFileSystemLink(original);
+                        });
                     if (effective.isEmpty())
                         return std::unexpected(E_ABORT);
                     break;
@@ -115,6 +119,7 @@ bool QtFileTransferTransaction::mergeEntry(const QString &source, const QString 
     state.Callback = &callback;
     const bool merged = NFsFolder::CopyFolder(state, source, stage);
     *writtenSources = callback.writtenSources;
+    publish = !skippedConflict || state.CreatedDirectory || !writtenSources->isEmpty();
     *error = !conflict.isEmpty()             ? conflict
              : !state.ErrorMessage.isEmpty() ? state.ErrorMessage
                                              : callback.errorMessage;
@@ -135,8 +140,7 @@ bool QtFileTransferTransaction::removeMergedSource(const QString &source,
                                                    QString *error, bool &rootRemoved) {
     for (const QString &path : writtenSources) {
         if (worker_.canceled_) {
-            *error =
-                QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+            *error = sourceRemovalCanceled();
             return false;
         }
         if (!worker_.adapter_.removeSource(path)) {
@@ -151,19 +155,28 @@ bool QtFileTransferTransaction::removeMergedSource(const QString &source,
                           QDirIterator::Subdirectories);
     while (iterator.hasNext()) {
         if (worker_.canceled_) {
-            *error =
-                QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+            *error = sourceRemovalCanceled();
             return false;
         }
-        directories << iterator.next();
+        const QString path = iterator.next();
+        if (!QtIsFileSystemLink(path))
+            directories << path;
     }
     std::sort(directories.begin(), directories.end(),
               [](const QString &a, const QString &b) { return a.size() > b.size(); });
-    for (const QString &directory : directories)
-        QDir().rmdir(directory);
+    for (const QString &directory : directories) {
+        if (!QDir().rmdir(directory) &&
+            QDir(directory).isEmpty(QDir::AllEntries | QDir::Hidden | QDir::System |
+                                    QDir::NoDotAndDotDot)) {
+            *error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                 "Could not delete source after copying: %1")
+                         .arg(directory);
+            return false;
+        }
+    }
     rootRemoved = QDir().rmdir(source); // Skipped files keep the source folder.
-    if (worker_.canceled_) {
-        *error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+    if (!rootRemoved && worker_.canceled_) {
+        *error = sourceRemovalCanceled();
         return false;
     }
     return true;

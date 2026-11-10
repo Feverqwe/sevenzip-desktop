@@ -75,8 +75,9 @@ void MainWindow::filesystemScanCompleted(unsigned index) {
         projectedUi().scanningDisk = false;
         applySortMode(true);
         completeListSelection();
-        restoreAutoRefreshViewport();
+        completeListViewport();
         setState(State::Filesystem);
+        clearFilesystemReadError();
         workspace_->NavigationFinished(S_OK);
     });
 }

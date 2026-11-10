@@ -214,16 +214,19 @@ class TaskResultWindowTests final : public QObject {
     void lateFailurePreservesAnotherQuestion_data() {
         QTest::addColumn<bool>("modal");
         QTest::addColumn<bool>("address");
-        QTest::addColumn<bool>("popup");
-        QTest::newRow("modal-question") << true << false << false;
-        QTest::newRow("modeless-edit") << false << false << false;
-        QTest::newRow("file-panel-address") << false << true << false;
-        QTest::newRow("file-menu") << false << false << true;
+        QTest::addColumn<QString>("popupName");
+        QTest::newRow("modal-question") << true << false << QString();
+        QTest::newRow("modeless-edit") << false << false << QString();
+        QTest::newRow("file-panel-address") << false << true << QString();
+        QTest::newRow("file-menu") << false << false << QString("file-menu");
+        QTest::newRow("operations-menu") << false << false << QString("operationsMenu");
     }
     void lateFailurePreservesAnotherQuestion() {
         QFETCH(bool, modal);
         QFETCH(bool, address);
-        QFETCH(bool, popup);
+        QFETCH(QString, popupName);
+        const bool popup = !popupName.isEmpty();
+        const bool operationsPopup = popupName == "operationsMenu";
         language("-");
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -261,13 +264,24 @@ class TaskResultWindowTests final : public QObject {
         QMenu menu(&peer);
         QAction *choice = menu.addAction("File command");
         QSignalSpy chosen(choice, &QAction::triggered);
+        auto *activeMenu = operationsPopup ? peer.findChild<QMenu *>("operationsMenu") : &menu;
+        QVERIFY(activeMenu);
+        const auto operationId = QtOperationRegistry::Application().Registration(*operation);
         auto *input = address ? peer.findChild<QLineEdit *>("archivePath") : &questionInput;
         QVERIFY(input);
         if (popup) {
             QVERIFY(WindowActivation::waitForActive(peer));
-            menu.popup(peer.mapToGlobal(QPoint(20, 20)));
-            QTRY_COMPARE(QApplication::activePopupWidget(), &menu);
-            menu.setActiveAction(choice);
+            activeMenu->popup(peer.mapToGlobal(QPoint(20, 20)));
+            QTRY_COMPARE(QApplication::activePopupWidget(), activeMenu);
+            if (operationsPopup)
+                for (auto *entry : activeMenu->actions()) {
+                    if (entry->data().toUuid() == operationId) {
+                        choice = entry;
+                        break;
+                    }
+                }
+            QVERIFY(activeMenu->actions().contains(choice) && choice->isEnabled());
+            activeMenu->setActiveAction(choice);
         } else if (address) {
             QVERIFY(WindowActivation::waitForActive(peer));
             PanelKeys::focusAddress(input);
@@ -294,10 +308,15 @@ class TaskResultWindowTests final : public QObject {
         QCOMPARE(QApplication::activeModalWidget(), modal ? &question : nullptr);
         QString draft;
         if (popup) {
-            QCOMPARE(QApplication::activePopupWidget(), &menu);
-            QCOMPARE(menu.activeAction(), choice);
-            QTest::keyClick(&menu, Qt::Key_Return);
-            QCOMPARE(chosen.size(), 1);
+            QCOMPARE(QApplication::activePopupWidget(), activeMenu);
+            if (operationsPopup) {
+                QVERIFY(activeMenu->activeAction());
+                QCOMPARE(activeMenu->activeAction()->data().toUuid(), operationId);
+            } else
+                QCOMPARE(activeMenu->activeAction(), choice);
+            QTest::keyClick(activeMenu, Qt::Key_Return);
+            if (!operationsPopup)
+                QCOMPARE(chosen.size(), 1);
             QTRY_VERIFY(!QApplication::activePopupWidget());
         } else {
             QVERIFY(input->hasFocus());

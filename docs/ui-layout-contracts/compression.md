@@ -16,10 +16,12 @@ still restore the source folder/name/format split.
 Browse opens in the resolved parent folder of the archive, or its nearest
 existing ancestor. When the name field
 contains a relative or absolute path, choosing a folder moves the archive name
-to that folder. Cancelling preserves the path as entered.
+to that folder. After choosing a folder, focus returns to the destination field,
+or to the archive name when it is still missing. Cancelling preserves the path
+as entered.
 Switching formats keeps the destination folder, including a folder typed
 in the name field, when the format derives the archive name from the source.
-If a file, dangling link or known lack of write access blocks the destination
+If a file, dangling link or known lack of folder access blocks the destination
 folder, the form stays open and focuses the field that needs correction while
 retaining the archive options. The archive name must end with a file name,
 even when the destination folder has yet to be created.
@@ -281,6 +283,7 @@ Reference: the same upstream commit, `CPP/7zip/UI/GUI/CompressDialog.rc`,
   CPU threads, and memory controls. Encryption retains the upstream order:
   password, confirmation, Show Password, method, Encrypt file names.
   Show Password hides confirmation and its label; headers are hidden for ZIP.
+  When password protection is enabled, a password is required before creation.
   Disabled password protection retains its draft but excludes it from validation
   and effective archive options, including after changing to a format without encryption.
   Compression stays in the left column and encryption in the right at both sizes.

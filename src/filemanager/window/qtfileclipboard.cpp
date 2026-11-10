@@ -115,11 +115,8 @@ QtFileClipboard::Availability QtFileClipboard::AvailabilityForPanel(unsigned pan
     const bool ready = !window_.app_.QtOperations().closed() &&
                        !window_.app_.QtOperations().blocking() && !window_.sourceArchiveProgress_ &&
                        !ui.locationUnavailable && !ui.scanningDisk && !ui.scanningArchive;
-    CRecordVector<UInt32> indices;
-    if (ready)
-        source.Get_ItemIndices_Operated(indices);
     Availability available;
-    available.copy = ready && !indices.IsEmpty() && source.DoesItSupportOperations();
+    available.copy = ready && source.HasOperatedItems() && source.DoesItSupportOperations();
     const QFileInfo destination(ui.directory);
     const bool writableFolder = ready && source.GetFolder() && source.IsFSFolder() &&
                                 !source.IsThereReadOnlyFolder() && destination.isDir() &&
@@ -191,6 +188,7 @@ void QtFileClipboard::Copy(bool move) {
         const QString directory = ToQString(fs2us(temporary.GetPath()));
         CCopyToOptions options;
         options.folder = ToUString(QDir::fromNativeSeparators(directory) + '/');
+        options.CancellationMayLeaveChanges = false;
         UStringVector messages;
         QtArchiveExtractReport report;
         report.Purpose = QtArchiveExtractPurpose::Copy;
@@ -242,12 +240,12 @@ void QtFileClipboard::Paste() {
     if (paths.isEmpty())
         return;
     const QString destination = window_.projectedUi().directory;
-    if (const QString error = FileTransferOperation::checkDirectoryPaths(paths, destination);
+    const bool move = ClipboardMovesFiles(*mime, paths);
+    if (const QString error = FileTransferOperation::checkDirectoryPaths(paths, destination, move);
         !error.isEmpty()) {
         window_.showStatusMessage(error);
         return;
     }
-    const bool move = ClipboardMovesFiles(*mime, paths);
     // Existing transfer owns collisions, path validation, cancellation,
     // metadata and progress; clipboard only supplies source URLs/destination.
     const QPointer<const QMimeData> original(mime);

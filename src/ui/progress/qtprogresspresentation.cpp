@@ -7,8 +7,11 @@
 #include "ui/progress/qtprogresscontrols.h"
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -56,10 +59,19 @@ void CQtProgressDialog::BuildPresentation() {
         label->setWordWrap(true);
         label->setTextFormat(Qt::PlainText);
         label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-        placeLayout->addWidget(label);
     }
     _source->setObjectName("progressSource");
     _destination->setObjectName("progressDestination");
+    _sourcePaths = new QPlainTextEdit(places);
+    _sourcePaths->setObjectName("progressSourcePaths");
+    _sourcePaths->setReadOnly(true);
+    _sourcePaths->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
+    _sourcePaths->setTabChangesFocus(true);
+    _sourcePaths->setMaximumHeight(fontMetrics().lineSpacing() * 5);
+    _sourcePaths->hide();
+    placeLayout->addWidget(_source);
+    placeLayout->addWidget(_sourcePaths);
+    placeLayout->addWidget(_destination);
     auto *locations = new QtDisclosure(places, this);
     locations->setObjectName("progressLocations");
     QtBindLocalText(locations->button(), "ProgressRedesign",
@@ -67,6 +79,15 @@ void CQtProgressDialog::BuildPresentation() {
     _locations = locations;
     outer->addWidget(locations);
     locations->hide();
+    auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
+    connect(locations->button(), &QToolButton::toggled, this,
+            [this, locations, places, scroll](bool expanded) {
+                if (expanded && scroll)
+                    QTimer::singleShot(0, this, [locations, places, scroll] {
+                        if (locations->isExpanded() && places->isVisible())
+                            scroll->ensureWidgetVisible(places);
+                    });
+            });
 
     auto *messages = new CListView(this);
     messages->setHeaderHidden(true);
@@ -97,10 +118,16 @@ void CQtProgressDialog::SetLocations(const QString &source, const QString &desti
                         ? QT_TRANSLATE_NOOP("ProgressRedesign", "Source locations")
                         : QT_TRANSLATE_NOOP("ProgressRedesign", "Destination"));
     locations->setSummary(destination);
+    const bool multipleLines = source.contains(u'\n');
+    const QString sourceLabel = multipleLines ? QString() : source;
     QtBindLocalText(_source, "ProgressRedesign",
-                    QT_TRANSLATE_NOOP("ProgressRedesign", "Source: %1"), false, {source});
-    _source->setAccessibleDescription(source);
+                    QT_TRANSLATE_NOOP("ProgressRedesign", "Source: %1"), false, {sourceLabel});
+    _source->setAccessibleDescription(sourceLabel);
     _source->setVisible(!source.isEmpty());
+    QtBindLocalText(_sourcePaths, "ProgressRedesign",
+                    QT_TRANSLATE_NOOP("ProgressRedesign", "Source: %1"), true, {QString()});
+    _sourcePaths->setPlainText(multipleLines ? source : QString());
+    _sourcePaths->setVisible(multipleLines);
     QtBindLocalText(_destination, "ProgressRedesign",
                     QT_TRANSLATE_NOOP("ProgressRedesign", "Destination: %1"), false, {destination});
     _destination->setAccessibleDescription(destination);

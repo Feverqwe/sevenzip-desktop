@@ -21,6 +21,7 @@
 #include <QCursor>
 #include <QDrag>
 #include <QDragLeaveEvent>
+#include <QLabel>
 #include <QLibrary>
 #include <QMouseEvent>
 #include <QProcess>
@@ -510,9 +511,16 @@ class DragDropUiTests final : public QObject {
     }
 #endif
 
+    void archiveClipboardPastesBothSelectedEntriesIntoPeer_data() {
+        QTest::addColumn<bool>("directory");
+        QTest::newRow("two-files") << false;
+        QTest::newRow("file-and-directory") << true;
+    }
+
     void archiveClipboardPastesBothSelectedEntriesIntoPeer() {
         if (!qEnvironmentVariableIsSet("SEVENZIP_TEST_ARCHIVE_CLIPBOARD_PASTE"))
             QSKIP("Requires an isolated test process");
+        QFETCH(bool, directory);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const ScopedTestEnvironment settings("SEVENZIP_SETTINGS_PATH",
@@ -521,9 +529,12 @@ class DragDropUiTests final : public QObject {
         const QString output = fixture.filePath("destination");
         QVERIFY(QDir().mkpath(output));
         const QString first = QStringLiteral("первый #.txt");
-        const QString second = QStringLiteral("second file.txt");
-        QVERIFY(
-            NativeArchiveFixture::Write(archive, {{first, "first"}, {second, "second"}}, "zip"));
+        const QString second =
+            directory ? QStringLiteral("папка #") : QStringLiteral("second file.txt");
+        const QString secondFile =
+            directory ? second + QStringLiteral("/nested/данные.txt") : second;
+        QVERIFY(NativeArchiveFixture::Write(archive, {{first, "first"}, {secondFile, "second"}},
+                                            "zip"));
         const auto original = SourceExtractFixture::readFile(archive);
         const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
                                              fixture.filePath("owned-temp"));
@@ -539,7 +550,8 @@ class DragDropUiTests final : public QObject {
         auto *twoPanels = window.findChild<QAction *>("twoPanelsAction");
         QVERIFY(twoPanels);
         QTRY_VERIFY(twoPanels->isEnabled());
-        twoPanels->trigger();
+        if (!twoPanels->isChecked())
+            twoPanels->trigger();
         const auto enterPath = [](QWidget &pane, const QString &path) {
             auto *address = pane.findChild<QLineEdit *>("archivePath");
             QVERIFY(address);
@@ -552,7 +564,7 @@ class DragDropUiTests final : public QObject {
         QVERIFY(peer);
         auto *destination = peer->findChild<FileTable *>("archiveTable");
         QVERIFY(destination);
-        QTRY_VERIFY(destination->isEnabled());
+        QTRY_VERIFY(destination->isVisible() && destination->isEnabled());
         enterPath(*peer, output);
         QTRY_COMPARE(window.focusWidget(), destination);
         QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
@@ -571,11 +583,12 @@ class DragDropUiTests final : public QObject {
         QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
         QTRY_VERIFY(QApplication::clipboard()->mimeData());
         QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
+        QCOMPARE(window.focusWidget(), source);
         QTest::keyClick(window.focusWidget(), Qt::Key_Tab);
         QTRY_COMPARE(window.focusWidget(), destination);
         QTest::keySequence(window.focusWidget(), QKeySequence::Paste);
         QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(first)), "first");
-        QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(second)), "second");
+        QTRY_COMPARE(SourceExtractFixture::readFile(QDir(output).filePath(secondFile)), "second");
         QTRY_VERIFY(Row(*destination, first) >= 0 && Row(*destination, second) >= 0);
         QCOMPARE(SourceExtractFixture::readFile(archive), original);
     }
@@ -751,12 +764,19 @@ class DragDropUiTests final : public QObject {
         QFETCH(bool, cancelExport);
         QTemporaryDir input, output;
         QVERIFY(input.isValid() && output.isValid());
-        const ScopedTestEnvironment registry("SEVENZIP_OWNED_TEMP_REGISTRY",
-                                             input.filePath("owned-temp"));
-        const auto cleanup = qScopeGuard([] {
-            for (const auto &entry : QtOwnedTempRegistry().Entries())
+        const auto registryVariable = "SEVENZIP_OWNED_TEMP_REGISTRY";
+        const QByteArray previousRegistry = qgetenv(registryVariable);
+        const QString registryPath = input.filePath("owned-temp");
+        const auto cleanup = qScopeGuard([&] {
+            for (const auto &entry : QtOwnedTempRegistry(registryPath).Entries())
                 QDir(entry.path).removeRecursively();
+            if (previousRegistry.isNull())
+                qunsetenv(registryVariable);
+            else
+                qputenv(registryVariable, previousRegistry);
         });
+        QVERIFY(qputenv(registryVariable, registryPath.toLocal8Bit()));
+        QCOMPARE(qEnvironmentVariable(registryVariable), registryPath);
         const QString name = QStringLiteral("файл # %23 с пробелами 空.bin");
         const QByteArray bytes("export\0bytes", 12);
         const QString source = input.filePath(name);
@@ -789,9 +809,14 @@ class DragDropUiTests final : public QObject {
         auto *clipboard = QApplication::clipboard();
         const auto clearClipboard = qScopeGuard([&] { clipboard->clear(); });
         const QString destination = output.filePath(name);
+        QString exportSummary;
         QTimer closeResult;
-        connect(&closeResult, &QTimer::timeout, &window, [] {
-            TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+        connect(&closeResult, &QTimer::timeout, &window, [&] {
+            auto *result = TestProgressDialog::ResultWindow(QApplication::activeModalWidget());
+            if (!result)
+                return;
+            exportSummary = result->findChild<QLabel *>("IDT_PROGRESS_STATUS")->text();
+            TestProgressDialog::CloseResult(*result);
         });
         closeResult.start(5);
         if (drag) {
@@ -820,8 +845,10 @@ class DragDropUiTests final : public QObject {
                 const QString blockedRegistry = input.filePath("blocked registry");
                 QVERIFY(SourceExtractFixture::writeFile(blockedRegistry, "not a directory"));
                 {
-                    const ScopedTestEnvironment blocked("SEVENZIP_OWNED_TEMP_REGISTRY",
-                                                        blockedRegistry);
+                    const auto restoreRegistry =
+                        qScopeGuard([&] { qputenv(registryVariable, registryPath.toLocal8Bit()); });
+                    QVERIFY(qputenv(registryVariable, blockedRegistry.toLocal8Bit()));
+                    QCOMPARE(qEnvironmentVariable(registryVariable), blockedRegistry);
                     QTest::keySequence(table, QKeySequence::Copy);
                     QCOMPARE(clipboard->text(), QString("clipboard sentinel"));
                     QCOMPARE(window.statusBar()->currentMessage(),
@@ -847,6 +874,8 @@ class DragDropUiTests final : public QObject {
                 answer.start(5);
                 QTest::keySequence(table, QKeySequence::Copy);
                 QCOMPARE(prompts, 1);
+                QCOMPARE(exportSummary, QCoreApplication::translate(
+                                            "QtTaskResultDialog", "The operation was cancelled."));
                 QCOMPARE(clipboard->text(), QString("clipboard sentinel"));
                 QCOMPARE(window.statusBar()->currentMessage(),
                          QCoreApplication::translate("mainwindow_archivecommands",
@@ -1275,11 +1304,35 @@ class DragDropUiTests final : public QObject {
 
     void externalDropCanRetryAnOverwrite_data() {
         QTest::addColumn<bool>("directory");
-        QTest::newRow("file") << false;
-        QTest::newRow("directory-url") << true;
+        QTest::addColumn<bool>("unreadable");
+        QTest::addColumn<bool>("move");
+        QTest::addColumn<QString>("batchBlocker");
+        QTest::newRow("file") << false << false << false << QString();
+        QTest::newRow("directory-url") << true << false << false << QString();
+        QTest::newRow("batch-copy-with-missing-source")
+            << false << false << false << QString("missing");
+        QTest::newRow("batch-move-with-missing-source")
+            << false << false << true << QString("missing");
+        QTest::newRow("batch-copy-with-type-conflict")
+            << false << false << false << QString("type");
+        QTest::newRow("batch-move-with-type-conflict") << false << false << true << QString("type");
+        QTest::newRow("batch-copy-with-duplicate-name")
+            << false << false << false << QString("duplicate");
+        QTest::newRow("batch-move-with-duplicate-name")
+            << false << false << true << QString("duplicate");
+#ifdef Q_OS_UNIX
+        QTest::newRow("batch-with-unreadable-source") << false << true << false << QString();
+        QTest::newRow("merge-with-unreadable-source") << true << true << true << QString();
+#endif
     }
     void externalDropCanRetryAnOverwrite() {
         QFETCH(bool, directory);
+        QFETCH(bool, unreadable);
+        QFETCH(bool, move);
+        QFETCH(QString, batchBlocker);
+        const bool missing = batchBlocker == "missing";
+        const bool typeConflict = batchBlocker == "type";
+        const bool duplicate = batchBlocker == "duplicate";
         QTemporaryDir source, target;
         QVERIFY(source.isValid() && target.isValid());
         const QString entry = directory ? QString("same folder") : QString("same name.txt");
@@ -1299,14 +1352,42 @@ class DragDropUiTests final : public QObject {
         QTRY_VERIFY(view->isEnabled() && Row(*view, entry) >= 0);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(directory ? inputEntry + '/' : inputEntry)});
+        const QString blocked = directory && move ? inputEntry : source.filePath("second.txt");
+        QFile::Permissions permissions;
+        const auto restore = qScopeGuard([&] {
+            if (unreadable && QFileInfo::exists(blocked))
+                QFile::setPermissions(blocked, permissions);
+        });
+        if (unreadable) {
+            if (!move)
+                QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
+            permissions = QFile::permissions(blocked);
+            QVERIFY(QFile::setPermissions(blocked, move ? QFile::WriteOwner | QFile::ExeOwner
+                                                        : QFile::WriteOwner));
+            if (QFileInfo(blocked).isReadable())
+                QSKIP("The current user can still read the file");
+        }
+        const QString secondTarget = target.filePath("second.txt");
+        const QString duplicateSource = source.filePath("other/" + entry);
+        if (duplicate)
+            QVERIFY(SourceExtractFixture::writeFile(duplicateSource, "other bytes"));
+        if (typeConflict) {
+            QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
+            QVERIFY(QDir().mkdir(secondTarget));
+        }
+        if (!batchBlocker.isEmpty() || (unreadable && !move))
+            mime.setUrls({QUrl::fromLocalFile(input),
+                          QUrl::fromLocalFile(duplicate ? duplicateSource : blocked)});
         int prompts = 0;
+        QString report;
         QTimer answer;
         connect(&answer, &QTimer::timeout, &window, [&] {
             if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
                 menu && menu->isVisible() && menu->objectName() == "dragContextMenu") {
                 for (auto *action : menu->actions())
                     if (action->data().toUInt() ==
-                        (NDragMenu::k_Copy_Base | NDragMenu::k_MenuFlag_Copy)) {
+                        (NDragMenu::k_Copy_Base |
+                         (move ? NDragMenu::k_MenuFlag_Move : NDragMenu::k_MenuFlag_Copy))) {
                         menu->setActiveAction(action);
                         QTest::keyClick(menu, Qt::Key_Return);
                         return;
@@ -1317,25 +1398,153 @@ class DragDropUiTests final : public QObject {
                     dynamic_cast<COverwriteDialog *>(QApplication::activeModalWidget())) {
                 ++prompts;
                 ReplyOverwrite(*dialog, prompts == 1 ? IDCANCEL : IDYES);
-            } else {
-                TestProgressDialog::DismissVisibleResult(QApplication::activeModalWidget());
+            } else if (auto *result =
+                           TestProgressDialog::ResultWindow(QApplication::activeModalWidget())) {
+                report = TestProgressDialog::ReportText(*result);
+                TestProgressDialog::CloseResult(*result);
+            } else if (auto *error =
+                           qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                report = error->text();
+                error->accept();
             }
         });
         answer.start(5);
         const QPoint point(5, view->viewport()->height() - 5);
-        for (int attempt = 1; attempt <= 2; ++attempt) {
-            QDragEnterEvent enter(DragEventPosition(point), Qt::CopyAction, &mime, Qt::MiddleButton,
+        const auto actions =
+            move ? Qt::CopyAction | Qt::MoveAction : Qt::DropActions(Qt::CopyAction);
+        for (int attempt = unreadable || !batchBlocker.isEmpty() ? 0 : 1; attempt <= 2; ++attempt) {
+            QDragEnterEvent enter(DragEventPosition(point), actions, &mime, Qt::MiddleButton,
                                   Qt::NoModifier);
             QCoreApplication::sendEvent(view->viewport(), &enter);
             QVERIFY(enter.isAccepted());
-            QDropEvent drop(point, Qt::CopyAction, &mime, Qt::NoButton, Qt::NoModifier);
+            QDropEvent drop(point, actions, &mime, Qt::NoButton, Qt::NoModifier);
             QCoreApplication::sendEvent(view->viewport(), &drop);
             QCOMPARE(prompts, attempt);
             QTRY_VERIFY(view->isEnabled());
-            QCOMPARE(SourceExtractFixture::readFile(input), QByteArray("incoming"));
+            QCOMPARE(SourceExtractFixture::readFile(input),
+                     move && attempt == 2 ? QByteArray() : QByteArray("incoming"));
             QCOMPARE(SourceExtractFixture::readFile(output),
-                     attempt == 1 ? QByteArray("original") : QByteArray("incoming"));
+                     attempt < 2 ? QByteArray("original") : QByteArray("incoming"));
+            if (attempt == 0) {
+                const QString conflictPath = duplicate      ? outputEntry
+                                             : typeConflict ? secondTarget
+                                                            : blocked;
+                QVERIFY2(QDir::fromNativeSeparators(report).contains(conflictPath),
+                         qPrintable(report));
+                if (typeConflict)
+                    QVERIFY(QDir().rmdir(secondTarget));
+                else if (!directory)
+                    QVERIFY(!QFileInfo::exists(secondTarget));
+                if (missing)
+                    QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
+                else if (unreadable)
+                    QVERIFY(QFile::setPermissions(blocked, permissions));
+                else if (duplicate) {
+                    QVERIFY(QFile::rename(duplicateSource, blocked));
+                    mime.setUrls({QUrl::fromLocalFile(input), QUrl::fromLocalFile(blocked)});
+                }
+            }
         }
+        if (!batchBlocker.isEmpty() || (unreadable && !move))
+            QCOMPARE(SourceExtractFixture::readFile(secondTarget), QByteArray("other bytes"));
+    }
+
+    void internalDropCanRetryAfterDestinationAccessReturns() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory search permissions");
+#endif
+        QTemporaryDir source, target;
+        QVERIFY(source.isValid() && target.isValid());
+        const QString name = "incoming.txt";
+        const QString destination = target.filePath("folder");
+        QVERIFY(QDir().mkdir(destination));
+        QVERIFY(QDir().mkdir(source.filePath("folder")));
+        QVERIFY(SourceExtractFixture::writeFile(source.filePath(name), "payload"));
+        const auto permissions = QFile::permissions(destination);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(destination, permissions); });
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.resize(980, 620);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *two = window.findChild<QAction *>("twoPanelsAction");
+        if (!two->isChecked())
+            two->trigger();
+        auto *sourcePane = window.findChild<QWidget *>("filePanel0");
+        auto *targetPane = window.findChild<QWidget *>("filePanel1");
+        Navigate(*targetPane, target.path());
+        Navigate(*sourcePane, source.path());
+        auto *from = sourcePane->findChild<FileTable *>("archiveTable");
+        auto *to = targetPane->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(Row(*from, name) >= 0 && Row(*to, "folder") >= 0);
+        to->sourcePanel->Set_AutoRefresh_Mode(false);
+        QVERIFY(to->isVisible());
+        const auto folder = [&] { return to->model()->index(Row(*to, "folder"), 0); };
+        const auto blockedPermissions = QFile::ReadOwner | QFile::WriteOwner;
+        bool accepted = false, dropped = false, blockAtDrop = false, permissionsChanged = false;
+        bool blankTarget = false;
+        QtPanelDragTransport transport(from, [&](QDrag &drag, Qt::DropActions actions) {
+            const QPoint point = blankTarget ? QPoint(5, to->viewport()->height() - 5)
+                                             : to->visualRect(folder()).center();
+            QDragEnterEvent enter(DragEventPosition(point), actions, drag.mimeData(),
+                                  Qt::LeftButton, Qt::ControlModifier);
+            QCoreApplication::sendEvent(to->viewport(), &enter);
+            accepted = enter.isAccepted();
+            if (!accepted)
+                return Qt::IgnoreAction;
+            if (blockAtDrop)
+                permissionsChanged = QFile::setPermissions(destination, blockedPermissions);
+            QDropEvent drop(point, actions, drag.mimeData(), Qt::LeftButton, Qt::ControlModifier);
+            QCoreApplication::sendEvent(to->viewport(), &drop);
+            dropped = drop.isAccepted();
+            return dropped ? drop.dropAction() : Qt::IgnoreAction;
+        });
+        from->sourcePanel->AttachDragServices(&transport);
+        const auto detach = qScopeGuard([&] { from->sourcePanel->AttachDragServices(nullptr); });
+        const auto start = [&] {
+            from->setFocus();
+            const int row = Row(*from, name);
+            from->setCurrentCell(row, 0);
+            from->selectRow(row);
+            QCoreApplication::processEvents();
+            from->dragStarter();
+        };
+        QVERIFY(QFile::setPermissions(destination, blockedPermissions));
+        const QFileInfo blocked(destination);
+        if (!blocked.isWritable() || blocked.isExecutable())
+            QSKIP("Requires a writable directory without search access");
+        start();
+        QVERIFY(!accepted);
+        QVERIFY(!folder().data(QtPanelList::DropHighlightedRole).toBool());
+        QVERIFY(from->selectionModel()->isRowSelected(Row(*from, name), {}));
+        QVERIFY(QFile::setPermissions(destination, permissions));
+        blockAtDrop = true;
+        start();
+        QVERIFY(accepted);
+        QVERIFY(permissionsChanged);
+        QVERIFY(!dropped);
+        QVERIFY(!folder().data(QtPanelList::DropHighlightedRole).toBool());
+        QVERIFY(QFile::setPermissions(destination, permissions));
+        QVERIFY(!QFileInfo::exists(QDir(destination).filePath(name)));
+        blockAtDrop = false;
+        start();
+        QVERIFY(accepted && dropped);
+        QTRY_COMPARE(SourceExtractFixture::readFile(QDir(destination).filePath(name)),
+                     QByteArray("payload"));
+        QCOMPARE(SourceExtractFixture::readFile(source.filePath(name)), QByteArray("payload"));
+
+        Navigate(*targetPane, source.path());
+        QTRY_VERIFY(to->isEnabled() && Row(*to, name) >= 0);
+        blankTarget = true;
+        QVERIFY(!to->indexAt(QPoint(5, to->viewport()->height() - 5)).isValid());
+        start();
+        QVERIFY(!accepted);
+        QVERIFY(from->selectionModel()->isRowSelected(Row(*from, name), {}));
+        blankTarget = false;
+        start();
+        QVERIFY(accepted && dropped);
+        QTRY_COMPARE(SourceExtractFixture::readFile(source.filePath("folder/" + name)),
+                     QByteArray("payload"));
     }
 
     void externalFilesUseArchiveConfirmation_data() {

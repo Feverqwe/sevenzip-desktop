@@ -32,6 +32,7 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     projectedUi().directory = next;
+    projectedUi().autoRefreshProbe.reset();
     snapshot.clear();
     snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
     projectedUi().archive.clear();
@@ -103,6 +104,11 @@ HRESULT MainWindow::navigateToImpl(const QString &path, bool sourceAddress) {
                 opened.ErrorMessage.IsEmpty()
                     ? QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path
                     : ToQString(opened.ErrorMessage));
+        else if (result == S_OK && !sourceAddress && !path.isEmpty() &&
+                 ((panel.IsFSFolder() && !info.exists()) ||
+                  (panel.IsArcFolder() && opened.UnresolvedPath)))
+            showStatusMessage(
+                QCoreApplication::translate("mainwindow_filelist", "Path not found: ") + path);
         return result;
     }
 }

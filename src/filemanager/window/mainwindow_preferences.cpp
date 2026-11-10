@@ -5,8 +5,10 @@
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
 #include "filemanager/window/qtwindowworkspace.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/qtlanguageservices.h"
 #include <QScopedValueRollback>
+#include <QScrollBar>
 #include <QSignalBlocker>
 
 void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos) {
@@ -33,14 +35,33 @@ QString MainWindow::toolbarSettingsPath() { return FmSettingsPath(); }
 
 void MainWindow::showSettings() {
     SettingsDialog dialog(toolbarSettingsPath(), this, folderManager_);
-    connect(&dialog, &SettingsDialog::Applied, this, &MainWindow::applyFileListSettings);
+    const auto apply = [this] {
+        const auto previous = fileListSettings_;
+        applyFileListSettings();
+        if (previous.ShowDots != fileListSettings_.ShowDots ||
+            previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->FileListSettingsChanged(*this);
+    };
+    connect(&dialog, &SettingsDialog::Applied, this, [this, apply] {
+        if (scanningPanelMask())
+            workspace_->WhenReady(apply);
+        else
+            apply();
+    });
     dialog.exec();
     refreshActions();
 }
 
 void MainWindow::applyFileListSettings() {
+    const auto previous = fileListSettings_;
     app_.SetListSettings();
-    app_.RefreshAllPanels(true);
+    if (previous.ShowDots != fileListSettings_.ShowDots)
+        app_.RefreshAllPanels(true);
+    else if (previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
+        for (auto &panel : app_.Panels)
+            if (panel.PanelCreated && panel.IsFSFolder())
+                panel.OnReload(true);
     refreshActions();
 }
 
@@ -53,8 +74,19 @@ void MainWindow::setViewMode(int mode) {
     auto *stack = projectedUi().viewStack;
     auto *address = projectedUi().pathCombo;
     auto *icons = static_cast<FileIconList *>(projectedUi().iconList);
+    auto *table = projectedUi().table;
+    auto *horizontal = table->horizontalScrollBar();
+    const int tablePosition = horizontal->value();
     const QWidget *focused = QApplication::focusWidget();
     const QWidget *previousView = stack->currentWidget();
+    if (mode != 3 && previousView == table) {
+        const int column = table->currentIndex().column();
+        if (column >= 0)
+            projectedUi().tableCursorColumn.emplace(table->propertyId(column),
+                                                    table->isRawProperty(column));
+        else
+            projectedUi().tableCursorColumn.reset();
+    }
     const bool restoreFocus =
         previousView && focused && (focused == previousView || previousView->isAncestorOf(focused));
     const bool restoreAfterScan =
@@ -71,8 +103,18 @@ void MainWindow::setViewMode(int mode) {
         const QModelIndex current = view->currentIndex();
         if (current.isValid()) {
             // The icon view can only navigate to indexes in its displayed column.
-            const QModelIndex visible =
-                view == icons ? current.siblingAtColumn(icons->modelColumn()) : current;
+            int column = view == icons ? icons->modelColumn() : current.column();
+            if (view == table && projectedUi().tableCursorColumn) {
+                const auto [property, raw] = *projectedUi().tableCursorColumn;
+                for (int candidate = 0; candidate < table->model()->columnCount(); ++candidate)
+                    if (!table->isColumnHidden(candidate) &&
+                        table->propertyId(candidate) == property &&
+                        table->isRawProperty(candidate) == raw) {
+                        column = candidate;
+                        break;
+                    }
+            }
+            const QModelIndex visible = current.siblingAtColumn(column);
             if (visible != current)
                 view->selectionModel()->setCurrentIndex(visible, QItemSelectionModel::NoUpdate);
             view->scrollTo(visible);
@@ -82,6 +124,8 @@ void MainWindow::setViewMode(int mode) {
         view->setFocus();
     else if (restoreAfterScan)
         workspace_->RequestListFocus(projectedPanel_);
+    if (mode == 3 && view != previousView)
+        horizontal->setValue(tablePosition);
     CListMode modes;
     for (unsigned i = 0; i < kNumPanelsMax; ++i)
         modes.Panels[i] = app_.Panels[i].GetListViewMode();

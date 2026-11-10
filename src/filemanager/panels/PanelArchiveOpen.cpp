@@ -44,7 +44,8 @@ HRESULT CPanel::OpenAsArc_Index(unsigned index, const wchar_t *type) {
 
 void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExternal,
                                const wchar_t *type) {
-    (void)OpenItemInArchiveImpl(index, tryInternal, tryExternal, type);
+    (void)OpenItemInArchiveImpl(index, tryInternal, tryExternal, type, false, nullptr,
+                                tryInternal && !tryExternal);
 }
 
 HRESULT CPanel::OpenItemInArchiveInternal(unsigned index, const wchar_t *type,
@@ -53,8 +54,8 @@ HRESULT CPanel::OpenItemInArchiveInternal(unsigned index, const wchar_t *type,
 }
 
 HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
-                                      const wchar_t *type, bool materializeStream,
-                                      UString *failure) {
+                                      const wchar_t *type, bool materializeStream, UString *failure,
+                                      bool reportUnrecognized) {
     std::optional<CDisableTimerProcessing> disableTimerProcessing(std::in_place, *this);
     // we don't want to change hash data here
     if (IsHashFolder())
@@ -121,8 +122,9 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
                 CMyComPtr<IInStream> subStream;
                 subSeqStream.QueryInterface(IID_IInStream, &subStream);
                 if (subStream) {
-                    HRESULT res = OpenAsArc_Msg(subStream, tempFileInfo, fullVirtPath,
-                                                type ? type : L"", materializeStream, failure);
+                    HRESULT res =
+                        OpenAsArc_Msg(subStream, tempFileInfo, fullVirtPath, type ? type : L"",
+                                      materializeStream, failure, reportUnrecognized);
                     if (res == S_OK) {
                         tempDirectory.DisableDeleting();
                         disableTimerProcessing.reset();
@@ -230,8 +232,11 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
     options.folder = fs2us(tempDirNorm);
     options.showErrorMessages = _archiveOpenDialogs;
     options.DisableUserQuestions = !_archiveOpenDialogs;
+    options.CancellationMayLeaveChanges = false;
 
-    const HRESULT result = CopyTo(options, indices, &messages, usePassword, password);
+    QtArchiveExtractReport report;
+    const HRESULT result =
+        CopyTo(options, indices, &messages, usePassword, password, nullptr, &report);
 
     if (!_parentFolders.IsEmpty()) {
         CFolderLink &fl = _parentFolders.Back();
@@ -242,7 +247,7 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
     if (!messages.IsEmpty())
         return result == S_OK ? E_FAIL : result;
     if (result != S_OK) {
-        if (result != E_ABORT)
+        if (result != E_ABORT && !report.ResultPresented)
             MessageBox_Error_HRESULT(result);
         return result;
     }
@@ -262,7 +267,7 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
             CMyComPtr2_Create<IInStream, CBufInStream> bufInStream;
             bufInStream->Init(file.Data, file.WrittenSize, virtFileSystem);
             const HRESULT res = OpenAsArc_Msg(bufInStream, tempFileInfo, fullVirtPath,
-                                              type ? type : L"", true, failure);
+                                              type ? type : L"", true, failure, reportUnrecognized);
             if (res == S_OK) {
                 if (virtFileSystem->Index_of_ZoneBuf_AltStream_in_Files >= 0 &&
                     !_parentFolders.IsEmpty()) {
@@ -299,8 +304,8 @@ HRESULT CPanel::OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool try
     */
 
     if (tryAsArchive) {
-        const HRESULT res =
-            OpenAsArc_Msg(NULL, tempFileInfo, fullVirtPath, type ? type : L"", false, failure);
+        const HRESULT res = OpenAsArc_Msg(NULL, tempFileInfo, fullVirtPath, type ? type : L"",
+                                          false, failure, reportUnrecognized);
         if (res == S_OK) {
             tempDirectory.DisableDeleting();
             disableTimerProcessing.reset();

@@ -15,6 +15,7 @@
 #include "filemanager/window/qtworkspacetheme.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtstatuslabel.h"
+#include "ui/progress/ProgressDialog2.h"
 #include "ui/theme/qtcommandicons.h"
 
 void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
@@ -92,6 +93,10 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             activatePanelUi(index);
             if (projectedPanel_ != index)
                 return E_ABORT;
+            if (!sourcePath && draft.text.contains(QChar::Null)) {
+                showStatusMessage(ToQString(HResultToMessage(E_INVALIDARG)));
+                return E_INVALIDARG;
+            }
             clearStatusMessage();
             // A repeated submission must not replace a scan of the same directory.
             if (!sourcePath && ui.scanningDisk &&
@@ -102,9 +107,14 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
             const auto interaction = workspace_->InteractionRevision();
             return workspace_->Navigate(
                 [&] { return navigateToImpl(path, sourcePath); },
-                [this, index, draft, editRevision, interaction](HRESULT result) {
-                    if (result == S_OK || app_.QtOperations().closed())
+                [this, index, draft, editRevision, interaction, sourcePath](HRESULT result) {
+                    if (app_.QtOperations().closed())
                         return;
+                    if (result == S_OK) {
+                        if (!sourcePath && panelUi_[index].state == State::Viewing)
+                            workspace_->FocusListAfterLocationOpen(index, interaction);
+                        return;
+                    }
                     auto &owner = panelUi_[index];
                     auto *combo = static_cast<QtPanelAddressCombo *>(owner.pathCombo);
                     const auto restored = combo->UserEditRevision() == editRevision

@@ -11,6 +11,7 @@ void CreateArchiveDialog::createVolumeOptions(QFormLayout *form) {
     volume_ = new QComboBox(this);
     volume_->setObjectName("archiveVolumeSize");
     volume_->setEditable(true);
+    volume_->setCompleter(nullptr);
     volume_->setInsertPolicy(QComboBox::NoInsert);
     AddVolumeItems(*volume_);
     volume_->setCurrentIndex(-1);

@@ -64,6 +64,7 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
         option->setEnabled(i != 0);
         QObject::connect(
             option, &QAction::toggled, &window, [&window, table, &panel, index = i](bool) {
+                const PROPID previousSort = panel.GetSortID();
                 const int removed = panel.GetColumns()[index].IsVisible
                                         ? panel.GetVisibleColumns().FindItem_for_PropID(
                                               panel.GetColumns()[index].ID)
@@ -85,6 +86,10 @@ void QtPanelContextMenu::ShowColumnsContextMenu(int x, int y) {
                 {
                     const QSignalBlocker blocker(table->horizontalHeader());
                     table->horizontalHeader()->setSortIndicator(column, order);
+                    if (panel.GetSortID() != previousSort) {
+                        panel.SetSortRawStatus();
+                        table->sortItems(column, order);
+                    }
                 }
                 window.saveColumns();
             });
@@ -96,8 +101,11 @@ bool QtPanelContextMenu::GetItemRect(int index, QRect &rect) const {
     const QModelIndex item = impl_->view.currentIndex().siblingAtRow(index);
     if (!item.isValid())
         return false;
-    rect = impl_->view.visualRect(item);
-    return rect.isValid();
+    const QRect viewport = impl_->view.viewport()->rect();
+    rect = impl_->view.visualRect(item).intersected(viewport);
+    if (rect.isEmpty())
+        rect = QRect(viewport.topLeft(), QSize(1, 1));
+    return true;
 }
 void QtPanelContextMenu::ClientToScreen(int &x, int &y) const {
     const QPoint point = impl_->view.viewport()->mapToGlobal(QPoint(x, y));

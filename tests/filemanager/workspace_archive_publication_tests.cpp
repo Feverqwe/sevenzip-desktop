@@ -1,10 +1,12 @@
 #include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
+#include "dialogs/copy/alias.h"
 #include "dialogs/password/PasswordDialog.h"
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "platform/temp/qtownedtempregistry.h"
+#include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -127,18 +129,24 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QCOMPARE(view->currentIndex().data().toString(), QString("renamed.txt"));
     }
 
-    void missingOuterArchiveNotifiesNestedView_data() {
+    void missingArchiveKeepsPreviousView_data() {
+        QTest::addColumn<bool>("nested");
         QTest::addColumn<bool>("leave");
-        QTest::newRow("reopen") << false;
-        QTest::newRow("leave") << true;
+        QTest::newRow("archive-reopen") << false << false;
+        QTest::newRow("archive-leave") << false << true;
+        QTest::newRow("nested-reopen") << true << false;
+        QTest::newRow("nested-leave") << true << true;
     }
-    void missingOuterArchiveNotifiesNestedView() {
+    void missingArchiveKeepsPreviousView() {
+        QFETCH(bool, nested);
         QFETCH(bool, leave);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString outer = fixture.filePath("outer.7z");
         const QString inner = fixture.filePath("inner.zip");
         const auto writeVersion = [&](const QString &member) {
+            if (!nested)
+                return NativeArchiveFixture::Write(outer, {{member, "payload"}});
             return NativeArchiveFixture::Write(inner, {{member, "payload"}}, "zip") &&
                    NativeArchiveFixture::Write(outer, {{"inner.zip", readFile(inner)}});
         };
@@ -147,11 +155,15 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         MainWindow window;
         window.show();
         window.openArchive(outer);
-        QTRY_COMPARE(names(window), QStringList{"inner.zip"});
         auto *view = table(window);
-        view->setCurrentCell(0, 0);
-        view->selectRow(0);
-        action(window, "openItemAction")->trigger();
+        if (nested) {
+            QTRY_COMPARE(names(window), QStringList{"inner.zip"});
+            view->setCurrentCell(0, 0);
+            view->selectRow(0);
+            auto *openInside = action(window, "openInsideAction");
+            QTRY_VERIFY(openInside->isEnabled());
+            openInside->trigger();
+        }
         QTRY_COMPARE(names(window), QStringList{"original.txt"});
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         QVERIFY(action(window, "createFolderAction")->isEnabled());
@@ -159,36 +171,91 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         QVERIFY(QFile::rename(outer, renamed));
         application.FilesystemPublished({fixture.path()});
         QTRY_VERIFY(notice(window));
+        auto *retry = window.findChild<QPushButton *>("navigationRetry0");
+        const auto labels = retry->parentWidget()->findChildren<QLabel *>();
+        QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [&](const QLabel *label) {
+            return label->isVisible() && QDir::fromNativeSeparators(label->text()).contains(outer);
+        }));
         QCOMPARE(names(window), QStringList{"original.txt"});
         QVERIFY(!action(window, "createFolderAction")->isEnabled());
         if (leave) {
-            window.findChild<QPushButton *>("navigationParent0")->click();
-            QTRY_COMPARE(names(window), QStringList{"inner.zip"});
-            QVERIFY(notice(window));
-            window.findChild<QPushButton *>("navigationParent0")->click();
+            QVERIFY(WindowActivation::waitForActive(window));
+            auto *parent = window.findChild<QPushButton *>("navigationParent0");
+            QVERIFY(parent);
+            const auto leaveWithKeyboard = [&] {
+                parent->setFocus();
+                QTRY_VERIFY(parent->hasFocus());
+                QTest::keyClick(window.focusWidget(), Qt::Key_Space);
+                QTRY_COMPARE(window.focusWidget(), view);
+            };
+            if (nested) {
+                leaveWithKeyboard();
+                QTRY_COMPARE(names(window), QStringList{"inner.zip"});
+                QVERIFY(notice(window));
+            }
+            leaveWithKeyboard();
             QTRY_VERIFY(names(window).contains("renamed.7z"));
             QVERIFY(!notice(window));
+            QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
+            QVERIFY(view->selectionModel()->isRowSelected(filesystemRow(window, "renamed.7z"), {}));
             return;
         }
-        QVERIFY(QFile::remove(inner));
+        const QString output = fixture.filePath("recovered");
+        QVERIFY(QDir().mkdir(output));
+        QVERIFY(WindowActivation::waitForActive(window));
+        view->selectRow(0);
+        view->setCurrentCell(0, 0);
+        view->setFocus();
+        QTRY_VERIFY(view->hasFocus());
+        QTimer answer;
+        connect(&answer, &QTimer::timeout, &window, [&] {
+            auto *modal = QApplication::activeModalWidget();
+            if (auto *dialog = qobject_cast<CopyDialog *>(modal)) {
+                dialog->findChild<QLineEdit *>("copyDestination")->setText(output);
+                dialog->accept();
+                if (dialog->isVisible())
+                    dialog->reject();
+            } else if (auto *box = qobject_cast<QMessageBox *>(modal)) {
+                box->reject();
+            } else {
+                TestProgressDialog::DismissVisibleResult(modal);
+            }
+        });
+        answer.start(5);
+        QTest::keyClick(view, Qt::Key_F5);
+        QTRY_COMPARE(readFile(QDir(output).filePath("original.txt")), QByteArray("payload"));
+        answer.stop();
+        QVERIFY(notice(window));
+        QCOMPARE(names(window), QStringList{"original.txt"});
+        if (nested)
+            QVERIFY(QFile::remove(inner));
         QVERIFY(writeVersion("replacement.txt"));
-        window.findChild<QPushButton *>("navigationRetry0")->click();
+        QVERIFY(WindowActivation::waitForActive(window));
+        retry->setFocus();
+        QTRY_VERIFY(retry->hasFocus());
+        QTest::keyClick(retry, Qt::Key_Space);
         QTRY_COMPARE(names(window), QStringList{"replacement.txt"});
         QVERIFY(!notice(window));
         QVERIFY(action(window, "createFolderAction")->isEnabled());
+        QTRY_COMPARE(window.focusWidget(), view);
+        QTest::keySequence(window.focusWidget(), QKeySequence::SelectAll);
+        QCOMPARE(view->selectionModel()->selectedRows().size(), 1);
     }
 
     void manualRefreshDetectsExternalArchiveReplacement_data() {
         QTest::addColumn<QString>("encryptedLayer");
         QTest::addColumn<bool>("deferRefresh");
-        QTest::newRow("plain") << QString() << false;
-        QTest::newRow("outer-password-changed") << QStringLiteral("outer") << false;
-        QTest::newRow("nested-password-changed") << QStringLiteral("inner") << false;
-        QTest::newRow("deferred-password-change") << QStringLiteral("outer") << true;
+        QTest::addColumn<bool>("directoryNotification");
+        QTest::newRow("plain") << QString() << false << false;
+        QTest::newRow("directory-notification") << QString() << false << true;
+        QTest::newRow("outer-password-changed") << QStringLiteral("outer") << false << false;
+        QTest::newRow("nested-password-changed") << QStringLiteral("inner") << false << false;
+        QTest::newRow("deferred-password-change") << QStringLiteral("outer") << true << false;
     }
     void manualRefreshDetectsExternalArchiveReplacement() {
         QFETCH(QString, encryptedLayer);
         QFETCH(bool, deferRefresh);
+        QFETCH(bool, directoryNotification);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString archive = fixture.filePath("shared.7z");
@@ -211,6 +278,7 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
             bool paused = false;
             bool busy() const override { return paused || ArchiveBackend::busy(); }
         } backend;
+        QtWorkspaceApplication application(*qApp);
         MainWindow window(&backend);
         bool cancelPassword = false;
         int prompts = 0;
@@ -245,7 +313,10 @@ class WorkspaceArchivePublicationTests final : public QObject, protected MainWin
         prompts = 0;
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         backend.paused = deferRefresh;
-        action(window, "refreshAction")->trigger();
+        if (directoryNotification)
+            application.FilesystemPublished({fixture.path()});
+        else
+            action(window, "refreshAction")->trigger();
         if (deferRefresh) {
             QCOMPARE(prompts, 0);
             backend.paused = false;

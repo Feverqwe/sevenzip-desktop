@@ -20,6 +20,54 @@ class FileTransferDirectTests : public QObject {
     }
 
   private slots:
+    void transfersLongNames_data() {
+        QTest::addColumn<bool>("move");
+        QTest::addColumn<int>("answer");
+        QTest::addColumn<int>("stemLength");
+        QTest::newRow("copy") << false << -1 << 225;
+        QTest::newRow("move") << true << -1 << 225;
+        QTest::newRow("replace") << false << int(NOverwriteAnswer::kYes) << 225;
+        QTest::newRow("keep-both") << false << int(NOverwriteAnswer::kAutoRenameOnce) << 225;
+        QTest::newRow("keep-both-at-component-limit")
+            << false << int(NOverwriteAnswer::kAutoRenameOnce) << 251;
+    }
+
+    void transfersLongNames() {
+        QFETCH(bool, move);
+        QFETCH(int, answer);
+        QFETCH(int, stemLength);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString source = temp.filePath("source.txt");
+        const QString destination = temp.filePath("destination");
+        QVERIFY(QDir().mkdir(destination));
+        const QString stem(stemLength, u'a');
+        const QString target = QDir(destination).filePath(stem + ".txt");
+        if (!write(target, "old bytes"))
+            QSKIP("The test filesystem cannot create this long destination name");
+        if (answer == -1)
+            QVERIFY(QFile::remove(target));
+        QVERIFY(write(source, "source bytes"));
+        FileTransferOperation operation({source}, target, move, nullptr, {},
+                                        FileTransferOperation::DestinationKind::DirectPath);
+        connect(
+            &operation, &FileTransferOperation::overwriteRequested, &operation,
+            [&operation, answer] { operation.submitOverwriteAnswer(answer); },
+            Qt::DirectConnection);
+        QSignalSpy result(&operation, &FileTransferOperation::result);
+        operation.start();
+        QVERIFY(operation.wait(30000));
+        QTRY_COMPARE(result.size(), 1);
+        QVERIFY2(result.first().first().toBool(), qPrintable(result.first().at(1).toString()));
+        const bool keepBoth = answer == NOverwriteAnswer::kAutoRenameOnce;
+        QCOMPARE(read(target), keepBoth ? QByteArray("old bytes") : QByteArray("source bytes"));
+        if (keepBoth)
+            QCOMPARE(read(QDir(destination).filePath(stem.left(249) + "_1.txt")),
+                     QByteArray("source bytes"));
+        QCOMPARE(QFileInfo::exists(source), !move);
+        QCOMPARE(QDir(destination).entryList(QDir::Files | QDir::Hidden).size(), keepBoth ? 2 : 1);
+    }
+
     void copiesOneUnicodeFileToDirectName() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

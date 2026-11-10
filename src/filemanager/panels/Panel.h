@@ -104,6 +104,7 @@ struct CCopyToOptions {
     bool replaceAltStreamChars;
     bool showErrorMessages;
     bool DisableUserQuestions = false;
+    bool CancellationMayLeaveChanges = true;
     bool NeedRegistryZone;
     NExtract::NZoneIdMode::EEnum ZoneIdMode;
     CByteBuffer ZoneBuf;
@@ -229,6 +230,7 @@ struct CFolderLink : public CTempFileInfo {
 struct COpenResult {
     bool ArchiveIsOpened;
     bool Encrypted;
+    bool UnresolvedPath = false;
     UString ErrorMessage;
     COpenResult() : ArchiveIsOpened(false), Encrypted(false) {}
 };
@@ -489,7 +491,8 @@ class CPanel : public QObject {
                       COpenResult &openRes, bool materializeStream = false);
     HRESULT OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                           const UString &virtualFilePath, const UString &arcFormat,
-                          bool materializeStream = false, UString *failure = nullptr);
+                          bool materializeStream = false, UString *failure = nullptr,
+                          bool reportUnrecognized = false);
     HRESULT OpenAsArc_Name(const UString &relPath, const UString &arcFormat);
     HRESULT OpenAsArc_Index(unsigned index, const wchar_t *type = NULL);
     void OpenFolder(unsigned index);
@@ -497,6 +500,7 @@ class CPanel : public QObject {
     void OpenItem(unsigned index, bool tryInternal, bool tryExternal, const wchar_t *type = NULL);
     void OpenFocusedItemAsInternal(const wchar_t *type);
     void OpenSelectedItems(bool tryInternal);
+    bool CanOpenItemsOutside(const CRecordVector<UInt32> &indices) const;
     void EditItem(unsigned index, bool useEditor);
     void EditItem(bool useEditor);
     bool IsFocusedFile() const { return GetFocusedFileIndex() != (UInt32)-1; }
@@ -584,6 +588,7 @@ class CPanel : public QObject {
     void SaveSelectedState(CSelectedState &state);
     void GetSelectedNames(UStringVector &selectedNames);
     void Get_ItemIndices_Selected(CRecordVector<UInt32> &indices) const;
+    bool HasOperatedItems() const;
     void Get_ItemIndices_Operated(CRecordVector<UInt32> &indices) const;
     void Get_ItemIndices_All(CRecordVector<UInt32> &indices) const;
     void Get_ItemIndices_OperSmart(CRecordVector<UInt32> &indices) const;
@@ -628,7 +633,8 @@ class CPanel : public QObject {
     bool DoesItSupportOperations() const { return _folderOperations != NULL; }
     bool CheckBeforeUpdate(UINT resourceID);
     bool CorrectFsPath(const UString &path, UString &result);
-    HRESULT CreateFolder(UString name, QString &error, QString *destinationDirectory = nullptr,
+    HRESULT CreateFolder(UString name, QString &error, bool showHiddenFolders,
+                         QString *destinationDirectory = nullptr,
                          QString *publishedArchive = nullptr);
     void RenameFile();
     bool OnBeginLabelEdit(int row);
@@ -654,6 +660,7 @@ class CPanel : public QObject {
     void GetFilePaths(const CRecordVector<UInt32> &operatedIndices, UStringVector &paths) const;
     UString GetItemFullPath(unsigned index) const;
     bool IsItem_Folder(UInt32 index) const;
+    bool CanCalculateFilesystemItemSize(UInt32 index) const;
     bool IsItem_Deleted(unsigned itemIndex) const;
     QColor OnCustomDraw(unsigned realIndex) const;
     int CompareItemIndices(UInt32 first, UInt32 second, PROPID sortID,
@@ -683,7 +690,7 @@ class CPanel : public QObject {
     HRESULT RefreshListCtrl(const CSelectedState &state);
     HRESULT RefreshListCtrl();
     // Qt publication completes the load stage before this source selection tail.
-    HRESULT RestoreLoadedSelection(const CSelectedState &state);
+    HRESULT RestoreLoadedSelection(const CSelectedState &state, bool revealFocused = true);
     // Qt loads rows after synchronous source navigation. Transfer its requested
     // selection to that presentation stage instead of deriving it again there.
     std::optional<CSelectedState> TakeRefreshSelection() {
@@ -739,7 +746,7 @@ class CPanel : public QObject {
     std::vector<std::weak_ptr<IQtExternalSessionOwner>> _externalSessions;
     HRESULT OpenItemInArchiveImpl(unsigned index, bool tryInternal, bool tryExternal,
                                   const wchar_t *type, bool materializeStream = false,
-                                  UString *failure = nullptr);
+                                  UString *failure = nullptr, bool reportUnrecognized = false);
     void StartExternalFileSession(NWindows::NFile::NDir::CTempDir &tempDirectory,
                                   const CTempFileInfo &tempFileInfo, const FString &tempDirNorm,
                                   bool usePassword, const UString &password);
@@ -807,10 +814,11 @@ class CPanel : public QObject {
     bool GetItem_BoolProp(UInt32 index, PROPID propID) const;
     UString GetItemPrefix(unsigned index) const;
     unsigned GetRealItemIndex(int indexInListView) const;
+    UInt32 OperatedFocusedIndex() const;
     UInt32 GetFocusedFileIndex() const;
     UInt32 GetFolderItemCount() const;
     void EnsureSelectionVectorSize();
-    void SetFocusedSelectedItem(int index, bool select);
+    void SetFocusedSelectedItem(int index, bool select, bool keepColumn = false);
     UInt64 GetItemSize(UInt32 index) const;
     UInt64 GetItem_UInt64Prop(UInt32 index, UInt32 propID) const;
 };

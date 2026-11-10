@@ -25,6 +25,7 @@
 #include <QSet>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
 
@@ -264,10 +265,11 @@ class CopyDialogTests : public QObject {
         QStringList sources;
         CObjectVector<CPanelItem> items;
         CRecordVector<UInt32> indices;
-        for (int i = 0; i < 40; ++i) {
+        for (int i = 0; i < 39; ++i)
             sources << QStringLiteral("/tmp/очень длинное имя с пробелами %1.txt").arg(i);
-            indices.Add(items.Add({QFileInfo(sources.last()).fileName(), i == 0, true, 1000}));
-        }
+        sources << QStringLiteral("/tmp/<b>последнее  & имя.txt");
+        for (const auto &path : sources)
+            indices.Add(items.Add({QFileInfo(path).fileName(), indices.IsEmpty(), true, 1000}));
         const QString summary = CPanel("/initial/", items).GetItemsInfoString(indices);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -319,7 +321,9 @@ class CopyDialogTests : public QObject {
         QCOMPARE(names->count(), sources.size());
         auto *last = names->item(names->count() - 1);
         QCOMPARE(last->text(), QFileInfo(sources.last()).fileName());
-        QCOMPARE(last->toolTip(), sources.last());
+        QTextDocument tooltip;
+        tooltip.setHtml(last->toolTip());
+        QCOMPARE(tooltip.toPlainText(), sources.last());
         names->scrollToItem(last, QAbstractItemView::PositionAtBottom);
         QTRY_VERIFY(names->viewport()->rect().contains(names->visualItemRect(last)));
         QVERIFY(UiInspection::fullyVisible(*buttons, dialog));

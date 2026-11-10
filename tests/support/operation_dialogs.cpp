@@ -5,6 +5,7 @@
 #include "ui/lifecycle/qttaskpresentation.h"
 #include "ui/support/layout_inspection.h"
 #include <QApplication>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -209,7 +210,14 @@ void DriveOperationDialogs() {
                 QTimer::singleShot(0, dialog, &QDialog::accept);
             }
         } else if (widget->objectName() == "overwriteDialog") {
-            const auto button = qEnvironmentVariable("SEVENZIP_OPERATION_OVERWRITE");
+            auto button = qEnvironmentVariable("SEVENZIP_OPERATION_OVERWRITE");
+            if (button == "overwriteNoAll") {
+                auto *apply = widget->findChild<QCheckBox *>("overwriteApplyToRemaining");
+                if (!apply || !apply->isEnabled())
+                    return;
+                apply->setChecked(true);
+                button = "overwriteNo";
+            }
             if (auto *choice = widget->findChild<QPushButton *>(button))
                 QTimer::singleShot(0, choice, &QPushButton::click);
         } else if (auto *message = qobject_cast<QMessageBox *>(widget)) {

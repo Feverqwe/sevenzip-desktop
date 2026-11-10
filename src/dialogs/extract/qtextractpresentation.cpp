@@ -9,15 +9,29 @@
 #include "ui/controls/qtsourcesummary.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/theme/qtcommandicons.h"
+#include <QAbstractItemView>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QToolButton>
 #include <QVBoxLayout>
+
+bool CExtractDialog::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::KeyPress && (watched == _path || watched == _path->lineEdit()) &&
+        !_path->view()->isVisible()) {
+        const int key = static_cast<QKeyEvent *>(event)->key();
+        if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+            accept();
+            return true;
+        }
+    }
+    return QDialog::eventFilter(watched, event);
+}
 
 void CExtractDialog::BuildPresentation() {
     setObjectName("extractDialog");
@@ -52,7 +66,12 @@ void CExtractDialog::BuildPresentation() {
     QtBindLangText(_path, IDT_EXTRACT_EXTRACT_TO, "Extract to:", true);
     destinationLabel->setBuddy(_path);
     _path->setEditable(true);
+    _path->setCompleter(nullptr);
     _path->setInsertPolicy(QComboBox::NoInsert);
+    // Return in the editor submits the dialog. Only a history selection
+    // should replace the separately entered subfolder.
+    _path->installEventFilter(this);
+    _path->lineEdit()->installEventFilter(this);
     _path->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     _path->setMinimumContentsLength(12);
 
@@ -191,8 +210,10 @@ void CExtractDialog::BuildPresentation() {
                           _ntSecurity});
 }
 
-void CExtractDialog::SetArchiveSources(const QStringList &sources, bool allContents) {
+void CExtractDialog::SetArchiveSources(const QStringList &sources, bool allContents,
+                                       bool validatePaths) {
     _archiveSources = sources;
+    _validateSourcePaths = validatePaths;
     _allContents = allContents;
     _sourcePaths->setPlainText(sources.join('\n'));
     _sourceSummary->setVisible(!sources.isEmpty());

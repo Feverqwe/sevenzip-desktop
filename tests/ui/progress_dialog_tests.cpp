@@ -10,6 +10,7 @@
 #include <QClipboard>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScopeGuard>
@@ -35,6 +36,30 @@ class ProgressDialogTests : public QObject {
     Q_OBJECT
 
   private slots:
+    void batchLocationsKeepDestinationReachable() {
+        QStringList paths;
+        for (int i = 0; i < 100; ++i)
+            paths.append(QStringLiteral("/source/папка %1/<b>файл  & имя.txt").arg(i));
+        CProgressDialog dialog;
+        dialog.SetLocations(paths.join(u'\n'), "/destination/folder");
+        dialog.resize(480, 300);
+        dialog.show();
+        auto *locations = dialog.findChild<QtDisclosure *>("progressLocations");
+        auto *sources = dialog.findChild<QPlainTextEdit *>("progressSourcePaths");
+        auto *destination = dialog.findChild<QLabel *>("progressDestination");
+        auto *stop = dialog.findChild<QPushButton *>("IDCANCEL");
+        QVERIFY(locations && sources && destination && stop);
+        locations->button()->click();
+        QTRY_VERIFY(UiInspection::fullyVisible(*destination, dialog));
+        QVERIFY(UiInspection::fullyVisible(*sources, dialog));
+        QVERIFY(UiInspection::fullyVisible(*stop, dialog));
+        QVERIFY(sources->verticalScrollBar()->maximum() > 0);
+        sources->setFocus();
+        QTest::keySequence(sources, QKeySequence::MoveToEndOfDocument);
+        QCOMPARE(sources->verticalScrollBar()->value(), sources->verticalScrollBar()->maximum());
+        QCOMPARE(sources->toPlainText().split(u'\n'), paths);
+        QVERIFY(UiInspection::writeReport(dialog, "progress-batch-locations"));
+    }
     void sourceIconIDAndEmbeddedFrames() {
         CProgressDialog normal;
         const auto originalIcon = normal.windowIcon().cacheKey();

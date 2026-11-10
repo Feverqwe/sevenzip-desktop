@@ -32,8 +32,12 @@ HRESULT CThreadFolderOperations::ProcessVirt() {
             };
         return FolderOperations->Delete(Indices.ConstData(), Indices.Size(), UpdateCallback);
     }
-    case FOLDER_TYPE_RENAME:
-        return FolderOperations->Rename(Index, Name, UpdateCallback);
+    case FOLDER_TYPE_RENAME: {
+        const HRESULT result = FolderOperations->Rename(Index, Name, UpdateCallback);
+        if (FAILED(result) && result != E_ABORT && !RenameDestination.IsEmpty())
+            AddErrorPath(RenameDestination);
+        return result;
+    }
     default:
         return E_FAIL;
     }

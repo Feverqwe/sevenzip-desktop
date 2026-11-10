@@ -56,6 +56,119 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(clipboard->mimeData()->urls(), QList{QUrl::fromLocalFile(survivor)});
     }
 
+    void refreshKeepsTheFirstSurvivingVisibleFile() {
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        for (int i = 0; i < 90; ++i)
+            QVERIFY(
+                writeControl(fixture.filePath(QString("file-%1.txt").arg(i, 3, 10, QChar('0')))));
+        MainWindow window;
+        window.resize(720, 450);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "file-089.txt") >= 0);
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        const int current = filesystemRow(window, "file-040.txt");
+        QVERIFY(current >= 0);
+        view->setCurrentCell(current, 0);
+        view->selectRow(current);
+        view->setFocus();
+        view->scrollTo(view->model()->index(current, 0), QAbstractItemView::PositionAtTop);
+        const int top = view->rowAt(0);
+        QVERIFY(top >= 0 && view->rowViewportPosition(top + 2) < view->viewport()->height());
+        const auto nameAt = [view](int row) {
+            return view->model()->index(row, 0).data().toString();
+        };
+        const QString survivor = nameAt(top + 2);
+        const QString first = nameAt(top);
+        const QString second = nameAt(top + 1);
+        QVERIFY(QFile::remove(fixture.filePath(first)));
+        QVERIFY(QFile::remove(fixture.filePath(second)));
+        QVERIFY(writeControl(fixture.filePath("added-a.txt")));
+        QVERIFY(writeControl(fixture.filePath("added-b.txt")));
+        QVERIFY(writeControl(fixture.filePath("added-c.txt")));
+        QTest::keySequence(view, action(window, "refreshAction")->shortcut());
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "added-c.txt") >= 0);
+        QTRY_COMPARE(nameAt(view->rowAt(0)), survivor);
+        QTRY_COMPARE(window.focusWidget(), view);
+        view->scrollToTop();
+        QCOMPARE(nameAt(view->rowAt(0)), QString(".."));
+        QTest::keySequence(view, action(window, "refreshAction")->shortcut());
+        QTRY_VERIFY(view->isEnabled());
+        QCOMPARE(nameAt(view->rowAt(0)), QString(".."));
+    }
+
+    void unreadableOpenFolderCanBeRefreshed_data() {
+        QTest::addColumn<bool>("automatic");
+        QTest::newRow("manual") << false;
+        QTest::newRow("automatic") << true;
+    }
+
+    void unreadableOpenFolderCanBeRefreshed() {
+        QFETCH(bool, automatic);
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString path = fixture.path();
+        QVERIFY(writeControl(fixture.filePath("control.txt")));
+        const auto permissions = QFile::permissions(path);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(path, permissions); });
+        MainWindow window;
+        window.show();
+        window.openPath(path);
+        auto *view = table(window);
+        QTRY_VERIFY(filesystemRow(window, "control.txt") >= 0);
+        auto &panel = *view->sourcePanel;
+        panel.Set_AutoRefresh_Mode(false);
+        QVERIFY(QFile::setPermissions(path, QFile::ExeOwner));
+        if (QFileInfo(path).isReadable())
+            QSKIP("Requires a directory that the current user cannot list");
+
+        bool modal = false;
+        QTimer responder;
+        widgetDialogs_.connectResponder(responder, &window, [&] {
+            if (auto *message = qobject_cast<QMessageBox *>(widgetDialogs_.activeDialog())) {
+                modal = true;
+                message->accept();
+            }
+        });
+        responder.start(1);
+        auto *refresh = action(window, "refreshAction");
+        const auto reload = [&] {
+            if (!automatic) {
+                refresh->trigger();
+                return;
+            }
+            panel.Set_AutoRefresh_Mode(true);
+            panel.MarkPortableFolderChanged();
+            panel.OnTimer();
+            panel.Set_AutoRefresh_Mode(false);
+        };
+        reload();
+        responder.stop();
+        QVERIFY(!modal);
+        QCOMPARE(view->rowCount(), 0);
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(refresh->isEnabled());
+
+        QVERIFY(QFile::setPermissions(path, permissions));
+        reload();
+        QTRY_VERIFY(filesystemRow(window, "control.txt") >= 0);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+        if (automatic) {
+            window.statusBar()->showMessage("Other feedback");
+            reload();
+            QCOMPARE(window.statusBar()->currentMessage(), QString("Other feedback"));
+        }
+    }
+
     void navigationDuringReloadStartsAtTop() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -294,9 +407,10 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(completed.isEmpty());
         QVERIFY(!scanner->isRunning());
         disconnect(restart);
-        if (reload)
-            panel.OnReload();
-        else {
+        if (reload) {
+            QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+            action(window, "refreshAction")->trigger();
+        } else {
             if (discardDraft)
                 PanelKeys::focusAddress(address);
             if (newInput)
@@ -305,6 +419,8 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         }
         QTRY_COMPARE(view->rowCount(), 301);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
+        if (reload)
+            QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(completed.size(), 1);
         QCOMPARE(failed.size(), 1);
         QFile control(QDir(large).filePath(QStringLiteral("control 文件 0.txt")));

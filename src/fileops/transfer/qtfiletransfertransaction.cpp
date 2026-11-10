@@ -1,11 +1,11 @@
 #include "fileops/transfer/qtfiletransfertransaction.h"
-#include "7zip/Common/FilePathAutoRename.h"
 #include "Common/StringConvert.h"
 #include "Windows/ErrorMsg.h"
 #include "Windows/FileFind.h"
 #include "archive/callbacks/IFileExtractCallback.h"
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
+#include "fileops/paths/qtautorename.h"
 #include "fileops/transfer/filetransferoperation.h"
 #include "fileops/transfer/qttransfertargetname.h"
 #include "localization/qtlanguageservices.h"
@@ -25,13 +25,15 @@
 namespace {
 using NWindows::NFile::NFind::CFileInfo;
 
-QString TargetTypeError(const QFileInfo &source, const QFileInfo &target) {
-    if (!target.exists() || target.isDir() == source.isDir())
-        return {};
-    return QCoreApplication::translate(
-               "qtfiletransfertransaction",
-               "Cannot replace a file with a folder or a folder with a file: %1")
-        .arg(target.filePath());
+QString DirectorySearchError(const QFileInfo &directory) {
+#ifdef Q_OS_UNIX
+    if (directory.isDir() && !directory.isExecutable())
+        return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+            .arg(directory.filePath());
+#else
+    (void)directory;
+#endif
+    return {};
 }
 
 QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
@@ -56,7 +58,7 @@ QString TargetPathError(const QFileInfo &source, const QFileInfo &target,
         return QCoreApplication::translate("qtfiletransfertransaction",
                                            "Destination is a symbolic link: %1")
             .arg(target.filePath());
-    return {};
+    return QtTransferTargetTypeError(source, target);
 }
 
 struct MergeMember {
@@ -175,22 +177,22 @@ bool QtFileTransferTransaction::removeEntry(const QString &path) {
 }
 
 QString FileTransferOperation::checkDirectoryPaths(const QStringList &sources,
-                                                   const QString &destination) {
+                                                   const QString &destination, bool move) {
+    if (const QString error = DirectorySearchError(QFileInfo(destination)); !error.isEmpty())
+        return error;
     const QDir directory(destination);
     const QString canonicalDestination = directory.canonicalPath();
     QSet<QString> targets;
     for (const auto &path : sources) {
         const QFileInfo source(path);
-        if (!source.exists() && !source.isSymLink() && !source.isJunction())
-            return QCoreApplication::translate("qtfiletransfertransaction",
-                                               "Source unavailable: %1")
-                .arg(path);
         const QString target = directory.filePath(source.fileName());
-        if (const QString error = TargetPathError(source, QFileInfo(target), targets,
-                                                  canonicalDestination, QtIsFileSystemLink(path));
+        const QFileInfo targetInfo(target);
+        if (const QString error = QtTransferSourceError(source, move, targetInfo, destination);
             !error.isEmpty())
             return error;
-        if (const QString error = TargetTypeError(source, QFileInfo(target)); !error.isEmpty())
+        if (const QString error = TargetPathError(source, targetInfo, targets, canonicalDestination,
+                                                  QtIsFileSystemLink(path));
+            !error.isEmpty())
             return error;
         targets.insert(QtTransferTargetKey(target));
     }
@@ -204,6 +206,9 @@ QtFileTransferTransaction::prepareTargets(QString &error) {
     destinationDirectory_ =
         directPath ? QFileInfo(worker_.destination_).absolutePath() : worker_.destination_;
     const QFileInfo destinationInfo(destinationDirectory_);
+    error = DirectorySearchError(destinationInfo);
+    if (!error.isEmpty())
+        return {};
     destinationIdentity_ = QtOwnedTempIdentity(destinationDirectory_);
     const QString canonicalDestination = destinationInfo.canonicalFilePath();
     QList<TransferPath> targets;
@@ -305,6 +310,11 @@ void QtFileTransferTransaction::rollback(const QList<TransferEntry> &completed, 
         rollbackEntry(completed[i - 1], mode);
 }
 
+QString QtFileTransferTransaction::sourceRemovalCanceled() {
+    failureKind_ = FileTransferOperation::ResultKind::Canceled;
+    return QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+}
+
 void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, QString &error) {
     for (TransferEntry &entry : completed) {
         if (entry.sourceState != SourceState::Intact)
@@ -314,7 +324,7 @@ void QtFileTransferTransaction::removeSources(QList<TransferEntry> &completed, Q
             return;
         }
         if (worker_.canceled_) {
-            error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+            error = sourceRemovalCanceled();
             return;
         }
         if (!entry.sourceMatches(entry.source, false)) {
@@ -358,7 +368,7 @@ bool QtFileTransferTransaction::removeStagedSource(TransferEntry &entry, QString
         return false;
     }
     if (worker_.canceled_) {
-        error = QCoreApplication::translate("qtfiletransfertransaction", "Operation canceled.");
+        error = sourceRemovalCanceled();
         return false;
     }
     // Recursive deletion can fail after consuming some entries. Keep the
@@ -373,6 +383,8 @@ bool QtFileTransferTransaction::removeStagedSource(TransferEntry &entry, QString
             for (const auto &path : entry.writtenSources)
                 stagedFiles.append(QDir(staged).filePath(original.relativeFilePath(path)));
             removed = removeMergedSource(staged, stagedFiles, &error, rootRemoved);
+            if (!removed)
+                error.replace(staged, entry.source);
         } else {
             rootRemoved = removed = worker_.adapter_.removeSource(staged);
         }
@@ -431,8 +443,11 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
                                                      " Some items may have been moved.");
             if (!rollbackErrors_.isEmpty())
                 error += '\n' + rollbackErrors_.join('\n');
-            return {FileTransferOperation::ResultKind::Failure, error, movedSources(completed),
-                    changesRemain};
+            const auto kind =
+                rollbackErrors_.isEmpty()
+                    ? failureKind_.value_or(FileTransferOperation::ResultKind::Failure)
+                    : FileTransferOperation::ResultKind::Failure;
+            return {kind, error, movedSources(completed), changesRemain};
         }
     }
     for (const TransferEntry &entry : completed)
@@ -463,28 +478,6 @@ FileTransferOperation::Completion QtFileTransferTransaction::finish(QList<Transf
                 ? FileTransferOperation::ResultKind::PartialSuccess
                 : FileTransferOperation::ResultKind::Success,
             message, movedSources(completed), !completed.isEmpty() || !rollbackErrors_.isEmpty()};
-}
-
-QString
-QtFileTransferTransaction::availableName(const QString &target,
-                                         const std::function<bool(const QString &)> &reserved) {
-    FString renamed = us2fs(target.toStdWString().c_str());
-    if (!AutoRenamePath(renamed))
-        return {};
-    const QString candidate = QString::fromWCharArray(fs2us(renamed));
-    if (!reserved(candidate))
-        return candidate;
-    const auto dot = target.lastIndexOf(u'.');
-    const auto extension = dot > target.lastIndexOf(u'/') + 1 ? target.mid(dot) : QString();
-    const auto stem = target.chopped(extension.size()) + u'_';
-    auto number =
-        candidate.mid(stem.size(), candidate.size() - stem.size() - extension.size()).toUInt();
-    while (++number < (1u << 30)) {
-        const QString next = stem + QString::number(number) + extension;
-        if (!reserved(next) && !QFileInfo::exists(next) && !QtIsFileSystemLink(next))
-            return next;
-    }
-    return {};
 }
 
 bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
@@ -535,7 +528,7 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     };
     const bool merge = existingInfo.isDir() && sourceInfo.isDir() && !QtIsFileSystemLink(source);
     if (existingInfo.exists()) {
-        if (error = TargetTypeError(sourceInfo, existingInfo); !error.isEmpty())
+        if (error = QtTransferTargetTypeError(sourceInfo, existingInfo); !error.isEmpty())
             return false;
         if (merge) {
             mayReplace = true;
@@ -547,9 +540,10 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                 mayReplace = true;
                 break;
             case OverwriteDecision::Rename: {
-                const QString candidate = availableName(target, [this](const QString &name) {
-                    return plannedTargets_.contains(QtTransferTargetKey(name));
-                });
+                const QString candidate =
+                    QtAvailableRenamePath(target, [this](const QString &name) {
+                        return plannedTargets_.contains(QtTransferTargetKey(name));
+                    });
                 if (candidate.isEmpty()) {
                     error = QCoreApplication::translate("qtfiletransfertransaction",
                                                         "Could not find an available name: %1")
@@ -573,9 +567,9 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
     const auto mergeSnapshot = merge ? captureMergeTree(target, worker_.canceled_) : std::nullopt;
     if (merge && !mergeSnapshot)
         return destinationChanged();
-    const QString suffix =
-        QStringLiteral(".sevenzip-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
-    const QString stage = target + suffix;
+    const QString stage = QDir(destinationDirectory_)
+                              .filePath(QStringLiteral("transfer.sevenzip-%1")
+                                            .arg(QUuid::createUuid().toString(QUuid::Id128)));
     TransferEntry entry{source, target, {}, SourceState::Intact, merge, {}};
     auto rollbackItem = qScopeGuard([&] {
         rememberFailure(error);
@@ -609,9 +603,10 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                    (!tree || captureMergeTree(path, worker_.canceled_) == tree);
         };
     }
+    bool publish = true;
     const bool staged =
         merge ? (copyEntry(target, stage, &error, false) &&
-                 mergeEntry(source, stage, target, &entry.writtenSources, &error))
+                 mergeEntry(source, stage, target, &entry.writtenSources, publish, &error))
               : (entry.sourceState == SourceState::Renamed || copyEntry(source, stage, &error));
     if (!staged || !error.isEmpty()) {
         error.replace(stage, target);
@@ -640,11 +635,13 @@ bool QtFileTransferTransaction::transferEntry(const TransferPath &path,
                                    : captureMember(source) != sourceMember) {
         return sourceChanged();
     }
+    if (!publish)
+        return true;
     if (mayReplace) {
         if (!matchesExisting(target))
             return destinationChanged();
         // Keep the old entry until every source has published successfully.
-        const QString backupPath = target + suffix + QStringLiteral("-backup");
+        const QString backupPath = stage + QStringLiteral("-backup");
         if (!QtRenameFileSystemEntryWithoutReplacing(target, backupPath)) {
             error = QCoreApplication::translate("qtfiletransfertransaction",
                                                 "Could not preserve the previous item: %1")

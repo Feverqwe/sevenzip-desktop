@@ -1,15 +1,21 @@
 #include "filemanager/support/window_state_support.h"
 #include "filemanager/views/filetable.h"
+#include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
 #include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QScopeGuard>
 
 #include <QCheckBox>
+#include <QClipboard>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QThread>
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 namespace {
 struct CurrentDirectoryGuard {
@@ -22,7 +28,8 @@ bool writeFile(const QString &path) {
     return file.open(QIODevice::WriteOnly) && file.write("file") == 4;
 }
 
-bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled) {
+bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled,
+                    const char *name = "showDotsOption") {
     const int outerLoop = QThread::currentThread()->loopLevel();
     QTimer finishOptions;
     bool applied = false;
@@ -37,7 +44,7 @@ bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled) {
             if (dialog->isVisible())
                 dialog->reject();
         });
-        auto *option = dialog->findChild<QCheckBox *>("showDotsOption");
+        auto *option = dialog->findChild<QCheckBox *>(name);
         if (!option)
             return;
         option->setChecked(enabled);
@@ -67,6 +74,158 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
 
+    void hiddenFoldersCanBeToggled_data() {
+        QTest::addColumn<bool>("icons");
+        QTest::newRow("table") << false;
+        QTest::newRow("icons") << true;
+    }
+
+    void hiddenFoldersCanBeToggled() {
+        QFETCH(bool, icons);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString hidden = fixture.filePath(".private");
+        const QString hiddenFile = fixture.filePath(".notes.txt");
+        QVERIFY(QDir().mkdir(hidden));
+        QVERIFY(writeFile(hiddenFile));
+#ifdef Q_OS_WIN
+        QVERIFY(
+            SetFileAttributesW(reinterpret_cast<LPCWSTR>(hidden.utf16()), FILE_ATTRIBUTE_HIDDEN));
+        QVERIFY(SetFileAttributesW(reinterpret_cast<LPCWSTR>(hiddenFile.utf16()),
+                                   FILE_ATTRIBUTE_HIDDEN));
+#endif
+        QVERIFY(writeFile(QDir(hidden).filePath("child.txt")));
+        QVERIFY(writeFile(fixture.filePath("visible.txt")));
+        QtWorkspaceApplication application(*qApp);
+        struct BusyBackend final : ArchiveBackend {
+            bool held = false;
+            bool busy() const override { return held || ArchiveBackend::busy(); }
+        } backend;
+        MainWindow observer(&backend);
+        observer.show();
+        observer.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(observer, ".private") >= 0);
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(window, ".private") >= 0);
+        auto *twoPanels = action(window, "twoPanelsAction");
+        QVERIFY(!twoPanels->isChecked());
+        twoPanels->trigger();
+        auto *peer =
+            window.findChild<QWidget *>("filePanel1")->findChild<FileTable *>("archiveTable");
+        QTRY_VERIFY(peer->isVisible() && peer->isEnabled());
+        peer->setFocus();
+        QTRY_VERIFY(peer->hasFocus());
+        window.openPath(fixture.path());
+        QTRY_COMPARE(peer->rowCount(), 3);
+        auto *left =
+            window.findChild<QWidget *>("filePanel0")->findChild<FileTable *>("archiveTable");
+        left->setFocus();
+        QTRY_VERIFY(left->hasFocus() && twoPanels->isEnabled());
+        twoPanels->trigger();
+        QTRY_VERIFY(!peer->isVisible());
+        action(window, "selectAllAction")->trigger();
+        QCOMPARE(left->selectionModel()->selectedRows().size(), 3);
+        left->setCurrentCell(filesystemRow(window, ".private"), 0, QItemSelectionModel::NoUpdate);
+        QWidget *list = left;
+        if (icons) {
+            action(window, "viewMode0Action")->trigger();
+            list = window.findChild<QWidget *>("filePanel0")->findChild<QListView *>("iconList");
+        }
+        QVERIFY(list && list->isVisible());
+        QTRY_VERIFY(list->hasFocus());
+        auto *settings = action(window, "settingsAction");
+        backend.held = true;
+        QVERIFY(setListOptions(window, settings, false, "showHiddenFoldersOption"));
+        QTRY_COMPARE(left->rowCount(), 2);
+        QVERIFY(filesystemRow(observer, ".private") >= 0);
+        QVERIFY(WindowActivation::waitForActive(window));
+        backend.held = false;
+        QTRY_COMPARE(filesystemRow(observer, ".private"), -1);
+        QVERIFY(window.isActiveWindow());
+        QVERIFY(filesystemRow(window, "visible.txt") >= 0);
+        QVERIFY(filesystemRow(window, ".notes.txt") >= 0);
+        QVERIFY(left->currentIndex().isValid());
+        QVERIFY(!left->currentIndex().data(QtPanelList::DirectoryRole).toBool());
+        QTRY_VERIFY(list->isEnabled());
+        QTRY_VERIFY(list->hasFocus());
+        auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
+        QVERIFY(summary);
+        QTRY_COMPARE(summary->text(), QString("Selected: 2 / 2"));
+        auto *copy = action(window, "copyFilesAction");
+        QVERIFY(copy->isEnabled());
+        QTest::keySequence(window.focusWidget(), QKeySequence::Copy);
+        const auto copied = QApplication::clipboard()->mimeData()->urls();
+        QCOMPARE(copied.size(), 2);
+        QVERIFY(copied.contains(QUrl::fromLocalFile(hiddenFile)));
+        QVERIFY(copied.contains(QUrl::fromLocalFile(fixture.filePath("visible.txt"))));
+        QApplication::clipboard()->clear();
+        QTRY_VERIFY(twoPanels->isEnabled());
+        twoPanels->trigger();
+        QTRY_VERIFY(peer->isVisible() && peer->isEnabled());
+        QCOMPARE(peer->rowCount(), 2);
+        if (icons)
+            action(window, "viewMode3Action")->trigger();
+        left->setFocus();
+        QTRY_VERIFY(left->hasFocus());
+        window.openPath(hidden);
+        QTRY_COMPARE(left->model()->index(0, 0).data().toString(), QString("child.txt"));
+        window.openPath(fixture.path());
+        QTRY_VERIFY(filesystemRow(window, "visible.txt") >= 0);
+        QCOMPARE(left->rowCount(), 2);
+        QVERIFY(setListOptions(window, settings, true, "showHiddenFoldersOption"));
+        QTRY_COMPARE(left->rowCount(), 3);
+        QTRY_VERIFY(filesystemRow(observer, ".private") >= 0);
+        QTRY_COMPARE(peer->rowCount(), 3);
+    }
+
+    void parentRowPreferenceAppliesAfterInFlightListing() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString large = fixture.filePath("large");
+        QVERIFY(QDir().mkdir(large));
+        for (int i = 0; i < 301; ++i)
+            QVERIFY(writeFile(QDir(large).filePath(QString("file-%1.txt").arg(i))));
+
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *files = table(window);
+        QTRY_COMPARE(files->rowCount(), 1);
+        auto *settings = action(window, "settingsAction");
+        QTRY_VERIFY(settings->isEnabled());
+
+        QTimer startListing;
+        const int outerLoop = QThread::currentThread()->loopLevel();
+        connect(&startListing, &QTimer::timeout, &window, [&] {
+            auto *dialog = window.findChild<QDialog *>("settingsDialog");
+            if (!dialog || !dialog->isVisible() ||
+                QThread::currentThread()->loopLevel() <= outerLoop)
+                return;
+            startListing.stop();
+            connect(
+                files->model(), &QAbstractItemModel::rowsInserted, dialog,
+                [dialog] {
+                    if (auto *option = dialog->findChild<QCheckBox *>("showDotsOption")) {
+                        option->setChecked(true);
+                        dialog->accept();
+                    } else {
+                        dialog->reject();
+                    }
+                },
+                Qt::QueuedConnection);
+            window.openPath(large);
+        });
+        startListing.start(5);
+        settings->trigger();
+        QTRY_COMPARE(files->rowCount(), 302);
+        QTRY_VERIFY(files->isEnabled());
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString(".."));
+    }
+
     void optionsParentRowAndContextMenu() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
@@ -83,10 +242,22 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QVERIFY(setListOptions(window, action(window, "settingsAction"), true));
         QCOMPARE(files->rowCount(), 2);
         QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral(".."));
+        auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
+        QVERIFY(summary);
+        action(window, "selectAllAction")->trigger();
+        QTRY_COMPARE(summary->text(), QString("Selected: 1 / 1"));
         QCOMPARE(files->model()->index(0, 0).data(Qt::ToolTipRole).toString(),
                  QStringLiteral("Parent folder"));
         QCOMPARE(files->accessibleName(), QStringLiteral("File list"));
         const QPersistentModelIndex parent = files->model()->index(0, 0);
+        files->setCurrentCell(0, 0);
+        files->selectRow(0);
+        auto *deselect = action(window, "deselectAllAction");
+        QTRY_VERIFY(deselect->isEnabled());
+        deselect->trigger();
+        QVERIFY(!files->selectionModel()->hasSelection());
+        QCOMPARE(files->currentIndex().siblingAtColumn(0), QModelIndex(parent));
+        QVERIFY(!deselect->isEnabled());
         const QString languageSettings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(UString("ru"), languageSettings);
         ReloadLang(languageSettings);

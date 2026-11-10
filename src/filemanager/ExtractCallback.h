@@ -118,6 +118,7 @@ class CExtractCallbackImp Z7_final
 
     UInt32 NumArchiveErrors;
     bool SomeItemsSkipped = false;
+    void ReportSkippedExisting(const wchar_t *path) override;
     NExtract::NOverwriteMode::EEnum OverwriteMode;
 
   private:

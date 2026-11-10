@@ -375,6 +375,7 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         bool seen = false;
         bool removed = false;
         bool reviewed = false;
+        QString reviewStatus;
         int refusedDestinations = 0;
         int overwritePrompts = 0;
         bool retry = false;
@@ -407,13 +408,14 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                     path->setText(move ? "../unneeded/../output/" : "../unneeded/../output");
                 else
                     path->setText(newBatchFolder ? output : output + '/');
-                if (missing)
-                    removed = QFile::remove(QDir(input).filePath(other));
                 if (cancel && !retry)
                     QTest::keyClick(dialog->findChild<QLineEdit *>("copyDestination"),
                                     Qt::Key_Escape);
                 else
                     dialog->accept();
+                // Exercise a transfer failure after the dialog preflight passed.
+                if (missing && dialog->result() == QDialog::Accepted)
+                    removed = QFile::remove(QDir(input).filePath(other));
                 if (dialog->isVisible())
                     dialog->reject();
             }
@@ -431,8 +433,12 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
                             ->click();
                 } else if (auto *box = qobject_cast<QMessageBox *>(widget))
                     box->accept();
-                else
-                    reviewed |= TestProgressDialog::DismissVisibleResult(widget);
+                else if (auto *result = TestProgressDialog::ResultWindow(widget)) {
+                    if (auto *status = result->findChild<QLabel *>("IDT_PROGRESS_STATUS"))
+                        reviewStatus = status->text();
+                    reviewed = true;
+                    TestProgressDialog::CloseResult(*result);
+                }
             }
         });
         driver.start(1);
@@ -485,6 +491,9 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
             QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("other existing bytes"));
         }
+        if (overwrite && !skip)
+            QCOMPARE(reviewStatus, QCoreApplication::translate("QtTaskResultDialog",
+                                                               "The operation was cancelled."));
         if (newBatchFolder) {
             QCOMPARE(read(QDir(output).filePath(other)), QByteArray("move these bytes"));
             QCOMPARE(read(QDir(input).filePath(other)), QByteArray("move these bytes"));
@@ -653,7 +662,8 @@ class UiCopyRoutingTests final : public QObject, protected MainWindowTestSupport
         });
         QTest::keyClick(view, move ? Qt::Key_F6 : Qt::Key_F5);
         QVERIFY(stayedOpen);
-        QCOMPARE(diagnostic, QString("Destination is inside the source folder: %1").arg(blocked));
+        QCOMPARE(diagnostic, QString("Destination is inside the source folder: %1")
+                                 .arg(QDir(blocked).filePath(name)));
         QVERIFY(corrected);
         QTRY_VERIFY(action(window, "refreshAction")->isEnabled());
         QVERIFY(!QFileInfo::exists(blocked));

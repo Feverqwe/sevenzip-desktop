@@ -1,6 +1,7 @@
 #include "ui/controls/qtwindowstatusbar.h"
 #include "ui/controls/qtstatuslabel.h"
 #include <QScopedValueRollback>
+#include <QTextDocument>
 
 QtWindowStatusBar::QtWindowStatusBar(QWidget *parent) : QStatusBar(parent) {
     setObjectName("windowStatusBar");
@@ -18,6 +19,8 @@ QtWindowStatusBar::QtWindowStatusBar(QWidget *parent) : QStatusBar(parent) {
         // startup diagnostics and other direct consumers.
         if (!rendering_ && context_)
             SetMessage(context_, message);
+        setToolTip(message.isEmpty() ? QString()
+                                     : Qt::convertFromPlainText(message, Qt::WhiteSpacePre));
         size_->setVisible(message.isEmpty() && !loading_ && !size_->text().isEmpty());
     });
 }
@@ -49,6 +52,14 @@ void QtWindowStatusBar::WatchContext(QObject *context) {
         feedback_.remove(context);
         Render();
     });
+}
+
+void QtWindowStatusBar::ClearMessageIf(QObject *context, const QString &message) {
+    const auto found = feedback_.find(context);
+    if (found == feedback_.end() || found->text != message)
+        return;
+    *found = {};
+    Render();
 }
 
 void QtWindowStatusBar::Render() {

@@ -203,7 +203,11 @@ class FileRowDelegate final : public QStyledItemDelegate {
     bool eventFilter(QObject *editor, QEvent *event) override {
         if (event->type() == QEvent::KeyPress) {
             const auto *key = static_cast<QKeyEvent *>(event);
-            if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) {
+            const bool finishWorkspaceRename =
+                workspace_ && (key->key() == Qt::Key_Tab || key->key() == Qt::Key_Backtab) &&
+                !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier));
+            if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter ||
+                finishWorkspaceRename) {
                 emit commitData(static_cast<QWidget *>(editor));
                 emit closeEditor(static_cast<QWidget *>(editor));
                 return true;

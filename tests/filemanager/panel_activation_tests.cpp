@@ -296,13 +296,63 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
         QCOMPARE(read(QDir(files).filePath("root.txt")), QByteArray("untouched"));
         QCOMPARE(read(QDir(files).filePath(target + "/child δ.txt")), QByteArray("untouched"));
     }
+    void externalFolderOpenCanBeRetriedFromTheList() {
+        QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString name = QStringLiteral("папка 空");
+        const QString folder = fixture.filePath(name);
+        QVERIFY(QDir().mkdir(folder));
+        ControlledBackend backend;
+        QList<QUrl> launches;
+        MainWindow window(&backend, [&](const QUrl &url) {
+            launches.append(url);
+            return launches.size() > 1;
+        });
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto &edit = address(window, 0);
+        PanelKeys::focusAddress(&edit);
+        edit.setText(fixture.path());
+        QTest::keyClick(&edit, Qt::Key_Return);
+        auto &view = list(window, 0);
+        QTRY_VERIFY(view.isEnabled() && filesystemRow(window, name) >= 0);
+        const int row = filesystemRow(window, name);
+        view.setCurrentCell(row, 0);
+        view.selectRow(row);
+        view.setFocus();
+        QString diagnostic;
+        QTimer::singleShot(0, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                diagnostic = box->text();
+                box->accept();
+            }
+        });
+        QTest::keyClick(&view, Qt::Key_Return, Qt::ShiftModifier);
+        QCOMPARE(launches.size(), 1);
+        const QString path = launches.front().toLocalFile();
+        QCOMPARE(QDir::cleanPath(path), QFileInfo(folder).canonicalFilePath());
+        QCOMPARE(diagnostic, QCoreApplication::translate("qtassociatedfileservices",
+                                                         "Could not open folder: %1")
+                     .arg(QDir::toNativeSeparators(path)));
+        QVERIFY(WindowActivation::waitForActive(window));
+        QTRY_VERIFY(view.hasFocus());
+        QVERIFY(view.selectionModel()->isRowSelected(row, {}));
+        QTest::keyClick(window.focusWidget(), Qt::Key_Return, Qt::ShiftModifier);
+        QCOMPARE(launches.size(), 2);
+        QCOMPARE(launches.last(), launches.front());
+    }
+
     void missingDiskFileCanBeOpenedAfterRestoration_data() {
-        QTest::addColumn<bool>("mouse");
-        QTest::newRow("keyboard") << false;
-        QTest::newRow("double-click") << true;
+        QTest::addColumn<QString>("gesture");
+        QTest::newRow("keyboard") << QString("enter");
+        QTest::newRow("double-click") << QString("mouse");
+        QTest::newRow("view") << QString("view");
+        QTest::newRow("open-outside") << QString("outside");
     }
     void missingDiskFileCanBeOpenedAfterRestoration() {
-        QFETCH(bool, mouse);
+        QFETCH(QString, gesture);
+        const bool mouse = gesture == "mouse";
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString name = QStringLiteral("документ 空.txt");
@@ -333,6 +383,10 @@ class PanelActivationTests final : public QObject, protected MainWindowTestSuppo
             if (mouse)
                 QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier,
                                    view.visualRect(clicked).center());
+            else if (gesture == "view")
+                QTest::keyClick(&view, Qt::Key_F3);
+            else if (gesture == "outside")
+                QTest::keyClick(&view, Qt::Key_Return, Qt::ShiftModifier);
             else
                 activateWithKeyboard(window, &view);
         };

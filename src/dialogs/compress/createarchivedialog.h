@@ -118,6 +118,7 @@ class CreateArchiveDialog : public QDialog {
     bool fixedSources_ = false;
     QString suggestedArchiveName_ = QStringLiteral("archive");
     QStringList selected_;
+    QStringList requiredSources_;
     QLineEdit *name_ = nullptr;
     QComboBox *archivePath_ = nullptr;
     QLineEdit *archiveFolder_ = nullptr;

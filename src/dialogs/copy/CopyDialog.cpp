@@ -50,7 +50,8 @@ CCopyDialog::CCopyDialog(bool move, const QString &initialPath, const QStringLis
                          QWidget *parent, const QString &info)
     : QDialog(parent), Title(ToUString(QtLangText(move ? IDS_MOVE : IDS_COPY))),
       Static(ToUString(QtLangText(move ? IDS_MOVE_TO : IDS_COPY_TO))),
-      Value(ToUString(initialPath)), Info(ToUString(info)), _sources(sources), _copyMove(true) {
+      Value(ToUString(initialPath)), Info(ToUString(info)), _sources(sources), _copyMove(true),
+      _move(move) {
     // The Qt caller supplies filenames, rather than IFolder property indices.
     if (info.isNull())
         for (const QString &source : sources) {
@@ -115,7 +116,7 @@ bool CCopyDialog::OnInit() {
                 if (name.isEmpty())
                     name = path;
                 auto *item = new QListWidgetItem(name, names);
-                item->setToolTip(path);
+                item->setToolTip(Qt::convertFromPlainText(path, Qt::WhiteSpacePre));
                 item->setData(Qt::AccessibleTextRole, name + '\n' + path);
             }
             names->setMinimumHeight(fontMetrics().lineSpacing() * 3);
@@ -230,9 +231,7 @@ void CCopyDialog::changeEvent(QEvent *event) {
 }
 
 void CCopyDialog::OnButtonSetPath() {
-    const QString draft = _pathEdit->text();
-    const UString initialDirectory =
-        draft.contains(QChar::Null) ? UString() : ToUString(PreviewDestination(draft));
+    const UString initialDirectory = ToUString(BrowseStartDirectory());
     UString selectedPath;
     const bool chosen = MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)),
                                           initialDirectory, selectedPath);

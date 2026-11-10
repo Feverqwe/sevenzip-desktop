@@ -1,6 +1,7 @@
 #include "ui/controls/qtwindowstatusbar.h"
 #include <QHelpEvent>
 #include <QLabel>
+#include <QTextDocument>
 #include <QToolTip>
 #include <QtTest>
 
@@ -35,11 +36,20 @@ class WindowStatusTests final : public QObject {
         auto *size = bar.findChild<QLabel *>("selectedSizeStatus");
         auto *summary = bar.findChild<QLabel *>("selectedItemsStatus");
         QVERIFY(size->isVisible());
-        bar.SetMessage(&left, "Copied", 100);
-        QCOMPARE(bar.currentMessage(), QString("Copied"));
+        const QString message = QStringLiteral("Cannot open:\n") +
+                                QStringLiteral("/long  folder").repeated(20) + "/<b>&.zip";
+        bar.SetMessage(&left, message);
+        QCOMPARE(bar.currentMessage(), message);
         QVERIFY(!size->isVisible());
+        QHelpEvent help(QEvent::ToolTip, bar.rect().center(), bar.mapToGlobal(bar.rect().center()));
+        QCoreApplication::sendEvent(&bar, &help);
+        QTextDocument tooltip;
+        tooltip.setHtml(QToolTip::text());
+        QCOMPARE(tooltip.toPlainText(), message);
+        QToolTip::hideText();
         bar.SetSummary(&right, "Right selection", "12 bytes", "12 bytes", false);
         QVERIFY(bar.currentMessage().isEmpty());
+        QVERIFY(bar.toolTip().isEmpty());
         QVERIFY(size->isVisible());
         // An inactive source cannot replace the current strip.
         bar.SetMessage(&left, "Left operation", 100);
@@ -47,6 +57,7 @@ class WindowStatusTests final : public QObject {
         bar.SetMessage(&right, "Right operation", 100);
         bar.SetSummary(&right, "New selection", "20 bytes", "20 bytes", false);
         QTRY_VERIFY(bar.currentMessage().isEmpty());
+        QVERIFY(bar.toolTip().isEmpty());
         QCOMPARE(summary->text(), QString("New selection"));
         QCOMPARE(size->text(), QString("20 bytes"));
         QVERIFY(size->isVisible());

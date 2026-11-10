@@ -144,6 +144,8 @@ void QtWorkspaceFileTable::appendPresentationColumnActions(QMenu &menu) {
     type->setChecked(!isColumnHidden(5));
     connect(type, &QAction::toggled, this, [this](bool visible) {
         setColumnHidden(5, !visible);
+        if (!visible)
+            restoreVisibleCurrentColumn();
         if (!visible && horizontalHeader()->sortIndicatorSection() == 5)
             sortByColumn(columnForProperty(kpidName), Qt::AscendingOrder);
         FitName();

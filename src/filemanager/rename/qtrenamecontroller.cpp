@@ -4,6 +4,7 @@
 #include "filemanager/panels/Panel.h"
 #include "filemanager/qtfilemanagercommands.h"
 #include "filemanager/window/mainwindow.h"
+#include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include <QAbstractItemDelegate>
 #include <QFileInfo>
@@ -41,6 +42,8 @@ struct QtRenameController::Request {
     const quint32 sourceIndex;
     const QString path;
     const QPointer<QAbstractItemView> view;
+    std::optional<MainWindow::ListViewport> viewport;
+    quint64 cancelInteraction = 0;
     QPointer<QLineEdit> editor;
     QString name;
     std::function<void()> refresh;
@@ -60,6 +63,10 @@ void QtRenameController::Attach(QAbstractItemView &view, unsigned panel) {
                     !request_->editor || request_->editor != editor ||
                     request_->phase != Request::Phase::Editing)
                     return;
+                if (request_->editor->text() == request_->name) {
+                    Cancel(panel);
+                    return;
+                }
                 request_->name = request_->editor->text();
                 request_->phase = Request::Phase::Committed;
                 completion_.start();
@@ -97,6 +104,8 @@ void QtRenameController::Begin(int row) {
                                                     : panel.GetItemFullPath(sourceIndex)),
                                   view);
     request_ = request;
+    request->name = ToQString(panel.GetItemName(sourceIndex));
+    request->viewport = window_.captureListViewport();
     const QPointer<QtRenameController> guard(this);
     auto retireUnopened = qScopeGuard([this, guard, request] {
         if (guard && request_ == request)
@@ -122,7 +131,7 @@ void QtRenameController::Begin(int row) {
     }
     retireUnopened.dismiss();
     if (archive || streams) {
-        request->editor->setText(ToQString(panel.GetItemName(sourceIndex)));
+        request->editor->setText(request->name);
         request->editor->selectAll();
     }
 }
@@ -131,6 +140,7 @@ void QtRenameController::Cancel(unsigned panel) {
     if (!request_ || request_->panel != panel || request_->phase != Request::Phase::Editing)
         return;
     request_->phase = Request::Phase::Cancelled;
+    request_->cancelInteraction = window_.workspace_->InteractionRevision();
     completion_.start();
 }
 
@@ -160,6 +170,12 @@ void QtRenameController::Complete() {
     const QPointer<QtRenameController> guard(this);
     if (request->phase == Request::Phase::Committed)
         Apply(*request);
+    else if (request->phase == Request::Phase::Cancelled && request->viewport &&
+             request->item.isValid() && !window_.app_.QtOperations().closed() &&
+             request->panel == window_.projectedPanel_ &&
+             request->folder == window_.app_.GetFocusedPanel().GetFolder() &&
+             request->cancelInteraction == window_.workspace_->InteractionRevision())
+        window_.restoreListViewport(*request->viewport);
     if (guard && request_ == request) {
         request_.reset();
         if (request->refresh)
@@ -214,9 +230,20 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
                                           &destinationDirectory, &publishedArchive);
     }
     const auto selection = panel.TakeRefreshSelection();
+    const auto restoreViewport = [&] {
+        if (!request.viewport)
+            return;
+        auto viewport = *request.viewport;
+        viewport.keepVertical = result != S_OK;
+        if (window_.projectedUi().scanningDisk || window_.projectedUi().scanningArchive)
+            window_.projectedUi().pendingViewport = std::move(viewport);
+        else
+            window_.restoreListViewport(viewport);
+    };
     if (!selection) {
         // The source validation return rejects the edit without reloading.
         rejectLabelEdit(panel, *window_.projectedUi().table, request.sourceIndex);
+        restoreViewport();
         window_.refreshActions();
         return;
     }
@@ -224,8 +251,11 @@ void QtRenameController::Finish(const Request &request, CPanel &panel) {
     // publication result and must not add a second rename diagnostic.
     if (result != S_OK && panel.IsFSFolder())
         panel.RefreshListCtrl(*selection);
+    else if (result != S_OK && panel.IsArcFolder())
+        window_.reloadProjectedPanel(*selection);
     else if (window_.renderBoundFolder(!selection->PreserveAddress) == S_OK)
         window_.restoreListSelection(*selection);
+    restoreViewport();
     if (!publishedArchive.isEmpty()) {
         if (auto *application = QtWorkspaceApplication::Find())
             application->ArchivePublished(publishedArchive, &panel);

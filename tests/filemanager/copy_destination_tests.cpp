@@ -15,8 +15,10 @@
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QStorageInfo>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
 
@@ -111,7 +113,7 @@ class CopyDestinationTests final : public QObject {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.txt");
-        const QString peer = fixture.filePath("archive.zip/nested/");
+        const QString peer = fixture.filePath("archive.zip/<b>nested  & folder/");
         CCopyDialog dialog(false, fixture.path() + '/', {source});
         dialog.ConfigureDestination({fixture.path(), "source.txt", peer, true,
                                      [peer](const QString &path) { return path != peer; }});
@@ -120,6 +122,9 @@ class CopyDestinationTests final : public QObject {
         name->setText("draft.txt");
         auto *button = dialog.findChild<QPushButton *>("copyPeerDestination");
         QVERIFY(button && button->isVisible() && button->isEnabled());
+        QTextDocument tooltip;
+        tooltip.setHtml(button->toolTip());
+        QCOMPARE(tooltip.toPlainText(), peer);
         button->click();
         QVERIFY(!name->isVisible());
         dialog.accept();
@@ -206,6 +211,48 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), QString("/destination/"));
     }
 
+#ifdef Q_OS_WIN
+    void unavailableDestinationDriveCanBeCorrected() {
+        QString root;
+        for (char16_t letter = u'Z'; letter >= u'D'; --letter) {
+            const QString candidate = QString(QChar(letter)) + ":/";
+            if (!QDir(candidate).exists()) {
+                root = candidate;
+                break;
+            }
+        }
+        if (root.isEmpty())
+            QSKIP("No unavailable drive letter");
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        for (bool move : {false, true}) {
+            const QString suffix = move ? "new folder/" : "new folder/target.txt";
+            const QString blocked = root + suffix;
+            CCopyDialog dialog(move, blocked, {source});
+            configure(dialog, source);
+            dialog.show();
+            auto *path = dialog.findChild<QLineEdit *>("copyDestination");
+            auto *ok =
+                dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+            QVERIFY(!ok->isEnabled());
+            dialog.accept();
+            QVERIFY(dialog.isVisible());
+            QCOMPARE(path->text(), blocked);
+            QVERIFY(dialog.findChild<QLabel *>("copyDestinationMessage")->text().contains(root));
+            const QString corrected = fixture.filePath(suffix);
+            path->setText(corrected);
+            QVERIFY(ok->isEnabled());
+            dialog.accept();
+            QCOMPARE(dialog.result(), int(QDialog::Accepted));
+            QCOMPARE(ToQString(dialog.Value), corrected);
+        }
+    }
+#endif
+
     void destinationBelowAFileCanBeCorrected() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -249,11 +296,18 @@ class CopyDestinationTests final : public QObject {
 
     void destinationNameWithWrongTypeCanBeCorrected_data() {
         QTest::addColumn<bool>("move");
-        QTest::newRow("copy-file") << false;
-        QTest::newRow("move-folder") << true;
+        QTest::addColumn<bool>("removeConflict");
+        QTest::addColumn<bool>("useDefaultName");
+        QTest::newRow("copy-file") << false << false << false;
+        QTest::newRow("move-folder") << true << false << false;
+        QTest::newRow("retry-same-copy-name") << false << true << false;
+        QTest::newRow("retry-same-move-name") << true << true << false;
+        QTest::newRow("late-conflict-at-default-name") << false << false << true;
     }
     void destinationNameWithWrongTypeCanBeCorrected() {
         QFETCH(bool, move);
+        QFETCH(bool, removeConflict);
+        QFETCH(bool, useDefaultName);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("item");
@@ -280,8 +334,13 @@ class CopyDestinationTests final : public QObject {
         dialog.accept();
         QVERIFY(dialog.isVisible());
         name->setText("other name");
+        if (useDefaultName) {
+            QVERIFY(QDir().rmdir(occupied));
+            name->setText("item");
+        }
         QVERIFY(ok->isEnabled());
-        const QString lateConflict = QDir(folder).filePath("other name");
+        const QString conflictingName = name->text();
+        const QString lateConflict = QDir(folder).filePath(conflictingName);
         if (move) {
             QFile conflict(lateConflict);
             QVERIFY(conflict.open(QIODevice::WriteOnly));
@@ -291,11 +350,18 @@ class CopyDestinationTests final : public QObject {
         ok->click();
         QVERIFY(dialog.isVisible());
         QCOMPARE(dialog.focusWidget(), name);
-        QCOMPARE(name->selectedText(), QString("other name"));
-        QTest::keyClicks(name, "corrected name");
+        QCOMPARE(name->selectedText(), conflictingName);
+        if (removeConflict) {
+            QVERIFY(ok->isEnabled());
+            ok->click();
+            QVERIFY(dialog.isVisible());
+            QVERIFY(move ? QFile::remove(lateConflict) : QDir().rmdir(lateConflict));
+        } else
+            QTest::keyClicks(name, "corrected name");
         QTest::keyClick(name, Qt::Key_Return);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(ToQString(dialog.Value), QDir(folder).filePath("corrected name"));
+        QCOMPARE(ToQString(dialog.Value),
+                 removeConflict ? lateConflict : QDir(folder).filePath("corrected name"));
     }
 
     void linkedDestinationNameCanBeCorrected() {
@@ -370,6 +436,131 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(error && error->isVisible());
         QVERIFY(error->text().contains(QDir(destination).filePath("item.txt")));
         QVERIFY(!QFileInfo::exists(destination));
+    }
+
+#ifdef Q_OS_LINUX
+    void crossFilesystemMoveWaitsForReadAccess() {
+        QTemporaryDir sourceDirectory;
+        QTemporaryDir targetDirectory("/dev/shm/sevenzip-copy-test-XXXXXX");
+        QVERIFY(sourceDirectory.isValid());
+        if (!targetDirectory.isValid() || QStorageInfo(sourceDirectory.path()).device() ==
+                                              QStorageInfo(targetDirectory.path()).device())
+            QSKIP("Requires two writable filesystems");
+        const QString source = sourceDirectory.filePath("source.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        const auto permissions = QFile::permissions(source);
+        QVERIFY(QFile::setPermissions(source, QFile::WriteOwner));
+        if (QFileInfo(source).isReadable())
+            QSKIP("The current user can still read the file");
+        const QString target = targetDirectory.filePath("new folder/target.txt");
+        CCopyDialog move(true, target, {source});
+        QtCopyDestinationContext context;
+        context.LocalFileTransfer = true;
+        move.ConfigureDestination(context);
+        move.show();
+        move.accept();
+        QVERIFY(move.isVisible());
+        auto *message = move.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message && message->isVisible() && message->text().contains(source));
+        QVERIFY(QFile::setPermissions(source, permissions));
+        QTest::keyClick(move.findChild<QLineEdit *>("copyDestination"), Qt::Key_Return);
+        QCOMPARE(move.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(move.Value), target);
+    }
+#endif
+
+    void mergingMoveWaitsForDirectoryReadAccess() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source");
+        const QString destination = fixture.filePath("destination") + '/';
+        QVERIFY(QDir().mkpath(source));
+        QVERIFY(QDir().mkpath(destination + "source"));
+        const auto permissions = QFile::permissions(source);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(source, permissions); });
+        QVERIFY(QFile::setPermissions(source, QFile::WriteOwner | QFile::ExeOwner));
+        if (QFileInfo(source).isReadable())
+            QSKIP("The current user can still read the directory");
+
+        CCopyDialog move(true, destination, {source});
+        QtCopyDestinationContext context;
+        context.LocalFileTransfer = true;
+        move.ConfigureDestination(context);
+        move.show();
+        move.accept();
+        QVERIFY(move.isVisible());
+        auto *message = move.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message && message->isVisible() && message->text().contains(source));
+        QVERIFY(QDir().rmdir(destination + "source"));
+        auto *path = move.findChild<QLineEdit *>("copyDestination");
+        QCOMPARE(path->text(), destination);
+        QTest::keyClick(path, Qt::Key_Return);
+        QCOMPARE(move.result(), int(QDialog::Accepted));
+    }
+
+    void copyBatchCanBeRetriedAfterReadAccessReturns() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX file permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString first = fixture.filePath("first.txt");
+        const QString blocked = fixture.filePath(QStringLiteral("закрытый файл.txt"));
+        for (const auto &path : {first, blocked}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        const QString destination = fixture.filePath("output") + '/';
+        QVERIFY(QDir().mkpath(destination));
+        const auto permissions = QFile::permissions(blocked);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
+        QVERIFY(QFile::setPermissions(blocked, QFile::WriteOwner));
+        if (QFileInfo(blocked).isReadable())
+            QSKIP("The current user can still read the file");
+        QtCopyDestinationContext context;
+        context.SourceDirectory = fixture.path();
+        context.LocalFileTransfer = true;
+        CCopyDialog copy(false, destination, {first, blocked});
+        copy.ConfigureDestination(context);
+        copy.show();
+        copy.accept();
+        QVERIFY(copy.isVisible());
+        auto *message = copy.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message && message->isVisible() && message->text().contains(blocked));
+
+        CCopyDialog move(true, destination, {first, blocked});
+        move.ConfigureDestination(context);
+        move.accept();
+        QCOMPARE(move.result(), int(QDialog::Accepted));
+
+        const QString archive = fixture.filePath("output.zip") + '/';
+        context.PeerDestination = archive;
+        context.PeerIsArchive = true;
+        context.PeerSupportsWriting = true;
+        CCopyDialog moveToArchive(true, archive, {first, blocked});
+        moveToArchive.ConfigureDestination(context);
+        moveToArchive.show();
+        moveToArchive.accept();
+        QVERIFY(moveToArchive.isVisible());
+        auto *archiveMessage = moveToArchive.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(archiveMessage && archiveMessage->isVisible() &&
+                archiveMessage->text().contains(blocked));
+
+        QVERIFY(QFile::setPermissions(blocked, permissions));
+        auto *archivePath = moveToArchive.findChild<QLineEdit *>("copyDestination");
+        QCOMPARE(archivePath->text(), archive);
+        QTest::keyClick(archivePath, Qt::Key_Return);
+        QCOMPARE(moveToArchive.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(moveToArchive.Value), archive);
+        auto *path = copy.findChild<QLineEdit *>("copyDestination");
+        QCOMPARE(path->text(), destination);
+        QTest::keyClick(path, Qt::Key_Return);
+        QCOMPARE(copy.result(), int(QDialog::Accepted));
     }
 
     void batchDestinationConflictCanBeCorrected_data() {
@@ -455,19 +646,70 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(ToQString(dialog.Value), destination);
     }
 
-    void destinationBelowReadOnlyFolderCanBeCorrected() {
+    void restoredSourceCanBeRetriedWithoutChangingDestination() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
-        const QString blocked = fixture.filePath("read only");
-        const QString writable = blocked + "/writable";
+        const QString source = fixture.filePath("source.txt");
+        const QString destination = fixture.filePath("new folder") + '/';
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        CCopyDialog dialog(false, destination, {source});
+        QtCopyDestinationContext context;
+        context.LocalFileTransfer = true;
+        dialog.ConfigureDestination(context);
+        dialog.show();
+        QVERIFY(file.remove());
+        dialog.accept();
+        QVERIFY(dialog.isVisible());
+        const auto *error = dialog.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(error && error->isVisible() && error->text().contains(source));
+        QCOMPARE(dialog.findChild<QLineEdit *>("copyDestination")->text(), destination);
+        auto *ok =
+            dialog.findChild<QDialogButtonBox *>("copyButtons")->button(QDialogButtonBox::Ok);
+        QVERIFY(ok->isEnabled());
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        ok->click();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(ToQString(dialog.Value), destination);
+    }
+
+    void blockedDestinationCanBeCorrected_data() {
+        QTest::addColumn<bool>("searchDenied");
+        QTest::newRow("read-only") << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("no-directory-search") << true;
+#endif
+    }
+
+    void blockedDestinationCanBeCorrected() {
+        QFETCH(bool, searchDenied);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString blocked = fixture.filePath("blocked");
+        const QString writable =
+            searchDenied ? fixture.filePath("writable") : blocked + "/writable";
+        QVERIFY(QDir().mkpath(blocked));
         QVERIFY(QDir().mkpath(writable));
         const auto permissions = QFile::permissions(blocked);
         const auto restore = qScopeGuard([&] { QFile::setPermissions(blocked, permissions); });
-        if (!QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner) ||
-            QFileInfo(blocked).isWritable())
+        const auto blockedPermissions =
+            QFile::ReadOwner | (searchDenied ? QFile::WriteOwner : QFile::ExeOwner);
+        const auto applyPermissions = [&] {
+            if (!QFile::setPermissions(blocked, blockedPermissions))
+                return false;
+            const QFileInfo directory(blocked);
+            return searchDenied ? directory.isWritable() && !directory.isExecutable()
+                                : !directory.isWritable();
+        };
+        if (!applyPermissions())
             QSKIP("The test filesystem does not enforce this directory permission");
 
         const QString source = fixture.filePath("source.txt");
+        QFile file(source);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
         const QString target = writable + "/writable target.txt";
         CCopyDialog dialog(false, blocked + "/new folder/target.txt", {source});
         QtCopyDestinationContext context{fixture.path(), "source.txt", blocked + '/', true, {}};
@@ -488,8 +730,10 @@ class CopyDestinationTests final : public QObject {
             dialog.accept();
             QVERIFY(dialog.isVisible());
             QCOMPARE(path->text(), unwritable);
-            QCOMPARE(dialog.findChild<QLabel *>("copyDestinationMessage")->text(),
-                     QString("The folder is read-only: %1").arg(blocked));
+            QCOMPARE(
+                dialog.findChild<QLabel *>("copyDestinationMessage")->text(),
+                QString(searchDenied ? "Cannot access folder: %1" : "The folder is read-only: %1")
+                    .arg(blocked));
         }
         path->setText(target);
         QVERIFY(ok->isEnabled());
@@ -508,7 +752,7 @@ class CopyDestinationTests final : public QObject {
         QCOMPARE(path->text(), context.PeerDestination);
         QVERIFY(ok->isEnabled());
         QVERIFY(WindowActivation::waitForActive(other));
-        QVERIFY(QFile::setPermissions(blocked, QFile::ReadOwner | QFile::ExeOwner));
+        QVERIFY(applyPermissions());
         QVERIFY(WindowActivation::waitForActive(dialog));
         QTRY_VERIFY(!ok->isEnabled());
         QVERIFY(!peer->isEnabled());
@@ -520,13 +764,15 @@ class CopyDestinationTests final : public QObject {
     }
 
     void browsePreservesNameDraft_data() {
-        QTest::addColumn<bool>("invalidDraft");
-        QTest::newRow("valid-path") << false;
-        QTest::newRow("invalid-path") << true;
+        QTest::addColumn<QString>("kind");
+        QTest::newRow("valid-path") << QString("valid");
+        QTest::newRow("invalid-path") << QString("invalid");
+        QTest::newRow("blocked-parent") << QString("blocked-parent");
+        QTest::newRow("existing-final-file") << QString("existing-file");
     }
 
     void browsePreservesNameDraft() {
-        QFETCH(bool, invalidDraft);
+        QFETCH(QString, kind);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString selected = fixture.filePath("selected folder");
@@ -537,8 +783,16 @@ class CopyDestinationTests final : public QObject {
         auto *name = dialog.findChild<QLineEdit *>("copyDestinationName");
         name->setText("draft.txt");
         auto *path = dialog.findChild<QLineEdit *>("copyDestination");
-        if (invalidDraft)
+        if (kind == "invalid")
             path->setText(path->text() + QChar::Null);
+        if (kind == "blocked-parent" || kind == "existing-file") {
+            QFile occupied(QDir(selected).filePath("existing.txt"));
+            QVERIFY(occupied.open(QIODevice::WriteOnly));
+            occupied.close();
+            path->setText(kind == "blocked-parent" ? occupied.fileName() + "/output.txt"
+                                                   : occupied.fileName());
+        }
+        const QString initial = kind == "existing-file" ? selected : fixture.path();
         const QString destination = path->text();
         path->setFocus();
         path->setSelection(5, -4);
@@ -553,6 +807,7 @@ class CopyDestinationTests final : public QObject {
                     if (picker->isVisible())
                         picker->reject();
                 });
+                QCOMPARE(picker->directory().canonicalPath(), QDir(initial).canonicalPath());
                 if (accept) {
                     picker->setDirectory(selected);
                     picker->selectFile(selected);

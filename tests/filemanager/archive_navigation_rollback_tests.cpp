@@ -238,7 +238,9 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
         panel.LoadFullPath();
         const UString previousPath = panel.GetCurrentFolderPrefix();
         files->selectRow(200);
-        files->setCurrentCell(200, 0, QItemSelectionModel::NoUpdate);
+        const int activeColumn = 2;
+        QVERIFY(files->columnCount() > activeColumn && !files->isColumnHidden(activeColumn));
+        files->setCurrentCell(200, activeColumn, QItemSelectionModel::NoUpdate);
         const QString selectedName = files->model()->index(200, 0).data().toString();
         const auto selected = std::find_if(entries.cbegin(), entries.cend(), [&](const auto &item) {
             return item.Path == selectedName;
@@ -297,6 +299,7 @@ class ArchiveNavigationRollbackTests final : public QObject, protected MainWindo
         QTRY_COMPARE(files->rowCount(), entries.size());
         QTRY_COMPARE(files->model()->index(files->currentRow(), 0).data().toString(), selectedName);
         QCOMPARE(files->selectionModel()->selectedRows().size(), 1);
+        QCOMPARE(files->currentIndex().column(), activeColumn);
         QTRY_COMPARE(files->verticalScrollBar()->value(), scroll);
         QCOMPARE(address->text(), target);
         if (outcome == "refused") {

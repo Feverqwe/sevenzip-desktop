@@ -48,7 +48,6 @@ class QtWindowWorkspace final : public QObject {
                                  bool checkSource = false);
     bool CanRefreshPublishedArchives() const;
     bool CanRefreshPublishedOutput(unsigned panel) const;
-    void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const QPoint &position);
     void RequestInitialFocus(unsigned panel);
     void RequestListFocus(unsigned panel, bool switchingPane = false);
     void CompleteListFocusIfReady();
@@ -56,6 +55,7 @@ class QtWindowWorkspace final : public QObject {
     void RetainListFocus(unsigned panel);
     quint64 InteractionRevision() const { return interactionRevision_; }
     HRESULT NavigateToList(const std::function<HRESULT()> &body);
+    void FocusListAfterLocationOpen(unsigned panel, quint64 interaction);
     void RestoreAddressFocus(unsigned panel, const QtAddressDraft &draft);
     void ExitExternalWorkers(bool hardExit);
     void Dispose();
@@ -98,6 +98,7 @@ class QtWindowWorkspace final : public QObject {
         QPoint scroll;
         UInt32 viewMode = 3;
         bool diskFolder = false;
+        std::optional<std::pair<PROPID, bool>> cursorColumn = {};
         bool SameLocation(const Visit &other) const;
     };
     struct Navigation {
@@ -142,6 +143,7 @@ class QtWindowWorkspace final : public QObject {
     bool Ready(bool allowSourceCall = false) const;
     void Capture(unsigned panel, bool retainView = true);
     Visit CaptureVisit(unsigned panel);
+    void RestoreViewPosition(CPanel &source, QAbstractItemView &view, const Visit &visit);
     void FinishNavigation(unsigned panel, HRESULT result);
     struct ReopenLayer {
         QString format;
@@ -151,7 +153,7 @@ class QtWindowWorkspace final : public QObject {
                                 const std::vector<ReopenLayer> *layers = nullptr,
                                 bool interactive = true, QString *failure = nullptr);
     HRESULT OpenArchiveDirectory(unsigned panel, const QtArchiveLocation &location);
-    HRESULT OpenPanelLocation(unsigned panel);
+    HRESULT OpenPanelLocation(unsigned panel, QString *failure = nullptr);
     HRESULT OpenRecordedLocation(unsigned panel, const QString &path, const QString &nativeIdentity,
                                  const QtArchiveLocation &archive, QString *failure = nullptr);
     bool LocationMatches(unsigned panel, const QString &path);
@@ -160,10 +162,10 @@ class QtWindowWorkspace final : public QObject {
     void AddFavorite();
     void OpenFavorite(const QtFavorite &favorite);
     void OpenRecentPlace(unsigned panel, const QtRecentPlace &place);
-    void FocusListAfterLocationOpen(unsigned panel, quint64 interaction);
     void RestorePanel(unsigned panel, const QJsonObject &saved, std::function<void()> finished,
                       std::function<void()> canceled, const QtArchiveLocation &archive = {});
-    void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result);
+    void CompleteLocationOpen(unsigned panel, const QString &path, HRESULT result,
+                              const QString &failure = {});
     void RetryLocation(unsigned panel, bool parent);
     MainWindow &window_;
     std::array<Panel, 2> panels_;

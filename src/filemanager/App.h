@@ -94,12 +94,9 @@ class CApp {
     void SetListSettings();
     void RefreshView() { GetFocusedPanel().OnReload(); }
     void RefreshAllPanels(bool preserveAddress = false) {
-        for (unsigned i = 0; i < NumPanels; i++) {
-            unsigned index = i;
-            if (NumPanels == 1)
-                index = LastFocusedPanel;
-            Panels[index].OnReload(preserveAddress);
-        }
+        for (auto &panel : Panels)
+            if (panel.PanelCreated)
+                panel.OnReload(preserveAddress);
     }
     void MoveSubWindows();
     HRESULT SwitchOnOffOnePanel();

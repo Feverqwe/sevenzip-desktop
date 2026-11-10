@@ -43,6 +43,7 @@ class CProgressDialog : public CQtProgressDialog {
     bool ShowCompressionInfo;
     // A composed operation reviews its settled result after publication/rollback.
     bool DeferResultReview = false;
+    bool CancellationMayLeaveChanges = true;
 
   private:
     unsigned _numPostedMessages;

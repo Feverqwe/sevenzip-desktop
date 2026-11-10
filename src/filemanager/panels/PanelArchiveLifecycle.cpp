@@ -120,7 +120,7 @@ HRESULT CPanel::OpenAsArc(IInStream *inStream, const CTempFileInfo &tempFileInfo
 
 HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFileInfo,
                               const UString &virtualFilePath, const UString &arcFormat,
-                              bool materializeStream, UString *failure) {
+                              bool materializeStream, UString *failure, bool reportUnrecognized) {
     COpenResult opRes;
     HRESULT res =
         OpenAsArc(inStream, tempFileInfo, virtualFilePath, arcFormat, opRes, materializeStream);
@@ -128,20 +128,22 @@ HRESULT CPanel::OpenAsArc_Msg(IInStream *inStream, const CTempFileInfo &tempFile
         return res;
     if (res == E_ABORT)
         return res;
-    if (opRes.Encrypted || res != S_FALSE) {
+    if (opRes.Encrypted || res != S_FALSE || reportUnrecognized) {
         UString message;
         if (res == S_FALSE)
             message = MyFormatNew(opRes.Encrypted ? IDS_CANT_OPEN_ENCRYPTED_ARCHIVE
                                                   : IDS_CANT_OPEN_ARCHIVE,
                                   virtualFilePath);
-        else
-            message = HResultToMessage(res);
+        else {
+            message = MyFormatNew(IDS_CANT_OPEN_ARCHIVE, virtualFilePath);
+            message.Add_LF();
+            message += opRes.ErrorMessage.IsEmpty() ? HResultToMessage(res) : opRes.ErrorMessage;
+        }
         if (failure)
             *failure = message;
         else
             MessageBox_Error(message);
-        // A recognized encrypted archive must not fall through to an external
-        // application when the supplied password did not open it.
+        // A reported refusal is terminal, including a rejected archive password.
         if (res == S_FALSE)
             return E_FAIL;
     }

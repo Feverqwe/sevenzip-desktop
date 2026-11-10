@@ -6,10 +6,9 @@
 #include "Common/StringConvert.h"
 #include "Windows/FileIO.h"
 #include "Windows/ProcessUtils.h"
+#include "platform/associations/qtassociatedfileservices.h"
 #include "platform/loader/DLL.h"
 #include "platform/shell/Shell.h"
-#include <QCoreApplication>
-#include <QMessageBox>
 
 using namespace NWindows;
 extern UString HResultToMessage(HRESULT errorCode);
@@ -112,14 +111,7 @@ HRESULT StartApplication(const UString &dir, const UString &path, QWidget *windo
         return S_OK;
     if (error == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         return E_ABORT;
-    QMessageBox box(
-        QMessageBox::Warning, QCoreApplication::translate("qtassociatedfileservices", "Open file"),
-        QCoreApplication::translate("qtassociatedfileservices", "Could not open file: %1")
-            .arg(QString::fromWCharArray(path.Ptr())),
-        QMessageBox::Ok, window);
-    box.setObjectName("externalFileOpenError");
-    box.setTextFormat(Qt::PlainText);
-    box.setInformativeText(QString::fromWCharArray(HResultToMessage(error).Ptr()));
-    box.exec();
+    QtShowAssociationOpenError(QString::fromWCharArray(path.Ptr()), window,
+                               QString::fromWCharArray(HResultToMessage(error).Ptr()));
     return E_FAIL;
 }

@@ -219,39 +219,54 @@ class ArchiveVolumeCreationTests final : public QObject {
         QCOMPARE(readFile(baseArchive), QByteArray("keep this archive"));
         QCOMPARE(name->selectedText(), QString("existing.7z"));
         QVERIFY(dialog.focusWidget());
-        QTest::keyClicks(dialog.focusWidget(), "different.7z");
-        QCOMPARE(name->text(), QString("different.7z"));
+        QTest::keyClicks(dialog.focusWidget(), "different");
+        QCOMPARE(name->text(), QString("different"));
         QCOMPARE(volume->currentText(), QString("128K"));
+        const QString unrelated = fixture.filePath("different/keep.txt");
+        QVERIFY(writeFile(unrelated, "keep this folder"));
         QVERIFY(writeFile(fixture.filePath("different.7z.0002"), "not a volume"));
-        ok->click();
+        QVERIFY(!submitAndDismissWarning());
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         ArchiveBackend backend;
         QCOMPARE(SourceCreationFixture::Create(backend, dialog.target(), dialog.sources(), {},
                                                false, dialog.compressionOptions()),
                  S_OK);
         QVERIFY(QFileInfo(fixture.filePath("different.7z.001")).isFile());
+        QCOMPARE(readFile(unrelated), QByteArray("keep this folder"));
+    }
+    void smallVolumeConfirmationDoesNotSaveUntilYes_data() {
+        QTest::addColumn<QString>("draft");
+        QTest::addColumn<quint64>("bytes");
+        QTest::newRow("explicit-unit") << QString("64K") << quint64(65536);
+        QTest::newRow("prefix-of-preset") << QString("100") << quint64(100);
     }
     void smallVolumeConfirmationDoesNotSaveUntilYes() {
+        QFETCH(QString, draft);
+        QFETCH(quint64, bytes);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.bin");
         QVERIFY(writeFile(source, "source"));
         CreateArchiveDialog dialog(fixture.path(), {source});
         auto *volume = dialog.findChild<QComboBox *>("archiveVolumeSize");
-        volume->setEditText("64K");
+        dialog.findChild<QtDisclosure *>("archiveAdditionalSection")->setExpanded(true);
         auto *ok = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
         const QByteArray original = readFile(settings_);
         dialog.show();
+        auto *editor = volume->lineEdit();
+        editor->setFocus();
+        QTest::keyClicks(editor, draft);
+        QCOMPARE(editor->text(), draft);
         for (const auto answer : {QMessageBox::No, QMessageBox::Cancel, QMessageBox::Yes}) {
             ok->setFocus();
-            QTimer::singleShot(0, &dialog, [answer] {
+            QTimer::singleShot(0, &dialog, [answer, bytes] {
                 auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
                 QVERIFY(message);
                 const auto close = qScopeGuard([&] {
                     if (message->isVisible())
                         message->reject();
                 });
-                QVERIFY(message->text().contains(QLocale().toString(65536)));
+                QVERIFY(message->text().contains(QLocale().toString(bytes)));
                 message->button(answer)->click();
             });
             ok->click();
@@ -260,12 +275,12 @@ class ArchiveVolumeCreationTests final : public QObject {
                 QVERIFY(volume->isVisible());
                 QTRY_VERIFY(dialog.focusWidget() == volume ||
                             dialog.focusWidget() == volume->lineEdit());
-                QCOMPARE(volume->currentText(), QString("64K"));
+                QCOMPARE(volume->currentText(), draft);
                 QCOMPARE(readFile(settings_), original);
             }
         }
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(dialog.compressionOptions().VolumeSizes[0], UInt64(65536));
+        QCOMPARE(dialog.compressionOptions().VolumeSizes[0], UInt64(bytes));
     }
     void volumeDialogValidationAndGeometry() {
         QFETCH(int, width);

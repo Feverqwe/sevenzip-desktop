@@ -1,6 +1,7 @@
 #include "ui/controls/qtsourcesummary.h"
 #include <QHelpEvent>
 #include <QLabel>
+#include <QTextDocument>
 #include <QToolTip>
 #include <QVBoxLayout>
 #include <QtTest>
@@ -44,7 +45,7 @@ class SourceSummaryTests final : public QObject {
     void longPathsStayInHoverWithoutDisplacingTheIdentity() {
         QWidget window;
         auto *layout = new QVBoxLayout(&window);
-        const QString name = QStringLiteral("данные & <file>.txt");
+        const QString name = QStringLiteral("данные  & <b>.txt");
         const QString path = '/' + QStringLiteral("long folder 空/").repeated(80) + name;
         auto *shortSource = new QtSourceSummary({}, name, "/short/" + name, &window);
         auto *longSource = new QtSourceSummary({}, name, path, &window);
@@ -70,7 +71,9 @@ class SourceSummaryTests final : public QObject {
             QHelpEvent event(QEvent::ToolTip, longSource->rect().center(),
                              longSource->mapToGlobal(longSource->rect().center()));
             QCoreApplication::sendEvent(longSource, &event);
-            QCOMPARE(QToolTip::text(), expected);
+            QTextDocument tooltip;
+            tooltip.setHtml(QToolTip::text());
+            QCOMPARE(tooltip.toPlainText(), expected);
             QToolTip::hideText();
         };
         hover(path);

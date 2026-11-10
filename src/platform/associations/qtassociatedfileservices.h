@@ -5,6 +5,8 @@
 #include <QUrl>
 #include <functional>
 
+void QtShowAssociationOpenError(const QString &path, QWidget *window, const QString &details = {});
+
 class QtAssociatedFileServices final : public IQtExternalFileServices {
     std::function<bool(const QUrl &)> _opener;
     QtKnownAssociationOpener _knownOpener;

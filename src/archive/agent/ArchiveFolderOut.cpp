@@ -6,6 +6,7 @@
 #include "7zip/Common/LimitedStreams.h"
 #include "7zip/Compress/CopyCoder.h"
 #include "Common/ComTry.h"
+#include "Windows/FileName.h"
 #include "archive/agent/Agent.h"
 #include "archive/resources/archivenativeopen.h"
 #include "archive/resources/qtarchivedeleteinputs.h"
@@ -13,10 +14,12 @@
 #include "archive/resources/qtarchiveupdatepublication.h"
 #include "archive/resources/qtarchivewritelease.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/patterns/Wildcard.h"
 #include "platform/temp/WorkDir.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QCoreApplication>
 #include <QScopeGuard>
+#include <cerrno>
 
 using namespace NWindows;
 using namespace NFile;
@@ -427,12 +430,61 @@ Z7_COM7F_IMF(CAgentFolder::CreateFolder(const wchar_t *name, IProgress *progress
         return E_FAIL;
     if (_isAltStreamFolder)
         return E_NOTIMPL;
-    if (_proxy2) {
-        if (_proxy2->IsThere_SubDir(_proxyDirIndex, name))
-            return ERROR_ALREADY_EXISTS;
-    } else {
-        if (_proxy->FindSubDir(_proxyDirIndex, name) != -1)
-            return ERROR_ALREADY_EXISTS;
+    bool exists = false;
+    unsigned blockedLength = 0;
+    CMyComPtr<IFolderFolder> parent(this);
+    const UString path(name);
+    UString remaining(path);
+    for (;;) {
+        const int separator = NName::FindSepar(remaining);
+        const UString part = separator < 0 ? remaining : remaining.Left(unsigned(separator));
+        blockedLength = path.Len() - remaining.Len() + part.Len();
+        CMyComPtr<IFolderFolder> child;
+        const HRESULT result = parent->BindToFolder(part, &child);
+        if (result == E_INVALIDARG) {
+            const auto *folder = static_cast<CAgentFolder *>(parent.Interface());
+            const unsigned directory = folder->_proxyDirIndex;
+            if (_proxy2)
+                exists = _proxy2->FindItem(directory, part, false) >= 0;
+            else {
+                const auto &files = _proxy->Dirs[directory].SubFiles;
+                FOR_VECTOR(i, files)
+                if (CompareFileNames(_proxy->Files[files[i]].Name, part) == 0) {
+                    exists = true;
+                    break;
+                }
+            }
+            break;
+        }
+        RINOK(result)
+        if (!child)
+            break;
+        if (separator < 0) {
+            exists = true;
+            break;
+        }
+        parent = child;
+        remaining.DeleteFrontal(unsigned(separator + 1));
+    }
+    if (exists) {
+        CMyComPtr<IFolderArchiveUpdateCallback> callback;
+        if (progress)
+            progress->QueryInterface(IID_IFolderArchiveUpdateCallback, (void **)&callback);
+        if (callback) {
+            const QString blocked = QString::fromWCharArray(path.Ptr(), blockedLength);
+            const QString message =
+                blockedLength < path.Len()
+                    ? QCoreApplication::translate("CopyRedesign", "Not a folder: %1").arg(blocked)
+                    : QCoreApplication::translate("archivebackend_validation",
+                                                  "Already exists in the destination folder: %1")
+                          .arg(blocked);
+            callback->UpdateErrorMessage(message.toStdWString().c_str());
+        }
+#ifdef _WIN32
+        return HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS);
+#else
+        return HRESULT_FROM_WIN32(EEXIST);
+#endif
     }
     return CommonUpdateOperation(AGENT_OP_CreateFolder, false, name, NULL, NULL, 0, progress);
     COM_TRY_END

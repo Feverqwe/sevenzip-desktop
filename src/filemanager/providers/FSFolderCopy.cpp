@@ -10,15 +10,29 @@
 #include "filemanager/providers/FSFolder.h"
 #include "fileops/links/qtlinkservices.h"
 #include "fileops/native/FileDir.h"
+#include "fileops/transfer/qttransfertargetname.h"
 #include "localization/qtlanguageservices.h"
 #include "ui/diagnostics/qtdiagnostictext.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSet>
 
 namespace NFsFolder {
 static const char *const k_CannotCopyDirToAltStream =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot copy folder as alternate stream");
+
+static HRESULT CheckCopySource(const FString &path, IFolderOperationsExtractCallback *callback,
+                               const QFileInfo &moveTarget = {},
+                               const QString &moveDirectory = {}) {
+    const QFileInfo source(QString::fromWCharArray(fs2us(path)));
+    const QString error =
+        QtTransferSourceError(source, !moveDirectory.isEmpty(), moveTarget, moveDirectory);
+    if (error.isEmpty())
+        return S_OK;
+    RINOK(callback->ShowMessage(UString(error.toStdWString().c_str())))
+    return E_FAIL;
+}
 
 static HRESULT SendMessageError(IFolderOperationsExtractCallback *callback, const wchar_t *message,
                                 const FString &fileName) {
@@ -468,14 +482,22 @@ bool CopyFolder(CCopyState &state, const QString &srcPath, const QString &destPa
         return ReportError(
             state,
             QCoreApplication::translate("FSFolderCopy", "Source unavailable: %1").arg(srcPath));
-    const bool destinationExisted = QFileInfo::exists(destPath);
+    const QFileInfo destination(destPath);
+    const bool destinationExisted = destination.exists();
     if (state.MoveMode && state.MoveFile_Sys(srcPath, destPath, source.permissions()))
         return true;
-    if (QFileInfo(destPath).isSymLink() ||
-        !(state.Callback ? QDir().mkpath(destPath) : QDir().mkdir(destPath)))
+    if (QtIsFileSystemLink(destPath))
+        return ReportError(state, QCoreApplication::translate("qtfiletransfertransaction",
+                                                              "Destination is a symbolic link: %1")
+                                      .arg(destPath));
+    if (destinationExisted && !destination.isDir())
+        return ReportError(
+            state, QCoreApplication::translate("CopyRedesign", "Not a folder: %1").arg(destPath));
+    if (!(state.Callback ? QDir().mkpath(destPath) : QDir().mkdir(destPath)))
         return ReportError(
             state,
             QCoreApplication::translate("FSFolderCopy", "Cannot create folder: %1").arg(destPath));
+    state.CreatedDirectory |= !destinationExisted;
 
     NWindows::NFile::NFind::CEnumerator enumerator;
     const std::wstring sourceWide = QDir::toNativeSeparators(srcPath).toStdWString();
@@ -557,6 +579,9 @@ Z7_COM7F_IMF(CFSFolder::CopyTo(Int32 moveMode, const UInt32 *indices, UInt32 num
             return E_INVALIDARG;
         const CDirItem &fi = Files[index];
         const FString srcPath = _path + GetRelPath(fi);
+        if (!moveMode) {
+            RINOK(CheckCopySource(srcPath, callback))
+        }
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             if (!isAltDest) {
                 stat.Path = srcPath;
@@ -613,12 +638,50 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
     if (!isAltDest && !IsPathSepar(destDirPrefix.Back()))
         return E_INVALIDARG;
 
+    const QString destinationDirectory =
+        isAltDest ? QString() : QString::fromWCharArray(fs2us(destDirPrefix));
+    const auto reportMissing = [callback](const UString &path) {
+        return callback->ShowMessage(
+            QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot find the file : ")) +
+            path);
+    };
+    QSet<QString> targets;
     CFsFolderStat stat(FString(), callback);
     FOR_VECTOR(i, itemsPaths) {
         const FString path = us2fs(itemsPaths[i]);
         NWindows::NFile::NFind::CFileInfo fi;
-        if (!fi.Find(path))
-            continue;
+        if (!fi.Find(path)) {
+            RINOK(reportMissing(itemsPaths[i]))
+            return E_FAIL;
+        }
+        if (!destinationDirectory.isEmpty()) {
+            const QFileInfo target(QDir(destinationDirectory),
+                                   QString::fromWCharArray(fs2us(fi.Name)));
+            const QString key = QtTransferTargetKey(target.filePath());
+            if (targets.contains(key)) {
+                const QString error =
+                    QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Multiple items would use the same destination: %1")
+                        .arg(target.filePath());
+                RINOK(callback->ShowMessage(UString(error.toStdWString().c_str())))
+                return E_FAIL;
+            }
+            targets.insert(key);
+            if (!QtIsFileSystemLink(target.filePath())) {
+                const QFileInfo source(QString::fromWCharArray(fs2us(path)));
+                const QString error = QtTransferTargetTypeError(source, target);
+                if (!error.isEmpty()) {
+                    RINOK(callback->ShowMessage(UString(error.toStdWString().c_str())))
+                    return E_FAIL;
+                }
+            }
+            if (moveMode) {
+                RINOK(CheckCopySource(path, callback, target, destinationDirectory))
+            }
+        }
+        if (!moveMode) {
+            RINOK(CheckCopySource(path, callback))
+        }
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             if (!isAltDest) {
                 stat.Path = path;
@@ -644,10 +707,7 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
         const FString path = us2fs(itemsPaths[i]);
         NWindows::NFile::NFind::CFileInfo fi;
         if (!fi.Find(path)) {
-            const UString error = QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics",
-                                                                     "Cannot find the file : ")) +
-                                  itemsPaths[i];
-            RINOK(callback->ShowMessage(error))
+            RINOK(reportMissing(itemsPaths[i]))
             continue;
         }
         FString destPath = destDirPrefix;

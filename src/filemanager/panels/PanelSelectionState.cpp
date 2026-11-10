@@ -5,6 +5,7 @@
 #include "Windows/PropVariant.h"
 #include "Windows/WinDefs.h"
 #include "filemanager/panels/Panel.h"
+#include <algorithm>
 
 static const UInt32 kParentIndex = (UInt32)-1;
 
@@ -30,16 +31,23 @@ void CPanel::Get_ItemIndices_Operated(CRecordVector<UInt32> &indices) const {
     Get_ItemIndices_Selected(indices);
     if (!indices.IsEmpty())
         return;
-    if (_selectionList.GetSelectedCount() == 0)
-        return;
+    const UInt32 index = OperatedFocusedIndex();
+    if (index != kParentIndex)
+        indices.Add(index);
+}
+
+bool CPanel::HasOperatedItems() const {
+    for (unsigned i = 0; i < _selectedStatusVector.Size(); ++i)
+        if (_selectedStatusVector[i])
+            return true;
+    return OperatedFocusedIndex() != kParentIndex;
+}
+
+UInt32 CPanel::OperatedFocusedIndex() const {
     const int focusedItem = _selectionList.GetFocusedItem();
-    if (focusedItem >= 0) {
-        if (_selectionList.IsItemSelected(focusedItem)) {
-            const unsigned realIndex = GetRealItemIndex(focusedItem);
-            if (realIndex != kParentIndex)
-                indices.Add(realIndex);
-        }
-    }
+    if (focusedItem >= 0 && _selectionList.IsItemSelected(focusedItem))
+        return GetRealItemIndex(focusedItem);
+    return kParentIndex;
 }
 
 void CPanel::Get_ItemIndices_All(CRecordVector<UInt32> &indices) const {
@@ -55,8 +63,20 @@ void CPanel::Get_ItemIndices_All(CRecordVector<UInt32> &indices) const {
 
 void CPanel::Get_ItemIndices_OperSmart(CRecordVector<UInt32> &indices) const {
     Get_ItemIndices_Operated(indices);
-    if (indices.IsEmpty() || (indices.Size() == 1 && indices[0] == (UInt32)(Int32)-1))
+    if (!indices.IsEmpty() && (indices.Size() != 1 || indices[0] != kParentIndex))
+        return;
+    if (!IsFSFolder()) {
         Get_ItemIndices_All(indices);
+        return;
+    }
+    indices.Clear();
+    for (int row = 0; row < _selectionList.GetItemCount(); ++row) {
+        const UInt32 index = GetRealItemIndex(row);
+        if (index != kParentIndex)
+            indices.Add(index);
+    }
+    if (indices.Size() > 1)
+        std::sort(indices.NonConstData(), indices.NonConstData() + indices.Size());
 }
 
 void CPanel::SaveSelectedState(CSelectedState &s) {
@@ -74,8 +94,8 @@ void CPanel::SaveSelectedState(CSelectedState &s) {
     GetSelectedNames(s.SelectedNames);
 }
 
-void CPanel::SetFocusedSelectedItem(int index, bool select) {
-    _selectionList.SetFocusedItem(index);
+void CPanel::SetFocusedSelectedItem(int index, bool select, bool keepColumn) {
+    _selectionList.SetFocusedItem(index, keepColumn);
     if (select) {
         _selectionList.SelectItem(index);
         const unsigned realIndex = GetRealItemIndex(index);
@@ -84,7 +104,7 @@ void CPanel::SetFocusedSelectedItem(int index, bool select) {
     }
 }
 
-HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state) {
+HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealFocused) {
     _selectionList.SetItemState_DropHighlighted(m_DropHighlighted_SelectionIndex, false);
     m_DropHighlighted_SelectionIndex = -1;
     m_DropHighlighted_SubFolderName.Empty();
@@ -172,22 +192,23 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state) {
                 selected = true;
         }
         _selectedStatusVector[realIndex] = selected;
-        if (selected)
-            _selectionList.SelectItem((int)i);
     }
     disableNotify.SetMemMode_Enable();
     disableNotify.Restore();
+    const bool keepColumn = state.KeepViewport && !revealFocused;
     if (_selectionList.GetItemCount() > 0 && cursorIndex >= 0)
-        SetFocusedSelectedItem(cursorIndex, state.SelectFocused);
+        SetFocusedSelectedItem(cursorIndex, state.SelectFocused, keepColumn);
     SetSortRawStatus();
     _selectionList.SortItems(_sortID, _ascending, _isRawSortProp);
     if (cursorIndex < 0 && _selectionList.GetItemCount() > 0) {
         if (focusedPos >= _selectionList.GetItemCount())
             focusedPos = _selectionList.GetItemCount() - 1;
         // Select the initial parent row only in the original showDots mode.
-        SetFocusedSelectedItem(focusedPos, showDots && (focusedPos == 0));
+        SetFocusedSelectedItem(
+            focusedPos, showDots && focusedPos == 0 && !state.FocusedName_Defined, keepColumn);
     }
-    _selectionList.EnsureVisible(_selectionList.GetFocusedItem());
+    if (revealFocused)
+        _selectionList.EnsureVisible(_selectionList.GetFocusedItem());
     UpdateSelection();
     Refresh_StatusBar();
     return S_OK;

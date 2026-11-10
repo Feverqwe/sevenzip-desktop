@@ -82,6 +82,7 @@ QPushButton *CreateArchiveDialog::createArchiveDestination(QVBoxLayout *windowLa
     archivePath_ = new QComboBox(this);
     archivePath_->setObjectName("archivePath");
     archivePath_->setEditable(true);
+    archivePath_->setCompleter(nullptr);
     archivePath_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     archivePath_->setMinimumContentsLength(20);
     archivePath_->setInsertPolicy(QComboBox::NoInsert);
@@ -194,13 +195,15 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
                 name_->clear();
                 name_->setFocus();
             } else if (nameIncludesPath) {
-                const QString filename =
-                    resolved.isEmpty()
-                        ? QFileInfo(QDir::fromNativeSeparators(ToQString(draft))).fileName()
-                        : target.fileName();
+                const QString enteredName = QDir::fromNativeSeparators(name_->text());
+                const QString filename = resolved.isEmpty()
+                                             ? enteredName.mid(enteredName.lastIndexOf(u'/') + 1)
+                                             : target.fileName();
                 if (!filename.isEmpty())
                     name_->setText(filename);
             }
+            if (!directoryDraft)
+                archiveFolder_->setFocus();
         }
     });
     connect(archivePath_, &QComboBox::activated, this, [this](int index) {

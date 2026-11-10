@@ -167,6 +167,7 @@
     # Exercise each modifier and both input routes without the full UI cross-product.
     add_test(NAME panel_activation_quick COMMAND panel_activation_tests -silent
         archiveOpeningFailureHasOneDialogAndCanRetry
+        externalFolderOpenCanBeRetriedFromTheList
         failedFolderRecovery
         modifierWorkflow:0-0-0-0-0-0
         modifierWorkflow:1-1-3-1-1-1

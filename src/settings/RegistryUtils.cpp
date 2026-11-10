@@ -50,6 +50,7 @@ QString FmSettingsPath() {
 }
 
 static const char *const kShowDots = "ShowDots";
+static const char *const kShowHiddenFolders = "ShowHiddenFolders";
 
 static void SaveOption(QSettings &key, const char *name, bool enabled) {
     key.setValue(QString::fromLatin1(name), enabled);
@@ -88,15 +89,18 @@ void CFmSettings::Save(const QString &settingsPath) const {
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     SaveOption(key, kShowDots, ShowDots);
+    SaveOption(key, kShowHiddenFolders, ShowHiddenFolders);
     key.setValue("ColorScheme", int(ColorScheme));
 }
 
 void CFmSettings::Load(const QString &settingsPath) {
     ShowDots = false;
+    ShowHiddenFolders = true;
 
     QSettings key(settingsPath, QSettings::IniFormat);
     key.beginGroup("FM");
     ReadOption(key, kShowDots, ShowDots);
+    ReadOption(key, kShowHiddenFolders, ShowHiddenFolders);
     bool valid = false;
     const int scheme = key.value("ColorScheme").toInt(&valid);
     ColorScheme =

@@ -52,18 +52,17 @@ class QtFileTransferTransaction final {
     void rollback(const QList<TransferEntry> &completed,
                   RollbackMode mode = RollbackMode::RestoreSources);
     void removeSources(QList<TransferEntry> &completed, QString &error);
+    QString sourceRemovalCanceled();
     bool removeStagedSource(TransferEntry &entry, QString &error);
     bool copyEntry(const QString &source, const QString &target, QString *error,
                    bool reportProgress = true);
     bool mergeEntry(const QString &source, const QString &stage, const QString &target,
-                    QStringList *writtenSources, QString *error);
+                    QStringList *writtenSources, bool &publish, QString *error);
     bool removeMergedSource(const QString &source, const QStringList &writtenSources,
                             QString *error, bool &rootRemoved);
     static QStringList movedSources(const QList<TransferEntry> &completed);
     bool validateEntry(const QString &source, QString *error);
     static bool removeEntry(const QString &path);
-    static QString availableName(const QString &target,
-                                 const std::function<bool(const QString &)> &reserved);
 
   public:
     explicit QtFileTransferTransaction(FileTransferOperation &worker) : worker_(worker) {}

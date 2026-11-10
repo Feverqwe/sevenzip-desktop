@@ -15,6 +15,7 @@
 #include <QStyle>
 #include <QStyledItemDelegate>
 #include <QTimer>
+#include <utility>
 
 namespace {
 constexpr int kIndentRole = Qt::UserRole + 12;
@@ -45,6 +46,7 @@ QtPanelAddressCombo::QtPanelAddressCombo(CPanel &panel,
     setAttribute(Qt::WA_LayoutUsesWidgetRect);
 #endif
     setEditable(true);
+    setCompleter(nullptr);
     // Source address edits are submitted only by Return or a popup choice.
     // Qt's implicit label matching on blur can activate a second hierarchy row.
     disconnect(lineEdit(), SIGNAL(editingFinished()), nullptr, nullptr);
@@ -83,15 +85,23 @@ void QtPanelAddressCombo::showPopup() {
     if (!panel_)
         return;
     CancelPendingListFocus();
-    const QString text = currentText();
+    const QtAddressDraft draft(*lineEdit());
     {
         const QSignalBlocker blocker(this);
         panel_->LoadFullPath();
         panel_->OnComboBoxCommand(QtAddressCommand::DropDown, *this);
         setCurrentIndex(-1);
-        lineEdit()->setText(text);
+        draft.Restore(*lineEdit());
     }
+    popupDraft_ = draft;
     QComboBox::showPopup();
+}
+
+void QtPanelAddressCombo::hidePopup() {
+    const auto draft = std::exchange(popupDraft_, std::nullopt);
+    QComboBox::hidePopup();
+    if (draft && draft->text == lineEdit()->text())
+        draft->Restore(*lineEdit());
 }
 
 QSize QtPanelAddressCombo::sizeHint() const {
@@ -161,8 +171,11 @@ void QtPanelAddressCombo::SetCurrentIcon(int index) {
     currentIcon_->setVisible(index >= 0);
 }
 void QtPanelAddressCombo::ShowCurrentPath(const QString &displayPath) {
-    if (panel_)
+    if (panel_) {
         panel_->LoadFullPathAndShow(*this, ToUString(displayPath));
+        displayedFolderPrefix_ = panel_->GetCurrentFolderPrefix();
+        displayedPath_ = displayPath;
+    }
 }
 void QtPanelAddressCombo::ReloadCurrentPath() {
     if (!panel_)
@@ -204,7 +217,8 @@ void QtPanelAddressCombo::SetText(const UString &text) { lineEdit()->setText(ToQ
 void QtPanelAddressCombo::DiscardDraft(const UString &path) {
     ++userEditRevision_;
     lastUserDraft_.reset();
-    SetText(path);
+    lineEdit()->setText(displayedPath_ && displayedFolderPrefix_ == path ? *displayedPath_
+                                                                         : ToQString(path));
 }
 QtAddressDraft::QtAddressDraft(const QLineEdit &edit)
     : text(edit.text()), cursor_(edit.cursorPosition()), anchor_(cursor_),

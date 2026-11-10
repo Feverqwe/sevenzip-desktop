@@ -16,7 +16,6 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QLineEdit>
 #include <QScopedValueRollback>
-#include <QScrollBar>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <utility>
@@ -51,7 +50,9 @@ void QtFileManagerCommands::RunNativeOpen(const std::function<void(CPanel &)> &o
         const auto previousState = w.projectedUi().state;
         const QString previousDirectory = w.projectedUi().directory;
         const auto focused = w.projectedUi().table->currentIndex();
-        if (focused.isValid() && focused.data(QtPanelList::SourceIndexRole).toUInt() != UInt32(-1))
+        if (focused.isValid() &&
+            (focused.data(QtPanelList::SourceIndexRole).toUInt() != UInt32(-1) ||
+             !panel.IsArcFolder() || !GetFolderPath(previousFolder).IsEmpty()))
             w.workspace_->RetainNavigationFolder();
         if (wasFilesystem)
             w.projectedUi().returnDirectory = previousDirectory;
@@ -81,6 +82,16 @@ void QtFileManagerCommands::OpenItemInside(const wchar_t *type) { OpenNative(tru
 void QtFileManagerCommands::OpenItemOutside() { OpenNative(false, true, nullptr); }
 void QtFileManagerCommands::EditItem(bool editor) {
     auto &panel = window_.app_.GetFocusedPanel();
+    if (!editor && panel.IsFSFolder() && CanCalculateDirectorySize()) {
+        const QPointer<QWidget> focus = window_.focusWidget();
+        {
+            const QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
+            panel.EditItem(false);
+        }
+        window_.refreshActions();
+        window_.appPresentation_->RestoreWidgetFocus(focus);
+        return;
+    }
     panel.EditItem(editor);
 }
 void QtFileManagerCommands::Rename() { window_.app_.GetFocusedPanel().RenameFile(); }
@@ -186,15 +197,17 @@ void QtFileManagerCommands::CreateFolder() {
         QString destinationDirectory;
         QString publishedArchive;
         HRESULT result = E_INVALIDARG;
-        if (!value.isEmpty() && !value.contains(QChar::Null)) {
+        if (!value.isEmpty() && !value.contains(QChar::Null) &&
+            (!panel.IsArcFolder() || ArchiveBackend::safePath(value))) {
             const QPointer<QWidget> alive(editor);
             editor->setEnabled(false);
             {
                 QtAppOperationState::CallScope call(operations);
                 {
                     QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
-                    result = panel.CreateFolder(ToUString(value), detail, &destinationDirectory,
-                                                &publishedArchive);
+                    result = panel.CreateFolder(ToUString(value), detail,
+                                                window_.fileListSettings_.ShowHiddenFolders,
+                                                &destinationDirectory, &publishedArchive);
                 }
                 operations.ContinueScanAfterSourceCall(index);
             }
@@ -208,13 +221,13 @@ void QtFileManagerCommands::CreateFolder() {
             else
                 window_.ArchivePublished(publishedArchive, &panel);
         }
+        if (!destinationDirectory.isEmpty()) {
+            if (auto *application = QtWorkspaceApplication::Find())
+                application->FilesystemPublished({destinationDirectory}, &window_);
+            window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
+        }
         if (result == S_OK) {
             finish();
-            if (!destinationDirectory.isEmpty()) {
-                if (auto *application = QtWorkspaceApplication::Find())
-                    application->FilesystemPublished({destinationDirectory}, &window_);
-                window_.guiOutputRefresh_->Enqueue({destinationDirectory}, {}, int(index));
-            }
             if (focusOwner) {
                 window_.workspace_->RequestListFocus(index);
                 window_.refreshSelectionActions();
@@ -343,20 +356,11 @@ void QtFileManagerCommands::RefreshView() {
         });
         return;
     }
+    window_.clearStatusMessage();
     if (panel.IsArcFolder() &&
         window_.workspace_->RefreshPublishedArchive(window_.projectedPanel_, true))
         return;
-    auto &ui = window_.projectedUi();
-    const QPointer<QAbstractItemView> view =
-        panel.IsArcFolder() ? qobject_cast<QAbstractItemView *>(ui.viewStack->currentWidget())
-                            : nullptr;
-    const QPoint position =
-        view ? QPoint(view->horizontalScrollBar()->value(), view->verticalScrollBar()->value())
-             : QPoint();
-    const auto binding = panel.FolderBindingRevision();
-    panel.OnReload(ui.path->isModified());
-    if (view && panel.FolderBindingRevision() == binding)
-        window_.workspace_->RestoreViewPosition(panel, *view, position);
+    panel.OnReload(window_.projectedUi().path->isModified());
 }
 void QtFileManagerCommands::OptionsDialog() { window_.showSettings(); }
 void QtFileManagerCommands::OpenBookmark(unsigned index) { window_.openBookmark(index); }

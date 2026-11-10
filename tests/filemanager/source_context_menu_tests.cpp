@@ -9,6 +9,7 @@
 #include <QClipboard>
 #include <QContextMenuEvent>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QToolButton>
 
 class SourceContextMenuTests final : public QObject, protected MainWindowTestSupport {
@@ -51,15 +52,19 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
     void contextMenuKeepsSelection_data() {
         QTest::addColumn<bool>("icons");
         QTest::addColumn<bool>("keyboard");
-        QTest::newRow("details-keyboard") << false << true;
-        QTest::newRow("icons-keyboard") << true << true;
-        QTest::newRow("details-mouse") << false << false;
-        QTest::newRow("icons-mouse") << true << false;
+        QTest::addColumn<bool>("offscreen");
+        QTest::newRow("details-keyboard") << false << true << false;
+        QTest::newRow("icons-keyboard") << true << true << false;
+        QTest::newRow("details-keyboard-offscreen") << false << true << true;
+        QTest::newRow("icons-keyboard-offscreen") << true << true << true;
+        QTest::newRow("details-mouse") << false << false << false;
+        QTest::newRow("icons-mouse") << true << false << false;
     }
 
     void contextMenuKeepsSelection() {
         QFETCH(bool, icons);
         QFETCH(bool, keyboard);
+        QFETCH(bool, offscreen);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
         QTemporaryDir fixture;
@@ -69,6 +74,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QVERIFY(file.open(QIODevice::WriteOnly));
             QCOMPARE(file.write(name), qint64(5));
         }
+        if (offscreen)
+            for (int i = 0; i < 100; ++i) {
+                QFile file(fixture.filePath(QString("0 filler %1.txt").arg(i)));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+            }
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -96,8 +106,14 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         const auto selected = selection->selectedRows();
         QCOMPARE(selected.size(), 2);
         const QModelIndex hit = index(keyboard ? "c.txt" : "b.txt");
-        const QPoint point = view->visualRect(hit).center();
-        QCOMPARE(view->indexAt(point).row(), hit.row());
+        if (offscreen) {
+            view->verticalScrollBar()->setValue(0);
+            QTRY_VERIFY(!view->viewport()->rect().intersects(view->visualRect(focused)));
+        }
+        const int scroll = view->verticalScrollBar()->value();
+        const QPoint point = offscreen ? QPoint() : view->visualRect(hit).center();
+        if (!offscreen)
+            QCOMPARE(view->indexAt(point).row(), hit.row());
         bool menuShown = false;
         QTimer::singleShot(0, &window, [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
@@ -105,6 +121,10 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                 menuShown = menu->objectName() == "panelContextMenu";
                 const auto close = qScopeGuard([&] { menu->close(); });
                 if (keyboard) {
+                    if (offscreen) {
+                        const QPoint origin = view->viewport()->mapToGlobal(QPoint());
+                        QVERIFY(menu->geometry().contains(origin));
+                    }
                     QTest::keyClick(menu, Qt::Key_Escape);
                 } else {
                     auto *rename = menuAction(*menu, "renameAction");
@@ -118,6 +138,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                 point, view->viewport()->mapToGlobal(point));
         QApplication::sendEvent(view->viewport(), &event);
         QVERIFY(menuShown);
+        QCOMPARE(view->verticalScrollBar()->value(), scroll);
         QCOMPARE(selection->currentIndex(), keyboard ? focused : hit);
         QCOMPARE(selection->selectedRows(), selected);
         if (keyboard) {
@@ -154,15 +175,20 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         QTest::addColumn<bool>("move");
         QTest::addColumn<bool>("editingAddress");
         QTest::addColumn<bool>("folderConflict");
-        QTest::newRow("copy") << false << false << false;
-        QTest::newRow("cut") << true << false << false;
-        QTest::newRow("copy-with-address-draft") << false << true << false;
-        QTest::newRow("cut-with-folder-conflict") << true << false << true;
+        QTest::addColumn<bool>("unreadable");
+        QTest::newRow("copy") << false << false << false << false;
+        QTest::newRow("cut") << true << false << false << false;
+        QTest::newRow("copy-with-address-draft") << false << true << false << false;
+        QTest::newRow("cut-with-folder-conflict") << true << false << true << false;
+#ifdef Q_OS_UNIX
+        QTest::newRow("copy-with-unreadable-source") << false << false << false << true;
+#endif
     }
     void failedPasteLeavesTheDestinationPanelUsable() {
         QFETCH(bool, move);
         QFETCH(bool, editingAddress);
         QFETCH(bool, folderConflict);
+        QFETCH(bool, unreadable);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         const auto clearClipboard = qScopeGuard([] { QApplication::clipboard()->clear(); });
         QTemporaryDir destination, peerDirectory;
@@ -192,9 +218,20 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QCOMPARE(file.write(bytes), bytes.size());
         };
         writeSource(existingName, "ready bytes");
-        if (folderConflict) {
+        if (folderConflict || unreadable)
             writeSource(missingName, "restored bytes");
+        if (folderConflict)
             QVERIFY(QDir().mkdir(destination.filePath(missingName)));
+        const QString blocked = peerDirectory.filePath(missingName);
+        const auto permissions = QFile::permissions(blocked);
+        const auto restore = qScopeGuard([&] {
+            if (unreadable)
+                QFile::setPermissions(blocked, permissions);
+        });
+        if (unreadable) {
+            QVERIFY(QFile::setPermissions(blocked, QFile::WriteOwner));
+            if (QFileInfo(blocked).isReadable())
+                QSKIP("The current user can still read the file");
         }
         const QList<QUrl> sources{QUrl::fromLocalFile(peerDirectory.filePath(existingName)),
                                   QUrl::fromLocalFile(peerDirectory.filePath(missingName))};
@@ -269,7 +306,9 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         address->setText(child);
         QTest::keyClick(address, Qt::Key_Return);
         QTRY_VERIFY(row(*owner, "control.txt") >= 0);
-        if (!folderConflict)
+        if (unreadable)
+            QVERIFY(QFile::setPermissions(blocked, permissions));
+        else if (!folderConflict)
             writeSource(missingName, "restored bytes");
         peer->setFocus();
         QTRY_VERIFY(peer->hasFocus());

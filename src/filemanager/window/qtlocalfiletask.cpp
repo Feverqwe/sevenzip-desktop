@@ -71,7 +71,10 @@ QtLocalFileTask::QtLocalFileTask(QThread &worker, const QString &title, const QS
     progress_->ShowCompressionInfo = false;
     transport_ = std::make_unique<QtCallbackProgressTransport>(cancel_);
     progress_->AttachTransport(transport_.get());
-    connect(progress_, &QDialog::finished, this, &QObject::deleteLater);
+    connect(progress_, &QDialog::finished, this, [this] {
+        progressClosed_ = true;
+        deleteLater();
+    });
     connect(qApp, &QApplication::focusChanged, this, [this] {
         if (pending_)
             QTimer::singleShot(0, this, &QtLocalFileTask::TryPresent);
@@ -103,10 +106,13 @@ QtLocalFileTask::QtLocalFileTask(FileTransferOperation &worker, const QString &t
         Qt::DirectConnection);
     connect(&worker, &FileTransferOperation::result, this,
             [this, &worker](bool success, const QString &message, const QStringList &movedSources) {
-                Finish(success, worker.resultKind() == FileTransferOperation::ResultKind::Canceled,
-                       message,
+                const bool cancelled =
+                    worker.resultKind() == FileTransferOperation::ResultKind::Canceled;
+                const bool retainedOutput = worker.hasRetainedOutput();
+                progress_->CancellationMayLeaveChanges = retainedOutput;
+                Finish(success, cancelled, message,
                        worker.resultKind() == FileTransferOperation::ResultKind::PartialSuccess,
-                       movedSources, worker.hasRetainedOutput());
+                       movedSources, retainedOutput);
             });
 }
 
@@ -145,7 +151,7 @@ void QtLocalFileTask::SetLocations(const QString &source, const QString &destina
 }
 
 void QtLocalFileTask::StopForSource(CPanel &source) {
-    for (auto *task : Active())
+    for (auto *task : qApp->findChildren<QtLocalFileTask *>(Qt::FindDirectChildrenOnly))
         if (task->source_ == &source)
             task->StopAndWait();
 }
@@ -241,7 +247,7 @@ void QtLocalFileTask::PresentFinish(bool success, bool cancelled, const QString 
         return;
     if (!success && !cancelled)
         progress_->Sync.FinalMessage.ErrorMessage.Message = ToUString(message);
-    if (cancelled)
+    if (cancelled && progress_->CancellationMayLeaveChanges)
         progress_->Sync.FinalMessage.OkMessage.Message = ToUString(
             QCoreApplication::translate("QtTaskResultDialog", "The operation was cancelled."));
     else if (partial)
@@ -257,22 +263,26 @@ void QtLocalFileTask::PresentFinish(bool success, bool cancelled, const QString 
     QCoreApplication::sendPostedEvents(progress_, QEvent::MetaCall);
     if (guard && !stopped_) {
         if (progress_->isVisible()) {
-            connect(progress_, &QDialog::finished, this,
-                    [this, success, cancelled, message, partial] {
-                        if (!stopped_)
-                            emit finished(success, cancelled, message, partial);
-                    });
+            connect(
+                progress_, &QDialog::finished, this,
+                [this, success, cancelled, message, partial] {
+                    if (!stopped_)
+                        emit finished(success, cancelled, message, partial);
+                },
+                Qt::SingleShotConnection);
         } else
             emit finished(success, cancelled, message, partial);
     }
 }
 
 QList<QtLocalFileTask *> QtLocalFileTask::Active() {
-    return qApp->findChildren<QtLocalFileTask *>(Qt::FindDirectChildrenOnly);
+    auto tasks = qApp->findChildren<QtLocalFileTask *>(Qt::FindDirectChildrenOnly);
+    tasks.removeIf([](const QtLocalFileTask *task) { return task->progressClosed_; });
+    return tasks;
 }
 
 void QtLocalFileTask::Show() {
-    if (stopped_)
+    if (stopped_ || progressClosed_)
         return;
     if (progress_ && progress_->isMinimized())
         progress_->showNormal();

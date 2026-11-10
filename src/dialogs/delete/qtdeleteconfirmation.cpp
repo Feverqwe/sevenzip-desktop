@@ -1,7 +1,6 @@
 #include "dialogs/delete/qtdeleteconfirmation.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtsourcesummary.h"
-#include "ui/controls/qtstatuslabel.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/theme/qtcommandicons.h"
 #include <QCoreApplication>
@@ -10,11 +9,55 @@
 #include <QEvent>
 #include <QFileInfo>
 #include <QLabel>
+#include <QListView>
 #include <QPushButton>
 #include <QShowEvent>
+#include <QStringListModel>
 #include <QStyle>
+#include <QTextDocument>
 #include <QVBoxLayout>
 #include <utility>
+
+namespace {
+class DeleteNamesModel final : public QStringListModel {
+  public:
+    using QStringListModel::QStringListModel;
+
+    QVariant data(const QModelIndex &index, int role) const override {
+        if (role == Qt::ToolTipRole && index.isValid())
+            return Qt::convertFromPlainText(
+                QStringListModel::data(index, Qt::DisplayRole).toString(), Qt::WhiteSpacePre);
+        return QStringListModel::data(index, role);
+    }
+};
+
+class DeleteNamesView final : public QListView {
+  public:
+    DeleteNamesView(const QStringList &names, QWidget *parent) : QListView(parent) {
+        setObjectName("deleteSelectedNames");
+        setModel(new DeleteNamesModel(names, this));
+        setEditTriggers(QAbstractItemView::NoEditTriggers);
+        setSelectionMode(QAbstractItemView::NoSelection);
+        setUniformItemSizes(true);
+        setTextElideMode(Qt::ElideMiddle);
+        setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        updateHeight();
+    }
+
+  protected:
+    void changeEvent(QEvent *event) override {
+        QListView::changeEvent(event);
+        if (model() &&
+            (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange))
+            updateHeight();
+    }
+
+  private:
+    void updateHeight() {
+        setFixedHeight(sizeHintForRow(0) * qMin(8, model()->rowCount()) + 2 * frameWidth());
+    }
+};
+} // namespace
 
 QtDeleteConfirmation::QtDeleteConfirmation(Request request, QWidget *parent)
     : QDialog(parent), request_(std::move(request)) {
@@ -31,7 +74,7 @@ void QtDeleteConfirmation::showEvent(QShowEvent *event) {
     if (!initialSize_)
         return;
     initialSize_ = false;
-    QtFitScrollableDialog(*this);
+    QtFitScrollableDialog(*this, 420);
 }
 
 void QtDeleteConfirmation::buildPresentation() {
@@ -73,22 +116,8 @@ void QtDeleteConfirmation::buildPresentation() {
     consequence_ = label("deleteConsequence");
     restriction_ = label("deleteRestriction");
     restriction_->setVisible(request_.readOnly);
-    if (request_.names.size() > 1) {
-        auto *names = new QWidget(this);
-        names->setObjectName("deleteSelectedNames");
-        auto *rows = new QVBoxLayout(names);
-        rows->setContentsMargins(0, 0, 0, 0);
-        rows->setSpacing(4);
-        for (const auto &name : request_.names) {
-            auto *row = new QtStatusLabel(names, Qt::ElideMiddle);
-            row->setTextFormat(Qt::PlainText);
-            row->setText(name);
-            row->setToolTip(name);
-            row->setAccessibleName(name);
-            rows->addWidget(row);
-        }
-        body->addWidget(names);
-    }
+    if (request_.names.size() > 1)
+        body->addWidget(new DeleteNamesView(request_.names, this));
 }
 
 void QtDeleteConfirmation::refreshText() {

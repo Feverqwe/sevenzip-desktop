@@ -9,6 +9,7 @@
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
 #include <QClipboard>
+#include <QScopeGuard>
 #include <QScrollBar>
 
 class AddressNavigationTests final : public QObject, protected MainWindowTestSupport {
@@ -19,6 +20,136 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
     }
   private slots:
     void init() { QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH")); }
+
+    void unreadableFolderCanBeOpenedAfterAccessIsRestored_data() {
+        QTest::addColumn<bool>("typed");
+        QTest::newRow("address") << true;
+        QTest::newRow("list") << false;
+    }
+
+    void unreadableFolderCanBeOpenedAfterAccessIsRestored() {
+        QFETCH(bool, typed);
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath("blocked");
+        QVERIFY(QDir().mkdir(target));
+        QVERIFY(writeFile(QDir(target).filePath("inside.txt"), "payload"));
+        const auto permissions = QFile::permissions(target);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(target, permissions); });
+        QVERIFY(QFile::setPermissions(target, QFile::ExeOwner));
+        if (QFileInfo(target).isReadable())
+            QSKIP("Requires a directory that the current user cannot list");
+
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "blocked") >= 0);
+        const int row = filesystemRow(window, "blocked");
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        const auto open = [&] {
+            if (typed) {
+                PanelKeys::focusAddress(address);
+                address->setText(target);
+                QTest::keyClick(address, Qt::Key_Return);
+            } else {
+                view->setFocus();
+                PanelKeys::openSelection(view);
+            }
+        };
+        open();
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "blocked") >= 0);
+        QCOMPARE(view->currentIndex().data().toString(), QString("blocked"));
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+
+        QVERIFY(QFile::setPermissions(target, permissions));
+        open();
+        QTRY_VERIFY(view->hasFocus() && filesystemRow(window, "inside.txt") >= 0);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
+    void parentRowCanBeRetriedAfterAccessIsRestored() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
+        settings.setValue("FM/ShowDots", true);
+        settings.sync();
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString parent = fixture.filePath("parent");
+        const QString child = QDir(parent).filePath("child");
+        QVERIFY(QDir().mkpath(child));
+        QVERIFY(writeFile(QDir(child).filePath("inside.txt"), "payload"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(child);
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "inside.txt") >= 0);
+        QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
+        view->sourcePanel->Set_AutoRefresh_Mode(false);
+        view->setCurrentCell(0, 0);
+        view->selectRow(0);
+        view->setFocus();
+
+        const auto permissions = QFile::permissions(parent);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(parent, permissions); });
+        QVERIFY(QFile::setPermissions(parent, QFile::ExeOwner));
+        if (QFileInfo(parent).isReadable())
+            QSKIP("Requires a directory that the current user cannot list");
+        PanelKeys::openSelection(view);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "inside.txt") >= 0);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(view->currentIndex().data().toString(), QString(".."));
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+
+        QVERIFY(QFile::setPermissions(parent, permissions));
+        PanelKeys::openSelection(window.focusWidget());
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "child") >= 0);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(view->currentIndex().data().toString(), QString("child"));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
+    void pastedAddressWithNullDoesNotOpenItsPrefix() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString target = fixture.filePath("target");
+        QVERIFY(QDir().mkdir(target));
+        QVERIFY(writeFile(fixture.filePath("original.txt"), "source"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "original.txt") >= 0);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        const QString invalid = target + QChar::Null + "/suffix";
+        address->selectAll();
+        QApplication::clipboard()->setText(invalid);
+        QTest::keySequence(address, QKeySequence::Paste);
+        QApplication::clipboard()->clear();
+        QCOMPARE(address->text(), invalid);
+        QTest::keyClick(address, Qt::Key_Return);
+        QCOMPARE(address->text(), invalid);
+        QVERIFY(address->hasFocus());
+        QVERIFY(!window.statusBar()->currentMessage().isEmpty());
+        QVERIFY(filesystemRow(window, "original.txt") >= 0);
+        address->setText(target);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(view->hasFocus());
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), target);
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
 
     void emptyAddressOpensLocationsAndBackRestoresTheFile_data() {
         QTest::addColumn<bool>("repeatDuringRefresh");
@@ -333,6 +464,80 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(backend.listCalls, 1);
     }
+    void ordinaryFileAddressKeepsSelectionAndCanBeCorrected() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString text = fixture.filePath("ordinary text.txt");
+        const QString selected = QStringLiteral("selected.txt");
+        QVERIFY(writeFile(text, "plain text"));
+        QVERIFY(writeFile(fixture.filePath(selected), "keep selected"));
+        const QString destination = fixture.filePath("destination");
+        QVERIFY(QDir().mkpath(destination));
+
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled());
+        const int row = filesystemRow(window, selected);
+        QVERIFY(row >= 0);
+        view->setCurrentCell(row, 0);
+        view->selectRow(row);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        address->setText(text);
+        QTimer dismiss;
+        connect(&dismiss, &QTimer::timeout, &window, [] {
+            if (auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                warning->accept();
+        });
+        dismiss.start(5);
+        QTest::keyClick(address, Qt::Key_Return);
+        dismiss.stop();
+        QApplication::processEvents();
+        window.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTRY_VERIFY(view->isEnabled());
+        QCOMPARE(address->text(), text);
+        QVERIFY(window.statusBar()->currentMessage().contains(QDir::toNativeSeparators(text)));
+        QTRY_VERIFY(address->hasFocus());
+        QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), selected);
+        QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
+
+        address->setText(destination);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(
+            QFileInfo(ToQString(view->sourcePanel->GetCurrentFolderPrefix())).canonicalFilePath(),
+            QFileInfo(destination).canonicalFilePath());
+        QTRY_VERIFY(view->hasFocus());
+    }
+
+    void missingArchiveDoesNotInterruptFolderNavigation() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = fixture.filePath("large folder");
+        QVERIFY(QDir().mkdir(folder));
+        for (int i = 0; i < 300; ++i)
+            QVERIFY(writeFile(QDir(folder).filePath(QString("file-%1.txt").arg(i)), "x"));
+        const QString archive = fixture.filePath("retry.zip");
+        QVERIFY(NativeArchiveFixture::Write(archive, {{"payload.txt", "payload"}}, "zip"));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        window.openPath(fixture.path());
+        auto *view = table(window);
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "large folder") >= 0);
+        window.openPath(folder);
+        QVERIFY(!view->isEnabled());
+        window.openArchive(fixture.filePath("missing.zip"));
+        QVERIFY(!view->isEnabled());
+        QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "file-299.txt") >= 0);
+        window.openArchive(archive);
+        QTRY_VERIFY(view->isEnabled() && view->sourcePanel->IsArcFolder() &&
+                    rowWithPath(window, "payload.txt") >= 0);
+    }
+
     void completedAddressNavigationFocusesLargeList_data() {
         QTest::addColumn<bool>("archive");
         QTest::addColumn<bool>("newInput");
@@ -653,6 +858,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
                  parent);
         QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(window.windowTitle())), parent);
         QTRY_VERIFY(view->hasFocus());
+        QTRY_VERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("missing 文件")));
         QVERIFY(view->sourcePanel->ShouldProcessNotifications());
         QCOMPARE(peerView->rowCount(), 1);
         QCOMPARE(peerView->sourcePanel->GetFolder(), (IFolderFolder *)peerFolder);
@@ -664,6 +870,12 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
             QCOMPARE(file.readAll(), pair.second);
         }
         QVERIFY(!QFileInfo::exists(QDir(parent).filePath(QStringLiteral("missing 文件"))));
+        PanelKeys::focusAddress(address);
+        address->setText(child);
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), child);
+        QTRY_VERIFY(view->hasFocus());
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QCOMPARE(backend.listCalls, 0);
     }
 };

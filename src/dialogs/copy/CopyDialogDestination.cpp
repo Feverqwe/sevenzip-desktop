@@ -16,6 +16,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSet>
+#include <QTextDocument>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -56,37 +57,53 @@ bool IsName(const QString &name, const QString &directory) {
     return IsValidWindowsPath(name, directory);
 }
 
-QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory) {
+bool CanSearchDirectory(const QFileInfo &directory) {
+#ifdef Q_OS_UNIX
+    return directory.isExecutable();
+#else
+    (void)directory;
+    return true;
+#endif
+}
+
+QString DestinationDirectoryError(const QFileInfo &destination, bool needsDirectory,
+                                  QString &existingDirectory, bool requireWritable = true) {
     QString path = needsDirectory ? destination.absoluteFilePath() : destination.absolutePath();
     for (;;) {
         const QFileInfo directory(path);
         if (directory.exists() || directory.isSymLink()) {
             if (!directory.isDir())
                 return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Not a folder: %1")).arg(path);
-            return directory.isWritable()
+            if (!CanSearchDirectory(directory))
+                return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Cannot access folder: %1"))
+                    .arg(path);
+            existingDirectory = path;
+            return !requireWritable || directory.isWritable()
                        ? QString()
                        : Text(QT_TRANSLATE_NOOP("CopyRedesign", "The folder is read-only: %1"))
                              .arg(path);
         }
         const QString parent = directory.absolutePath();
         if (parent == path)
-            return {};
+            return Text(QT_TRANSLATE_NOOP("CopyRedesign", "Cannot access folder: %1")).arg(path);
         path = parent;
     }
 }
+
 } // namespace
 
 bool QtCopyDestinationContext::IsPeerWritable() const {
     if (!PeerSupportsWriting || !PeerIsFilesystem)
         return PeerSupportsWriting;
     const QFileInfo directory(QDir::cleanPath(PeerDestination));
-    return directory.isDir() && directory.isWritable() &&
+    return directory.isDir() && directory.isWritable() && CanSearchDirectory(directory) &&
            (!LocalFileTransfer || (!directory.isSymLink() && !directory.isJunction()));
 }
 
 bool CopyPathMatchesArchivePanel(const QString &path, const QString &panelPath) {
-    return (path.endsWith('/') || path.endsWith(QDir::separator())) &&
-           SameDirectory(path, panelPath);
+    const bool folder = path.endsWith('/') || path.endsWith(QDir::separator());
+    const bool streams = path.endsWith(':') && panelPath.endsWith(':');
+    return (folder || streams) && SameDirectory(path, panelPath);
 }
 
 QString NormalizeCopyDestination(const QString &path) {
@@ -140,8 +157,10 @@ void CCopyDialog::ConfigureDestination(QtCopyDestinationContext context) {
     if (_name)
         _name->setText(_destinationContext->SourceName);
     if (_peer) {
-        _peer->setVisible(!_destinationContext->PeerDestination.isNull());
-        _peer->setToolTip(_destinationContext->PeerDestination);
+        const QString &peerPath = _destinationContext->PeerDestination;
+        _peer->setVisible(!peerPath.isNull());
+        _peer->setToolTip(
+            peerPath.isEmpty() ? QString() : Qt::convertFromPlainText(peerPath, Qt::WhiteSpacePre));
     }
     UpdateDestination();
     ensurePolished();
@@ -173,6 +192,24 @@ QString CCopyDialog::PreviewDestination(const QString &value) const {
     // CApp adds its native panel prefix to a relative Value. This preview
     // never replaces that raw Value or the native normalization step.
     return NormalizeCopyDestination(_destinationContext->RelativeBase + value);
+}
+
+QString CCopyDialog::BrowseStartDirectory() const {
+    const QString draft = _pathEdit->text();
+    if (!draft.contains(QChar::Null)) {
+        const QString preview = PreviewDestination(draft);
+        if (!_copyMove)
+            return preview;
+        const QFileInfo destination(preview);
+        const bool needsDirectory = _sources.size() > 1 || draft.endsWith('/') ||
+                                    draft.endsWith(QDir::separator()) || destination.isDir();
+        QString existingDirectory;
+        if (IsValidWindowsPath(draft, preview) &&
+            DestinationDirectoryError(destination, needsDirectory, existingDirectory, false)
+                .isEmpty())
+            return preview;
+    }
+    return PreviewDestination(ToQString(Value));
 }
 
 bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField) {
@@ -207,10 +244,14 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
     const bool localTransfer =
         _destinationContext && _destinationContext->LocalFileTransfer && filesystemDestination;
     const QString draft = PreviewDestination(DraftDestination());
+    const auto targetPath = [&](const QFileInfo &source) {
+        return needsDirectory && !_useName ? QDir(preview).filePath(source.fileName()) : draft;
+    };
+    QString existingDirectory;
     const QString directoryError =
         path.isEmpty() || path.contains(QChar::Null) || !filesystemDestination
             ? QString()
-            : DestinationDirectoryError(destination, needsDirectory);
+            : DestinationDirectoryError(destination, needsDirectory, existingDirectory);
     bool linkedTransferDirectory = false;
     if (localTransfer && directoryError.isEmpty() && !path.isEmpty() &&
         !path.contains(QChar::Null)) {
@@ -219,7 +260,7 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
         linkedTransferDirectory = transferDirectory.isSymLink() || transferDirectory.isJunction();
     }
     QString error;
-    bool batchConflict = false;
+    bool canRetry = false;
     bool nameError = false;
     if (_sources.isEmpty())
         error = Text(QT_TRANSLATE_NOOP("CopyRedesign", "Select one or more items."));
@@ -252,19 +293,32 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
             QT_TRANSLATE_NOOP("CopyRedesign", "Choose another destination or change the name."));
         nameError = _useName;
     } else if (_destinationContext && _destinationContext->IsInsideSourceDirectory &&
-               (!peerDestination || _destinationContext->PeerIsFilesystem) &&
-               _destinationContext->IsInsideSourceDirectory(draft))
-        error = QCoreApplication::translate("qtfiletransfertransaction",
-                                            "Destination is inside the source folder: %1")
-                    .arg(draft);
-    else if (localTransfer && (_sources.size() == 1 || checkBatch)) {
+               filesystemDestination) {
+        const QString target =
+            _sources.size() == 1 ? targetPath(QFileInfo(_sources.first())) : draft;
+        if (_destinationContext->IsInsideSourceDirectory(target))
+            error = QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Destination is inside the source folder: %1")
+                        .arg(target);
+    }
+    if (error.isEmpty() && checkBatch && _destinationContext &&
+        _destinationContext->LocalFileTransfer) {
+        for (const QString &path : _sources) {
+            const QFileInfo source(path);
+            error = QtTransferSourceError(source, _move && filesystemDestination,
+                                          QFileInfo(targetPath(source)), existingDirectory);
+            if (!error.isEmpty()) {
+                canRetry = true;
+                break;
+            }
+        }
+    }
+    if (error.isEmpty() && localTransfer && (_sources.size() == 1 || checkBatch)) {
         // Check a batch on submit so editing the path does not stat every item.
-        const QDir targetDirectory(preview);
         QSet<QString> targets;
         for (const auto &sourcePath : _sources) {
             const QFileInfo source(sourcePath);
-            const QFileInfo target(
-                needsDirectory && !_useName ? targetDirectory.filePath(source.fileName()) : draft);
+            const QFileInfo target(targetPath(source));
             if (targets.contains(QtTransferTargetKey(target.filePath())))
                 error =
                     QCoreApplication::translate("qtfiletransfertransaction",
@@ -274,22 +328,18 @@ bool CCopyDialog::UpdateDestination(bool checkBatch, QLineEdit **correctionField
                 error = QCoreApplication::translate("qtfiletransfertransaction",
                                                     "Destination is a symbolic link: %1")
                             .arg(target.filePath());
-            else if (target.exists() && target.isDir() != source.isDir())
-                error = QCoreApplication::translate(
-                            "qtfiletransfertransaction",
-                            "Cannot replace a file with a folder or a folder with a file: %1")
-                            .arg(target.filePath());
+            else
+                error = QtTransferTargetTypeError(source, target);
             if (!error.isEmpty()) {
-                batchConflict = _sources.size() > 1;
-                nameError = _useName;
+                canRetry = checkBatch;
+                nameError = nameAvailable;
                 break;
             }
             targets.insert(QtTransferTargetKey(target.filePath()));
         }
     }
-    // A batch conflict can be removed outside the dialog. Keep OK available
-    // so the same destination can be checked again without editing the path.
-    _canSubmit = error.isEmpty() || batchConflict;
+    // Source availability and destination conflicts can change outside the dialog.
+    _canSubmit = error.isEmpty() || canRetry;
     if (correctionField)
         *correctionField = nameError ? _name : _pathEdit;
     _destinationMessage->setText(error);

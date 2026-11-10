@@ -12,6 +12,7 @@
 #include "support/panel_keys.h"
 #include "support/scoped_environment.h"
 #include "support/window_activation.h"
+#include <QScrollBar>
 
 namespace {
 QAction *FindShellVerb(QMenu &menu, const QString &verb) {
@@ -144,13 +145,19 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
     void selectedFilesystemAddRefreshesActualInputAndOutput() {
         QFETCH(unsigned, pane);
         QFETCH(bool, cancel);
-        QTemporaryDir input, output;
-        QVERIFY(input.isValid() && output.isValid());
+        QTemporaryDir input;
+        QVERIFY(input.isValid());
+        const QDir output(input.filePath("output"));
+        QVERIFY(QDir().mkpath(output.path()));
         const QString source = input.filePath("payload 空.txt");
         QVERIFY(SourceExtractFixture::writeFile(source, "manager selection payload"));
         const QString extra = input.filePath("second.txt");
         QVERIFY(SourceExtractFixture::writeFile(extra, "second payload"));
         QVERIFY(SourceExtractFixture::writeFile(input.filePath("unselected.txt"), "untouched"));
+        const int fillerCount = 60;
+        for (int row = 0; row < fillerCount; ++row)
+            QVERIFY(SourceExtractFixture::writeFile(
+                input.filePath(QString("view-%1.txt").arg(row, 3, 10, QChar('0'))), "filler"));
         const QString module = QStringLiteral(SEVENZIP_CODEC_MODULE);
         ArchiveCodecCatalog catalog(module, 0);
         QCOMPARE(catalog.result(), S_OK);
@@ -159,6 +166,7 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         backend.Target = output.filePath("chosen archive 空.zip");
         backend.Cancel = cancel;
         MainWindow window(&backend);
+        window.resize(700, 440);
         window.show();
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
@@ -167,7 +175,7 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         auto *peer = openPanel(window, 1 - pane, output.path());
         QTRY_COMPARE(peer->rowCount(), 0);
         auto *selected = openPanel(window, pane, input.path());
-        QTRY_COMPARE(selected->rowCount(), 3);
+        QTRY_COMPARE(selected->rowCount(), fillerCount + 4);
         selected->sourcePanel->Set_AutoRefresh_Mode(false);
         peer->sourcePanel->Set_AutoRefresh_Mode(false);
         if (cancel) {
@@ -192,12 +200,35 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
             const auto item = selected->model()->index(row, 0);
             if (item.data().toString() == "unselected.txt")
                 selected->setCurrentCell(row, 0, QItemSelectionModel::NoUpdate);
-            else
+            else if (item.data().toString() == "second.txt" ||
+                     item.data().toString().normalized(QString::NormalizationForm_C) ==
+                         QStringLiteral("payload 空.txt"))
                 selected->selectionModel()->select(item, QItemSelectionModel::Select |
                                                              QItemSelectionModel::Rows);
         }
         selected->setFocus();
         QTRY_VERIFY(selected->hasFocus());
+        if (cancel) {
+            const QString parked = output.filePath("parked-batch.txt");
+            QVERIFY(QFile::rename(extra, parked));
+            QCOMPARE(selected->selectionModel()->selectedRows().size(), 2);
+            action(window, "toolbarAddAction")->trigger();
+            QVERIFY(backend.Requests.isEmpty());
+            QVERIFY(!QFileInfo::exists(backend.Target));
+            QVERIFY(window.statusBar()->currentMessage().contains("second.txt"));
+            QTRY_COMPARE(window.focusWidget(), selected);
+            QCOMPARE(selected->selectionModel()->selectedRows().size(), 2);
+            QVERIFY(QFile::rename(parked, extra));
+        }
+        auto *scroll = selected->verticalScrollBar();
+        QTRY_VERIFY(scroll->maximum() > 0);
+        scroll->setValue(scroll->maximum() / 2);
+        const int topRow = selected->rowAt(0);
+        QVERIFY(topRow > selected->currentRow());
+        const QString anchor = selected->model()->index(topRow, 0).data().toString();
+        const int offset = selected->rowViewportPosition(topRow);
+        const QString newEntry = QStringLiteral("a new file.txt");
+        QVERIFY(SourceExtractFixture::writeFile(input.filePath(newEntry), "new input"));
         QVERIFY(action(window, "toolbarAddAction")->isEnabled());
         action(window, "toolbarAddAction")->trigger();
         if (cancel)
@@ -210,7 +241,7 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
             QCOMPARE(SourceExtractFixture::readFile(source),
                      QByteArray("manager selection payload"));
             QVERIFY(!QFileInfo::exists(backend.Target));
-            QCOMPARE(selected->rowCount(), 3);
+            QCOMPARE(selected->rowCount(), fillerCount + 4);
             QCOMPARE(peer->rowCount(), 0);
             QCOMPARE(selected->selectionModel()->selectedRows().size(), 2);
             window.activateWindow();
@@ -221,8 +252,11 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
             QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 2, 30000);
             QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
         }
-        QTRY_COMPARE(selected->rowCount(), 3);
+        QTRY_COMPARE(selected->rowCount(), fillerCount + 5);
         QTRY_COMPARE(peer->rowCount(), 1);
+        QCOMPARE(selected->rowAt(0), topRow + 1);
+        QCOMPARE(selected->model()->index(selected->rowAt(0), 0).data().toString(), anchor);
+        QCOMPARE(selected->rowViewportPosition(selected->rowAt(0)), offset);
         QStringList retainedSelection;
         for (const auto &item : selected->selectionModel()->selectedRows())
             retainedSelection.append(

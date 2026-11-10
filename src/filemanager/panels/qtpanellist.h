@@ -34,7 +34,6 @@ class QtPanelList {
     }
     bool IsBound() const { return view_ && view_->model() && view_->selectionModel(); }
     int GetItemCount() const;
-    int GetSelectedCount() const;
     int GetFocusedItem() const;
     bool IsItemSelected(int row) const;
     UString GetItemName(unsigned row) const;
@@ -43,13 +42,13 @@ class QtPanelList {
     void ClearSelection();
     void DeleteListItems();
     void SelectItem(int row);
-    void SetItemState_Selected(int row, bool selected);
+    void SetSelectedRows(const std::function<bool(int)> &isSelected);
     static void SetItemState_DropHighlighted(QAbstractItemView *view, int row, bool highlighted);
     void SetItemState_DropHighlighted(int row, bool highlighted) {
         SetItemState_DropHighlighted(view_.data(), row, highlighted);
     }
-    void SetFocusedItem(int row);
-    void EnsureVisible(int row);
+    void SetFocusedItem(int row, bool keepColumn = false);
+    void EnsureVisible(int row, bool preserveHorizontal = false);
     void SortItems(PROPID property, bool ascending, Int32 raw);
     void Invalidate() {
         if (view_)

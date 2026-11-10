@@ -6,6 +6,7 @@
 #include "7zip/UI/FileManager/resourceGui.h"
 #include "7zip/UI/GUI/ExtractDialogRes.h"
 #include "archive/codecs/archivecodeccatalog.h"
+#include "archive/support/native_archive_fixture.h"
 #include "archive/support/source_extract_fixture.h"
 #include "dialogs/copy/alias.h"
 #include "dialogs/extract/alias.h"
@@ -18,10 +19,10 @@
 #include "support/operation_kill.h"
 #include "support/operation_temp_cleanup.h"
 #include "support/panel_keys.h"
-#include "support/window_activation.h"
 #include "support/progress_dialog.h"
 #include "support/scoped_environment.h"
 #include "support/widget_dialogs.h"
+#include "support/window_activation.h"
 #include "ui/support/layout_inspection.h"
 #include <QJsonDocument>
 #include <QScopeGuard>
@@ -49,6 +50,7 @@ class GuiTestBackend final : public ArchiveBackend {
     bool CrashNext = false;
     bool Killed = false;
     bool CancelExtract = false;
+    bool AskOverwrite = false;
     QString ExtractDestination;
     QString ExtractDialogReport;
     QString ExtractDialogTag;
@@ -64,7 +66,7 @@ class GuiTestBackend final : public ArchiveBackend {
         job.ShowDialog = showDialog;
         job.ElimDup = elimDup;
         job.WriteZone = writeZone;
-        job.YesToAll = true;
+        job.YesToAll = !AskOverwrite;
         ScopedTestEnvironment decision("SEVENZIP_OPERATION_EXTRACT_DECISION",
                                        CancelExtract ? "cancel" : "accept");
         ScopedTestEnvironment output("SEVENZIP_OPERATION_DESTINATION", ExtractDestination);
@@ -332,6 +334,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *source = openPanel(window, 0, input);
         QTRY_COMPARE(source->rowCount(), 2);
+        source->sourcePanel->Set_AutoRefresh_Mode(false);
         source->selectAll();
         source->setFocus();
         QStringList errors, successes;
@@ -340,7 +343,20 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                                   [&] { dismissResults(dialogs_, errors, successes); });
         driver.start(1);
         QVERIFY(action(window, "testArchiveAction")->isEnabled());
+        const QString parkedDamaged = fixture.filePath("parked damaged.zip");
+        const QString parkedHealthy = fixture.filePath("parked healthy.zip");
+        QVERIFY(QFile::rename(damaged, parkedDamaged));
+        QVERIFY(QFile::rename(healthy, parkedHealthy));
         action(window, "testArchiveAction")->trigger();
+        QVERIFY(backend.Selections.isEmpty());
+        QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(damaged).fileName()) ||
+                window.statusBar()->currentMessage().contains(QFileInfo(healthy).fileName()));
+        QCOMPARE(source->selectionModel()->selectedRows().size(), 2);
+        QTRY_VERIFY(source->hasFocus());
+        QVERIFY(QFile::rename(parkedDamaged, damaged));
+        QVERIFY(QFile::rename(parkedHealthy, healthy));
+        action(window, "testArchiveAction")->trigger();
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 30000);
         QCOMPARE(backend.Results.first().Status, QtOperationResult::Outcome::Failure);
         QCOMPARE(backend.Selections.size(), 1);
@@ -469,21 +485,51 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
     }
     void filesystemShellCommandsUseIndependentOperations_data() {
         QTest::addColumn<QString>("verb");
+        QTest::addColumn<QString>("overwriteAnswer");
+        QTest::addColumn<bool>("writeNewEntry");
         for (const QString &verb :
              {QString("Test"), QString("Extract"), QString("ExtractHere"), QString("ExtractTo")})
-            QTest::newRow(qPrintable(verb)) << verb;
+            QTest::newRow(qPrintable(verb)) << verb << QString() << true;
+        QTest::newRow("ExtractHere-cancel-overwrite")
+            << QString("ExtractHere") << QString("overwriteCancel") << true;
+        QTest::newRow("ExtractHere-skip-all")
+            << QString("ExtractHere") << QString("overwriteNoAll") << true;
+        QTest::newRow("ExtractHere-all-items-skipped")
+            << QString("ExtractHere") << QString("overwriteNoAll") << false;
     }
     void filesystemShellCommandsUseIndependentOperations() {
         QFETCH(QString, verb);
+        QFETCH(QString, overwriteAnswer);
+        QFETCH(bool, writeNewEntry);
+        const bool hasConflict = !overwriteAnswer.isEmpty();
+        const bool skipAll = overwriteAnswer == "overwriteNoAll";
         QTemporaryDir fixture(FixtureTemplate());
         QVERIFY(fixture.isValid());
         const auto input = fixture.filePath("archives");
         QVERIFY(QDir().mkpath(input));
-        const auto archive = makeArchive(input, "context command bytes");
-        QVERIFY(!archive.isEmpty());
-        QVERIFY(QFile::remove(QDir(input).filePath(kName)));
-        const QString extractedFolder = QFileInfo(kName).path();
-        QVERIFY(QDir(input).rmdir(extractedFolder));
+        QString archive;
+        const QString conflict = QDir(input).filePath("z-existing.txt");
+        const QString secondConflict = QDir(input).filePath("zz-existing.txt");
+        const QString published = QStringLiteral("a-new.txt");
+        QString expectedRow = QFileInfo(kName).path();
+        if (hasConflict) {
+            archive = QDir(input).filePath("input.zip");
+            QList<NativeArchiveFixture::Item> entries{{"z-existing.txt", "incoming"}};
+            if (writeNewEntry)
+                entries.prepend(NativeArchiveFixture::Item{published, "completed entry"});
+            if (skipAll) {
+                entries.append(NativeArchiveFixture::Item{"zz-existing.txt", "second incoming"});
+                QVERIFY(writeFile(secondConflict, "second retained entry"));
+            }
+            QVERIFY(NativeArchiveFixture::Write(archive, entries, "zip"));
+            QVERIFY(writeFile(conflict, "retained entry"));
+            expectedRow = published;
+        } else {
+            archive = makeArchive(input, "context command bytes");
+            QVERIFY(!archive.isEmpty());
+            QVERIFY(QFile::remove(QDir(input).filePath(kName)));
+            QVERIFY(QDir(input).rmdir(expectedRow));
+        }
         const auto before = readFile(archive);
         CContextMenuInfo context;
         context.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
@@ -493,6 +539,7 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         context.Cascaded.SetTrueTrue();
         context.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         GuiTestBackend backend;
+        backend.AskOverwrite = hasConflict;
         QCOMPARE(backend.loadCodecCatalog(module_, version_), S_OK);
         backend.ExtractDestination = fixture.filePath("edited output");
         MainWindow window(&backend);
@@ -500,7 +547,8 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         auto *source = openPanel(window, 0, input);
-        QTRY_COMPARE(source->rowCount(), 1);
+        QTRY_COMPARE(source->rowCount(), skipAll ? 3 : hasConflict ? 2 : 1);
+        source->sourcePanel->Set_AutoRefresh_Mode(false);
         int selected = -1;
         for (int row = 0; row < source->rowCount(); ++row)
             if (source->model()->index(row, 0).data().toString() == "input.zip")
@@ -519,13 +567,20 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
                 errors << "Unexpected extraction dialog in the manager process";
                 dialog->reject();
             }
+            if (auto *dialog = dialogs_.activeDialog();
+                dialog && dialog->objectName() == "independentTaskResultDialog")
+                dialog->accept();
             dismissResults(dialogs_, errors, successes);
         });
         responder.start(5);
+        const ScopedTestEnvironment overwrite("SEVENZIP_OPERATION_OVERWRITE", overwriteAnswer);
         command->trigger();
         QVERIFY2(errors.isEmpty(), qPrintable(errors.join('\n')));
         QTRY_COMPARE_WITH_TIMEOUT(backend.Results.size(), 1, 20000);
-        QCOMPARE(backend.Results.last().Status, QtOperationResult::Outcome::Success);
+        using Outcome = QtOperationResult::Outcome;
+        QCOMPARE(backend.Results.last().Status, skipAll       ? Outcome::Warning
+                                                : hasConflict ? Outcome::Cancelled
+                                                              : Outcome::Success);
         if (verb == "Test") {
             QCOMPARE(backend.Selections.size(), 1);
             QCOMPARE(QFileInfo(backend.Selections.first().first()).canonicalFilePath(),
@@ -536,13 +591,26 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             const auto output = verb == "Extract"       ? backend.ExtractDestination
                                 : verb == "ExtractHere" ? input
                                                         : QDir(input).filePath("input");
-            QCOMPARE(readFile(QDir(output).filePath(kName)), QByteArray("context command bytes"));
-            if (verb == "ExtractHere") {
+            if (hasConflict) {
+                if (writeNewEntry)
+                    QCOMPARE(readFile(QDir(output).filePath(published)),
+                             QByteArray("completed entry"));
+                QCOMPARE(readFile(conflict), QByteArray("retained entry"));
+                if (skipAll)
+                    QCOMPARE(readFile(secondConflict), QByteArray("second retained entry"));
+            } else {
+                QCOMPARE(readFile(QDir(output).filePath(kName)),
+                         QByteArray("context command bytes"));
+            }
+            if (verb == "ExtractHere" && writeNewEntry) {
                 QTRY_VERIFY(!source->model()
-                                 ->match(source->model()->index(0, 0), Qt::DisplayRole,
-                                         extractedFolder, 1, Qt::MatchExactly)
+                                 ->match(source->model()->index(0, 0), Qt::DisplayRole, expectedRow,
+                                         1, Qt::MatchExactly)
                                  .isEmpty());
             }
+            if (!writeNewEntry)
+                QCOMPARE(QDir(output).entryList(QDir::Files),
+                         QStringList({"input.zip", "z-existing.txt", "zz-existing.txt"}));
         }
         QCOMPARE(readFile(archive), before);
         QVERIFY(action(window, "refreshAction")->isEnabled());
@@ -714,6 +782,11 @@ class ToolbarArchiveWorkflowTests final : public QObject, protected MainWindowTe
             QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(first).fileName()));
             QTRY_COMPARE(window.focusWidget(), source);
             QVERIFY(source->selectionModel()->isRowSelected(firstRow, {}));
+            QVERIFY(QDir().mkdir(first));
+            PanelKeys::command(source, Qt::Key_E, Qt::ControlModifier | Qt::ShiftModifier);
+            QVERIFY(backend.ExtractJobs.isEmpty());
+            QVERIFY(window.statusBar()->currentMessage().contains(QFileInfo(first).fileName()));
+            QVERIFY(QDir().rmdir(first));
             QVERIFY(QFile::rename(parked, first));
         }
         backend.ExtractDestination = output;

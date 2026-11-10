@@ -19,7 +19,9 @@ void MainWindow::SelectAll(bool selectMode) {
     if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing &&
         projectedUi().state != State::Namespace)
         return;
-    CPanel &panel = app_.GetFocusedPanel();
-    panel.SelectAll(selectMode);
+    if (selectMode)
+        app_.GetFocusedPanel().SelectAll(true);
+    else
+        projectedUi().table->clearSelection();
     refreshActions();
 }

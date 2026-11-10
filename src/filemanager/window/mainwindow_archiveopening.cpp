@@ -16,7 +16,6 @@
 #include "ui/progress/ProgressDialog2.h"
 #include <QScopeGuard>
 #include <QScopedValueRollback>
-#include <QScrollBar>
 
 bool MainWindow::canHandleExternalUpdate() const {
     return !app_.QtOperations().active() && !app_.QtOperations().closed() &&
@@ -50,12 +49,19 @@ bool MainWindow::runExternalArchiveUpdate(CPanel &panel, const QtArchiveUpdateBo
 void MainWindow::openArchive(const QString &path) { openArchiveAs(path, {}); }
 
 HRESULT MainWindow::openArchiveAs(const QString &path, const QString &type) {
-    return workspace_->Navigate([&] { return openArchiveAsImpl(path, type); });
+    if (app_.QtOperations().closed() || projectedUi().state == State::Loading ||
+        projectedUi().state == State::Operating)
+        return E_ABORT;
+    const QFileInfo file(path);
+    if (!IsArchiveFileOrPackage(file)) {
+        showStatusMessage(
+            QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
+        return E_INVALIDARG;
+    }
+    return workspace_->Navigate([&] { return openArchiveAsImpl(file, type); });
 }
 
-HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) {
-    if (app_.QtOperations().closed())
-        return E_ABORT;
+HRESULT MainWindow::openArchiveAsImpl(const QFileInfo &file, const QString &type) {
     workspace_->CancelListFocus();
     const QPointer<QWidget> focused = focusWidget();
     const auto index = projectedPanel_;
@@ -73,16 +79,13 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
         appPresentation_->RestoreWidgetFocus(focused);
     });
     QtAppOperationState::CallScope call(app_.QtOperations());
-    if (projectedUi().state == State::Loading || projectedUi().state == State::Operating)
-        return E_ABORT;
-    const QFileInfo file(path);
-    if (!IsArchiveFileOrPackage(file)) {
-        showStatusMessage(
-            QCoreApplication::translate("mainwindow_archiveopening", "File not found: ") + path);
-        return E_INVALIDARG;
-    }
     const auto pendingSelection = projectedUi().pendingSelection;
-    const auto pendingViewport = projectedUi().pendingViewport;
+    const auto &pendingViewport = projectedUi().pendingViewport;
+    const auto previousViewport =
+        pendingViewport && pendingViewport->view == projectedUi().viewStack->currentWidget() &&
+                pendingViewport->directory == projectedUi().directory
+            ? *pendingViewport
+            : captureListViewport();
     const auto addressDraft = projectedUi().path->isModified()
                                   ? std::optional(QtAddressDraft(*projectedUi().path))
                                   : std::nullopt;
@@ -95,15 +98,6 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
         previousSelection = *pendingSelection;
     else
         panel.SaveSelectedState(previousSelection);
-    const QPointer<QAbstractItemView> previousView =
-        qobject_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
-    QPoint previousScroll;
-    if (pendingViewport && pendingViewport->view == previousView &&
-        pendingViewport->directory == projectedUi().directory)
-        previousScroll = pendingViewport->scrollPosition;
-    else if (previousView)
-        previousScroll = {previousView->horizontalScrollBar()->value(),
-                          previousView->verticalScrollBar()->value()};
     QString message;
     HRESULT result;
     const PROPID previousSort = panel.GetSortID();
@@ -125,8 +119,10 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
     }
     if (result == E_ABORT)
         message = QCoreApplication::translate("mainwindow_archiveopening", "Operation canceled.");
-    else if (message.isEmpty() && result != S_OK)
-        message = ToQString(HResultToMessage(result));
+    else if (message.isEmpty() && result != S_OK) {
+        message = ToQString(MyFormatNew(IDS_CANT_OPEN_ARCHIVE, ToUString(file.absoluteFilePath())));
+        message += '\n' + ToQString(HResultToMessage(result));
+    }
     showStatusMessage(message);
     if (result != S_OK && result != E_ABORT) {
         QMessageBox warning(QMessageBox::Warning, QStringLiteral("Sevenzip"), message,
@@ -136,8 +132,12 @@ HRESULT MainWindow::openArchiveAsImpl(const QString &path, const QString &type) 
     }
     // Acknowledging the error is part of this transition. Only later input
     // should supersede the restored source's scroll position.
-    if (result != S_OK && previousView)
-        workspace_->RestoreViewPosition(panel, *previousView, previousScroll);
+    if (result != S_OK) {
+        if (projectedUi().scanningDisk || projectedUi().scanningArchive)
+            projectedUi().pendingViewport = previousViewport;
+        else
+            restoreListViewport(previousViewport);
+    }
     return panel.IsArcFolder() ? result : result == S_OK ? S_FALSE : result;
 }
 
@@ -278,7 +278,7 @@ HRESULT MainWindow::goParentImpl() {
         QScopedValueRollback<bool> source(sourceArchiveProgress_, true);
         result = panel.OpenParentFolder();
     }
-    if (result == E_ABORT)
+    if (result != S_OK)
         setState(previousState);
     else if (const auto published = workspace_->NavigationPublication())
         result = *published;

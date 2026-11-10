@@ -12,6 +12,7 @@
 
 #include <QAbstractItemModelTester>
 #include <QHeaderView>
+#include <QTextDocument>
 
 struct CurrentDirectoryGuard {
     const QString previous = QDir::currentPath();
@@ -205,6 +206,85 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
         QCOMPARE(provider->rawRequests, 3u);
         list.clearRows();
         QCOMPARE(provider->rawRequests, 3u);
+    }
+
+    void hidingCurrentColumnKeepsTheFileSelected_data() {
+        QTest::addColumn<bool>("typeColumn");
+        QTest::newRow("size") << false;
+        QTest::newRow("type") << true;
+    }
+
+    void hidingCurrentColumnKeepsTheFileSelected() {
+        QFETCH(bool, typeColumn);
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        QFile file(temp.filePath("payload.txt"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("large"), qint64(5));
+        file.close();
+        QFile first(temp.filePath("alpha.txt"));
+        QVERIFY(first.open(QIODevice::WriteOnly));
+        first.close();
+        MainWindow window;
+        window.show();
+        window.openPath(temp.path());
+        auto *files = table(window);
+        QTRY_VERIFY(files->isEnabled() && filesystemRow(window, "payload.txt") >= 0);
+        int column = files->columnForProperty(kpidSize);
+        if (typeColumn) {
+            column = -1;
+            const QString title = QCoreApplication::translate("QtWorkspaceFileTable", "Type");
+            for (int candidate = 0; candidate < files->columnCount(); ++candidate)
+                if (!files->isColumnHidden(candidate) &&
+                    files->model()->headerData(candidate, Qt::Horizontal).toString() == title) {
+                    column = candidate;
+                    break;
+                }
+        }
+        QVERIFY(column > 0 && !files->isColumnHidden(column));
+        if (!typeColumn) {
+            files->sortItems(column, Qt::DescendingOrder);
+            QVERIFY(filesystemRow(window, "payload.txt") < filesystemRow(window, "alpha.txt"));
+        }
+        const int row = filesystemRow(window, "payload.txt");
+        files->selectRow(row);
+        files->setCurrentCell(row, column, QItemSelectionModel::NoUpdate);
+        const QString label = files->model()->headerData(column, Qt::Horizontal).toString();
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            for (QAction *option : menu->actions())
+                if (option->isChecked() && option->text() == label) {
+                    option->trigger();
+                    break;
+                }
+            menu->close();
+        });
+        QVERIFY(QMetaObject::invokeMethod(files->horizontalHeader(), "customContextMenuRequested",
+                                          Qt::DirectConnection, Q_ARG(QPoint, QPoint(10, 5))));
+        QVERIFY(files->isColumnHidden(column));
+        QCOMPARE(files->currentIndex().data().toString(), QString("payload.txt"));
+        QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
+        if (!typeColumn) {
+            QVERIFY(filesystemRow(window, "alpha.txt") < filesystemRow(window, "payload.txt"));
+            action(window, "sort3Action")->trigger();
+            QVERIFY(filesystemRow(window, "payload.txt") < filesystemRow(window, "alpha.txt"));
+            QVERIFY(files->isColumnHidden(column));
+
+            QFile middle(temp.filePath("middle.txt"));
+            QVERIFY(middle.open(QIODevice::WriteOnly));
+            QCOMPARE(middle.write("mid"), qint64(3));
+            middle.close();
+            action(window, "refreshAction")->trigger();
+            QTRY_VERIFY(filesystemRow(window, "middle.txt") >= 0);
+            const int payload = filesystemRow(window, "payload.txt");
+            QVERIFY(payload >= 0);
+            QVERIFY(payload < filesystemRow(window, "middle.txt"));
+            QVERIFY(filesystemRow(window, "middle.txt") < filesystemRow(window, "alpha.txt"));
+            QVERIFY(files->isColumnHidden(files->columnForProperty(kpidSize)));
+            QCOMPARE(files->currentRow(), payload);
+            QVERIFY(files->selectionModel()->isRowSelected(payload, {}));
+        }
     }
 
     void sourceCatalogAndHeaderSettingsPersist() {
@@ -406,7 +486,7 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             MainWindow archive(&backend);
             archive.show();
             ArchiveEntry entry;
-            entry.path = QStringLiteral("архив с пробелом.txt");
+            entry.path = QStringLiteral("<b>архив с  пробелом & именем.txt");
             entry.modifiedTime.emplace();
             const UInt64 ticks =
                 UInt64(base.toSecsSinceEpoch() + 11644473600LL) * 10000000 + 1234567;
@@ -416,11 +496,11 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             auto *files = static_cast<FileTable *>(table(archive));
             QCOMPARE(files->model()->index(0, 4).data().toString(),
                      QLocale::system().toString(base.toLocalTime(), QLocale::ShortFormat));
-            QVERIFY(files->model()
-                        ->index(0, 4)
-                        .data(Qt::ToolTipRole)
-                        .toString()
-                        .contains(".1234567 UTC"));
+            QTextDocument tooltip;
+            tooltip.setHtml(files->model()->index(0, 4).data(Qt::ToolTipRole).toString());
+            const auto lines = tooltip.toPlainText().split(u'\n');
+            QCOMPARE(lines.front(), entry.path);
+            QVERIFY(lines.last().contains(".1234567 UTC"));
         }
     }
 };

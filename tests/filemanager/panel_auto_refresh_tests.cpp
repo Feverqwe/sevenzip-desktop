@@ -3,6 +3,7 @@
 #include "filemanager/window/qtwindowworkspace.h"
 #include "filemanager/window/qtworkspaceapplication.h"
 #include "localization/LangUtils.h"
+#include "localization/qtlangcontrols.h"
 #include "settings/RegistryUtils.h"
 #include "support/panel_keys.h"
 #include "support/window_activation.h"
@@ -222,8 +223,10 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(files->rowCount(), 80);
         const int selectedRow = filesystemRow(window, QStringLiteral("file-050.txt"));
         QVERIFY(selectedRow >= 0);
-        files->setCurrentCell(selectedRow, 0);
         files->selectRow(selectedRow);
+        const int sizeColumn = files->columnForProperty(kpidSize);
+        QVERIFY(sizeColumn >= 0 && !files->isColumnHidden(sizeColumn));
+        files->setCurrentCell(selectedRow, sizeColumn, QItemSelectionModel::NoUpdate);
         const int topRow = filesystemRow(window, QStringLiteral("file-035.txt"));
         files->scrollTo(files->model()->index(topRow, 0), QAbstractItemView::PositionAtTop);
         const QString topPath = files->model()->index(files->rowAt(0), 1).data().toString();
@@ -234,6 +237,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(files->model()->index(files->currentRow(), 0).isValid());
         QCOMPARE(files->model()->index(files->currentRow(), 0).data().toString(),
                  QStringLiteral("file-050.txt"));
+        QCOMPARE(files->currentIndex().column(), sizeColumn);
         QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), QModelIndex()));
         QVERIFY(files->model()->index(files->rowAt(0), 1).isValid());
         QCOMPARE(files->model()->index(files->rowAt(0), 1).data().toString(), topPath);
@@ -254,6 +258,45 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
 
         QVERIFY(QFile::remove(temp.filePath(QStringLiteral("новый файл.txt"))));
         QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 80, 3500);
+    }
+
+    void reopeningPeerChecksForFilesystemChanges() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString initial = fixture.filePath("old.txt");
+        QVERIFY(writeFile(initial));
+        QVERIFY(writeFile(fixture.filePath("keep.txt")));
+        MainWindow window;
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *left = table(window);
+        auto *twoPanels = action(window, "twoPanelsAction");
+        QTRY_VERIFY(twoPanels->isEnabled());
+        twoPanels->trigger();
+        auto *peer = window.findChild<QWidget *>("filePanel1");
+        QVERIFY(peer);
+        auto *files = peer->findChild<FileTable *>("archiveTable");
+        auto *address = peer->findChild<QLineEdit *>("archivePath");
+        PanelKeys::focusAddress(address);
+        QTRY_VERIFY(address->hasFocus());
+        address->setText(fixture.path());
+        QTest::keyClick(address, Qt::Key_Return);
+        QTRY_VERIFY(files->isEnabled() && files->rowCount() == 2);
+        files->setCurrentCell(0, 0);
+        files->selectRow(0);
+        QCOMPARE(files->currentIndex().data().toString(), QString("keep.txt"));
+        left->setFocus();
+        QTRY_VERIFY(left->hasFocus() && twoPanels->isEnabled());
+        twoPanels->trigger();
+        QVERIFY(!peer->isVisible());
+        QVERIFY(QFile::rename(initial, fixture.filePath("added.txt")));
+        QCOMPARE(files->model()->index(1, 0).data().toString(), QString("old.txt"));
+        twoPanels->trigger();
+        QVERIFY(peer->isVisible());
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString("added.txt"));
+        QCOMPARE(files->currentIndex().data().toString(), QString("keep.txt"));
+        QVERIFY(files->selectionModel()->isRowSelected(files->currentRow(), {}));
+        QVERIFY(left->hasFocus());
     }
 
     void renameDraftSurvivesAutoRefresh_data() {
@@ -424,17 +467,20 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QTest::addColumn<unsigned>("owner");
         QTest::addColumn<bool>("published");
         QTest::addColumn<bool>("peerUpdate");
-        QTest::newRow("left") << 0u << false << false;
-        QTest::newRow("right") << 1u << false << false;
-        QTest::newRow("published-left") << 0u << true << false;
-        QTest::newRow("published-right") << 1u << true << false;
-        QTest::newRow("published-peer") << 1u << true << true;
-        QTest::newRow("automatic-peer") << 1u << false << true;
+        QTest::addColumn<int>("addedFiles");
+        QTest::newRow("left") << 0u << false << false << 0;
+        QTest::newRow("right") << 1u << false << false << 0;
+        QTest::newRow("published-left") << 0u << true << false << 1;
+        QTest::newRow("published-right") << 1u << true << false << 1;
+        QTest::newRow("published-peer") << 1u << true << true << 1;
+        QTest::newRow("automatic-peer") << 1u << false << true << 1;
+        QTest::newRow("automatic-peer-background-scan") << 0u << false << true << 300;
     }
     void idleTicksKeepActiveTitleAndAddressDraft() {
         QFETCH(unsigned, owner);
         QFETCH(bool, published);
         QFETCH(bool, peerUpdate);
+        QFETCH(int, addedFiles);
         const unsigned updated = peerUpdate ? 1 - owner : owner;
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
@@ -476,12 +522,14 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QSignalSpy renameAvailability(rename, &QAction::enabledChanged);
         QSignalSpy removeAvailability(remove, &QAction::enabledChanged);
         QSignalSpy copyAvailability(copy, &QAction::enabledChanged);
-        if (published || peerUpdate) {
+        if (addedFiles) {
             views[updated]->sourcePanel->Set_AutoRefresh_Mode(!published);
-            QVERIFY(writeFile(QDir(folders[updated]).filePath("published.txt")));
+            for (int i = 0; i < addedFiles; ++i)
+                QVERIFY(writeFile(QDir(folders[updated]).filePath(QString("added-%1.txt").arg(i))));
             if (published)
                 application.FilesystemPublished({folders[updated]});
-            QTRY_COMPARE(views[updated]->rowCount(), 2);
+            QTRY_VERIFY(views[updated]->isEnabled() &&
+                        views[updated]->rowCount() == 1 + addedFiles);
         } else
             QTest::qWait(1250); // Cross the actual application timer interval while idle.
         for (const auto &event : titles)
@@ -492,7 +540,7 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(addresses[owner]->cursorPosition(), 0);
         QVERIFY(addresses[owner]->hasFocus());
         for (unsigned pane = 0; pane < 2; ++pane) {
-            QCOMPARE(views[pane]->rowCount(), (published || peerUpdate) && pane == updated ? 2 : 1);
+            QCOMPARE(views[pane]->rowCount(), pane == updated ? 1 + addedFiles : 1);
             QCOMPARE(views[pane]->selectionModel()->selectedRows().size(), 1);
             QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(
                          ToQString(views[pane]->sourcePanel->GetCurrentFolderPrefix()))),
@@ -578,19 +626,67 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(address->selectedText(), QStringLiteral("finis"));
     }
 
+    void unreadableFolderClearsStaleRowsAndRecovers() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires POSIX directory permissions");
+#endif
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString folder = QFileInfo(fixture.path()).canonicalFilePath();
+        QVERIFY(writeFile(fixture.filePath("keep.txt"), "payload"));
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        window.openPath(folder);
+        auto *files = table(window);
+        QTRY_COMPARE(files->rowCount(), 1);
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        const auto permissions = QFile::permissions(folder);
+        const auto restore = qScopeGuard([&] { QFile::setPermissions(folder, permissions); });
+        QVERIFY(QFile::setPermissions(folder, QFile::ExeOwner));
+        if (QFileInfo(folder).isReadable())
+            QSKIP("Fixture requires denied directory read permission");
+        auto *refresh = action(window, "refreshAction");
+        refresh->trigger();
+        QTRY_COMPARE(files->rowCount(), 0);
+        QCOMPARE(window.statusBar()->currentMessage(),
+                 QCoreApplication::translate("FSFolderCopy", "Could not read folder: %1")
+                     .arg(QDir::toNativeSeparators(folder)));
+        const QString readError = window.statusBar()->currentMessage();
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        SaveRegLang(UString("ru"), settings);
+        ReloadLang(settings);
+        QtNotifyLanguageChanged();
+        QVERIFY(QCoreApplication::translate("FSFolderCopy", "Could not read folder: %1") !=
+                QStringLiteral("Could not read folder: %1"));
+        QCOMPARE(window.statusBar()->currentMessage(), readError);
+        QVERIFY(QFile::setPermissions(folder, permissions));
+        refresh->trigger();
+        QTRY_COMPARE(files->rowCount(), 1);
+        QCOMPARE(files->model()->index(0, 0).data().toString(), QString("keep.txt"));
+        QVERIFY(window.statusBar()->currentMessage().isEmpty());
+    }
+
     void missingFolderClearsStaleRowsAndRecovers_data() {
         QTest::addColumn<bool>("automatic");
         QTest::addColumn<bool>("publishedRename");
+        QTest::addColumn<bool>("externalRename");
         QTest::addColumn<bool>("goUp");
-        QTest::newRow("automatic") << true << false << false;
-        QTest::newRow("manual") << false << false << false;
-        QTest::newRow("published-rename") << false << true << false;
-        QTest::newRow("parent-after-rename") << false << true << true;
+        QTest::addColumn<bool>("replacedByFile");
+        QTest::newRow("automatic") << true << false << false << false << false;
+        QTest::newRow("manual") << false << false << false << false << false;
+        QTest::newRow("automatic-file-replacement") << true << false << false << false << true;
+        QTest::newRow("manual-file-replacement") << false << false << false << false << true;
+        QTest::newRow("published-rename") << false << true << false << false << false;
+        QTest::newRow("parent-after-rename") << false << true << false << true << false;
+        QTest::newRow("parent-after-external-rename") << true << false << true << true << false;
     }
     void missingFolderClearsStaleRowsAndRecovers() {
         QFETCH(bool, automatic);
         QFETCH(bool, publishedRename);
+        QFETCH(bool, externalRename);
         QFETCH(bool, goUp);
+        QFETCH(bool, replacedByFile);
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         const QString folder = temp.filePath(QStringLiteral("browse"));
@@ -643,21 +739,31 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             QVERIFY(peerFiles->hasFocus());
             files->setFocus();
             QTRY_VERIFY(files->hasFocus());
+        } else if (externalRename) {
+            QVERIFY(QDir().rename(folder, renamed));
         } else {
             QVERIFY(QFile::remove(folder + QStringLiteral("/old.txt")));
             bool removed = false;
             QTRY_VERIFY_WITH_TIMEOUT(removed || (removed = QDir().rmdir(folder)), 2000);
+            if (replacedByFile)
+                QVERIFY(writeFile(folder, "replacement file"));
             if (!automatic)
                 action(window, "refreshAction")->trigger();
         }
         QTRY_COMPARE_WITH_TIMEOUT(files->rowCount(), 0, 3500);
-        QVERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
+        if (replacedByFile)
+            QTRY_COMPARE(window.statusBar()->currentMessage(),
+                         QCoreApplication::translate("CopyRedesign", "Not a folder: %1")
+                             .arg(QFileInfo(folder).canonicalFilePath()));
+        else
+            QVERIFY(
+                window.statusBar()->currentMessage().contains(QStringLiteral("Folder not found")));
         for (const auto *command : fileCommands)
             QVERIFY(!command->isEnabled());
         QVERIFY(!action(window, "testArchiveAction")->isEnabled());
         QVERIFY(action(window, "refreshAction")->isEnabled());
         QVERIFY(action(window, "parentFolderAction")->isEnabled());
-        if (publishedRename) {
+        if (publishedRename || externalRename) {
             QFile retained(renamed + "/old.txt");
             QVERIFY(retained.open(QIODevice::ReadOnly));
             QCOMPARE(retained.readAll(), QByteArray("control"));
@@ -676,6 +782,13 @@ class PanelAutoRefreshTests final : public QObject, protected MainWindowTestSupp
             return;
         }
 
+        if (replacedByFile) {
+            QFile replacement(folder);
+            QVERIFY(replacement.open(QIODevice::ReadOnly));
+            QCOMPARE(replacement.readAll(), QByteArray("replacement file"));
+            replacement.close();
+            QVERIFY(replacement.remove());
+        }
         QVERIFY(QDir().mkpath(folder));
         QVERIFY(writeFile(folder + QStringLiteral("/new.txt")));
         if (!automatic)
