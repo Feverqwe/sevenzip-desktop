@@ -178,6 +178,8 @@ reached progress. It is available only when supported by that operation's
 transport. Callback-only filesystem/volume operations hide it. Pause/Continue and Stop remain reachable
 in the footer, and the title bar provides Minimize. Full locations come from the
 accepted operation plan, not from the changing current-file string.
+Expanding locations brings the paths into view while the footer stays in place.
+For a batch sent to Trash, the source location is the starting folder.
 
 Stop and closing a running window ask Continue working / Stop. Continue is the
 default and Escape answer. Refusal restores the former pause state. Confirmed

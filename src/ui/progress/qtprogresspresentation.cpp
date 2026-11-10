@@ -9,6 +9,8 @@
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -67,6 +69,15 @@ void CQtProgressDialog::BuildPresentation() {
     _locations = locations;
     outer->addWidget(locations);
     locations->hide();
+    auto *scroll = findChild<QScrollArea *>("dialogContentScroll");
+    connect(locations->button(), &QToolButton::toggled, this,
+            [this, locations, places, scroll](bool expanded) {
+                if (expanded && scroll)
+                    QTimer::singleShot(0, this, [locations, places, scroll] {
+                        if (locations->isExpanded() && places->isVisible())
+                            scroll->ensureWidgetVisible(places);
+                    });
+            });
 
     auto *messages = new CListView(this);
     messages->setHeaderHidden(true);

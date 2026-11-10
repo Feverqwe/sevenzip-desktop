@@ -14,6 +14,7 @@
 #include "support/progress_dialog.h"
 #include "support/widget_dialogs.h"
 #include "support/window_activation.h"
+#include "ui/controls/qtdisclosure.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
 #include <QClipboard>
@@ -77,7 +78,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         errors.start(1);
         UStringVector paths;
         paths.Add(ToUString(path));
-        QCOMPARE(QtMoveItemsToTrash(paths, trash, nullptr), S_OK);
+        QCOMPARE(QtMoveItemsToTrash(paths, fixture.path(), trash, nullptr), S_OK);
         QVERIFY(!QFileInfo::exists(path));
         QVERIFY(!trash.moved.isEmpty());
         QFile moved(trash.moved);
@@ -149,9 +150,22 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
                 QTRY_VERIFY(progress->findChild<QLabel *>("IDT_PROGRESS_FILE_NAME")
                                 ->text()
                                 .contains(first));
-                QVERIFY(UiInspection::writeReport(*progress, "trash-progress-before-cancel"));
+                auto *locations = progress->findChild<QtDisclosure *>("progressLocations");
+                QVERIFY(locations);
+                locations->setExpanded(true);
+                auto *source = progress->findChild<QLabel *>("progressSource");
+                QVERIFY(source && source->isVisible());
+                const QDir base(QDir(fixture.path()).canonicalPath());
+                const QString expected = lastItem ? base.filePath(first) : base.path();
+                QCOMPARE(
+                    QDir::cleanPath(QDir::fromNativeSeparators(source->accessibleDescription())),
+                    QFileInfo(expected).absoluteFilePath());
                 auto *cancel = progress->findChild<QPushButton *>("IDCANCEL");
                 QVERIFY(cancel);
+                QTRY_VERIFY(UiInspection::fullyVisible(*source, *progress));
+                QVERIFY(UiInspection::fullyVisible(*cancel, *progress));
+                QVERIFY(UiInspection::writeReport(*progress, lastItem ? "trash-progress-single"
+                                                                      : "trash-progress-batch"));
                 stopped = true;
                 cancel->click();
             }

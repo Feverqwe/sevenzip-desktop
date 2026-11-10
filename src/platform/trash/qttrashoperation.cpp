@@ -45,18 +45,16 @@ class TrashOperation final : public CProgressThreadVirt {
 };
 } // namespace
 
-HRESULT QtMoveItemsToTrash(const UStringVector &paths, IQtTrashService &trash, QWidget *parent,
-                           bool deferResultReview, QStringList *diagnostics, unsigned *movedCount) {
+HRESULT QtMoveItemsToTrash(const UStringVector &paths, const QString &sourceDirectory,
+                           IQtTrashService &trash, QWidget *parent, bool deferResultReview,
+                           QStringList *diagnostics, unsigned *movedCount) {
     TrashOperation operation(paths, trash);
     operation.DeferResultReview = deferResultReview;
     operation.WaitMode = true;
     operation.MainWindow = parent;
     operation.MainTitle = L"7-Zip";
     operation.MainAddTitle = LangString(IDS_DELETING);
-    QStringList sources;
-    FOR_VECTOR(i, paths)
-    sources.append(QString::fromWCharArray(paths[i]));
-    operation.SetLocations(sources.join('\n'));
+    operation.SetLocations(paths.Size() == 1 ? QString::fromWCharArray(paths[0]) : sourceDirectory);
     operation.Sync.FinalMessage.ErrorMessage.Title = LangString(IDS_ERROR_DELETING);
     const HRESULT started = operation.Create(LangString(IDS_DELETING), parent);
     if (movedCount)

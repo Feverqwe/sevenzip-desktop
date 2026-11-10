@@ -107,8 +107,8 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
     CDisableNotify disableNotify(*this);
     unsigned movedCount = 0;
     QStringList diagnostics;
-    const HRESULT result =
-        QtMoveItemsToTrash(paths, trash, GetParent(), review != nullptr, &diagnostics, &movedCount);
+    const HRESULT result = QtMoveItemsToTrash(paths, ToQString(GetFsPath()), trash, GetParent(),
+                                              review != nullptr, &diagnostics, &movedCount);
     if (review && result != S_OK) {
         diagnostics.append(
             QCoreApplication::translate("DeleteRedesign", "Items moved to Trash (%1 of %2)")
