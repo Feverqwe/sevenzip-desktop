@@ -638,12 +638,13 @@ class ExtractDialogTests final : public QObject {
     }
 
     void folderPickerKeepsExtractionDraftAndOptions_data() {
-        QTest::addColumn<bool>("invalidDestination");
-        QTest::newRow("valid") << false;
-        QTest::newRow("invalid") << true;
+        QTest::addColumn<QString>("draftKind");
+        QTest::newRow("valid") << QString("valid");
+        QTest::newRow("invalid") << QString("invalid");
+        QTest::newRow("occupied-parent") << QString("occupied-parent");
     }
     void folderPickerKeepsExtractionDraftAndOptions() {
-        QFETCH(bool, invalidDestination);
+        QFETCH(QString, draftKind);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString selected = fixture.filePath("selected folder");
@@ -660,8 +661,13 @@ class ExtractDialogTests final : public QObject {
             overwrite(dialog)->findData(int(NExtract::NOverwriteMode::kSkip));
         QVERIFY(overwriteIndex >= 0);
         overwrite(dialog)->setCurrentIndex(overwriteIndex);
-        if (invalidDestination)
+        if (draftKind == "invalid")
             destination->setEditText(QStringLiteral("invalid") + QChar::Null + "/path");
+        if (draftKind == "occupied-parent") {
+            const QString occupied = QDir(selected).filePath("occupied.txt");
+            QVERIFY(SourceExtractFixture::writeFile(occupied, "unchanged"));
+            destination->setEditText(occupied + "/output");
+        }
         const QString draft = edit->text();
         edit->setFocus();
         edit->setSelection(5, -4);

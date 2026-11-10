@@ -68,6 +68,23 @@ bool ResolveOutputDirectory(const QString &candidate, FString &resolved) {
            !HasEmptyWindowsPathComponent(path, fs2us(resolved));
 }
 
+QString OutputDirectoryStructureError(QString path) {
+    for (;;) {
+        const QFileInfo entry(path);
+        if (entry.exists() || entry.isSymLink())
+            return entry.isDir() ? QString()
+                                 : QCoreApplication::translate(
+                                       "archivebackend_validation",
+                                       "Destination path is occupied by a file or link: %1")
+                                       .arg(path);
+        const QString parent = entry.absolutePath();
+        if (parent == path)
+            return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
+                .arg(QDir::toNativeSeparators(path));
+        path = parent;
+    }
+}
+
 void SplitExtractionDestination(const QString &destination, QString &parent, QString &name) {
     UString prefix = ToUString(QDir::toNativeSeparators(destination));
     NWindows::NFile::NName::NormalizeDirPathPrefix(prefix);
@@ -246,7 +263,8 @@ void CExtractDialog::changeEvent(QEvent *event) {
 void CExtractDialog::OnButtonSetPath() {
     const QString draft = DestinationDraft(_path->currentText());
     FString initial;
-    if (!ResolveOutputDirectory(draft, initial)) {
+    if (!ResolveOutputDirectory(draft, initial) ||
+        !OutputDirectoryStructureError(QDir::cleanPath(ToQString(fs2us(initial)))).isEmpty()) {
         QString originalBase = DirPath;
         if (_info.SplitDest.Val) {
             QString originalName;
@@ -274,23 +292,10 @@ void CExtractDialog::OnOK() {
             return InvalidOutputDirectory();
         if (resolvedPath)
             *resolvedPath = resolved;
-        QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
+        const QString path = QDir::cleanPath(ToQString(fs2us(resolved)));
         if (checkOutputPolicy && _destinationErrorForPath)
             return _destinationErrorForPath(path);
-        for (;;) {
-            const QFileInfo entry(path);
-            if (entry.exists() || entry.isSymLink())
-                return entry.isDir() ? QString()
-                                     : QCoreApplication::translate(
-                                           "archivebackend_validation",
-                                           "Destination path is occupied by a file or link: %1")
-                                           .arg(path);
-            const QString parent = entry.absolutePath();
-            if (parent == path)
-                return QCoreApplication::translate("CopyRedesign", "Cannot access folder: %1")
-                    .arg(QDir::toNativeSeparators(path));
-            path = parent;
-        }
+        return OutputDirectoryStructureError(path);
     };
     FString resolvedDestination;
     QString baseError;
