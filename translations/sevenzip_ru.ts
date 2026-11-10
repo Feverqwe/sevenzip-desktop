@@ -6297,6 +6297,13 @@ Use `Revert` to recover timestamp.</source>
         </message>
     </context>
     <context>
+        <name>PanelArchiveLifecycle</name>
+        <message>
+            <source>Discard changes</source>
+            <translation>Отбросить изменения</translation>
+        </message>
+    </context>
+    <context>
         <name>qtassociatedfileservices</name>
         <message>
             <source>Open in external application?</source>
