@@ -125,9 +125,10 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
     }
     void unknownZeroFoldersAndPartialSelectionStayDistinct() {
         CMyComPtr<IFolderFolder> folder;
+        const QString literalName = QStringLiteral("  <b>unknown & file  ");
         QCOMPARE(
             CreateArchiveFolder(
-                {{"unknown", -1, -1}, {"zero", 0, 0}, {"known", 11, 7}, {"folder/child", 13, 5}},
+                {{literalName, -1, -1}, {"zero", 0, 0}, {"known", 11, 7}, {"folder/child", 13, 5}},
                 UString("zip"), &folder),
             S_OK);
         UInt32 count = 0;
@@ -137,7 +138,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             NWindows::NCOM::CPropVariant value;
             QCOMPARE(folder->GetProperty(i, kpidName, &value), S_OK);
             const QString name = QString::fromWCharArray(value.bstrVal);
-            if (name == "unknown")
+            if (name == literalName)
                 unknown = i;
             else if (name == "zero")
                 zero = i;
@@ -176,6 +177,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         copy(multiple);
         const QString englishReport = QApplication::clipboard()->text();
         QVERIFY(englishReport.contains(englishSelection));
+        QVERIFY(englishReport.split(u'\n').contains(literalName));
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(UString("ru"), settings);
         ReloadLang(settings);
@@ -184,8 +186,7 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         const QString russianReport = QApplication::clipboard()->text();
         QVERIFY(!russianReport.contains(englishSelection));
         QVERIFY(russianReport.contains(QtSelectedItemsText(3)));
-        for (const QString &name :
-             {QStringLiteral("unknown"), QStringLiteral("zero"), QStringLiteral("folder")})
+        for (const QString &name : {literalName, QStringLiteral("zero"), QStringLiteral("folder")})
             QVERIFY(russianReport.split(u'\n').contains(name));
         SaveRegLang(UString("-"), settings);
         ReloadLang(settings);
@@ -199,6 +200,13 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
             window->show();
             QVERIFY(QTest::qWaitForWindowExposed(window));
             if (window == &multiple) {
+                auto *names = window->findChild<QLabel *>("propertiesSelectedNames");
+                QVERIFY(names && names->isVisible());
+                const qsizetype start = names->text().indexOf(literalName);
+                QVERIFY(start >= 0);
+                names->setSelection(int(start), int(literalName.size()));
+                QTest::keySequence(names, QKeySequence::Copy);
+                QCOMPARE(QApplication::clipboard()->text(), literalName);
                 for (auto *section : window->findChildren<QtDisclosure *>())
                     section->setExpanded(true);
                 QLabel *caption = nullptr;
