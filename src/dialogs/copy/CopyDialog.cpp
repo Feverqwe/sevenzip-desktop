@@ -232,8 +232,8 @@ void CCopyDialog::changeEvent(QEvent *event) {
 
 void CCopyDialog::OnButtonSetPath() {
     const QString draft = _pathEdit->text();
-    const UString initialDirectory =
-        draft.contains(QChar::Null) ? UString() : ToUString(PreviewDestination(draft));
+    const QString initial = draft.contains(QChar::Null) ? ToQString(Value) : draft;
+    const UString initialDirectory = ToUString(PreviewDestination(initial));
     UString selectedPath;
     const bool chosen = MyBrowseForFolder(this, ToUString(QtLangText(IDS_SET_FOLDER)),
                                           initialDirectory, selectedPath);

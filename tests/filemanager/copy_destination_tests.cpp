@@ -785,6 +785,7 @@ class CopyDestinationTests final : public QObject {
                     if (picker->isVisible())
                         picker->reject();
                 });
+                QCOMPARE(picker->directory().canonicalPath(), QDir(fixture.path()).canonicalPath());
                 if (accept) {
                     picker->setDirectory(selected);
                     picker->selectFile(selected);
