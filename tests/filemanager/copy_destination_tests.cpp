@@ -790,6 +790,7 @@ class CopyDestinationTests final : public QObject {
                 fixture.path(), "source.txt", {}, false, [](const QString &) { return true; }};
             context.LocalFileTransfer = true;
             dialog.ConfigureDestination(std::move(context));
+            dialog.resize(340, 220);
         } else
             configure(dialog, source);
         dialog.show();
@@ -842,6 +843,13 @@ class CopyDestinationTests final : public QObject {
         QTRY_COMPARE(dialog.focusWidget(), nameConflict ? name : path);
         if (nameConflict) {
             QCOMPARE(name->selectedText(), QString("draft.txt"));
+            auto *message = dialog.findChild<QLabel *>("copyDestinationMessage");
+            auto *buttons = dialog.findChild<QDialogButtonBox *>("copyButtons");
+            QVERIFY(message && buttons);
+            QTRY_VERIFY(UiInspection::fullyVisible(*message, dialog));
+            QVERIFY(UiInspection::fullyVisible(*name, dialog));
+            QVERIFY(UiInspection::fullyVisible(*buttons, dialog));
+            QVERIFY(UiInspection::writeReport(dialog, "copy-picker-name-conflict"));
             QTest::keyClicks(dialog.focusWidget(), "corrected.txt");
         }
         QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
