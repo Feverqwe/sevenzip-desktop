@@ -107,7 +107,7 @@ void QtWindowWorkspace::AttachContent(unsigned panel, QVBoxLayout &layout) {
             for (int row = 0; row < favorites_->rowCount(); ++row) {
                 const auto entry = favorites_->Favorite(row);
                 auto *action = saved->addAction(QtLiteralMenuText(entry.label));
-                action->setToolTip(entry.path);
+                action->setToolTip(QtLiteralToolTip(entry.path));
                 connect(action, &QAction::triggered, this, [this, id = entry.id] {
                     const auto index = favorites_->IndexForId(id);
                     if (index.isValid())
