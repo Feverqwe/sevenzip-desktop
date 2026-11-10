@@ -157,6 +157,10 @@ class CompressionPathTests final : public QObject {
         name->setText("report.with.dot");
         format->setCurrentText("zip");
         QCOMPARE(name->text(), QStringLiteral("report.with.dot.zip"));
+        format->setCurrentText("7z");
+        name->setText("report.with.dot.7z ");
+        format->setCurrentText("zip");
+        QCOMPARE(name->text(), QStringLiteral("report.with.dot.zip"));
         CreateArchiveDialog single(dir_.path(), {source_}, nullptr, catalog);
         QCOMPARE(single.sources(), QStringList{source_});
         single.findChild<QLineEdit *>("archiveName")->setText("report.with.dot");

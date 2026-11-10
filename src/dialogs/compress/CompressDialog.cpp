@@ -377,9 +377,8 @@ bool CCompressDialog::OnButtonSetArchive(QWidget *parent, const BrowseFileHandle
 
 void CCompressDialog::SetArchiveName2() {
     UString fileName(m_ArchivePath.toStdWString().c_str());
-    UString draft = fileName;
-    draft.Trim();
-    const UString leaf(draft.Ptr(unsigned(draft.ReverseFind_PathSepar() + 1)));
+    fileName.Trim();
+    const UString leaf(fileName.Ptr(unsigned(fileName.ReverseFind_PathSepar() + 1)));
     if (m_ArchivePath.contains(QChar::Null) || leaf.IsEmpty() || leaf.IsEqualTo(".") ||
         leaf.IsEqualTo("..")) {
         m_PrevFormat = Info.FormatIndex;
