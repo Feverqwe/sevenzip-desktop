@@ -161,6 +161,9 @@ class PropertiesWindowTests final : public QObject, protected MainWindowTestSupp
         QCOMPARE(shownSize(multiple), QString("Not calculated"));
         QCOMPARE(shownSize(knownFiles), QtRegionalFormat::bytes(11));
         QCOMPARE(shownSize(knownFolderAndFile), QtRegionalFormat::bytes(24));
+        QCOMPARE(knownFolderAndFile.findChild<QLabel *>("propertiesSize")->toolTip(),
+                 QtRegionalFormat::exactBytes(24));
+        QVERIFY(multiple.findChild<QLabel *>("propertiesSize")->toolTip().isEmpty());
         copy(knownFolderAndFile);
         QVERIFY(QApplication::clipboard()->text().contains("Size: " + QtRegionalFormat::bytes(24)));
         copy(knownFiles);

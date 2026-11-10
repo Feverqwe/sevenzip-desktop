@@ -313,9 +313,10 @@ void QtPropertiesWindow::Refresh() {
     modified_->setToolTip({});
     const auto primaryScope = report_.items.isEmpty() ? Scope::Folder : Scope::Selection;
     for (const auto &group : report_.groups)
-        if (group.scope == primaryScope && report_.items.size() <= 1) {
+        if (group.scope == primaryScope) {
             size_->setToolTip(PropertyValue(group, kpidSize, true));
-            modified_->setToolTip(PropertyValue(group, kpidMTime, true));
+            if (report_.items.size() <= 1)
+                modified_->setToolTip(PropertyValue(group, kpidMTime, true));
         }
     if (selectedNames_) {
         QStringList names;
