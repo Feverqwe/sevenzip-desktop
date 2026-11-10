@@ -12,6 +12,7 @@
 
 #include <QAbstractItemModelTester>
 #include <QHeaderView>
+#include <QTextDocument>
 
 struct CurrentDirectoryGuard {
     const QString previous = QDir::currentPath();
@@ -485,7 +486,7 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             MainWindow archive(&backend);
             archive.show();
             ArchiveEntry entry;
-            entry.path = QStringLiteral("архив с пробелом.txt");
+            entry.path = QStringLiteral("<b>архив с  пробелом & именем.txt");
             entry.modifiedTime.emplace();
             const UInt64 ticks =
                 UInt64(base.toSecsSinceEpoch() + 11644473600LL) * 10000000 + 1234567;
@@ -495,11 +496,11 @@ class PanelColumnsTests final : public QObject, protected MainWindowTestSupport 
             auto *files = static_cast<FileTable *>(table(archive));
             QCOMPARE(files->model()->index(0, 4).data().toString(),
                      QLocale::system().toString(base.toLocalTime(), QLocale::ShortFormat));
-            QVERIFY(files->model()
-                        ->index(0, 4)
-                        .data(Qt::ToolTipRole)
-                        .toString()
-                        .contains(".1234567 UTC"));
+            QTextDocument tooltip;
+            tooltip.setHtml(files->model()->index(0, 4).data(Qt::ToolTipRole).toString());
+            const auto lines = tooltip.toPlainText().split(u'\n');
+            QCOMPARE(lines.front(), entry.path);
+            QVERIFY(lines.last().contains(".1234567 UTC"));
         }
     }
 };

@@ -12,9 +12,16 @@
 #include <QDir>
 #include <QMimeData>
 #include <QSet>
+#include <QTextDocument>
 #include <QUrl>
 #include <algorithm>
 #include <numeric>
+
+namespace {
+QString LiteralToolTip(const QString &text) {
+    return Qt::mightBeRichText(text) ? Qt::convertFromPlainText(text, Qt::WhiteSpacePre) : text;
+}
+} // namespace
 
 FilePanelModel::FilePanelModel(FileTable &view) : QAbstractTableModel(&view), view_(view) {}
 
@@ -61,7 +68,7 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
                cutPaths_.contains(QDir::cleanPath(QDir::fromNativeSeparators(row.operationPath)));
     case Qt::ToolTipRole:
         if (column == 5 && !parent)
-            return view_.typeLabel(row.name, row.directory);
+            return LiteralToolTip(view_.typeLabel(row.name, row.directory));
         if (readable && !parent && !view_.isRawProperty(column)) {
             const auto id = column == 0 ? kpidSize : view_.propertyId(column);
             if (IsByteSizeProp(id)) {
@@ -69,7 +76,8 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
                 try {
                     if (panel->GetFolder()->GetProperty(row.sourceIndex, id, &value) == S_OK)
                         if (const auto bytes = QtUnsignedPropertyValue(value))
-                            return row.toolTip + '\n' + QtRegionalFormat::exactBytes(*bytes);
+                            return LiteralToolTip(row.toolTip + '\n' +
+                                                  QtRegionalFormat::exactBytes(*bytes));
                 } catch (...) {
                 }
             }
@@ -78,12 +86,13 @@ QVariant FilePanelModel::data(const QModelIndex &index, int role) const {
                 NWindows::NCOM::CPropVariant value;
                 try {
                     if (panel->GetFolder()->GetProperty(row.sourceIndex, id, &value) == S_OK)
-                        return row.toolTip + '\n' + QtFormatPropertyTime(value).detail;
+                        return LiteralToolTip(row.toolTip + '\n' +
+                                              QtFormatPropertyTime(value).detail);
                 } catch (...) {
                 }
             }
         }
-        return row.toolTip;
+        return LiteralToolTip(row.toolTip);
     case Qt::DecorationRole:
         return column == 0 || column == view_.columnForVisibleProperty(0) ? QVariant(row.icon)
                                                                           : QVariant();
