@@ -114,6 +114,22 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
                                         QItemSelectionModel::Select | QItemSelectionModel::Rows);
         QTRY_VERIFY(size->text().isEmpty());
         QVERIFY(!size->isVisible());
+
+        files->sourcePanel->Set_AutoRefresh_Mode(false);
+        auto *calculate = action(window, "calculateDirectorySizeAction");
+        QTRY_VERIFY(calculate->isEnabled());
+        calculate->trigger();
+        QTRY_COMPARE(size->text(), QtRegionalFormat::bytes(1));
+
+        QFile child(fixture.filePath("folder/new.txt"));
+        QVERIFY(child.open(QIODevice::WriteOnly));
+        QCOMPARE(child.write("more"), qint64(4));
+        child.close();
+        action(window, "refreshAction")->trigger();
+        QTRY_VERIFY(calculate->isEnabled() && size->text().isEmpty());
+        QCOMPARE(files->selectionModel()->selectedRows().size(), 2);
+        calculate->trigger();
+        QTRY_COMPARE(size->text(), QtRegionalFormat::bytes(5));
     }
 
     void perPanelStatusAndSourceContextFollowFocus() {
