@@ -180,6 +180,8 @@ in the footer, and the title bar provides Minimize. Full locations come from the
 accepted operation plan, not from the changing current-file string.
 Expanding locations brings the paths into view while the footer stays in place.
 For a batch sent to Trash, the source location is the starting folder.
+When a transfer has many source paths, they scroll independently of the
+destination and the footer.
 
 Stop and closing a running window ask Continue working / Stop. Continue is the
 default and Escape answer. Refusal restores the former pause state. Confirmed
