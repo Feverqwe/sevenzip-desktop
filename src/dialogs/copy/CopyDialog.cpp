@@ -27,6 +27,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -230,6 +231,17 @@ void CCopyDialog::changeEvent(QEvent *event) {
     }
 }
 
+void CCopyDialog::keyPressEvent(QKeyEvent *event) {
+    const QWidget *focused = focusWidget();
+    if (_copyMove && !_canSubmit && focused && (focused == _pathEdit || focused == _name) &&
+        (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)) {
+        event->accept();
+        OnOK();
+        return;
+    }
+    QDialog::keyPressEvent(event);
+}
+
 void CCopyDialog::OnButtonSetPath() {
     const UString initialDirectory = ToUString(BrowseStartDirectory());
     UString selectedPath;
@@ -281,11 +293,9 @@ bool CCopyDialog::ReadPath(UString &path) {
 }
 
 void CCopyDialog::OnOK() {
-    const bool couldSubmit = _canSubmit;
     QLineEdit *correctionField = _pathEdit;
     if (!UpdateDestination(true, &correctionField)) {
-        if (couldSubmit)
-            FocusDestinationError(correctionField);
+        FocusDestinationError(correctionField);
         return;
     }
     UString path;

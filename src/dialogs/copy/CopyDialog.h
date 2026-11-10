@@ -57,6 +57,7 @@ class CCopyDialog : public QDialog {
 
   protected:
     void changeEvent(QEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
   private:
     QComboBox *_path = nullptr;

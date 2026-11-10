@@ -756,11 +756,20 @@ class CopyDestinationTests final : public QObject {
         QVERIFY(WindowActivation::waitForActive(dialog));
         QTRY_VERIFY(!ok->isEnabled());
         QVERIFY(!peer->isEnabled());
-        path->setText(target);
-        QVERIFY(ok->isEnabled());
-        dialog.accept();
+        path->setText(blocked + "/new folder/target.txt");
+        dialog.resize(360, 240);
+        path->setFocus();
+        QTest::keyClick(path, Qt::Key_Return);
+        QVERIFY(dialog.isVisible());
+        QCOMPARE(path->selectedText(), path->text());
+        auto *message = dialog.findChild<QLabel *>("copyDestinationMessage");
+        QVERIFY(message);
+        QTRY_VERIFY(UiInspection::fullyVisible(*message, dialog));
+        QVERIFY(QFile::setPermissions(blocked, permissions));
+        QVERIFY(!ok->isEnabled());
+        QTest::keyClick(path, Qt::Key_Enter, Qt::KeypadModifier);
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
-        QCOMPARE(ToQString(dialog.Value), target);
+        QCOMPARE(ToQString(dialog.Value), blocked + "/new folder/target.txt");
     }
 
     void browsePreservesNameDraft_data() {

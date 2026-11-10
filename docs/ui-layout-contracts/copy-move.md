@@ -422,7 +422,9 @@ Implemented view: `src/dialogs/copy/CopyDialog.cpp`.
   write or search access, and an unchanged source location disable acceptance
   with an inline explanation. Native operation checks
   remain authoritative. Cancel preserves the original value; accepted
-  input preserves significant spaces and Unicode. Relative paths keep the caller's
+  input preserves significant spaces and Unicode. Enter in a destination field
+  rechecks access without requiring a path edit or reopening the dialog.
+  Relative paths keep the caller's
   existing base directory. On Windows, relative navigation components such
   as `..` resolve the same way in the dialog and in the file operation.
 - A link or a file/folder conflict at the final name keeps the filesystem
