@@ -201,6 +201,9 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QTest::newRow("absolute") << QString("absolute");
         QTest::newRow("outside") << QString("outside");
         QTest::newRow("nested-outside") << QString("nested-outside");
+#ifndef Q_OS_WIN
+        QTest::newRow("nested-hidden") << QString("nested-hidden");
+#endif
     }
     void createdPathSelectsVisibleFolder() {
         QFETCH(QString, pathForm);
@@ -211,9 +214,22 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QFile keep(QDir(source).filePath("keep.txt"));
         QVERIFY(keep.open(QIODevice::WriteOnly));
         keep.close();
-        const QString folder = QStringLiteral("created δ");
-        const bool nested = pathForm == "nested-outside";
-        const bool outside = pathForm == "outside" || nested;
+        const bool hidden = pathForm == "nested-hidden";
+        const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        CFmSettings preferences;
+        preferences.Load(settings);
+        const auto restorePreferences = qScopeGuard([&] {
+            if (hidden)
+                preferences.Save(settings);
+        });
+        if (hidden) {
+            auto options = preferences;
+            options.ShowHiddenFolders = false;
+            options.Save(settings);
+        }
+        const QString folder = hidden ? QStringLiteral(".created δ") : QStringLiteral("created δ");
+        const bool outside = pathForm == "outside" || pathForm == "nested-outside";
+        const bool nested = hidden || pathForm == "nested-outside";
         const QString target = outside ? fixture.filePath("other") : source;
         if (outside)
             QVERIFY(QDir().mkdir(target));
@@ -240,9 +256,12 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         input->setText(entered);
         QTest::keyClick(input, Qt::Key_Return);
         QTRY_VERIFY(QFileInfo(destination).isDir());
-        QTRY_VERIFY(row(observed, folder) >= 0);
-        QTRY_COMPARE(view->rowCount(), outside ? 1 : 2);
-        const int selected = row(view, outside ? "keep.txt" : folder);
+        if (hidden)
+            QCOMPARE(row(observed, folder), -1);
+        else
+            QTRY_VERIFY(row(observed, folder) >= 0);
+        QTRY_COMPARE(view->rowCount(), outside || hidden ? 1 : 2);
+        const int selected = row(view, outside || hidden ? "keep.txt" : folder);
         QVERIFY(selected >= 0);
         QCOMPARE(view->currentRow(), selected);
         QVERIFY(view->selectionModel()->isRowSelected(selected, {}));

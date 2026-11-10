@@ -205,8 +205,9 @@ void QtFileManagerCommands::CreateFolder() {
                 QtAppOperationState::CallScope call(operations);
                 {
                     QScopedValueRollback<bool> progress(window_.sourceArchiveProgress_, true);
-                    result = panel.CreateFolder(ToUString(value), detail, &destinationDirectory,
-                                                &publishedArchive);
+                    result = panel.CreateFolder(ToUString(value), detail,
+                                                window_.fileListSettings_.ShowHiddenFolders,
+                                                &destinationDirectory, &publishedArchive);
                 }
                 operations.ContinueScanAfterSourceCall(index);
             }

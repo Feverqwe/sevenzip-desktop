@@ -40,12 +40,14 @@ static UString VisibleFilesystemItem(const QString &base, const QString &destina
     return flat ? path : FirstPathPart(path);
 }
 
-static void PrepareCreatedSelection(const CPanel &panel, UString newName, CSelectedState &state) {
+static void PrepareCreatedSelection(const CPanel &panel, UString newName, bool showHiddenFolders,
+                                    CSelectedState &state) {
     if (panel.IsFSFolder()) {
         const QDir folder(ToQString(panel.GetFsPath()));
         newName = VisibleFilesystemItem(folder.canonicalPath(),
                                         QFileInfo(folder, ToQString(newName)).canonicalFilePath());
-        if (newName.IsEmpty())
+        if (newName.IsEmpty() ||
+            (!showHiddenFolders && QFileInfo(folder, ToQString(newName)).isHidden()))
             return;
     } else
         newName = FirstPathPart(newName);
@@ -105,8 +107,8 @@ static void SetPublishedArchive(const CPanel &panel, const CThreadFolderOperatio
         *publishedArchive = ToQString(parents.Front().VirtualPath);
 }
 
-HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationDirectory,
-                             QString *publishedArchive) {
+HRESULT CPanel::CreateFolder(UString name, QString &error, bool showHiddenFolders,
+                             QString *destinationDirectory, QString *publishedArchive) {
     if (IsHashFolder() || !_folderOperations || IsThereReadOnlyFolder())
         return E_NOTIMPL;
     if (name.IsEmpty() || !IsCorrectFsName(name))
@@ -165,7 +167,7 @@ HRESULT CPanel::CreateFolder(UString name, QString &error, QString *destinationD
     }
     SetPublishedArchive(*this, op, publishedArchive);
     if (res == S_OK)
-        PrepareCreatedSelection(*this, name, state);
+        PrepareCreatedSelection(*this, name, showHiddenFolders, state);
     if (destinationDirectory) {
         if (!parentDirectory.isEmpty() && res == S_OK)
             *destinationDirectory = parentDirectory;
