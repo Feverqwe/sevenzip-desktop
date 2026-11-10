@@ -174,11 +174,27 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QFile remaining(fixture.filePath(second));
         QVERIFY(remaining.open(QIODevice::ReadOnly));
         QCOMPARE(remaining.readAll(), QByteArray("protected"));
+        remaining.close();
         QTRY_COMPARE(view->rowCount(), 1);
         QCOMPARE(view->currentIndex().siblingAtColumn(0).data().toString(), second);
         if (!lastItem)
             QVERIFY(view->selectionModel()->isRowSelected(view->currentRow(), {}));
         QVERIFY(panel.ShouldProcessNotifications());
+        if (!lastItem) {
+            trash.during = {};
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_COMPARE(window.focusWidget(), view);
+            responder.start(1);
+#ifdef Q_OS_MACOS
+            PanelKeys::command(view, Qt::Key_Backspace, Qt::ControlModifier);
+#else
+            QTest::keyClick(view, Qt::Key_Delete);
+#endif
+            responder.stop();
+            QCOMPARE(trash.calls, 2);
+            QTRY_COMPARE(view->rowCount(), 0);
+            QVERIFY(!QFileInfo::exists(remaining.fileName()));
+        }
     }
     void folderAndLinkConsequences_data() {
         QTest::addColumn<bool>("link");
