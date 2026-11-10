@@ -194,7 +194,9 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
             if (directoryDraft) {
                 name_->clear();
                 name_->setFocus();
-            } else if (nameIncludesPath) {
+                return;
+            }
+            if (nameIncludesPath) {
                 const QString enteredName = QDir::fromNativeSeparators(name_->text());
                 const QString filename = resolved.isEmpty()
                                              ? enteredName.mid(enteredName.lastIndexOf(u'/') + 1)
@@ -202,8 +204,10 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
                 if (!filename.isEmpty())
                     name_->setText(filename);
             }
-            if (!directoryDraft)
-                archiveFolder_->setFocus();
+            archiveFolder_->setFocus();
+            validateBrowsedDestination();
+        } else {
+            archiveFolder_->setFocus();
         }
     });
     connect(archivePath_, &QComboBox::activated, this, [this](int index) {

@@ -99,53 +99,7 @@ QString CreateArchiveDialog::archivePath() const {
     return result;
 }
 
-void CreateArchiveDialog::validateAndAccept() {
-    const QtTaskPresentation::QuestionScope validation;
-    accepted_.reset();
-    if (!updateProtectionControls()) {
-        passwordEnabled_->setFocus();
-        return;
-    }
-    if (parameters_ && parameters_->text().contains(QChar::Null)) {
-        showExpertOptions(parameters_);
-        return;
-    }
-    if (password_) {
-        const bool protect = password_->isEnabled();
-        if (protect && password_->text().isEmpty()) {
-            ShowErrorMessageHwndResQt(this, IDD_PASSWORD);
-            password_->setFocus();
-            return;
-        }
-        const auto error = CCompressDialog::CheckPassword(
-            protect ? password_->text() : QString(),
-            protect ? passwordConfirmation_->text() : QString(), showPassword_->isChecked(),
-            format_->currentText(), GetEncryptionMethodSpec());
-        if (error != CCompressDialog::kPasswordOK) {
-            const UInt32 id = error == CCompressDialog::kPasswordUseAscii  ? IDS_PASSWORD_USE_ASCII
-                              : error == CCompressDialog::kPasswordTooLong ? IDS_PASSWORD_TOO_LONG
-                                                                           : IDS_PASSWORD_NOT_MATCH;
-            ShowErrorMessageHwndResQt(this, id);
-            auto *field =
-                error == CCompressDialog::kPasswordNotMatch ? passwordConfirmation_ : password_;
-            field->setFocus();
-            field->selectAll();
-            return;
-        }
-    }
-    if (!checkMemoryUsage()) {
-        showExpertOptions(memUse_);
-        return;
-    }
-    SaveOptionsInMem();
-    NCompressDialog::CInfo volumeInfo;
-    const auto volumeResult = volume_->isEnabled()
-                                  ? CCompressDialog::OnOK(volume_->currentText(), volumeInfo)
-                                  : CCompressDialog::kVolumeOK;
-    if (volumeResult == CCompressDialog::kIncorrectVolumeSize) {
-        checkVolumeSizes(volumeResult, volumeInfo);
-        return;
-    }
+QString CreateArchiveDialog::validateDestination(bool singleVolume) {
     UString draftName(name_->text().toStdWString().c_str());
     draftName.Trim();
     const UString leaf(draftName.Ptr(unsigned(draftName.ReverseFind_PathSepar() + 1)));
@@ -161,7 +115,6 @@ void CreateArchiveDialog::validateAndAccept() {
     const bool invalidFolder =
         relativeName && (FindInvalidWindowsPathCharacter(nativeFolder) >= 0 ||
                          HasEmptyWindowsPathComponent(nativeFolder, nativeResolved));
-    const bool singleVolume = volumeInfo.VolumeSizes.IsEmpty();
     CArchivePath archive;
     archive.VolExtension = archiveNameState_.Get_ArcInfoEx().GetMainExt();
     if (!codecs_ && archive.VolExtension.IsEmpty())
@@ -252,8 +205,74 @@ void CreateArchiveDialog::validateAndAccept() {
             else
                 name_->setSelection(leafStart, int(text.size()) - leafStart);
         }
+        return {};
+    }
+    // Existing outputs are opened/validated by source UpdateArchive after OK,
+    // just as for the original form. The dialog must not reject update intent.
+    return archive.BaseExtension.IsEmpty() ? resolved : output;
+}
+
+void CreateArchiveDialog::validateBrowsedDestination() {
+    if (archivePath().isEmpty())
+        return;
+    NCompressDialog::CInfo volumeInfo;
+    if (volume_->isEnabled() && CCompressDialog::OnOK(volume_->currentText(), volumeInfo) ==
+                                    CCompressDialog::kIncorrectVolumeSize)
+        return;
+    const QtTaskPresentation::QuestionScope validation;
+    validateDestination(volumeInfo.VolumeSizes.IsEmpty());
+}
+
+void CreateArchiveDialog::validateAndAccept() {
+    const QtTaskPresentation::QuestionScope validation;
+    accepted_.reset();
+    if (!updateProtectionControls()) {
+        passwordEnabled_->setFocus();
         return;
     }
+    if (parameters_ && parameters_->text().contains(QChar::Null)) {
+        showExpertOptions(parameters_);
+        return;
+    }
+    if (password_) {
+        const bool protect = password_->isEnabled();
+        if (protect && password_->text().isEmpty()) {
+            ShowErrorMessageHwndResQt(this, IDD_PASSWORD);
+            password_->setFocus();
+            return;
+        }
+        const auto error = CCompressDialog::CheckPassword(
+            protect ? password_->text() : QString(),
+            protect ? passwordConfirmation_->text() : QString(), showPassword_->isChecked(),
+            format_->currentText(), GetEncryptionMethodSpec());
+        if (error != CCompressDialog::kPasswordOK) {
+            const UInt32 id = error == CCompressDialog::kPasswordUseAscii  ? IDS_PASSWORD_USE_ASCII
+                              : error == CCompressDialog::kPasswordTooLong ? IDS_PASSWORD_TOO_LONG
+                                                                           : IDS_PASSWORD_NOT_MATCH;
+            ShowErrorMessageHwndResQt(this, id);
+            auto *field =
+                error == CCompressDialog::kPasswordNotMatch ? passwordConfirmation_ : password_;
+            field->setFocus();
+            field->selectAll();
+            return;
+        }
+    }
+    if (!checkMemoryUsage()) {
+        showExpertOptions(memUse_);
+        return;
+    }
+    SaveOptionsInMem();
+    NCompressDialog::CInfo volumeInfo;
+    const auto volumeResult = volume_->isEnabled()
+                                  ? CCompressDialog::OnOK(volume_->currentText(), volumeInfo)
+                                  : CCompressDialog::kVolumeOK;
+    if (volumeResult == CCompressDialog::kIncorrectVolumeSize) {
+        checkVolumeSizes(volumeResult, volumeInfo);
+        return;
+    }
+    const QString acceptedPath = validateDestination(volumeInfo.VolumeSizes.IsEmpty());
+    if (acceptedPath.isEmpty())
+        return;
     const auto sourcesAvailable = [&] {
         for (const auto &source : requiredSources_) {
             const QFileInfo entry(source);
@@ -274,9 +293,6 @@ void CreateArchiveDialog::validateAndAccept() {
     if (!sourcesAvailable() || !checkVolumeSizes(volumeResult, volumeInfo) ||
         (volumeResult == CCompressDialog::kConfirmSmallVolume && !sourcesAvailable()))
         return;
-    // Existing outputs are opened/validated by source UpdateArchive after OK,
-    // just as for the original form. The dialog must not reject update intent.
-    const QString acceptedPath = archive.BaseExtension.IsEmpty() ? resolved : output;
     auto request = readRequest(acceptedPath);
     CCompressDialog path;
     path.m_ArchivePath = acceptedPath;

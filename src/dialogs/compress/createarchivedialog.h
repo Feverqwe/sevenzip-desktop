@@ -106,6 +106,8 @@ class CreateArchiveDialog : public QDialog {
     static QString LevelText(unsigned level);
     void changeEvent(QEvent *event) override;
     void validateAndAccept();
+    QString validateDestination(bool singleVolume);
+    void validateBrowsedDestination();
     QString archivePath() const;
 
     std::optional<AcceptedRequest> accepted_;

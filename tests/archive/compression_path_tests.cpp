@@ -903,6 +903,7 @@ class CompressionPathTests final : public QObject {
     void destinationPickerRetainsNameAndCancelDraft_data() {
         QTest::addColumn<QString>("form");
         QTest::newRow("filename") << QString("filename");
+        QTest::newRow("folder-occupies-archive-name") << QString("occupied-name");
         QTest::newRow("absolute-path") << QString("absolute");
         QTest::newRow("relative-path") << QString("relative");
         QTest::newRow("relative-zip-path") << QString("relative-zip");
@@ -917,8 +918,9 @@ class CompressionPathTests final : public QObject {
     void destinationPickerRetainsNameAndCancelDraft() {
         QFETCH(QString, form);
         const bool directoryDraft = form.startsWith("directory-");
+        const bool occupiedName = form == "occupied-name";
         const bool relativeDestination = form == "relative-destination";
-        const bool zip = form == "relative-zip";
+        const bool zip = form == "relative-zip" || occupiedName;
         const bool invalidName = form == "invalid-name";
         const bool trailingSpace = form == "invalid-folder-unicode-space";
         const bool invalidFolder = form == "invalid" || trailingSpace;
@@ -939,6 +941,9 @@ class CompressionPathTests final : public QObject {
         const QString draft = QStringLiteral("имя with spaces 空.") + selectedFormat +
                               (trailingSpace ? QString(QChar(0x00a0)) : QString());
         const QString invalidLeaf = draft.left(3) + QChar::Null + draft.mid(3);
+        const QString occupiedPath = destination.filePath(draft);
+        if (occupiedName)
+            QVERIFY(QDir().mkdir(occupiedPath));
         QVERIFY(QDir(original.path()).mkdir("nested"));
         folder->setText(relativeDestination ? QStringLiteral("nested")
                         : form == "missing" ? original.filePath("nested/not created/deeper")
@@ -955,14 +960,26 @@ class CompressionPathTests final : public QObject {
         auto *browse = dialog.findChild<QPushButton *>("archiveBrowse");
         for (bool accept : {false, true}) {
             const QString previousFolder = folder->text();
+            folder->setSelection(4, -3);
             bool observed = false;
+            QString error;
             QTimer answer;
             connect(&answer, &QTimer::timeout, &dialog, [&] {
+                if (observed) {
+                    if (auto *message =
+                            qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                        error = message->text();
+                        answer.stop();
+                        message->accept();
+                    }
+                    return;
+                }
                 for (auto *widget : QApplication::topLevelWidgets()) {
                     auto *picker = qobject_cast<QFileDialog *>(widget);
                     if (!picker || !picker->isVisible())
                         continue;
-                    answer.stop();
+                    if (!accept || !occupiedName)
+                        answer.stop();
                     observed = true;
                     const auto close = qScopeGuard([&] {
                         if (picker->isVisible())
@@ -997,11 +1014,22 @@ class CompressionPathTests final : public QObject {
                                                             : draft)
                                           : entered);
             QCOMPARE(format->currentText(), selectedFormat);
+            if (accept && occupiedName) {
+                QVERIFY(error.contains(QDir::toNativeSeparators(occupiedPath)));
+                QTRY_COMPARE(dialog.focusWidget(), name->focusProxy() ? name->focusProxy() : name);
+                QCOMPARE(name->selectedText(), draft);
+            } else {
+                QVERIFY(error.isEmpty());
+            }
             if (accept)
                 QCOMPARE(QFileInfo(folder->text()).canonicalFilePath(),
                          QFileInfo(destination.path()).canonicalFilePath());
-            else
+            else {
                 QCOMPARE(folder->text(), previousFolder);
+                QTRY_COMPARE(dialog.focusWidget(), static_cast<QWidget *>(folder));
+                QCOMPARE(folder->selectedText(), previousFolder.mid(1, 3));
+                QCOMPARE(folder->cursorPosition(), 1);
+            }
         }
         if (invalidName) {
             QTimer::singleShot(0, &dialog, [] {
@@ -1013,16 +1041,21 @@ class CompressionPathTests final : public QObject {
             QCOMPARE(name->text(), invalidLeaf);
             name->setText(draft);
         }
-        const QString expectedName = directoryDraft ? QStringLiteral("archive.7z") : draft;
+        const QString expectedName = directoryDraft ? QStringLiteral("archive.7z")
+                                     : occupiedName ? QStringLiteral("corrected.zip")
+                                                    : draft;
         if (directoryDraft) {
             QTRY_COMPARE(dialog.focusWidget(), name->focusProxy() ? name->focusProxy() : name);
+            QTest::keyClicks(dialog.focusWidget(), expectedName);
+            QCOMPARE(name->text(), expectedName);
+        } else if (occupiedName) {
             QTest::keyClicks(dialog.focusWidget(), expectedName);
             QCOMPARE(name->text(), expectedName);
         }
         if (invalidName) {
             submit(dialog);
         } else {
-            if (!directoryDraft)
+            if (!directoryDraft && !occupiedName)
                 QTRY_COMPARE(dialog.focusWidget(), folder);
             QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
         }
@@ -1038,6 +1071,8 @@ class CompressionPathTests final : public QObject {
             QVERIFY(archive.open(QIODevice::ReadOnly));
             QCOMPARE(archive.read(4), QByteArray("PK\x03\x04", 4));
             QVERIFY(!QFileInfo::exists(original.filePath("nested/" + draft)));
+            if (occupiedName)
+                QVERIFY(QFileInfo(occupiedPath).isDir());
         }
     }
     void absoluteArchiveNameCanBypassAnInvalidFolderDraft() {
