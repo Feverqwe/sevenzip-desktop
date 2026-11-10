@@ -35,6 +35,10 @@ class FolderSizeOperation final : public CProgressThreadVirt {
     std::vector<NFsFolder::CFsFolderSizeResult> results_;
 
     HRESULT ProcessVirt() override {
+        if (paths_.Size() > 1) {
+            Sync.Set_FilesProgressMode(true);
+            RINOK(Sync.Set_NumFilesTotal(paths_.Size()))
+        }
         CMyComPtr<IProgress> progress = new FolderSizeCheckpoint(Sync);
         HRESULT firstError = S_OK;
         unsigned reportedErrors = 0;
@@ -46,6 +50,8 @@ class FolderSizeOperation final : public CProgressThreadVirt {
             if (result == E_ABORT)
                 return result;
             results_.push_back(measurement);
+            if (paths_.Size() > 1)
+                Sync.Set_NumFilesCur(i + 1);
             if (result != S_OK) {
                 if (firstError == S_OK)
                     firstError = result;
