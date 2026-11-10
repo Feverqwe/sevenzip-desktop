@@ -1306,17 +1306,21 @@ class DragDropUiTests final : public QObject {
         QTest::addColumn<bool>("directory");
         QTest::addColumn<bool>("unreadable");
         QTest::addColumn<bool>("move");
-        QTest::newRow("file") << false << false << false;
-        QTest::newRow("directory-url") << true << false << false;
+        QTest::addColumn<bool>("missing");
+        QTest::newRow("file") << false << false << false << false;
+        QTest::newRow("directory-url") << true << false << false << false;
+        QTest::newRow("batch-copy-with-missing-source") << false << false << false << true;
+        QTest::newRow("batch-move-with-missing-source") << false << false << true << true;
 #ifdef Q_OS_UNIX
-        QTest::newRow("batch-with-unreadable-source") << false << true << false;
-        QTest::newRow("merge-with-unreadable-source") << true << true << true;
+        QTest::newRow("batch-with-unreadable-source") << false << true << false << false;
+        QTest::newRow("merge-with-unreadable-source") << true << true << true << false;
 #endif
     }
     void externalDropCanRetryAnOverwrite() {
         QFETCH(bool, directory);
         QFETCH(bool, unreadable);
         QFETCH(bool, move);
+        QFETCH(bool, missing);
         QTemporaryDir source, target;
         QVERIFY(source.isValid() && target.isValid());
         const QString entry = directory ? QString("same folder") : QString("same name.txt");
@@ -1336,7 +1340,7 @@ class DragDropUiTests final : public QObject {
         QTRY_VERIFY(view->isEnabled() && Row(*view, entry) >= 0);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(directory ? inputEntry + '/' : inputEntry)});
-        const QString blocked = move ? inputEntry : source.filePath("unreadable.txt");
+        const QString blocked = directory && move ? inputEntry : source.filePath("second.txt");
         QFile::Permissions permissions;
         const auto restore = qScopeGuard([&] {
             if (unreadable && QFileInfo::exists(blocked))
@@ -1350,9 +1354,9 @@ class DragDropUiTests final : public QObject {
                                                         : QFile::WriteOwner));
             if (QFileInfo(blocked).isReadable())
                 QSKIP("The current user can still read the file");
-            if (!move)
-                mime.setUrls({QUrl::fromLocalFile(input), QUrl::fromLocalFile(blocked)});
         }
+        if (missing || (unreadable && !move))
+            mime.setUrls({QUrl::fromLocalFile(input), QUrl::fromLocalFile(blocked)});
         int prompts = 0;
         QString report;
         QTimer answer;
@@ -1387,7 +1391,7 @@ class DragDropUiTests final : public QObject {
         const QPoint point(5, view->viewport()->height() - 5);
         const auto actions =
             move ? Qt::CopyAction | Qt::MoveAction : Qt::DropActions(Qt::CopyAction);
-        for (int attempt = unreadable ? 0 : 1; attempt <= 2; ++attempt) {
+        for (int attempt = unreadable || missing ? 0 : 1; attempt <= 2; ++attempt) {
             QDragEnterEvent enter(DragEventPosition(point), actions, &mime, Qt::MiddleButton,
                                   Qt::NoModifier);
             QCoreApplication::sendEvent(view->viewport(), &enter);
@@ -1401,13 +1405,17 @@ class DragDropUiTests final : public QObject {
             QCOMPARE(SourceExtractFixture::readFile(output),
                      attempt < 2 ? QByteArray("original") : QByteArray("incoming"));
             if (attempt == 0) {
-                QVERIFY(report.contains(blocked));
-                QVERIFY(!QFileInfo::exists(target.filePath("unreadable.txt")));
-                QVERIFY(QFile::setPermissions(blocked, permissions));
+                QVERIFY2(QDir::fromNativeSeparators(report).contains(blocked), qPrintable(report));
+                if (!directory)
+                    QVERIFY(!QFileInfo::exists(target.filePath("second.txt")));
+                if (missing)
+                    QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
+                else
+                    QVERIFY(QFile::setPermissions(blocked, permissions));
             }
         }
-        if (unreadable && !move)
-            QCOMPARE(SourceExtractFixture::readFile(target.filePath("unreadable.txt")),
+        if (missing || (unreadable && !move))
+            QCOMPARE(SourceExtractFixture::readFile(target.filePath("second.txt")),
                      QByteArray("other bytes"));
     }
 

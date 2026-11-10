@@ -639,12 +639,19 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
 
     const QString moveDirectory =
         moveMode && !isAltDest ? QString::fromWCharArray(fs2us(destDirPrefix)) : QString();
+    const auto reportMissing = [callback](const UString &path) {
+        return callback->ShowMessage(
+            QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot find the file : ")) +
+            path);
+    };
     CFsFolderStat stat(FString(), callback);
     FOR_VECTOR(i, itemsPaths) {
         const FString path = us2fs(itemsPaths[i]);
         NWindows::NFile::NFind::CFileInfo fi;
-        if (!fi.Find(path))
-            continue;
+        if (!fi.Find(path)) {
+            RINOK(reportMissing(itemsPaths[i]))
+            return E_FAIL;
+        }
         if (!moveMode) {
             RINOK(CheckCopySource(path, callback))
         } else if (!moveDirectory.isEmpty()) {
@@ -676,10 +683,7 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
         const FString path = us2fs(itemsPaths[i]);
         NWindows::NFile::NFind::CFileInfo fi;
         if (!fi.Find(path)) {
-            const UString error = QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics",
-                                                                     "Cannot find the file : ")) +
-                                  itemsPaths[i];
-            RINOK(callback->ShowMessage(error))
+            RINOK(reportMissing(itemsPaths[i]))
             continue;
         }
         FString destPath = destDirPrefix;
