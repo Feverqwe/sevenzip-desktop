@@ -111,8 +111,9 @@ HRESULT CPanel::MoveItemsToTrash(IQtTrashService &trash, CSelectedState &state,
         QtMoveItemsToTrash(paths, trash, GetParent(), review != nullptr, &diagnostics, &movedCount);
     if (review && result != S_OK) {
         diagnostics.append(
-            QCoreApplication::translate("DeleteRedesign", "Items moved to Trash (%1)")
-                .arg(movedCount));
+            QCoreApplication::translate("DeleteRedesign", "Items moved to Trash (%1 of %2)")
+                .arg(movedCount)
+                .arg(roots.Size()));
         *review = std::move(diagnostics);
     }
     if (moved)

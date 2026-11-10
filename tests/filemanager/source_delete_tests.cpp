@@ -166,7 +166,7 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(!review);
         } else {
             QVERIFY(review);
-            QVERIFY(review->contains(QStringLiteral("Items moved to Trash (1)")));
+            QVERIFY(review->contains(QStringLiteral("Items moved to Trash (1 of 2)")));
         }
         QVERIFY(stopped);
         QCOMPARE(trash.calls, 1);
@@ -692,8 +692,8 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             QVERIFY(refreshedBeforeReview);
             QVERIFY(errorDetails.contains(secondDeleted));
             QVERIFY(errorDetails.contains(language == "ru"
-                                              ? QStringLiteral("Перемещено в Корзину (1)")
-                                              : QStringLiteral("Items moved to Trash (1)")));
+                                              ? QStringLiteral("Перемещено в Корзину (1 из 2)")
+                                              : QStringLiteral("Items moved to Trash (1 of 2)")));
             QVERIFY(errorDetails.contains(
                 language == "ru" ? QStringLiteral("Не удалось переместить объект в Корзину.")
                                  : QStringLiteral("Could not move the item to Trash.")));
