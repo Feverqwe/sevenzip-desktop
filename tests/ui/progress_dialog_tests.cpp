@@ -18,6 +18,7 @@
 #include <QScrollBar>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
@@ -131,19 +132,25 @@ class ProgressDialogTests : public QObject {
             dialog.Sync.Set_Ratio(&in, &out);
             dialog.Sync.Set_TitleFileName(L"архив с пробелом.7z");
             dialog.Sync.Set_Status(L"Добавление");
-            dialog.Sync.Set_FilePath(L"/папка с пробелом/файл.txt");
+            const QString path = QStringLiteral("/папка <b>с  пробелом & знаком/файл.txt");
+            dialog.Sync.Set_FilePath(UString(path.toStdWString().c_str()));
             dialog.show();
             QTRY_COMPARE(text(dialog, "progressPercent"), QString("50%"));
             QCOMPARE(text(dialog, "IDT_PROGRESS_STATUS"), QStringLiteral("Добавление"));
             QCOMPARE(text(dialog, "IDT_PROGRESS_FILE_NAME"), QStringLiteral("файл.txt"));
-            QCOMPARE(dialog.findChild<QLabel *>("IDT_PROGRESS_FILE_NAME")->accessibleDescription(),
-                     QStringLiteral("/папка с пробелом/файл.txt"));
+            auto *currentFile = dialog.findChild<QLabel *>("IDT_PROGRESS_FILE_NAME");
+            QCOMPARE(currentFile->accessibleDescription(), path);
+            QTextDocument tooltip;
+            tooltip.setHtml(currentFile->toolTip());
+            QCOMPARE(tooltip.toPlainText(), path);
             QCOMPARE(dialog.windowTitle(), QStringLiteral("50% Обновление архив с пробелом.7z"));
             QCOMPARE(main.windowTitle(), QStringLiteral("50% Архив 7-Zip"));
             QVERIFY(UiInspection::writeReport(dialog, "progress-counters"));
             dialog.Sync.Set_FilePath(L"/папка с пробелом/", true);
             QTRY_COMPARE(text(dialog, "IDT_PROGRESS_FILE_NAME"),
                          QStringLiteral("/папка с пробелом/"));
+            dialog.Sync.Set_FilePath(UString());
+            QTRY_VERIFY(currentFile->toolTip().isEmpty());
             dialog.Sync.Set_NumBytesTotal(~UInt64(0));
             QTRY_COMPARE(text(dialog, "progressPercent"), QString());
             QTRY_VERIFY(!dialog.windowTitle().contains('%'));
