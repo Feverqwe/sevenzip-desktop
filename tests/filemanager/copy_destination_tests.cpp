@@ -18,6 +18,7 @@
 #include <QStorageInfo>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
 
@@ -112,7 +113,7 @@ class CopyDestinationTests final : public QObject {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("source.txt");
-        const QString peer = fixture.filePath("archive.zip/nested/");
+        const QString peer = fixture.filePath("archive.zip/<b>nested  & folder/");
         CCopyDialog dialog(false, fixture.path() + '/', {source});
         dialog.ConfigureDestination({fixture.path(), "source.txt", peer, true,
                                      [peer](const QString &path) { return path != peer; }});
@@ -121,6 +122,9 @@ class CopyDestinationTests final : public QObject {
         name->setText("draft.txt");
         auto *button = dialog.findChild<QPushButton *>("copyPeerDestination");
         QVERIFY(button && button->isVisible() && button->isEnabled());
+        QTextDocument tooltip;
+        tooltip.setHtml(button->toolTip());
+        QCOMPARE(tooltip.toPlainText(), peer);
         button->click();
         QVERIFY(!name->isVisible());
         dialog.accept();

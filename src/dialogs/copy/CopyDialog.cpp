@@ -116,7 +116,7 @@ bool CCopyDialog::OnInit() {
                 if (name.isEmpty())
                     name = path;
                 auto *item = new QListWidgetItem(name, names);
-                item->setToolTip(path);
+                item->setToolTip(Qt::convertFromPlainText(path, Qt::WhiteSpacePre));
                 item->setData(Qt::AccessibleTextRole, name + '\n' + path);
             }
             names->setMinimumHeight(fontMetrics().lineSpacing() * 3);

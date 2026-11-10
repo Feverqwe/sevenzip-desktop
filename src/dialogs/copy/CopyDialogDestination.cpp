@@ -16,6 +16,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSet>
+#include <QTextDocument>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -156,8 +157,10 @@ void CCopyDialog::ConfigureDestination(QtCopyDestinationContext context) {
     if (_name)
         _name->setText(_destinationContext->SourceName);
     if (_peer) {
-        _peer->setVisible(!_destinationContext->PeerDestination.isNull());
-        _peer->setToolTip(_destinationContext->PeerDestination);
+        const QString &peerPath = _destinationContext->PeerDestination;
+        _peer->setVisible(!peerPath.isNull());
+        _peer->setToolTip(
+            peerPath.isEmpty() ? QString() : Qt::convertFromPlainText(peerPath, Qt::WhiteSpacePre));
     }
     UpdateDestination();
     ensurePolished();
