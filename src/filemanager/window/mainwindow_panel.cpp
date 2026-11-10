@@ -71,13 +71,18 @@ void MainWindow::createFilePanel(QMenu *editMenu, unsigned index) {
         // Native panel toolbar buttons belong to their panel, independently of
         // the focused panel's View menu. Reuse command gating after activation.
         connect(up_, &QAction::changed, button, updateButton);
-        connect(button, &QPushButton::clicked, this, [this, index] {
+        connect(button, &QPushButton::clicked, this, [this, index, button] {
+            const auto &ui = panelUi_[index];
+            auto *focused = focusWidget();
+            if (focused != ui.path && focused != ui.pathCombo)
+                button->setFocus(Qt::OtherFocusReason);
             workspace_->CancelListFocus();
             activatePanelUi(index);
             if (projectedPanel_ == index)
                 app_.ExecuteCommand(IDM_OPEN_PARENT_FOLDER);
         });
         QtConfigurePanelParentButton(*button);
+        button->setFocusPolicy(Qt::TabFocus);
         button->setObjectName(QString("panelParentButton%1").arg(index));
         navigation->addWidget(button);
     }

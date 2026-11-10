@@ -451,6 +451,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTest::newRow("button") << QString("button");
         QTest::newRow("parent-row") << QString("row");
         QTest::newRow("backspace") << QString("backspace");
+        QTest::newRow("button-with-address-draft") << QString("address-draft");
     }
     void archiveParentCanBeRetriedAfterDirectoryReturns() {
         QFETCH(QString, gesture);
@@ -482,6 +483,15 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(list->hasFocus());
         auto *button = window.findChild<QPushButton *>("panelParentButton0");
         QVERIFY(button);
+        auto *address = window.findChild<QLineEdit *>("archivePath");
+        QVERIFY(address);
+        const QString draft = QStringLiteral("unfinished location");
+        if (gesture == "address-draft") {
+            PanelKeys::focusAddress(address);
+            address->selectAll();
+            QTest::keyClicks(address, draft);
+            address->setSelection(0, 10);
+        }
         const auto openParent = [&] {
             if (parentRow)
                 PanelKeys::openSelection(list);
@@ -505,6 +515,12 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(list->sourcePanel->IsArcFolder());
         QCOMPARE(list->model()->index(1, 0).data().toString(), QString("entry.txt"));
         QCOMPARE(list->currentRow(), parentRow ? 0 : 1);
+        if (gesture == "address-draft") {
+            QVERIFY(WindowActivation::waitForActive(window));
+            QTRY_VERIFY(address->hasFocus());
+            QCOMPARE(address->text(), draft);
+            QTRY_COMPARE(address->selectedText(), QStringLiteral("unfinished"));
+        }
 
         QVERIFY(QDir().rename(parked, folder));
         QVERIFY(WindowActivation::waitForActive(window));
@@ -512,6 +528,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             QTRY_COMPARE(window.focusWidget(), list);
         openParent();
         QTRY_VERIFY(list->sourcePanel->IsFSFolder());
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), folder);
         QTRY_COMPARE(list->currentIndex().data().toString(), QString("source.zip"));
         QTRY_COMPARE(window.focusWidget(), list);
         PanelKeys::openSelection(window.focusWidget());
