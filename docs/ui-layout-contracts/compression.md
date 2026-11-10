@@ -16,7 +16,9 @@ still restore the source folder/name/format split.
 Browse opens in the resolved parent folder of the archive, or its nearest
 existing ancestor. When the name field
 contains a relative or absolute path, choosing a folder moves the archive name
-to that folder. Cancelling preserves the path as entered.
+to that folder. After choosing a folder, focus returns to the destination field,
+or to the archive name when it is still missing. Cancelling preserves the path
+as entered.
 Switching formats keeps the destination folder, including a folder typed
 in the name field, when the format derives the archive name from the source.
 If a file, dangling link or known lack of folder access blocks the destination

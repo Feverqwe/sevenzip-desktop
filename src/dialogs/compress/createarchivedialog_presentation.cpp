@@ -202,6 +202,8 @@ void CreateArchiveDialog::createArchiveForm(QVBoxLayout *layout, QVBoxLayout *wi
                 if (!filename.isEmpty())
                     name_->setText(filename);
             }
+            if (!directoryDraft)
+                archiveFolder_->setFocus();
         }
     });
     connect(archivePath_, &QComboBox::activated, this, [this](int index) {

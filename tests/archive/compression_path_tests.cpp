@@ -1019,7 +1019,13 @@ class CompressionPathTests final : public QObject {
             QTest::keyClicks(dialog.focusWidget(), expectedName);
             QCOMPARE(name->text(), expectedName);
         }
-        submit(dialog);
+        if (invalidName) {
+            submit(dialog);
+        } else {
+            if (!directoryDraft)
+                QTRY_COMPARE(dialog.focusWidget(), folder);
+            QTest::keyClick(dialog.focusWidget(), Qt::Key_Return);
+        }
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(QDir::fromNativeSeparators(dialog.target()), destination.filePath(expectedName));
         QCOMPARE(dialog.compressionOptions().format, selectedFormat);
