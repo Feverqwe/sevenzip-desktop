@@ -16,6 +16,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSet>
 
 namespace NFsFolder {
 static const char *const k_CannotCopyDirToAltStream =
@@ -644,6 +645,7 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
             QtDiagnosticText(QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot find the file : ")) +
             path);
     };
+    QSet<QString> targets;
     CFsFolderStat stat(FString(), callback);
     FOR_VECTOR(i, itemsPaths) {
         const FString path = us2fs(itemsPaths[i]);
@@ -655,6 +657,16 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
         if (!destinationDirectory.isEmpty()) {
             const QFileInfo target(QDir(destinationDirectory),
                                    QString::fromWCharArray(fs2us(fi.Name)));
+            const QString key = QtTransferTargetKey(target.filePath());
+            if (targets.contains(key)) {
+                const QString error =
+                    QCoreApplication::translate("qtfiletransfertransaction",
+                                                "Multiple items would use the same destination: %1")
+                        .arg(target.filePath());
+                RINOK(callback->ShowMessage(UString(error.toStdWString().c_str())))
+                return E_FAIL;
+            }
+            targets.insert(key);
             if (!QtIsFileSystemLink(target.filePath())) {
                 const QFileInfo source(QString::fromWCharArray(fs2us(path)));
                 const QString error = QtTransferTargetTypeError(source, target);
