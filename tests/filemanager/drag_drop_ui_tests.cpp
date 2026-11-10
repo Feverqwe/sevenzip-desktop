@@ -1305,15 +1305,18 @@ class DragDropUiTests final : public QObject {
     void externalDropCanRetryAnOverwrite_data() {
         QTest::addColumn<bool>("directory");
         QTest::addColumn<bool>("unreadable");
-        QTest::newRow("file") << false << false;
-        QTest::newRow("directory-url") << true << false;
+        QTest::addColumn<bool>("move");
+        QTest::newRow("file") << false << false << false;
+        QTest::newRow("directory-url") << true << false << false;
 #ifdef Q_OS_UNIX
-        QTest::newRow("batch-with-unreadable-source") << false << true;
+        QTest::newRow("batch-with-unreadable-source") << false << true << false;
+        QTest::newRow("merge-with-unreadable-source") << true << true << true;
 #endif
     }
     void externalDropCanRetryAnOverwrite() {
         QFETCH(bool, directory);
         QFETCH(bool, unreadable);
+        QFETCH(bool, move);
         QTemporaryDir source, target;
         QVERIFY(source.isValid() && target.isValid());
         const QString entry = directory ? QString("same folder") : QString("same name.txt");
@@ -1333,19 +1336,22 @@ class DragDropUiTests final : public QObject {
         QTRY_VERIFY(view->isEnabled() && Row(*view, entry) >= 0);
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(directory ? inputEntry + '/' : inputEntry)});
-        const QString blocked = source.filePath("unreadable.txt");
+        const QString blocked = move ? inputEntry : source.filePath("unreadable.txt");
         QFile::Permissions permissions;
         const auto restore = qScopeGuard([&] {
-            if (unreadable)
+            if (unreadable && QFileInfo::exists(blocked))
                 QFile::setPermissions(blocked, permissions);
         });
         if (unreadable) {
-            QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
+            if (!move)
+                QVERIFY(SourceExtractFixture::writeFile(blocked, "other bytes"));
             permissions = QFile::permissions(blocked);
-            QVERIFY(QFile::setPermissions(blocked, QFile::WriteOwner));
+            QVERIFY(QFile::setPermissions(blocked, move ? QFile::WriteOwner | QFile::ExeOwner
+                                                        : QFile::WriteOwner));
             if (QFileInfo(blocked).isReadable())
                 QSKIP("The current user can still read the file");
-            mime.setUrls({QUrl::fromLocalFile(input), QUrl::fromLocalFile(blocked)});
+            if (!move)
+                mime.setUrls({QUrl::fromLocalFile(input), QUrl::fromLocalFile(blocked)});
         }
         int prompts = 0;
         QString report;
@@ -1355,7 +1361,8 @@ class DragDropUiTests final : public QObject {
                 menu && menu->isVisible() && menu->objectName() == "dragContextMenu") {
                 for (auto *action : menu->actions())
                     if (action->data().toUInt() ==
-                        (NDragMenu::k_Copy_Base | NDragMenu::k_MenuFlag_Copy)) {
+                        (NDragMenu::k_Copy_Base |
+                         (move ? NDragMenu::k_MenuFlag_Move : NDragMenu::k_MenuFlag_Copy))) {
                         menu->setActiveAction(action);
                         QTest::keyClick(menu, Qt::Key_Return);
                         return;
@@ -1378,16 +1385,19 @@ class DragDropUiTests final : public QObject {
         });
         answer.start(5);
         const QPoint point(5, view->viewport()->height() - 5);
+        const auto actions =
+            move ? Qt::CopyAction | Qt::MoveAction : Qt::DropActions(Qt::CopyAction);
         for (int attempt = unreadable ? 0 : 1; attempt <= 2; ++attempt) {
-            QDragEnterEvent enter(DragEventPosition(point), Qt::CopyAction, &mime, Qt::MiddleButton,
+            QDragEnterEvent enter(DragEventPosition(point), actions, &mime, Qt::MiddleButton,
                                   Qt::NoModifier);
             QCoreApplication::sendEvent(view->viewport(), &enter);
             QVERIFY(enter.isAccepted());
-            QDropEvent drop(point, Qt::CopyAction, &mime, Qt::NoButton, Qt::NoModifier);
+            QDropEvent drop(point, actions, &mime, Qt::NoButton, Qt::NoModifier);
             QCoreApplication::sendEvent(view->viewport(), &drop);
             QCOMPARE(prompts, attempt);
             QTRY_VERIFY(view->isEnabled());
-            QCOMPARE(SourceExtractFixture::readFile(input), QByteArray("incoming"));
+            QCOMPARE(SourceExtractFixture::readFile(input),
+                     move && attempt == 2 ? QByteArray() : QByteArray("incoming"));
             QCOMPARE(SourceExtractFixture::readFile(output),
                      attempt < 2 ? QByteArray("original") : QByteArray("incoming"));
             if (attempt == 0) {
@@ -1396,7 +1406,7 @@ class DragDropUiTests final : public QObject {
                 QVERIFY(QFile::setPermissions(blocked, permissions));
             }
         }
-        if (unreadable)
+        if (unreadable && !move)
             QCOMPARE(SourceExtractFixture::readFile(target.filePath("unreadable.txt")),
                      QByteArray("other bytes"));
     }

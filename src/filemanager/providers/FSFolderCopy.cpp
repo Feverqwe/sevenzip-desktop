@@ -21,9 +21,12 @@ namespace NFsFolder {
 static const char *const k_CannotCopyDirToAltStream =
     QT_TRANSLATE_NOOP("SevenZipDiagnostics", "Cannot copy folder as alternate stream");
 
-static HRESULT CheckCopySource(const FString &path, IFolderOperationsExtractCallback *callback) {
+static HRESULT CheckCopySource(const FString &path, IFolderOperationsExtractCallback *callback,
+                               const QFileInfo &moveTarget = {},
+                               const QString &moveDirectory = {}) {
     const QFileInfo source(QString::fromWCharArray(fs2us(path)));
-    const QString error = QtTransferSourceError(source, false);
+    const QString error =
+        QtTransferSourceError(source, !moveDirectory.isEmpty(), moveTarget, moveDirectory);
     if (error.isEmpty())
         return S_OK;
     RINOK(callback->ShowMessage(UString(error.toStdWString().c_str())))
@@ -634,6 +637,8 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
     if (!isAltDest && !IsPathSepar(destDirPrefix.Back()))
         return E_INVALIDARG;
 
+    const QString moveDirectory =
+        moveMode && !isAltDest ? QString::fromWCharArray(fs2us(destDirPrefix)) : QString();
     CFsFolderStat stat(FString(), callback);
     FOR_VECTOR(i, itemsPaths) {
         const FString path = us2fs(itemsPaths[i]);
@@ -642,6 +647,9 @@ HRESULT CopyFileSystemItems(const UStringVector &itemsPaths, const FString &dest
             continue;
         if (!moveMode) {
             RINOK(CheckCopySource(path, callback))
+        } else if (!moveDirectory.isEmpty()) {
+            const QFileInfo target(QDir(moveDirectory), QString::fromWCharArray(fs2us(fi.Name)));
+            RINOK(CheckCopySource(path, callback, target, moveDirectory))
         }
         if (fi.IsDir() && !fi.IsOsSymLink()) {
             if (!isAltDest) {
