@@ -11,6 +11,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QTemporaryDir>
+#include <QTextDocument>
 #include <QtTest>
 
 class OverwriteLayoutTests final : public QObject {
@@ -111,7 +112,7 @@ class OverwriteLayoutTests final : public QObject {
     }
     void directoryConflictNamesTheIncomingFolder() {
         OverwriteQuestion question;
-        question.Existing.Path = "/destination/folder/";
+        question.Existing.Path = QStringLiteral("/destination/<b>folder  & name/");
         question.Existing.Directory = true;
         question.Incoming.Path = QStringLiteral("/source/папка 空/");
         question.Incoming.Directory = true;
@@ -121,10 +122,15 @@ class OverwriteLayoutTests final : public QObject {
         QCOMPARE(dialog.findChild<QLabel *>("overwriteHeader")->text(), QStringLiteral("папка 空"));
         QVERIFY(dialog.findChild<QLabel *>("overwriteOldFile")
                     ->text()
-                    .startsWith(QStringLiteral("/destination/\nfolder\n")));
+                    .startsWith(QStringLiteral("/destination/\n<b>folder  & name\n")));
         QVERIFY(dialog.findChild<QLabel *>("overwriteNewFile")
                     ->text()
                     .startsWith(QStringLiteral("/source/\nпапка 空\n")));
+        QTextDocument tooltip;
+        tooltip.setHtml(dialog.findChild<QLabel *>("overwriteOldFile")->toolTip());
+        QCOMPARE(tooltip.toPlainText(), question.Existing.Path);
+        tooltip.setHtml(dialog.findChild<QLabel *>("overwriteNewFile")->toolTip());
+        QCOMPARE(tooltip.toPlainText(), question.Incoming.Path);
     }
     void sourceFooterAndFileRows_data() {
         QTest::addColumn<QString>("language");

@@ -19,6 +19,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QTextDocument>
 #include <QVBoxLayout>
 
 using namespace NWindows;
@@ -114,6 +115,8 @@ void COverwriteDialog::SetFileInfoControl(const NOverwriteDialog::CFileInfo &fil
     // has no portable QFileIconProvider equivalent.
     QFileIconProvider provider;
     const auto path = QString::fromWCharArray(fileInfo.Path);
+    _controls.value(textID)->setToolTip(
+        path.isEmpty() ? QString() : Qt::convertFromPlainText(path, Qt::WhiteSpacePre));
     const auto icon = fileInfo.Is_FileSystemFile ? provider.icon(QFileInfo(path))
                                                  : provider.icon(QFileIconProvider::File);
     static_cast<QLabel *>(_controls.value(iconID))->setPixmap(icon.pixmap(32, 32));
