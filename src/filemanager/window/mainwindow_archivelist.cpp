@@ -34,6 +34,7 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
     if (loaded != S_OK)
         return loaded;
     static_cast<FileTable *>(projectedUi().table)->filesystem = false;
+    panelUi_[projectedPanel_].autoRefreshProbe.reset();
     panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     panel.LoadFullPath();
     projectedUi().table->setSortingEnabled(false);

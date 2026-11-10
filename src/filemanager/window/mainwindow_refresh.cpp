@@ -9,6 +9,7 @@
 
 #include <QScopedValueRollback>
 #include <QScrollBar>
+#include <QThreadPool>
 #include <utility>
 
 HRESULT MainWindow::reloadPanelPresentation(unsigned index, const CSelectedState &selection) {
@@ -123,6 +124,7 @@ HRESULT MainWindow::refreshFilesystem(const CSelectedState &selection, bool sour
     if (!signature.directory) {
         app_.GetFocusedPanel().LoadListItems();
         auto &snapshot = projectedUi().autoRefreshSnapshot;
+        projectedUi().autoRefreshProbe.reset();
         snapshot.clear();
         snapshot.insert(directory, signature);
         projectedUi().table->clearSelection();
@@ -206,7 +208,7 @@ void MainWindow::refreshCurrent(const CSelectedState *preserved) {
     }
 }
 
-MainWindow::FilesystemSignature MainWindow::filesystemSignature(const QString &path) const {
+MainWindow::FilesystemSignature MainWindow::filesystemSignature(const QString &path) {
     const QFileInfo info(path);
     return {info.lastModified(), info.metadataChangeTime(), info.size(), info.exists(),
             info.isDir()};
@@ -236,7 +238,7 @@ void MainWindow::pollAutoRefresh() {
 }
 
 void MainWindow::checkPanelForFilesystemChanges(unsigned index) {
-    const auto &ui = panelUi_[index];
+    auto &ui = panelUi_[index];
     auto &panel = app_.Panels[index];
     if (!app_.IsPanelVisible(index) || !ui.container || ui.state != State::Filesystem ||
         ui.locationUnavailable || renameController_->PendingFor(index) || !panel.AutoRefresh_Mode ||
@@ -244,10 +246,42 @@ void MainWindow::checkPanelForFilesystemChanges(unsigned index) {
         return;
     withPanelProjection(index, [&] {
         const auto &snapshot = ui.autoRefreshSnapshot;
-        for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
-            if (!(filesystemSignature(it.key()) == it.value())) {
-                panel.MarkPortableFolderChanged();
-                break;
+        const auto root = snapshot.constFind(ui.directory);
+        if (root != snapshot.cend() && filesystemSignature(root.key()) != root.value()) {
+            ui.autoRefreshProbe.reset();
+            panel.MarkPortableFolderChanged();
+        } else if (snapshot.size() > 256) {
+            using Probe = PanelUiState::RefreshProbe;
+            auto &probe = ui.autoRefreshProbe;
+            if (probe) {
+                const Probe result = probe->load();
+                if (result != Probe::Pending)
+                    probe.reset();
+                if (result == Probe::Changed)
+                    panel.MarkPortableFolderChanged();
+            }
+            if (!probe) {
+                probe = std::make_shared<std::atomic<Probe>>(Probe::Pending);
+                QThreadPool::globalInstance()->start([snapshot, pending = std::weak_ptr(probe)] {
+                    auto result = Probe::Unchanged;
+                    for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
+                        if (pending.expired())
+                            return;
+                        if (filesystemSignature(it.key()) != it.value()) {
+                            result = Probe::Changed;
+                            break;
+                        }
+                    }
+                    if (const auto active = pending.lock())
+                        active->store(result);
+                });
+            }
+        } else {
+            for (auto it = snapshot.cbegin(); it != snapshot.cend(); ++it) {
+                if (it != root && filesystemSignature(it.key()) != it.value()) {
+                    panel.MarkPortableFolderChanged();
+                    break;
+                }
             }
         }
         panel.OnTimer();

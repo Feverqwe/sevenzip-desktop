@@ -24,6 +24,7 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
     projectedUi().displayArchive.clear();
     projectedUi().archivePassword.clear();
     projectedUi().archiveFolder.clear();
+    panelUi_[projectedPanel_].autoRefreshProbe.reset();
     panelUi_[projectedPanel_].autoRefreshSnapshot.clear();
     static_cast<FileTable *>(projectedUi().table)->filesystem = false;
     const QString folderPath =

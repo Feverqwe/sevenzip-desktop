@@ -1,5 +1,14 @@
 # Automatic refresh state ownership — 2026-10-31
 
+### Large filesystem panels
+
+Linux and macOS check entries in large folders in the background, so the
+periodic metadata walk does not occupy the UI thread. The current folder
+itself is still checked immediately, and the existing panel reload keeps
+selection and scroll position. A new listing retires any previous check,
+including a manual refresh of the same path. Windows keeps the upstream
+`IFolderWasChanged` watcher path. No upstream code was imported.
+
 ## Complete panel list lifecycle — 2026-11-04
 
 Rechecked original PanelItems.cpp RefreshListCtrl, icon assignment, saved

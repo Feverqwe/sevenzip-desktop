@@ -32,6 +32,7 @@ HRESULT MainWindow::showDirectory(const QString &path, bool remember, bool sourc
     if (!sourceAlreadyBound)
         app_.GetFocusedPanel().CloseOpenFolders();
     projectedUi().directory = next;
+    projectedUi().autoRefreshProbe.reset();
     snapshot.clear();
     snapshot.insert(projectedUi().directory, filesystemSignature(projectedUi().directory));
     projectedUi().archive.clear();

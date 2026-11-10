@@ -76,6 +76,7 @@ class QtWindowStatusBar;
 #include <QVBoxLayout>
 #include <QWidget>
 #include <array>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -257,7 +258,7 @@ class MainWindow : public QMainWindow {
     void pollAutoRefresh();
     void checkPanelForFilesystemChanges(unsigned index);
     void completeListViewport();
-    FilesystemSignature filesystemSignature(const QString &path) const;
+    static FilesystemSignature filesystemSignature(const QString &path);
     void SelectAll(bool select);
     HRESULT navigateTo(const QString &path, bool sourceAddress = false);
     HRESULT navigateToImpl(const QString &path, bool sourceAddress);
@@ -372,6 +373,8 @@ class MainWindow : public QMainWindow {
         FilesystemScanner *filesystemScanner = nullptr;
         QtFolderProjection *listProjection = nullptr;
         QHash<QString, FilesystemSignature> autoRefreshSnapshot;
+        enum class RefreshProbe { Pending, Unchanged, Changed };
+        std::shared_ptr<std::atomic<RefreshProbe>> autoRefreshProbe;
         std::optional<ListViewport> pendingViewport;
         std::optional<CSelectedState> pendingSelection;
     };
