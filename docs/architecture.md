@@ -455,6 +455,10 @@ failed preparation releases the partial snapshot immediately. Snapshot copying
 has its own library target shared by the catalog and focused lifetime checks.
 Catalog publication is encapsulated in an atomic owner: worker readers retain
 the acquired catalog across replacement, cancellation and backend shutdown.
+On macOS, opening a disk folder at File Manager startup defers codec discovery
+until an archive operation or a command that needs format capabilities. Archive
+opens use the complete deployment catalog for content detection and codec
+dependencies, including when the filename has an unfamiliar extension.
 
 File navigation acquires native providers before binding an input, retaining
 the official reader and its item indexes. Standalone listing and archive testing

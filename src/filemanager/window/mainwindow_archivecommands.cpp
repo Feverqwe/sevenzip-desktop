@@ -4,6 +4,7 @@
 #include "7zip/UI/GUI/CompressDialogRes.h"
 #include "7zip/UI/GUI/ExtractRes.h"
 #include "Windows/PropVariant.h"
+#include "archive/codecs/archivecodeccatalog.h"
 #include "archive/hashing/HashCalc.h"
 #include "archive/resources/qtarchivefileresource.h"
 #include "archive/resources/qtarchiveproperties.h"
@@ -13,8 +14,39 @@
 #include "gui/resource2.h"
 #include "localization/qtlangcontrols.h"
 #include "platform/shell/qtshellarchiveservices.h"
+#include "ui/progress/qtprogresscontrols.h"
+#include <QCoreApplication>
 #include <QScopeGuard>
 #include <QScopedValueRollback>
+
+bool MainWindow::ensureArchiveCodecs() {
+    if (!backend_->codecDiscoveryDeferred())
+        return true;
+    if (const auto catalog = backend_->codecCatalog()) {
+        if (catalog->result() == S_OK)
+            return true;
+        showStatusMessage(catalog->error());
+        return false;
+    }
+    const QtAppOperationState::CallScope call(app_.QtOperations());
+    const auto previousCursor = cursor();
+    const bool hadCursor = testAttribute(Qt::WA_SetCursor);
+    const auto loading =
+        QCoreApplication::translate("ProgressRedesign", "Loading archive formats…");
+    setCursor(QtWaitCursor());
+    statusBar()->showMessage(loading);
+    QString error;
+    const bool ready = backend_->waitForCodecCatalog(error);
+    if (hadCursor)
+        setCursor(previousCursor);
+    else
+        unsetCursor();
+    if (statusBar()->currentMessage() == loading)
+        statusBar()->clearMessage();
+    if (!error.isEmpty())
+        showStatusMessage(error);
+    return ready;
+}
 
 void MainWindow::calculateHash(const QString &method) {
     if (app_.QtOperations().closed())
@@ -62,6 +94,8 @@ void MainWindow::runArchiveBatchCommand(bool test) {
     if (app_.QtOperations().closed() || app_.QtOperations().blocking() || sourceArchiveProgress_ ||
         projectedUi().scanningDisk || projectedUi().scanningArchive)
         return;
+    if (!ensureArchiveCodecs())
+        return;
     QtAppOperationState::CallScope call(app_.QtOperations());
     auto &panel = app_.GetFocusedPanel();
     QtShellArchiveServices::Routes routes;
@@ -106,6 +140,8 @@ void MainWindow::createDialog() {
     const auto restoreFocus = qScopeGuard([&] { appPresentation_->RestoreWidgetFocus(focus); });
     QtAppOperationState::CallScope call(app_.QtOperations());
     if (projectedUi().state != State::Filesystem && projectedUi().state != State::Viewing)
+        return;
+    if (!ensureArchiveCodecs())
         return;
     const auto previousState = projectedUi().state;
     const unsigned sourceIndex = app_.GetFocusedPanelIndex();

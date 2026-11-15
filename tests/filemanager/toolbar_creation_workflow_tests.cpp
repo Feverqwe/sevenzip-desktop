@@ -162,7 +162,10 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         ArchiveCodecCatalog catalog(module, 0);
         QCOMPARE(catalog.result(), S_OK);
         CreationBackend backend;
-        QCOMPARE(backend.loadCodecCatalog(module, catalog.version()), S_OK);
+        if (pane == 0 && !cancel)
+            backend.deferCodecDiscovery();
+        else
+            QCOMPARE(backend.loadCodecCatalog(module, catalog.version()), S_OK);
         backend.Target = output.filePath("chosen archive 空.zip");
         backend.Cancel = cancel;
         MainWindow window(&backend);
@@ -422,7 +425,10 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
         const QString module = QStringLiteral(SEVENZIP_CODEC_MODULE);
         ArchiveCodecCatalog catalog(module, 0);
         CreationBackend backend;
-        QCOMPARE(backend.loadCodecCatalog(module, catalog.version()), S_OK);
+        if (verb == "CompressToZip")
+            backend.deferCodecDiscovery();
+        else
+            QCOMPARE(backend.loadCodecCatalog(module, catalog.version()), S_OK);
         backend.Target = output.filePath("chosen.zip");
         MainWindow window(&backend);
         window.show();

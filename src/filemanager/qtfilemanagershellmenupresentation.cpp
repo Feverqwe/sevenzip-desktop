@@ -21,7 +21,9 @@ bool QtFileManagerShellMenu::Available(const CZipContextMenu::CCommandMapItem &c
     if (!Exposed(command))
         return false;
     const auto catalog = _window.backend_->codecCatalog();
-    if (!catalog || catalog->result() != S_OK)
+    const bool deferred = !catalog && _window.backend_->codecDiscoveryDeferred() &&
+                          !_window.backend_->discoveringCodecs();
+    if (!deferred && (!catalog || catalog->result() != S_OK))
         return false;
     using C = CZipContextMenu;
     switch (command.CommandInternalID) {
@@ -29,6 +31,8 @@ bool QtFileManagerShellMenu::Available(const CZipContextMenu::CCommandMapItem &c
     case C::kCompressEmail:
 #endif
     case C::kCompress:
+        if (deferred)
+            return true;
         FOR_VECTOR(i, catalog->nativeCodecs().Formats) {
             const auto &format = catalog->nativeCodecs().Formats[i];
             if (format.UpdateEnabled && !format.Flags_HashHandler())
@@ -39,12 +43,12 @@ bool QtFileManagerShellMenu::Available(const CZipContextMenu::CCommandMapItem &c
     case C::kCompressTo7zEmail:
 #endif
     case C::kCompressTo7z:
-        return catalog->canUpdate("7z");
+        return deferred || catalog->canUpdate("7z");
 #ifdef _WIN32
     case C::kCompressToZipEmail:
 #endif
     case C::kCompressToZip:
-        return catalog->canUpdate("zip");
+        return deferred || catalog->canUpdate("zip");
     case C::kOpen:
     case C::kExtract:
     case C::kExtractHere:

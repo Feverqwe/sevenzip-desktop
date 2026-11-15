@@ -45,6 +45,7 @@ class QtShellArchiveServices final : public IQtCompressCallServices, public IQtU
     ~QtShellArchiveServices() override;
     HRESULT Result() const { return _result; }
     std::shared_ptr<const ArchiveCodecCatalog> Catalog() const { return _catalog; }
+    void RefreshCatalog();
     void ResetResult() { _result = S_OK; }
     CCodecs &Codecs() override;
     CCodecs &GUICodecs(bool hashOnly);

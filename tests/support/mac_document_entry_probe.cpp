@@ -2,12 +2,15 @@
 #include "filemanager/window/mainwindow.h"
 #include <QAction>
 #include <QApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLineEdit>
 #include <QStatusBar>
+#include <QTest>
 #include <QThread>
 #include <QTimer>
 
@@ -24,6 +27,9 @@ class StartupObservation final : public QObject {
     qint64 firstShowMs = -1, firstPaintMs = -1, readyMs = -1, previousTickMs = -1, maximumGapMs = 0;
     bool wrongDocumentShown = false;
     bool waitingAtShow = false;
+    bool folderRequested = false;
+    bool archiveRequested = false;
+    bool deferredArchiveOpened = false;
     explicit StartupObservation(QObject *parent) : QObject(parent) { elapsed.start(); }
     bool eventFilter(QObject *object, QEvent *event) override {
         auto *window = dynamic_cast<MainWindow *>(object);
@@ -48,36 +54,70 @@ class StartupObservation final : public QObject {
         if (firstShowMs < 0)
             return;
         const qint64 now = elapsed.elapsed();
-        maximumGapMs = qMax(maximumGapMs, now - previousTickMs);
+        if (!archiveRequested)
+            maximumGapMs = qMax(maximumGapMs, now - previousTickMs);
         previousTickMs = now;
     }
 };
 
 bool WriteStartupReport(bool timedOut, StartupObservation &observation) {
     const QString expected = qEnvironmentVariable("SEVENZIP_NATIVE_STARTUP_MEMBER");
+    const QString folder = qEnvironmentVariable("SEVENZIP_NATIVE_STARTUP_FOLDER");
+    const QString deferredArchive = qEnvironmentVariable("SEVENZIP_NATIVE_STARTUP_ARCHIVE");
     int windows = 0, archives = 0;
     bool commandsReady = false;
     bool waiting = false;
+    bool folderReady = folder.isEmpty();
+    MainWindow *visible = nullptr;
     for (QWidget *widget : QApplication::topLevelWidgets()) {
         auto *window = dynamic_cast<MainWindow *>(widget);
         if (!window || !window->isVisible())
             continue;
         ++windows;
+        visible = window;
         const auto *testArchive = window->findChild<QAction *>("testArchiveAction");
         commandsReady |= testArchive && testArchive->isEnabled();
         waiting |= ShowsStartupWait(*window);
         auto *table = window->findChild<FileTable *>("archiveTable");
+        auto *address = window->findChild<QLineEdit *>("archivePath");
+        if (!timedOut && !folder.isEmpty() && observation.firstPaintMs >= 0 && address &&
+            address->isEnabled() && !observation.folderRequested) {
+            observation.folderRequested = true;
+            address->setFocus();
+            address->setText(folder);
+            QTest::keyClick(address, Qt::Key_Return);
+            return false;
+        }
+        if (observation.folderRequested && table && table->isEnabled()) {
+            for (int row = 0; row < table->rowCount(); ++row)
+                folderReady |=
+                    table->model()->index(row, 0).data().toString() == "folder marker.txt";
+        }
+        if (observation.archiveRequested && address && table && table->isEnabled())
+            observation.deferredArchiveOpened =
+                QDir::cleanPath(address->text()) == QDir::cleanPath(deferredArchive) &&
+                table->rowCount() > 0;
         if (!expected.isEmpty() && table && table->rowCount() == 1 &&
             table->model()->index(0, 0).data().toString() == expected)
             ++archives;
     }
-    if (!timedOut && (windows == 0 || observation.firstPaintMs < 0 || !commandsReady ||
-                      (!expected.isEmpty() && archives == 0)))
-        return false;
-    if (observation.readyMs < 0)
+    if (observation.readyMs < 0) {
+        if (!timedOut && (windows == 0 || observation.firstPaintMs < 0 || !commandsReady ||
+                          (!expected.isEmpty() && archives == 0) || !folderReady))
+            return false;
         observation.readyMs = observation.elapsed.elapsed();
+    }
     if (!timedOut && observation.elapsed.elapsed() - observation.readyMs < 250)
         return false; // Observe event-loop delivery after the first exposure too.
+    if (!timedOut && !deferredArchive.isEmpty()) {
+        if (visible && !observation.archiveRequested) {
+            observation.archiveRequested = true;
+            visible->openArchive(deferredArchive);
+            return false;
+        }
+        if (!observation.deferredArchiveOpened)
+            return false;
+    }
     QFile report(qEnvironmentVariable("SEVENZIP_NATIVE_STARTUP_REPORT"));
     if (report.open(QIODevice::WriteOnly))
         report.write(
@@ -89,6 +129,7 @@ bool WriteStartupReport(bool timedOut, StartupObservation &observation) {
                                       {"readyMs", observation.readyMs},
                                       {"waitingAtShow", observation.waitingAtShow},
                                       {"waitingAtReady", waiting},
+                                      {"deferredArchiveOpened", observation.deferredArchiveOpened},
                                       {"maximumGapAfterShowMs", observation.maximumGapMs},
                                       {"timedOut", timedOut},
                                       {"arguments", QJsonArray::fromStringList(qApp->arguments())},

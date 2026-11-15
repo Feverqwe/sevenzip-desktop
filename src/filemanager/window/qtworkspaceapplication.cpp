@@ -152,11 +152,11 @@ void QtWorkspaceApplication::OpenWindow(const QJsonObject &state, QtArchiveLocat
     backend->setParent(window);
     backend.release();
     window->setAttribute(Qt::WA_DeleteOnClose);
-    if (window->backend_->codecCatalog())
+    if (window->backend_->codecCatalog() || window->backend_->codecDiscoveryDeferred())
         ApplyWhenReady(*window, state, archive);
     else {
         connect(
-            window->backend_, &ArchiveBackend::codecCatalogReady, this,
+            window->backend_, &ArchiveBackend::codecCatalogReady, window,
             [this, window, state, archive](bool, const QString &) {
                 ApplyWhenReady(*window, state, archive);
             },

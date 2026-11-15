@@ -137,6 +137,9 @@ class ArchiveBackend : public QObject {
     static HRESULT prepareReadOnlyView(const std::shared_ptr<ArchiveReadOnlyView> &view,
                                        QString &error);
     virtual bool discoverCodecCatalog(const QString &module = {});
+    bool waitForCodecCatalog(QString &error);
+    void deferCodecDiscovery() { deferCodecDiscovery_ = true; }
+    bool codecDiscoveryDeferred() const { return deferCodecDiscovery_; }
     // GUI-thread state; opening workers request it through their manager.
     bool discoveringCodecs() const { return codecDiscoveryActive_; }
     void cancelCodecDiscovery();
@@ -283,6 +286,7 @@ class ArchiveBackend : public QObject {
     QString configuredModule_;
     ArchiveCodecPublication codecCatalog_;
     std::unique_ptr<ArchiveCodecProbe> codecProbe_;
+    bool deferCodecDiscovery_ = false;
     bool codecDiscoveryActive_ = false;
     bool codecDiscoveryCancelled_ = false;
     Job job_ = Job::None;

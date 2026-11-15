@@ -121,6 +121,16 @@ bool QtFileManagerShellMenu::CanInvoke(unsigned id) const {
 
 void QtFileManagerShellMenu::InvokePluginCommand(unsigned id) {
     _services.ResetResult();
+    if (id < kSystemStartMenuID) {
+        const auto generation = _generation;
+        if (!_window.ensureArchiveCodecs() || generation != _generation)
+            return;
+        if (!CanInvoke(id)) {
+            ShowInvokeError(E_NOTIMPL);
+            return;
+        }
+        _services.RefreshCatalog();
+    }
     QScopedValueRollback<bool> source(_window.sourceArchiveProgress_, true);
     _window.app_.GetFocusedPanel().InvokePluginCommand(id, *this);
 }

@@ -14,6 +14,7 @@
 #include "archive/resources/archivenativeopen.h"
 #include "gui/UpdateGUI.h"
 #include "localization/qtlanguageservices.h"
+#include <QEventLoop>
 #include <QFileInfo>
 #include <cerrno>
 
@@ -84,9 +85,13 @@ ArchiveBackend *ArchiveBackend::createIndependentBackend(QObject *parent) const 
 }
 
 ArchiveBackend::IndependentFactory ArchiveBackend::independentBackendFactory() const {
-    return [module = configuredModule_, catalog = codecCatalog()](QObject *parent) {
-        auto *backend = new ArchiveBackend(parent, module);
+    return [module = configuredModule_, catalog = codecCatalog(),
+            deferred = codecDiscoveryDeferred()](QObject *parent) {
+        auto *backend = new ArchiveBackend(parent);
+        backend->configuredModule_ = module;
         backend->codecCatalog_.store(catalog);
+        if (deferred)
+            backend->deferCodecDiscovery();
         return backend;
     };
 }
@@ -277,6 +282,27 @@ bool ArchiveBackend::discoverCodecCatalog(const QString &module) {
     } catch (...) {
         return false;
     }
+}
+
+bool ArchiveBackend::waitForCodecCatalog(QString &error) {
+    if (const auto catalog = codecCatalog(); catalog && !discoveringCodecs()) {
+        error = catalog->error();
+        return catalog->result() == S_OK;
+    }
+    QEventLoop discovery;
+    bool ready = false;
+    connect(this, &ArchiveBackend::codecCatalogReady, &discovery,
+            [&](bool success, const QString &message) {
+                ready = success;
+                error = message;
+                discovery.quit();
+            });
+    if (discoveringCodecs() || discoverCodecCatalog())
+        discovery.exec(QEventLoop::ExcludeUserInputEvents);
+    if (!ready && error.isEmpty())
+        error = QCoreApplication::translate("archivebackend_codecs",
+                                            "The official 7-Zip codec module is unavailable.");
+    return ready;
 }
 
 HRESULT ArchiveBackend::loadHashProviders(CExternalCodecs &providers) const {

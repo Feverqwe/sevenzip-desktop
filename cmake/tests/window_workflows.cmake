@@ -107,6 +107,7 @@ if(BUILD_TESTING)
         qt_add_executable(mac_document_entry_probe
             tests/support/mac_document_entry_probe.cpp
             $<TARGET_OBJECTS:mac_document_main>)
+        add_dependencies(mac_document_entry_probe sevenzip_lzip_runtime)
         target_link_libraries(mac_document_entry_probe PRIVATE sevenzip_window sevenzip_gui_entry sevenzip_file_manager_entry)
         target_include_directories(mac_document_entry_probe PRIVATE src tests)
         target_link_libraries(mac_document_entry_probe PRIVATE Qt6::Test)

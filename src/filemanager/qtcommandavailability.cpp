@@ -78,7 +78,9 @@ QtFileManagerCommands::TransportCapabilities QtFileManagerCommands::ReadTranspor
     c.root = panel.GetFolder() && panel.IsRootFolder();
     {
         const auto catalog = w.backend_->codecCatalog();
-        c.batchArchives = sourceAvailable && catalog && catalog->result() == S_OK;
+        c.batchArchives =
+            sourceAvailable && !w.backend_->discoveringCodecs() &&
+            (catalog ? catalog->result() == S_OK : w.backend_->codecDiscoveryDeferred());
     }
     if (panel.DoesItSupportOperations()) {
         QHash<unsigned, QString> requested;
@@ -137,10 +139,11 @@ QHash<unsigned, bool> QtFileManagerCommands::Availability() {
         availability[MountReadOnly] =
             folder && ArchiveUsesNativeItemIndexes(folder->GetArchiveProperties());
     }
+    const auto catalog = w.backend_->codecCatalog();
     availability[OpenDevicePicker] =
         availability[OpenArchivePicker] && safeFolderQueries && !w.projectedUi().scanningDisk &&
-        !w.projectedUi().scanningArchive && w.backend_->codecCatalog() &&
-        w.backend_->codecCatalog()->result() == S_OK;
+        !w.projectedUi().scanningArchive &&
+        (catalog ? catalog->result() == S_OK : w.backend_->codecDiscoveryDeferred());
     const bool hasFolder = panel.GetFolder() != nullptr;
     const bool namespaceChild = safeFolderQueries &&
                                 w.projectedUi().state == MainWindow::State::Namespace &&

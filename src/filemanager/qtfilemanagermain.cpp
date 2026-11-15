@@ -8,7 +8,6 @@
 #include "platform/associations/qtassociationfileopen.h"
 #include "platform/memory/qtmemorylockservices.h"
 #include "platform/temp/qtownedtempregistry.h"
-#include "ui/progress/qtprogresscontrols.h"
 #ifdef Q_OS_MACOS
 #include "app/qtapplicationstartup.h"
 #endif
@@ -20,25 +19,7 @@
 #include <QPointer>
 #include <QScopeGuard>
 #include <QThreadPool>
-#include <QTimer>
 #include <memory>
-
-namespace {
-bool WaitForFileManagerCodecs(ArchiveBackend &backend, QString &error,
-                              QEventLoop::ProcessEventsFlags flags = QEventLoop::AllEvents) {
-    QEventLoop discovery;
-    bool ready = false;
-    QObject::connect(&backend, &ArchiveBackend::codecCatalogReady, &discovery,
-                     [&](bool success, const QString &message) {
-                         ready = success;
-                         error = message;
-                         discovery.quit();
-                     });
-    if (backend.discoverCodecCatalog())
-        discovery.exec(flags);
-    return ready;
-}
-} // namespace
 
 MainWindow *OpenSevenzipAssociatedFile(const QString &path) {
     auto backend = std::make_unique<ArchiveBackend>();
@@ -137,13 +118,12 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
         if (associatedStartup)
             return application.exec();
         ArchiveBackend backend;
-        bool showBeforeDiscovery = false;
 #ifdef Q_OS_MACOS
-        showBeforeDiscovery =
-            !startup.NeedOpenArc && startup.ShowCommand != NQtFileManager::NShowCommand::Hide;
+        if (!startup.NeedOpenArc && startup.ShowCommand != NQtFileManager::NShowCommand::Hide)
+            backend.deferCodecDiscovery();
 #endif
         QString codecError;
-        if (!showBeforeDiscovery && !WaitForFileManagerCodecs(backend, codecError) &&
+        if (!backend.codecDiscoveryDeferred() && !backend.waitForCodecCatalog(codecError) &&
             startup.NeedOpenArc)
             throw UString(codecError.toStdWString().c_str());
         try {
@@ -152,45 +132,17 @@ int RunSevenzipFileManager(QApplication &application, bool associatedStartup) {
                 qScopeGuard([&] { application.setQuitOnLastWindowClosed(quitOnClose); });
             application.setQuitOnLastWindowClosed(false);
             MainWindow window(&backend, {}, nullptr, &startup);
-            const auto restoreSession = [&] {
-                if (startup.FullPath.IsEmpty())
-                    if (auto *workspace = QtWorkspaceApplication::Find())
-                        workspace->Restore(window);
-                if (!codecError.isEmpty())
-                    window.statusBar()->showMessage(codecError);
-            };
-            if (!showBeforeDiscovery)
-                restoreSession();
-            else if (startup.FullPath.IsEmpty())
-                if (auto *workspace = QtWorkspaceApplication::Find())
-                    workspace->RestoreInitialGeometry(window);
-            const QString loading =
-                showBeforeDiscovery
-                    ? QCoreApplication::translate("ProgressRedesign", "Loading archive formats…")
-                    : QString();
-            if (showBeforeDiscovery) {
-                window.setCursor(QtWaitCursor());
-                window.statusBar()->showMessage(loading);
+            if (startup.FullPath.IsEmpty()) {
+                if (auto *workspace = QtWorkspaceApplication::Find()) {
+                    if (backend.codecDiscoveryDeferred())
+                        workspace->RestoreInitialGeometry(window);
+                    workspace->Restore(window);
+                }
             }
+            if (!codecError.isEmpty())
+                window.statusBar()->showMessage(codecError);
             if (startup.ShowCommand != NQtFileManager::NShowCommand::Hide)
                 window.show();
-            if (showBeforeDiscovery)
-                QTimer::singleShot(0, &window, [&] {
-                    // Paint the filesystem window before the worker can take
-                    // dyld's loader lock. Defer input until archive commands
-                    // can use the retained codec catalog.
-                    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-                    if (!window.isVisible())
-                        return;
-                    WaitForFileManagerCodecs(backend, codecError,
-                                             QEventLoop::ExcludeUserInputEvents);
-                    if (!window.isVisible())
-                        return;
-                    window.unsetCursor();
-                    if (window.statusBar()->currentMessage() == loading)
-                        window.statusBar()->clearMessage();
-                    restoreSession();
-                });
             application.setQuitOnLastWindowClosed(quitOnClose);
             return application.exec();
         } catch (const QtFileManagerStartupFailure &failure) {

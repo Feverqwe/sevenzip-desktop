@@ -6,6 +6,8 @@
 
 void QtFileManagerCommands::OpenDevice() {
     auto &w = window_;
+    if (!w.ensureArchiveCodecs())
+        return;
     const unsigned owner = w.app_.GetFocusedPanelIndex();
     DeviceSelectionDialog dialog(w.backend_->codecCatalog(), &w, w.deviceServices_);
     if (dialog.exec() != QDialog::Accepted)

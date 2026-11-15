@@ -236,8 +236,10 @@ QString QtFileManagerDrag::PathToOpen(CDataObject *data, DWORD keys) const {
         return {};
     const QString path = ToQString(names.Front());
     const QFileInfo file(path);
+    if (file.isSymLink() || (!file.isFile() && !file.isDir()) || !window_.ensureArchiveCodecs())
+        return {};
     const auto catalog = window_.backend_->codecCatalog();
-    if (file.isSymLink() || !catalog || catalog->result() != S_OK)
+    if (!catalog || catalog->result() != S_OK)
         return {};
     if (!file.isDir() &&
         (!file.isFile() || catalog->nativeCodecs().FindFormatForArchiveName(names.Front()) < 0))

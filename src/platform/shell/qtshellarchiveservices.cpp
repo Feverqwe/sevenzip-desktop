@@ -79,8 +79,17 @@ QtShellArchiveServices::QtShellArchiveServices(ArchiveBackend &backend, QWidget 
 
 QtShellArchiveServices::QtShellArchiveServices(ArchiveBackend &backend, QWidget *parent,
                                                Routes routes, QString settingsPath)
-    : _backend(backend), _parent(parent), _catalog(backend.codecCatalog()),
-      _routes(std::move(routes)), _settingsPath(std::move(settingsPath)) {
+    : _backend(backend), _parent(parent), _routes(std::move(routes)),
+      _settingsPath(std::move(settingsPath)) {
+    RefreshCatalog();
+}
+
+void QtShellArchiveServices::RefreshCatalog() {
+    auto catalog = _backend.codecCatalog();
+    if (catalog == _catalog)
+        return;
+    _metadata.Formats.Clear();
+    _catalog = std::move(catalog);
     // Metadata alone supports source ParseOpenTypes. Native factories remain
     // with the retained immutable backend catalog, never copied/unloaded here.
     if (_catalog && _catalog->result() == S_OK)

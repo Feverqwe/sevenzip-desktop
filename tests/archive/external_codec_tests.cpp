@@ -458,6 +458,11 @@ class ExternalCodecTests final : public QObject {
         qputenv("SEVENZIP_CODEC_MODULE_PATH",
                 (missing ? runtime_.filePath("missing module") : module_).toUtf8());
         ArchiveBackend backend;
+        backend.deferCodecDiscovery();
+        // A new window can be instantiated before the first codec demand.
+        const std::unique_ptr<ArchiveBackend> independent(backend.createIndependentBackend());
+        QString error;
+        QCOMPARE(independent->waitForCodecCatalog(error), !missing);
         QSignalSpy ready(&backend, &ArchiveBackend::codecCatalogReady);
         QVERIFY(backend.discoverCodecCatalog());
         QTRY_COMPARE(ready.size(), 1);

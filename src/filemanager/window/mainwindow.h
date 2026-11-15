@@ -293,6 +293,7 @@ class MainWindow : public QMainWindow {
     CProgressDialog *progressDialog() const;
     void extractArchives();
     void runArchiveBatchCommand(bool test);
+    bool ensureArchiveCodecs();
     HRESULT launchGuiArchiveTest(const UStringVector &paths, bool hashMode);
     bool canLaunchGuiFilesystemOperation();
     HRESULT launchGuiHash(const UStringVector &paths, const UString &method,

@@ -303,6 +303,8 @@ bool QtFileManagerCommands::ExecuteExtensionCommand(unsigned id) {
         OpenDevice();
         break;
     case OpenArchivePicker: {
+        if (!window_.ensureArchiveCodecs())
+            break;
         const unsigned owner = window_.app_.GetFocusedPanelIndex();
         const auto &ui = window_.projectedUi();
         const auto &parents = window_.app_.Panels[owner].GetParentFolders();

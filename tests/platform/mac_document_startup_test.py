@@ -41,20 +41,33 @@ def run(args):
         subprocess.run([engine, "a", "-tzip", str(archive), member.name], cwd=root,
                        check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         digest = hashlib.sha256(archive.read_bytes()).digest()
+        folder = root / "folder 空 with spaces"
+        folder.mkdir()
+        (folder / "folder marker.txt").touch()
+        external = root / "deferred 空.stream"
+        lzip_fixture = Path(__file__).resolve().parents[1] / "fixtures/lzip/fox.lz"
+        shutil.copyfile(lzip_fixture, external)
         unregister = Path("/System/Library/Frameworks/CoreServices.framework/Frameworks/"
                           "LaunchServices.framework/Support/lsregister")
         try:
             for mode in ("document", "normal", "cli"):
                 report = root / (mode + ".json")
                 expected = member.name if mode == "document" else ""
+                environment = dict(os.environ, SEVENZIP_NATIVE_STARTUP_FOLDER="",
+                                   SEVENZIP_NATIVE_STARTUP_ARCHIVE="")
+                if mode != "document":
+                    environment["SEVENZIP_NATIVE_STARTUP_FOLDER"] = str(folder)
                 if mode == "cli":
-                    environment = dict(os.environ, QT_QPA_PLATFORM="cocoa",
+                    # Filesystem navigation still works with an unavailable engine.
+                    environment.update(QT_QPA_PLATFORM="cocoa",
                                        SEVENZIP_NATIVE_STARTUP_REPORT=str(report),
                                        SEVENZIP_NATIVE_STARTUP_MEMBER="",
-                                       SEVENZIP_SETTINGS_PATH=str(report) + ".ini")
-                    command = [str(binary)]
+                                       SEVENZIP_SETTINGS_PATH=str(report) + ".ini",
+                                       SEVENZIP_CODEC_MODULE_PATH=str(root / "unavailable" / "7z.so"))
+                    command = [str(binary), str(root)]
                 else:
-                    environment = None
+                    if mode == "normal":
+                        environment["SEVENZIP_NATIVE_STARTUP_ARCHIVE"] = str(external)
                     request = str(archive) if mode == "document" else "--normal"
                     command = [args.launcher, str(application), request, str(report), expected]
                 subprocess.run(command, cwd=root, env=environment, check=True, timeout=25)
@@ -65,11 +78,13 @@ def run(args):
                 assert not actual["wrongDocumentShown"], actual
                 assert actual["firstPaintMs"] >= actual["firstShowMs"] >= 0, actual
                 assert actual["readyMs"] >= actual["firstPaintMs"], actual
-                assert actual["waitingAtShow"] == (mode != "document"), actual
+                assert not actual["waitingAtShow"], actual
                 assert not actual["waitingAtReady"], actual
+                assert actual["deferredArchiveOpened"] == (mode == "normal"), actual
                 assert Path(actual["executable"]).resolve() == binary.resolve(), actual
                 assert hashlib.sha256(archive.read_bytes()).digest() == digest
                 assert member.read_bytes() == payload
+                assert external.read_bytes() == lzip_fixture.read_bytes()
                 print(f"{mode}: one expected window, source bytes retained; "
                       f"first show {actual['firstShowMs']} ms, first paint {actual['firstPaintMs']} ms, "
                       f"ready {actual['readyMs']} ms, "
