@@ -217,6 +217,7 @@ parity or proof of the complete operation catalog.
 Independent 7zG operations are reachable from Operations in each file panel's
 command bar. The same application-wide entries appear in other file windows.
 Two-panel mode uses a compact clock button with the complete accessible caption.
+The Operations button aligns with the file commands in both panel layouts.
 Selecting a live entry returns its existing draft, question, progress or result;
 it never starts the command again. A pending parent-owned result returns the same
 result window. Completed successes are informational recent entries, without a

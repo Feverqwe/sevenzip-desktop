@@ -9,6 +9,8 @@
 #include <QToolButton>
 
 namespace {
+constexpr int kToolbarButtonMinimumHeight = 26;
+
 class PanelChromeStyle final : public QProxyStyle {
   public:
     explicit PanelChromeStyle(QWidget &owner) { setParent(&owner); }
@@ -78,8 +80,8 @@ class MainChromeStyle final : public QProxyStyle {
             return native;
         const int horizontalPadding = 16;
         const int labelGap = tool->toolButtonStyle == Qt::ToolButtonTextBesideIcon ? 2 : 0;
-        return native.expandedTo(
-            QSize(size.width() + horizontalPadding + labelGap, qMax(26, size.height() + 8)));
+        return native.expandedTo(QSize(size.width() + horizontalPadding + labelGap,
+                                       qMax(kToolbarButtonMinimumHeight, size.height() + 8)));
     }
 
     void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter,
@@ -154,6 +156,10 @@ void QtConfigureChromeToolButton(QToolButton &button) {
     button.setFont(QApplication::font());
     button.setMinimumHeight(QtWorkspaceTheme::metric(button, 30));
     button.setIconSize(QSize(16, 16));
+}
+void QtConfigurePanelActionMenuButton(QToolButton &button) {
+    QtConfigureChromeToolButton(button);
+    button.setMinimumHeight(kToolbarButtonMinimumHeight);
 }
 void QtConfigureMainToolbar(QToolBar &toolbar) {
     toolbar.setStyle(new MainChromeStyle(toolbar));

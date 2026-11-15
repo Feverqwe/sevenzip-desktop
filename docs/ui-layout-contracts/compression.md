@@ -162,6 +162,10 @@ after volumes, then an Options button with the native summary. At 760×720 and
 640×480 the form scrolls to these controls while the confirmation footer remains
 visible. `compression_advanced` writes `archive-advanced-760/640.json`.
 
+Opening Additional options grows Add vertically as far as the available screen
+space allows. The footer stays visible and overflow scrolls. Closing the section
+restores the previous height and preserves entered values.
+
 Options sizes its initial client to visible content, protected by native control
 minimums. It keeps resource grouping/order: optional NTFS controls, format time info,
 Time group with explicit/default precision and modification/creation/access/time

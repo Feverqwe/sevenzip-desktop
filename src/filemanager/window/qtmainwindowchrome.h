@@ -7,5 +7,6 @@ class QPushButton;
 // Main-window spacing; native control painting and command ownership stay intact.
 void QtConfigureMainToolbar(QToolBar &toolbar);
 void QtConfigureMainToolbarButton(QToolButton &button);
+void QtConfigurePanelActionMenuButton(QToolButton &button);
 void QtConfigurePanelParentButton(QPushButton &button);
 void QtConfigureChromeToolButton(QToolButton &button);

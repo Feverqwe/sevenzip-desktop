@@ -106,8 +106,20 @@ class OperationsMenuTests final : public QObject {
                                 for (auto *action : toolbar->actions()) {
                                     auto *command = qobject_cast<QToolButton *>(
                                         toolbar->widgetForAction(action));
-                                    if (command && command->isVisible() &&
-                                        command->toolButtonStyle() != Qt::ToolButtonIconOnly)
+                                    if (!command || !command->isVisible())
+                                        continue;
+                                    const QRect operationsBounds =
+                                        UiInspection::bounds(*control, window);
+                                    const QRect commandBounds =
+                                        UiInspection::bounds(*command, window);
+                                    QVERIFY(qAbs(operationsBounds.center().y() -
+                                                 commandBounds.center().y()) <= 1);
+                                    QVERIFY2(qAbs(operationsBounds.height() -
+                                                  commandBounds.height()) <= 2,
+                                             qPrintable(QString("Operations: %1, command: %2")
+                                                            .arg(operationsBounds.height())
+                                                            .arg(commandBounds.height())));
+                                    if (command->toolButtonStyle() != Qt::ToolButtonIconOnly)
                                         QTRY_VERIFY(command->width() >=
                                                     command->fontMetrics().horizontalAdvance(
                                                         QString(command->text()).remove('&')));

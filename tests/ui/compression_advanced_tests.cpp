@@ -7,6 +7,7 @@
 #include "ui/support/layout_inspection.h"
 #include <QDateTime>
 #include <QScopeGuard>
+#include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSignalSpy>
@@ -248,6 +249,41 @@ class CompressionAdvancedTests final : public QObject {
         CreateArchiveDialog reopened(fixture.path(), {source});
         QVERIFY(!reopened.compressionOptions().DeleteAfterCompressing);
     }
+    void additionalOptionsGrowAndRestoreTheDialog() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const QString source = fixture.filePath("source.txt");
+        QVERIFY(writeFile(source, "data"));
+        QWidget owner;
+        const QRect workArea = owner.screen()->availableGeometry();
+        owner.setGeometry(workArea.left() + (workArea.width() - 680) / 2, workArea.top() + 24, 680,
+                          360);
+        owner.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&owner));
+        CreateArchiveDialog dialog(fixture.path(), {source}, &owner);
+        dialog.open();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        auto *additional = dialog.findChild<QtDisclosure *>("archiveAdditionalSection");
+        auto *volume = dialog.findChild<QComboBox *>("archiveVolumeSize");
+        auto *footer = dialog.findChild<QDialogButtonBox *>();
+        QVERIFY(additional && volume && footer);
+        QTRY_VERIFY(UiInspection::fullyVisible(*additional->button(), dialog));
+        const QSize collapsed = dialog.size();
+        QVERIFY(UiInspection::writeReport(dialog, "add-options-collapsed"));
+        QTest::mouseClick(additional->button(), Qt::LeftButton);
+        QTRY_VERIFY(dialog.height() > collapsed.height());
+        QCOMPARE(dialog.width(), collapsed.width());
+        QTRY_VERIFY(UiInspection::fullyVisible(*volume, dialog));
+        QVERIFY(UiInspection::fullyVisible(*footer, dialog));
+        QVERIFY(workArea.contains(dialog.frameGeometry()));
+        volume->setEditText("64K");
+        QVERIFY(UiInspection::writeReport(dialog, "add-options-expanded"));
+        QTest::mouseClick(additional->button(), Qt::LeftButton);
+        QTRY_COMPARE(dialog.size(), collapsed);
+        QVERIFY(!volume->isVisible());
+        QVERIFY(UiInspection::fullyVisible(*footer, dialog));
+        QCOMPARE(volume->currentText(), QString("64K"));
+    }
     void addFormGeometry() {
         QFETCH(QSize, size);
         QTemporaryDir fixture;
@@ -255,9 +291,9 @@ class CompressionAdvancedTests final : public QObject {
         const QString source = fixture.filePath("source.txt");
         QVERIFY(writeFile(source, "data"));
         CreateArchiveDialog dialog(fixture.path(), {source});
+        ExpandArchiveSections(dialog);
         dialog.resize(size);
         dialog.show();
-        ExpandArchiveSections(dialog);
         auto *volume = dialog.findChild<QComboBox *>("archiveVolumeSize");
         auto *scroll = dialog.findChild<QScrollArea *>("archiveOptionsScrollArea");
         scroll->ensureWidgetVisible(volume);

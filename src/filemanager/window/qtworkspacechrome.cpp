@@ -61,7 +61,7 @@ void QtWindowWorkspace::CreateActions(unsigned panel, QVBoxLayout &layout) {
     row->setContentsMargins(0, 0, 8, 0);
     row->setSpacing(0);
     row->addWidget(state.actions, 1);
-    row->addWidget(new QtOperationsButton(state.actionRow));
+    row->addWidget(new QtOperationsButton(state.actionRow), 0, Qt::AlignVCenter);
     layout.addWidget(state.actionRow);
 }
 

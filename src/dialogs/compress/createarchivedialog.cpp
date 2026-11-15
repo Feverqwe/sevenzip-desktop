@@ -1,4 +1,5 @@
 #include "dialogs/compress/createarchivedialog.h"
+#include "ui/controls/qtdisclosure.h"
 #include "ui/dialogs/qtdialoglayout.h"
 #include "ui/dialogs/qtdialogsurface.h"
 #include "ui/lifecycle/qttaskpresentation.h"
@@ -6,6 +7,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QStyle>
+#include <QToolButton>
 
 CreateArchiveDialog::CreateArchiveDialog(const QString &directory,
                                          const QStringList &initialSources, QWidget *parent,
@@ -74,22 +76,49 @@ CreateArchiveDialog::CreateArchiveDialog(const QString &directory,
     const QMargins margins = layout->contentsMargins();
     const int width =
         qMax(640, content->minimumSizeHint().width() + margins.left() + margins.right());
+    const int frameHeight = 2 * style()->pixelMetric(QStyle::PM_TitleBarHeight);
+    const QSize available = screen()->availableGeometry().size() - QSize(0, frameHeight);
+    resize(QSize(width, formHeight(*scroll, width))
+               .boundedTo(available)
+               .expandedTo(minimumSizeHint()));
+    connect(additionalOptions_->button(), &QToolButton::toggled, this,
+            [this, scroll](bool expanded) { resizeForAdditionalOptions(*scroll, expanded); });
+    // The original modal's first editable combo receives initial dialog focus
+    // and selects its text. Qt's scroll hierarchy needs an explicit adapter.
+    name_->setFocus(Qt::OtherFocusReason);
+    name_->selectAll();
+}
+
+int CreateArchiveDialog::formHeight(QScrollArea &scroll, int width) const {
+    const QMargins margins = layout()->contentsMargins();
     const int contentWidth =
-        width - margins.left() - margins.right() - scroll->verticalScrollBar()->sizeHint().width();
+        width - margins.left() - margins.right() - scroll.verticalScrollBar()->sizeHint().width();
+    auto *contentLayout = scroll.widget()->layout();
     // Reparenting fields and revealing the summary can leave cached spacing
     // from construction. Recompute it before choosing the initial height.
     contentLayout->invalidate();
     const int contentHeight = contentLayout->hasHeightForWidth()
                                   ? contentLayout->heightForWidth(contentWidth)
-                                  : content->sizeHint().height();
-    const int height =
-        contentHeight + findChild<QWidget *>("archiveNameField")->sizeHint().height() +
-        buttons_->sizeHint().height() + 2 * layout->spacing() + margins.top() + margins.bottom();
-    const int frameHeight = 2 * style()->pixelMetric(QStyle::PM_TitleBarHeight);
-    const QSize available = screen()->availableGeometry().size() - QSize(0, frameHeight);
-    resize(QSize(width, height).boundedTo(available).expandedTo(minimumSizeHint()));
-    // The original modal's first editable combo receives initial dialog focus
-    // and selects its text. Qt's scroll hierarchy needs an explicit adapter.
-    name_->setFocus(Qt::OtherFocusReason);
-    name_->selectAll();
+                                  : scroll.widget()->sizeHint().height();
+    return contentHeight + findChild<QWidget *>("archiveNameField")->sizeHint().height() +
+           buttons_->sizeHint().height() + 2 * layout()->spacing() + margins.top() +
+           margins.bottom();
+}
+
+void CreateArchiveDialog::resizeForAdditionalOptions(QScrollArea &scroll, bool expanded) {
+    if (!isVisible()) {
+        collapsedOptionsHeight_ = 0;
+        return;
+    }
+    if (!expanded) {
+        if (collapsedOptionsHeight_ > 0)
+            resize(width(), collapsedOptionsHeight_);
+        collapsedOptionsHeight_ = 0;
+        return;
+    }
+
+    collapsedOptionsHeight_ = height();
+    const int availableBelow = screen()->availableGeometry().bottom() - frameGeometry().bottom();
+    const int maximumHeight = height() + qMax(0, availableBelow);
+    resize(width(), qBound(height(), formHeight(scroll, width()), maximumHeight));
 }

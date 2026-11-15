@@ -294,9 +294,9 @@ class ArchiveVolumeCreationTests final : public QObject {
         QVERIFY(volume && volume->isEditable() && volume->isEnabled());
         QCOMPARE(volume->currentText(), QString());
         volume->setEditText("64K 128K");
+        ExpandArchiveSections(dialog);
         dialog.resize(width, height);
         dialog.show();
-        ExpandArchiveSections(dialog);
         QCoreApplication::processEvents();
         auto *scroll = dialog.findChild<QScrollArea *>("archiveOptionsScrollArea");
         scroll->ensureWidgetVisible(volume);

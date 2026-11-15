@@ -68,7 +68,7 @@ QtOperationsButton::QtOperationsButton(QWidget *parent)
     setAutoRaise(true);
     setFocusPolicy(Qt::StrongFocus);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-    QtConfigureChromeToolButton(*this);
+    QtConfigurePanelActionMenuButton(*this);
     connect(menu_, &QMenu::aboutToShow, this, &QtOperationsButton::Populate);
     connect(&QtOperationRegistry::Application(), &QtOperationRegistry::changed, this,
             &QtOperationsButton::Refresh);

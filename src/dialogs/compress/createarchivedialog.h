@@ -55,6 +55,8 @@ class CreateArchiveDialog : public QDialog {
     AcceptedRequest readRequest(const QString &target) const;
     void showEvent(QShowEvent *event) override;
     static QScrollArea *createOptionsScrollArea(QWidget *parent);
+    int formHeight(QScrollArea &scroll, int width) const;
+    void resizeForAdditionalOptions(QScrollArea &scroll, bool expanded);
     QPushButton *createArchiveDestination(QVBoxLayout *windowLayout);
     void createArchiveForm(QVBoxLayout *layout, QVBoxLayout *windowLayout);
     void createOptionSections(QVBoxLayout *layout, QFormLayout *basic);
@@ -155,6 +157,7 @@ class CreateArchiveDialog : public QDialog {
     QCheckBox *passwordEnabled_ = nullptr;
     QLabel *protectionWarning_ = nullptr;
     QtDisclosure *additionalOptions_ = nullptr;
+    int collapsedOptionsHeight_ = 0;
     QWidget *expertContent_ = nullptr;
     QFormLayout *encryptionForm_ = nullptr;
     QDialogButtonBox *buttons_ = nullptr;
