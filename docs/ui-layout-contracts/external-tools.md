@@ -90,8 +90,9 @@ offer to save a separate copy of the edited file.
 About shows the Sevenzip name, application release, project website and 7-Zip
 attribution. The 7-Zip panel shows the upstream version, release date and
 copyright. Build information expands in place and labels unavailable values
-as unknown. At compact sizes the body scrolls. The title-bar close control
-and Escape dismiss the window.
+as unknown. At compact sizes the body scrolls and the Close button stays visible
+below it. Close, Return and Escape dismiss About. Opening it as a macOS sheet
+preserves the size of the owner window and the sheet settles before it appears.
 Light and dark checks cover attribution contrast, layout and language changes.
 The package includes the license documents and notices.
 

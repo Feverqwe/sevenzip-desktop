@@ -1,3 +1,4 @@
+#include "dialogs/about/AboutDialog.h"
 #include "dialogs/copy/CopyDialog.h"
 #include "dialogs/extract/alias.h"
 #include "dialogs/overwrite/OverwriteDialog.h"
@@ -88,9 +89,13 @@ class ContextDialogTests final : public QObject {
         int ownerClicks = 0, peerClicks = 0;
         connect(blocked, &QPushButton::clicked, &owner, [&] { ++ownerClicks; });
         connect(available, &QPushButton::clicked, &peer, [&] { ++peerClicks; });
+        const int cancelled = kind == "overwrite" ? IDCANCEL : int(QDialog::Rejected);
         bool observed = false;
         QTimer::singleShot(0, dialog.get(), [&] {
-            const auto close = qScopeGuard([&] { dialog->reject(); });
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
             QVERIFY(QTest::qWaitForWindowExposed(dialog.get()));
             QTRY_VERIFY(nativeSheet(*dialog, owner));
             QTest::mouseClick(owner.windowHandle(), Qt::LeftButton, Qt::NoModifier,
@@ -105,14 +110,50 @@ class ContextDialogTests final : public QObject {
             QCOMPARE(peerClicks, 0);
 #endif
             QVERIFY(UiInspection::writeReport(*dialog, "context-task-" + kind));
+            QPushButton *cancel = nullptr;
+            if (kind == "overwrite")
+                cancel = dialog->findChild<QPushButton *>("overwriteCancel");
+            else if (auto *buttons = dialog->findChild<QDialogButtonBox *>())
+                cancel = buttons->button(QDialogButtonBox::Cancel);
+            QVERIFY(cancel && cancel->isEnabled());
+            QVERIFY(UiInspection::fullyVisible(*cancel, *dialog));
+            QTest::mouseClick(cancel, Qt::LeftButton);
+            QVERIFY(!dialog->isVisible());
             observed = true;
         });
-        const int cancelled = kind == "overwrite" ? IDCANCEL : int(QDialog::Rejected);
         QCOMPARE(dialog->exec(), cancelled);
         QVERIFY(observed);
         QVERIFY(WindowActivation::waitForActive(owner));
         QTRY_COMPARE(owner.focusWidget(), origin);
         QCOMPARE(origin->text(), QString("owner draft"));
+    }
+    void openingAboutKeepsWindowSizes() {
+        QWidget owner;
+        owner.resize(460, 350);
+        owner.show();
+        QVERIFY(WindowActivation::waitForActive(owner));
+        const QSize ownerSize = owner.size();
+        CAboutDialog dialog(&owner);
+        dialog.winId();
+        QSize shownSize;
+        connect(dialog.windowHandle(), &QWindow::visibleChanged, &dialog, [&](bool visible) {
+            if (visible)
+                shownSize = dialog.size();
+        });
+        bool observed = false;
+        QTimer::singleShot(0, &dialog, [&] {
+            const auto close = qScopeGuard([&] { dialog.reject(); });
+            QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+            QTRY_VERIFY(nativeSheet(dialog, owner));
+            QCoreApplication::processEvents();
+            QCOMPARE(owner.size(), ownerSize);
+            QCOMPARE(dialog.size(), shownSize);
+            QVERIFY(UiInspection::writeReport(dialog, "context-about"));
+            observed = true;
+        });
+        dialog.Create();
+        QVERIFY(observed);
+        QCOMPARE(owner.size(), ownerSize);
     }
     void nestedPromptCancelKeepsParentDraft() {
         QWidget owner;

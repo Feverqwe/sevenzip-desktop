@@ -46,8 +46,10 @@ class AboutDialogTests final : public QObject {
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         auto *scroll = dialog.findChild<QScrollArea *>("dialogContentScroll");
         auto *section = dialog.findChild<QWidget *>("aboutBuildDetails");
-        QVERIFY(scroll && section);
-        QVERIFY(!dialog.findChild<QDialogButtonBox *>());
+        auto *actions = dialog.findChild<QDialogButtonBox *>("aboutActions");
+        QVERIFY(scroll && section && actions);
+        auto *close = actions->button(QDialogButtonBox::Ok);
+        QVERIFY(close);
         QTRY_VERIFY(UiInspection::bounds(*scroll, dialog).bottom() -
                         UiInspection::bounds(*section, dialog).bottom() <=
                     dialog.fontMetrics().height() * 3);
@@ -80,11 +82,16 @@ class AboutDialogTests final : public QObject {
                         QVERIFY(UiInspection::labelFits(*label));
                     QVERIFY(UiInspection::fullyVisible(*scroll, dialog));
                 }
+                QVERIFY(UiInspection::fullyVisible(*close, dialog));
+                QVERIFY(UiInspection::bounds(*close, dialog).top() >
+                        UiInspection::bounds(*scroll, dialog).bottom());
                 QVERIFY(UiInspection::writeReport(
                     dialog, QString("about-details-%1-%2").arg(language).arg(size.width())));
             }
         }
-        QTest::keyClick(&dialog, Qt::Key_Escape);
+        QSignalSpy accepted(&dialog, &QDialog::accepted);
+        QTest::mouseClick(close, Qt::LeftButton);
+        QCOMPARE(accepted.count(), 1);
         QTRY_VERIFY(!dialog.isVisible());
     }
     void aboutPaletteChangesRestyleOpenDialog() {
@@ -168,6 +175,11 @@ class AboutDialogTests final : public QObject {
         dialog.show();
         QVERIFY(dialog.close());
         QCOMPARE(rejected.count(), 2);
+        dialog.show();
+        QSignalSpy accepted(&dialog, &QDialog::accepted);
+        QTest::keyClick(&dialog, Qt::Key_Return);
+        QCOMPARE(accepted.count(), 1);
+        QVERIFY(!dialog.isVisible());
     }
 
     void aboutIdentityAttributionLinksAndGeometry_data() {

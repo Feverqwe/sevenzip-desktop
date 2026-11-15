@@ -1,6 +1,7 @@
 // Qt presentation of the About dialog; native provenance is in AboutDialog.cpp.
 #include "7zip/MyVersion.h"
 #include "dialogs/about/AboutDialog.h"
+#include "localization/qtlangbuttonbox.h"
 #include "localization/qtlangcontrols.h"
 #include "ui/controls/qtdisclosure.h"
 #include "ui/controls/qtmetadatarows.h"
@@ -18,11 +19,18 @@
 #include <QVBoxLayout>
 
 void CAboutDialog::BuildPresentation() {
-    auto *layout = QtCreateDialogLayout(*this, QtDialogContent::Scrollable);
+    auto *buttons = new QtLangButtonBox(QDialogButtonBox::Ok, this);
+    buttons->setObjectName("aboutActions");
+    buttons->SetAcceptText("DialogRedesign", QT_TRANSLATE_NOOP("DialogRedesign", "Close"));
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    auto *layout = QtCreateDialogLayout(*this, *buttons, QtDialogContent::Scrollable);
     layout->setSpacing(12);
     BuildIdentity(*layout);
     BuildUpstream(*layout);
     BuildDetails(*layout);
+    auto *close = buttons->button(QDialogButtonBox::Ok);
+    close->setDefault(true);
+    close->setFocus();
 }
 
 void CAboutDialog::BuildIdentity(QVBoxLayout &layout) {

@@ -8,29 +8,23 @@
 #include "ui/dialogs/qtdialoglayout.h"
 #include <QEvent>
 #include <QLabel>
-#include <QTimer>
+#include <utility>
 
 CAboutDialog::CAboutDialog(QWidget *parent) : QDialog(parent) {
     setObjectName("aboutDialog");
     QtUseContextDialogModality(*this);
     BuildPresentation();
     OnInit();
+    ensurePolished();
     resize(QSize(520, sizeHint().height()).expandedTo(minimumSizeHint()));
-    QtFitScrollableDialog(*this);
     initialPresentationSize_ = size();
 }
 
 void CAboutDialog::showEvent(QShowEvent *event) {
+    // The child layouts are ready, but Qt hasn't mapped the native window yet.
+    if (std::exchange(initialPresentation_, false) && size() == initialPresentationSize_)
+        QtFitScrollableDialog(*this);
     QDialog::showEvent(event);
-    if (!initialPresentation_)
-        return;
-    initialPresentation_ = false;
-    QTimer::singleShot(0, this, [this] {
-        // Fit after native fonts and wrapped labels have their final widths.
-        // An explicit caller resize still takes precedence.
-        if (isVisible() && size() == initialPresentationSize_)
-            QtFitScrollableDialog(*this);
-    });
 }
 
 QString CAboutDialog::ValueOrUnknown(const QString &value) const {
