@@ -5,6 +5,7 @@
 #include <QThread>
 #include <functional>
 #include <memory>
+#include <optional>
 
 struct ArchiveCodecProbeResult {
     HRESULT result = E_FAIL;
@@ -17,7 +18,6 @@ class ArchiveCodecProbe final : public QObject {
     struct Work;
     std::unique_ptr<QThread> loader_;
     std::shared_ptr<Work> work_;
-    static int DefaultTimeoutMs();
     void Complete();
 
   public:
@@ -26,8 +26,10 @@ class ArchiveCodecProbe final : public QObject {
     explicit ArchiveCodecProbe(QObject *parent = nullptr);
     ~ArchiveCodecProbe() override;
     // Reject active or failed startup without publishing a partial operation.
+    // Native loading cannot be interrupted. An explicit timeout limits result
+    // acceptance, while ordinary discovery waits for the native result.
     bool Start(const QString &module, std::function<void(ArchiveCodecProbeResult)> completion,
-               int timeoutMs = DefaultTimeoutMs());
+               std::optional<int> timeoutMs = std::nullopt);
     void Cancel();
     bool active() const { return bool(work_); }
 };

@@ -49,6 +49,11 @@ Existing probe, catalog, opening and command tests cover this handoff through
 native loading, blocked GUI delivery, timeout/cancel, joined destruction and
 reentrant retry. No test pins the private request representation.
 
+Ordinary file manager and standalone archive operations await native discovery
+without a deadline. Native loading cannot be interrupted, so expiring a timer
+after the load only discards a result that the caller has already waited for.
+Explicit probe deadlines and cancellation still reject unpublished results.
+
 ## Command method availability — 2026-11-04
 
 Reviewed native `CExternalCodecs::Load`, `FindMethod_Index`, `FindHashMethod`

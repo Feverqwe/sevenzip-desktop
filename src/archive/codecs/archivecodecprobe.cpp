@@ -16,8 +16,10 @@ struct ArchiveCodecProbe::Work {
     ArchiveCodecProbeResult result;
     std::function<void(ArchiveCodecProbeResult)> completion;
 
-    Work(int timeoutMs, std::function<void(ArchiveCodecProbeResult)> callback)
-        : deadline(qMax(1, timeoutMs), Qt::PreciseTimer), completion(std::move(callback)) {}
+    Work(std::optional<int> timeoutMs, std::function<void(ArchiveCodecProbeResult)> callback)
+        : deadline(timeoutMs ? QDeadlineTimer(qMax(1, *timeoutMs), Qt::PreciseTimer)
+                             : QDeadlineTimer(QDeadlineTimer::Forever)),
+          completion(std::move(callback)) {}
 
     bool Stopped() {
         if (deadline.hasExpired())
@@ -51,19 +53,6 @@ std::shared_ptr<const ArchiveCodecCatalog> ArchiveCodecProbe::LoadCatalog(const 
 
 ArchiveCodecProbe::ArchiveCodecProbe(QObject *parent) : QObject(parent) {}
 
-int ArchiveCodecProbe::DefaultTimeoutMs() {
-    // Instrumented format modules incur extra initialization and I/O work.
-    // The default must accept a successfully loaded development catalog.
-#if defined(__clang__)
-    constexpr bool instrumented = __has_feature(address_sanitizer);
-#elif defined(__SANITIZE_ADDRESS__)
-    constexpr bool instrumented = true;
-#else
-    constexpr bool instrumented = false;
-#endif
-    return instrumented ? 30000 : 5000;
-}
-
 ArchiveCodecProbe::~ArchiveCodecProbe() {
     Cancel();
     if (loader_) {
@@ -76,7 +65,7 @@ ArchiveCodecProbe::~ArchiveCodecProbe() {
 
 bool ArchiveCodecProbe::Start(const QString &module,
                               std::function<void(ArchiveCodecProbeResult)> completion,
-                              int timeoutMs) {
+                              std::optional<int> timeoutMs) {
     if (work_)
         return false;
     try {

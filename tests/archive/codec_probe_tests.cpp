@@ -1,5 +1,6 @@
 #include "archive/codecs/archivecodecprobe.h"
 #include "support/slow_codec.h"
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QScopeGuard>
@@ -20,6 +21,12 @@ class CodecProbeTests : public QObject {
         const QString source = QString::fromUtf8(SEVENZIP_CODEC_MODULE);
         const QString module = temporary.filePath(QFileInfo(source).fileName());
         QVERIFY(QFile::copy(source, module));
+        // Install a slow optional module beside the official main module.
+        QVERIFY(QDir(temporary.path()).mkdir("Formats"));
+        SlowCodecModuleFixture slow(temporary, 5250);
+        QVERIFY(slow.Valid);
+        QVERIFY(QFile::rename(slow.Path,
+                              temporary.filePath("Formats/" + QFileInfo(slow.Path).fileName())));
         ArchiveCodecProbe probe;
         int calls = 0;
         ArchiveCodecProbeResult result;
@@ -28,7 +35,8 @@ class CodecProbeTests : public QObject {
             result = std::move(value);
             ++calls;
         }));
-        QTRY_COMPARE(calls, 1);
+        QTRY_COMPARE_WITH_TIMEOUT(calls, 1, 15000);
+        QVERIFY(QFileInfo::exists(slow.Finished));
         QCOMPARE(result.result, S_OK);
         QVERIFY2(result.catalog, qPrintable(result.error));
         // The selected module supplies the native opening interface directly.
