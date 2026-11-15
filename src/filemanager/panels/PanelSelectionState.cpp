@@ -122,7 +122,6 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealF
     _selectionList.ClearSelection();
     const UInt32 numItems = (UInt32)_selectionList.GetItemCount();
     const UInt32 numFolderItems = GetFolderItemCount();
-    const bool showDots = _showDots && !IsRootFolder();
     _selectedStatusVector.ClearAndReserve(numFolderItems);
     for (UInt32 i = 0; i < numFolderItems; ++i)
         _selectedStatusVector.AddInReserved(false);
@@ -147,11 +146,8 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealF
     }
     for (UInt32 i = 0; i < numItems; i++) {
         const unsigned realIndex = GetRealItemIndex(int(i));
-        if (realIndex == kParentIndex) {
-            if (showDots && state.FocusedName == UString(".."))
-                cursorIndex = (int)i;
+        if (realIndex == kParentIndex)
             continue;
-        }
         if (realIndex >= numFolderItems)
             throw 1;
         const wchar_t *name = NULL;
@@ -203,9 +199,7 @@ HRESULT CPanel::RestoreLoadedSelection(const CSelectedState &state, bool revealF
     if (cursorIndex < 0 && _selectionList.GetItemCount() > 0) {
         if (focusedPos >= _selectionList.GetItemCount())
             focusedPos = _selectionList.GetItemCount() - 1;
-        // Select the initial parent row only in the original showDots mode.
-        SetFocusedSelectedItem(
-            focusedPos, showDots && focusedPos == 0 && !state.FocusedName_Defined, keepColumn);
+        SetFocusedSelectedItem(focusedPos, false, keepColumn);
     }
     if (revealFocused)
         _selectionList.EnsureVisible(_selectionList.GetFocusedItem());

@@ -16,6 +16,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScopeGuard>
+#include <QSettings>
 #include <QStyleOptionButton>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -58,10 +59,7 @@ class SourceBrowseDialogTests final : public QObject {
         hadSettings_ = qEnvironmentVariableIsSet("SEVENZIP_SETTINGS_PATH");
         oldSettings_ = qgetenv("SEVENZIP_SETTINGS_PATH");
         qputenv("SEVENZIP_SETTINGS_PATH", settings_.filePath("browser.ini").toUtf8());
-        CFmSettings settings;
-        settings.Load(FmSettingsPath());
-        settings.ShowDots = true;
-        settings.Save(FmSettingsPath());
+        QSettings(FmSettingsPath(), QSettings::IniFormat).setValue("FM/ShowDots", true);
         SaveRegLang(UString("-"), FmSettingsPath());
         ReloadLang(FmSettingsPath());
     }
@@ -300,7 +298,7 @@ class SourceBrowseDialogTests final : public QObject {
             auto *path = dialog->findChild<QLineEdit *>("browsePath");
             auto *folder = dialog->findChild<QLabel *>("browseFolder");
             QVERIFY(list && filter && path && folder);
-            QCOMPARE(Names(*list), (QStringList{"..", "Z folder", "a.7z", "b.7z"}));
+            QCOMPARE(Names(*list), (QStringList{"Z folder", "a.7z", "b.7z"}));
             auto *archive = list->findItems("a.7z", Qt::MatchExactly).front();
             QCOMPARE(archive->text(2), QString("4"));
             QVERIFY(!archive->text(1).isEmpty());
@@ -310,7 +308,7 @@ class SourceBrowseDialogTests final : public QObject {
             filter->setCurrentIndex(0);
             QMetaObject::invokeMethod(list->header(), "sectionClicked", Qt::DirectConnection,
                                       Q_ARG(int, 0));
-            QCOMPARE(Names(*list), (QStringList{"..", "Z folder", "b.7z", "a.7z"}));
+            QCOMPARE(Names(*list), (QStringList{"Z folder", "b.7z", "a.7z"}));
             list->setFocus();
             list->setCurrentItem(list->findItems("Z folder", Qt::MatchExactly).front());
             QTest::keyClick(list, Qt::Key_Return);
@@ -495,9 +493,9 @@ class SourceBrowseDialogTests final : public QObject {
 
             QVERIFY(QDir().rename(parked, directory));
             filter->setCurrentIndex(1);
-            QCOMPARE(Names(*list), (QStringList{"..", "archive.7z", "note.txt"}));
+            QCOMPARE(Names(*list), (QStringList{"archive.7z", "note.txt"}));
             reverseOrder();
-            QCOMPARE(Names(*list), (QStringList{"..", "note.txt", "archive.7z"}));
+            QCOMPARE(Names(*list), (QStringList{"note.txt", "archive.7z"}));
             QCOMPARE(list->header()->sortIndicatorOrder(), Qt::DescendingOrder);
             QFile newFile(directory + "/new.txt");
             QVERIFY(newFile.open(QIODevice::WriteOnly | QIODevice::NewOnly));

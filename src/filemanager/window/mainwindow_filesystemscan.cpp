@@ -45,7 +45,6 @@ void MainWindow::filesystemScanFolderReady(unsigned index, IFolderFolder *folder
             return;
         }
         configureColumns();
-        appendParentEntry();
     });
 }
 

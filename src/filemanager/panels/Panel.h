@@ -348,7 +348,6 @@ class CPanel : public QObject {
     void SetSortRawStatus();
     void SortItemsWithPropID(PROPID propID);
     void OnColumnClick(PROPID propID);
-    bool _showDots = false;
     UInt32 GetListViewMode() const { return _listViewMode; }
     void SetListViewMode(UInt32 index);
     void ChangeFlatMode();

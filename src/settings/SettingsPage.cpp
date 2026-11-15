@@ -29,7 +29,6 @@ bool CSettingsPage::OnInit() {
     _appearanceChanged = false;
     _settings.Load(_settingsPath);
     _appearance->setCurrentIndex(_appearance->findData(int(_settings.ColorScheme)));
-    _showDots->setChecked(_settings.ShowDots);
     _showHiddenFolders->setChecked(_settings.ShowHiddenFolders);
     {
         const auto memory = QtQueryMemoryLimitInfo();
@@ -63,7 +62,6 @@ void CSettingsPage::EnableSpin(bool enable) { _memSpin->setEnabled(enable); }
 long CSettingsPage::OnApply() {
     if (_wasChanged) {
         CFmSettings st = _settings;
-        st.ShowDots = _showDots->isChecked();
         st.ShowHiddenFolders = _showHiddenFolders->isChecked();
         st.Save(_settingsPath);
         _settings = st;

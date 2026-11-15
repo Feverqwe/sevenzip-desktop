@@ -388,10 +388,6 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             SaveRegLang(L"-", settings);
             ReloadLang(settings);
         });
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture, peerDirectory;
         QVERIFY(fixture.isValid() && peerDirectory.isValid());
         const QString original = QStringLiteral("original 空.txt");
@@ -615,16 +611,12 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QCOMPARE(file.readAll(), QByteArray("protected"));
         }
     }
-    void emptyAndParent_data() {
-        QTest::addColumn<bool>("showDots");
+    void emptyPanel_data() {
         QTest::addColumn<QString>("language");
-        for (bool showDots : {false, true})
-            for (const QString language : {"-", "ru"})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(showDots).arg(language)))
-                    << showDots << language;
+        for (const QString language : {"-", "ru"})
+            QTest::newRow(qPrintable(language)) << language;
     }
-    void emptyAndParent() {
-        QFETCH(bool, showDots);
+    void emptyPanel() {
         QFETCH(QString, language);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
@@ -634,10 +626,6 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             SaveRegLang(L"-", settings);
             ReloadLang(settings);
         });
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = showDots;
-        preferences.Save(settings);
         QTemporaryDir fixture, peerDirectory;
         QVERIFY(fixture.isValid() && peerDirectory.isValid());
         ControlledBackend backend;
@@ -647,14 +635,10 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         action(window, "twoPanelsAction")->trigger();
         auto *owner = openPanel(window, 0, fixture.path());
         QVERIFY(owner);
-        QTRY_COMPARE(owner->rowCount(), showDots ? 1 : 0);
-        if (showDots) {
-            owner->setCurrentCell(0, 0);
-            owner->selectRow(0);
-        }
+        QTRY_COMPARE(owner->rowCount(), 0);
         auto *peer = openPanel(window, 1, peerDirectory.path());
         QVERIFY(peer);
-        QTRY_COMPARE(peer->rowCount(), showDots ? 1 : 0);
+        QTRY_COMPARE(peer->rowCount(), 0);
         QTRY_VERIFY(owner->isEnabled() && peer->isEnabled());
         peer->setFocus();
         bool observed = false;
@@ -671,8 +655,8 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QVERIFY(rename && create);
             QVERIFY(!rename->isEnabled());
             QVERIFY(create->isEnabled());
-            QVERIFY(UiInspection::writeReport(
-                *menu, QString("source-context-empty-%1-%2").arg(showDots).arg(language)));
+            QVERIFY(
+                UiInspection::writeReport(*menu, QString("source-context-empty-%1").arg(language)));
             QTest::keyClick(menu, Qt::Key_Escape);
         });
         cancel.start(5);

@@ -262,11 +262,11 @@ error reports; inspect every visible message label/button for fit and clipping.
 
 Reference: `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
 `CPP/7zip/UI/FileManager/SettingsPage2.rc` and `SettingsPage.cpp`.
-The Qt page includes the parent-row preference and the extraction memory limit. The file table uses full-row highlighting.
+The Qt page includes hidden-folder visibility and the extraction memory limit. The file table uses full-row highlighting.
 Alternative selection is enabled and persists the source mark mode.
 Refresh resets the source group anchor to the first list row, independently of
-restored focus. The next Shift-click marks that original inclusive row range;
-a shown `..` remains excluded from operated indices. Ctrl-click starts a new
+restored focus. The next Shift-click marks that original inclusive row range.
+Ctrl-click starts a new
 anchor. Selection colours, single focused row, totals and peer state stay in
 sync after direct restoration, menu Refresh and timer reload.
 The page has no heading absent from the resource.

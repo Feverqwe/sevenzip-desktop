@@ -55,21 +55,20 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
             auto *dialog = window.findChild<QDialog *>("settingsDialog");
             QVERIFY(dialog);
             QVERIFY(write(left + "/new-left.txt") && write(right + "/new-right.txt"));
-            dialog->findChild<QCheckBox *>("showDotsOption")->setChecked(true);
+            dialog->findChild<QCheckBox *>("showHiddenFoldersOption")->setChecked(false);
             dialog->findChild<QDialogButtonBox *>("settingsButtons")
                 ->button(QDialogButtonBox::Apply)
                 ->click();
             applied = true;
-            dialog->findChild<QCheckBox *>("showDotsOption")->setChecked(false);
+            dialog->findChild<QCheckBox *>("showHiddenFoldersOption")->setChecked(true);
             dialog->reject();
         });
         window.findChild<QAction *>("settingsAction")->trigger();
         QVERIFY(applied);
         for (auto *table : {leftTable, rightTable}) {
-            QTRY_COMPARE(table->rowCount(), 3);
-            QCOMPARE(table->model()->index(0, 0).data().toString(), QString(".."));
+            QTRY_COMPARE(table->rowCount(), 2);
             QCOMPARE(table->selectionModel()->selectedRows().size(), 1);
-            for (int row = 1; row < table->rowCount(); ++row) {
+            for (int row = 0; row < table->rowCount(); ++row) {
                 const auto index = table->model()->index(row, 0);
                 QIcon expected;
                 QCOMPARE(table->sourcePanel->GetItemIcon(index.data(Qt::UserRole + 6).toUInt(),
@@ -80,23 +79,17 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
                     expected.pixmap(16, 16).toImage());
             }
         }
-        const auto parentIcon = [](FileTable *table) {
-            return qvariant_cast<QIcon>(table->model()->index(0, 0).data(Qt::DecorationRole))
-                .pixmap(16, 16)
-                .toImage();
-        };
-        QCOMPARE(parentIcon(leftTable), parentIcon(rightTable));
         QCOMPARE(leftTable->model()->index(leftTable->currentRow(), 0).data().toString(),
                  QString("left.txt"));
         QCOMPARE(rightTable->model()->index(rightTable->currentRow(), 0).data().toString(),
                  QString("right.txt"));
     }
-    void applyRetainsParentInBoundFolder_data() {
+    void applyRetainsBoundFolder_data() {
         QTest::addColumn<bool>("archive");
         QTest::newRow("volumes") << false;
         QTest::newRow("archive") << true;
     }
-    void applyRetainsParentInBoundFolder() {
+    void applyRetainsBoundFolder() {
         QFETCH(bool, archive);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir fixture;
@@ -118,7 +111,7 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
         QTimer::singleShot(0, &window, [&] {
             auto *dialog = window.findChild<QDialog *>("settingsDialog");
             QVERIFY(dialog);
-            dialog->findChild<QCheckBox *>("showDotsOption")->setChecked(true);
+            dialog->findChild<QCheckBox *>("showHiddenFoldersOption")->setChecked(false);
             dialog->findChild<QDialogButtonBox *>("settingsButtons")
                 ->button(QDialogButtonBox::Apply)
                 ->click();
@@ -131,8 +124,6 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
         QCOMPARE(view->sourcePanel->GetFolder(), (IFolderFolder *)folder);
         QCOMPARE(view->sourcePanel->IsArcFolder(), archive);
         QCOMPARE(window.findChild<QLineEdit *>("archivePath")->text(), path);
-        QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
-        QCOMPARE(view->model()->index(0, 0).data(Qt::UserRole + 6).toUInt(), UInt32(-1));
         for (const QSize size : {QSize(980, 620), QSize(640, 400)}) {
             window.resize(size);
             QApplication::processEvents();
@@ -140,7 +131,7 @@ class OptionsWindowTests : public QObject, protected MainWindowTestSupport {
                 view->viewport()->rect().contains(view->visualRect(view->model()->index(0, 0))));
             QVERIFY(UiInspection::fullyVisible(*view, window));
             QVERIFY(UiInspection::writeReport(
-                window, QString("options-bound-parent-%1-%2").arg(archive).arg(size.width())));
+                window, QString("options-bound-folder-%1-%2").arg(archive).arg(size.width())));
         }
     }
 };

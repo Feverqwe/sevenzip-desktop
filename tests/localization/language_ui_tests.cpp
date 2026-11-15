@@ -559,11 +559,11 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
         auto *workPath = dialog.findChild<QLineEdit *>("workPath");
         dialog.findChild<QRadioButton *>("workSpecified")->click();
         auto *items = dialog.findChild<QListWidget *>("menuItems");
-        auto *parentRow = dialog.findChild<QCheckBox *>("showDotsOption");
+        auto *hiddenFolders = dialog.findChild<QCheckBox *>("showHiddenFoldersOption");
         const QString path = QStringLiteral("/tmp/папка с пробелом");
         workPath->setText(path);
-        parentRow->setChecked(!parentRow->isChecked());
-        const bool checked = parentRow->isChecked();
+        hiddenFolders->setChecked(!hiddenFolders->isChecked());
+        const bool checked = hiddenFolders->isChecked();
         const Qt::CheckState itemState = items->item(0)->checkState();
         for (const char *language : {"ru", "-"}) {
             SaveRegLang(UString(language), settingsPath());
@@ -572,7 +572,7 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
             QCOMPARE(dialog.windowTitle(),
                      QString(language) == "ru" ? QStringLiteral("Настройки") : QString("Options"));
             QCOMPARE(workPath->text(), path);
-            QCOMPARE(parentRow->isChecked(), checked);
+            QCOMPARE(hiddenFolders->isChecked(), checked);
             QCOMPARE(items->item(0)->checkState(), itemState);
             QVERIFY(items->isEnabled());
             QVERIFY(items->toolTip().isEmpty());
@@ -583,7 +583,7 @@ class LanguageUiTests : public QObject, protected MainWindowTestSupport {
                 dialog.resize(size);
                 for (const char *name :
                      {"appearanceChoice", "languageChoice", "workPathBrowse", "workPath",
-                      "extractMemoryLabel", "extractMemorySpin", "showDotsOption"}) {
+                      "extractMemoryLabel", "extractMemorySpin", "showHiddenFoldersOption"}) {
                     auto *control = dialog.findChild<QWidget *>(name);
                     QVERIFY(OptionsPresentation::show(dialog, control));
                     QVERIFY2(UiInspection::fullyVisible(*control, dialog), name);

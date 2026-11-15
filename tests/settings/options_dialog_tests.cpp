@@ -50,14 +50,10 @@ class OptionsDialogTests : public QObject {
         for (QSize size : {QSize(640, 390), QSize(520, 380), QSize(640, 720), QSize(900, 800)}) {
             dialog.resize(size);
             QApplication::processEvents();
-            auto *dots = dialog.findChild<QCheckBox *>("showDotsOption");
             auto *hidden = dialog.findChild<QCheckBox *>("showHiddenFoldersOption");
-            QVERIFY(dots && hidden);
-            OptionsPresentation::show(dialog, dots);
-            QVERIFY(UiInspection::fullyVisible(*dots, dialog));
+            QVERIFY(hidden);
+            OptionsPresentation::show(dialog, hidden);
             QVERIFY(UiInspection::fullyVisible(*hidden, dialog));
-            QVERIFY(UiInspection::bounds(*dots, dialog).bottom() <
-                    UiInspection::bounds(*hidden, dialog).top());
             QVERIFY(UiInspection::writeReport(
                 dialog, QString("options-file-list-%1x%2").arg(size.width()).arg(size.height())));
             // Native resize constraints and height-for-width layouts can
@@ -155,7 +151,7 @@ class OptionsDialogTests : public QObject {
         QVERIFY(!enabled->isChecked() && !edit->isEnabled());
         enabled->setChecked(true);
         edit->setText(text);
-        dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(true);
+        dialog.findChild<QCheckBox *>("showHiddenFoldersOption")->setChecked(false);
         bool errorShown = false;
         QMessageBox::Icon errorIcon = QMessageBox::NoIcon;
         QString errorTitle;
@@ -185,7 +181,7 @@ class OptionsDialogTests : public QObject {
         QCOMPARE(NExtract::Read_LimitGB(settings), valid ? text.toUInt() : UInt32(-1));
         CFmSettings general;
         general.Load(settings);
-        QVERIFY(general.ShowDots); // Source saves general flags before memory validation.
+        QVERIFY(!general.ShowHiddenFolders); // General flags precede memory validation.
         if (!valid) {
             auto *focused = dialog.focusWidget();
             QVERIFY2(focused == edit || focused == dialog.findChild<QWidget *>("extractMemorySpin"),
@@ -395,7 +391,7 @@ class OptionsDialogTests : public QObject {
         QCOMPARE(errors, 1);
         const char *modes[] = {"workSystem", "workSpecified"};
         dialog.findChild<QRadioButton *>(modes[mode])->click();
-        OptionsPresentation::show(dialog, "showDotsOption");
+        OptionsPresentation::show(dialog, "showHiddenFoldersOption");
         auto *apply = dialog.findChild<QDialogButtonBox *>("settingsButtons")
                           ->button(QDialogButtonBox::Apply);
         QSignalSpy applied(&dialog, &QtFmOptionsDialog::Applied);

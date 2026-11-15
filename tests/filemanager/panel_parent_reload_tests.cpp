@@ -29,26 +29,20 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
     void reloadUsesSourceParentSelection_data() {
         QTest::addColumn<unsigned>("sourceIndex");
         QTest::addColumn<QString>("language");
-        QTest::addColumn<bool>("dots");
         QTest::addColumn<int>("mode");
         for (unsigned index : {0u, 1u})
             for (const QString language : {"-", "ru"})
-                for (bool dots : {false, true})
-                    for (int mode : {0, 1})
-                        QTest::newRow(qPrintable(
-                            QString("%1-%2-%3-%4").arg(index).arg(language).arg(dots).arg(mode)))
-                            << index << language << dots << mode;
+                for (int mode : {0, 1})
+                    QTest::newRow(
+                        qPrintable(QString("%1-%2-%3").arg(index).arg(language).arg(mode)))
+                        << index << language << mode;
     }
     void reloadUsesSourceParentSelection() {
         QFETCH(unsigned, sourceIndex);
         QFETCH(QString, language);
-        QFETCH(bool, dots);
         QFETCH(int, mode);
         SaveRegLang(ToUString(language), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ReloadLang(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/ShowDots", dots);
-        settings.sync();
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString folder = fixture.filePath(QStringLiteral("browse space 文件"));
@@ -59,50 +53,34 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
         for (int i = 0; i < count; ++i)
             QVERIFY(writeFile(QDir(folder).filePath(QString("control-%1.txt").arg(i))));
         ControlledBackend backend;
-        QList<QUrl> opened;
-        MainWindow window(&backend, [&](const QUrl &url) {
-            opened.append(url);
-            return true;
-        });
+        MainWindow window(&backend);
         window.show();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         action(window, "twoPanelsAction")->trigger();
         auto *peerView = panelView(window, 1 - sourceIndex);
         navigate(*panelAddress(window, 1 - sourceIndex), peer);
-        QTRY_COMPARE(peerView->rowCount(), 1 + int(dots));
-        peerView->selectRow(int(dots));
+        QTRY_COMPARE(peerView->rowCount(), 1);
+        peerView->selectRow(0);
         peerView->sourcePanel->Set_AutoRefresh_Mode(false);
         CMyComPtr<IFolderFolder> peerFolder = peerView->sourcePanel->GetFolder();
         auto *view = panelView(window, sourceIndex);
         auto *address = panelAddress(window, sourceIndex);
         navigate(*address, folder);
-        QTRY_COMPARE(view->rowCount(), count + int(dots));
+        QTRY_COMPARE(view->rowCount(), count);
         QTRY_VERIFY(view->sourcePanel->ShouldProcessNotifications());
         auto &panel = *view->sourcePanel;
         panel.Set_AutoRefresh_Mode(false);
         for (bool timer : {false, true}) {
             view->setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
             view->clearSelection();
-            const bool selected = dots && timer;
-            if (selected)
-                view->selectRow(0);
             panel.OnReload(timer);
-            QTRY_COMPARE(view->rowCount(), count + int(dots));
+            QTRY_COMPARE(view->rowCount(), count);
             QTRY_VERIFY(panel.ShouldProcessNotifications());
             QCOMPARE(view->currentRow(), 0);
-            QCOMPARE(view->selectionModel()->isRowSelected(0, QModelIndex()), selected);
+            QVERIFY(!view->selectionModel()->isRowSelected(0, QModelIndex()));
             CSelectedState restored;
             panel.SaveSelectedState(restored);
-            QCOMPARE(restored.SelectFocused, selected);
-            if (dots) {
-                QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
-                QCOMPARE(view->model()->index(0, 0).data(Qt::UserRole + 6).toUInt(), UInt32(-1));
-                QVERIFY(
-                    !view->model()->index(0, 0).data(Qt::DecorationRole).value<QIcon>().isNull());
-                QCOMPARE(view->model()->index(0, 0).data(Qt::ToolTipRole).toString(),
-                         language == "ru" ? QStringLiteral("Родительская папка")
-                                          : QStringLiteral("Parent folder"));
-            }
+            QVERIFY(!restored.SelectFocused);
             CRecordVector<UInt32> indices;
             panel.Get_ItemIndices_Selected(indices);
             QVERIFY(indices.IsEmpty());
@@ -130,22 +108,7 @@ class PanelParentReloadTests final : public QObject, protected MainWindowTestSup
         QTRY_COMPARE(window.focusWidget(), view);
         PanelKeys::openSelection(window.focusWidget());
         QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), folder);
-        QTRY_COMPARE(view->rowCount(), count + int(dots));
-        if (dots) {
-            view->selectRow(0);
-            view->setFocus();
-            QVERIFY(action(window, "openOutsideAction")->isEnabled());
-            action(window, "openOutsideAction")->trigger();
-            QCOMPARE(opened.size(), 1);
-            QCOMPARE(QDir::cleanPath(opened.front().toLocalFile()), fixture.path());
-            QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())), folder);
-            view->setFocus();
-            QVERIFY(action(window, "openItemAction")->isEnabled());
-            PanelKeys::openSelection(view);
-            QTRY_COMPARE(QDir::cleanPath(QDir::fromNativeSeparators(address->text())),
-                         fixture.path());
-        }
-        QCOMPARE(opened.size(), int(dots));
+        QTRY_COMPARE(view->rowCount(), count);
         for (const QString path :
              {QDir(folder).filePath("control-0.txt"), QDir(peer).filePath("peer.txt")}) {
             QFile file(path);

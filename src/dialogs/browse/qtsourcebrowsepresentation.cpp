@@ -31,8 +31,8 @@
 namespace NSourceBrowse {
 using NWindows::NFile::NFind::CFileInfo;
 
-int CBrowseDialog::GetRealItemIndex(QTreeWidgetItem *item) const {
-    return item ? item->data(0, Qt::UserRole).toInt() : kParentIndex;
+int CBrowseDialog::GetRealItemIndex(const QTreeWidgetItem &item) const {
+    return item.data(0, Qt::UserRole).toInt();
 }
 QTreeWidgetItem *CBrowseDialog::SelectedItem() const {
     const auto items = _list->selectedItems();
@@ -74,13 +74,6 @@ void CBrowseDialog::PopulateRows(const UString &selectedName) {
     _list->setUpdatesEnabled(false);
     _list->clear();
     QTreeWidgetItem *cursor = nullptr;
-    if (_showDots && _topDirPrefix != DirPrefix) {
-        auto *item = new BrowseRow(_list, *this, kParentIndex);
-        item->setText(0, "..");
-        item->setIcon(0, _extToIconMap.GetIcon(FILE_ATTRIBUTE_DIRECTORY, ToQString(DirPrefix)));
-        if (selectedName.IsEmpty())
-            cursor = item;
-    }
     FOR_VECTOR(i, _files) {
         const CFileInfo &fi = _files[i];
         const UString name = fs2us(fi.Name);

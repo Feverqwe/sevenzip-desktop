@@ -360,17 +360,3 @@ void MainWindow::connectFileView(QAbstractItemView &view) {
     else if (auto *icons = dynamic_cast<FileIconList *>(&view))
         icons->InstallSelectionGesture(activate);
 }
-
-void MainWindow::appendParentEntry() {
-    if (!app_.GetFocusedPanel()._showDots || app_.GetFocusedPanel().IsRootFolder())
-        return;
-    const bool sorting = projectedUi().table->isSortingEnabled();
-    projectedUi().table->setSortingEnabled(false);
-    FilePanelModel::Row row;
-    row.name = QStringLiteral("..");
-    row.directory = true;
-    row.icon = QApplication::style()->standardIcon(QStyle::SP_DirIcon);
-    row.toolTip = QCoreApplication::translate("mainwindow_panel", "Parent folder");
-    projectedUi().table->panelModel()->append(std::move(row));
-    projectedUi().table->setSortingEnabled(sorting);
-}

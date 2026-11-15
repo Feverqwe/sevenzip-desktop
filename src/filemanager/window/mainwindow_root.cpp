@@ -52,7 +52,6 @@ HRESULT MainWindow::renderRootFolder(bool updateAddress) {
         return finish(result);
     const UInt32 count = panel.GetLoadedItemCount();
     configureColumns();
-    appendParentEntry();
     for (UInt32 index = 0; index < count; ++index) {
         NWindows::NCOM::CPropVariant name;
         if (folder->GetProperty(index, kpidName, &name) != S_OK || name.vt != VT_BSTR)

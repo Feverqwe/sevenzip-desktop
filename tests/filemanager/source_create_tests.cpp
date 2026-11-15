@@ -126,10 +126,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             SaveRegLang(L"-", settings);
             ReloadLang(settings);
         });
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture;
         QTemporaryDir peerDirectory;
         QVERIFY(fixture.isValid());
@@ -350,10 +346,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
         QFETCH(bool, sameDirectory);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         for (int i = 0; i < count; ++i) {
@@ -533,10 +525,6 @@ class SourceCreateTests final : public QObject, protected MainWindowTestSupport 
             SaveRegLang(L"-", settings);
             ReloadLang(settings);
         });
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString occupied = existingFolder ? QString("keep folder") : QString("keep.bin");

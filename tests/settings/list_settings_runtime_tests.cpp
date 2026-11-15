@@ -29,7 +29,7 @@ bool writeFile(const QString &path) {
 }
 
 bool setListOptions(MainWindow &window, QAction *settingsAction, bool enabled,
-                    const char *name = "showDotsOption") {
+                    const char *name = "showHiddenFoldersOption") {
     const int outerLoop = QThread::currentThread()->loopLevel();
     QTimer finishOptions;
     bool applied = false;
@@ -231,11 +231,15 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         QTRY_VERIFY(view->hasFocus());
     }
 
-    void parentRowPreferenceAppliesAfterInFlightListing() {
+    void hiddenFolderPreferenceAppliesAfterInFlightListing() {
+#ifndef Q_OS_UNIX
+        QSKIP("Requires a dot-prefixed hidden folder");
+#endif
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString large = fixture.filePath("large");
         QVERIFY(QDir().mkdir(large));
+        QVERIFY(QDir(large).mkdir(".private"));
         for (int i = 0; i < 301; ++i)
             QVERIFY(writeFile(QDir(large).filePath(QString("file-%1.txt").arg(i))));
 
@@ -259,8 +263,8 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
             connect(
                 files->model(), &QAbstractItemModel::rowsInserted, dialog,
                 [dialog] {
-                    if (auto *option = dialog->findChild<QCheckBox *>("showDotsOption")) {
-                        option->setChecked(true);
+                    if (auto *option = dialog->findChild<QCheckBox *>("showHiddenFoldersOption")) {
+                        option->setChecked(false);
                         dialog->accept();
                     } else {
                         dialog->reject();
@@ -271,12 +275,12 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         });
         startListing.start(5);
         settings->trigger();
-        QTRY_COMPARE(files->rowCount(), 302);
+        QTRY_COMPARE(files->rowCount(), 301);
         QTRY_VERIFY(files->isEnabled());
-        QCOMPARE(files->model()->index(0, 0).data().toString(), QString(".."));
+        QCOMPARE(filesystemRow(window, ".private"), -1);
     }
 
-    void optionsParentRowAndContextMenu() {
+    void fileListSelectionAndContextMenu() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         CurrentDirectoryGuard directoryGuard;
@@ -289,45 +293,35 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         auto *files = static_cast<FileTable *>(table(window));
         QCOMPARE(files->rowCount(), 1);
 
-        QVERIFY(setListOptions(window, action(window, "settingsAction"), true));
-        QCOMPARE(files->rowCount(), 2);
-        QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral(".."));
         auto *summary = window.findChild<QLabel *>("selectedItemsStatus");
         QVERIFY(summary);
         action(window, "selectAllAction")->trigger();
         QTRY_COMPARE(summary->text(), QString("Selected: 1 / 1"));
-        QCOMPARE(files->model()->index(0, 0).data(Qt::ToolTipRole).toString(),
-                 QStringLiteral("Parent folder"));
         QCOMPARE(files->accessibleName(), QStringLiteral("File list"));
-        const QPersistentModelIndex parent = files->model()->index(0, 0);
+        const QPersistentModelIndex child = files->model()->index(0, 0);
         files->setCurrentCell(0, 0);
         files->selectRow(0);
         auto *deselect = action(window, "deselectAllAction");
         QTRY_VERIFY(deselect->isEnabled());
         deselect->trigger();
         QVERIFY(!files->selectionModel()->hasSelection());
-        QCOMPARE(files->currentIndex().siblingAtColumn(0), QModelIndex(parent));
+        QCOMPARE(files->currentIndex().siblingAtColumn(0), QModelIndex(child));
         QVERIFY(!deselect->isEnabled());
         const QString languageSettings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         SaveRegLang(UString("ru"), languageSettings);
         ReloadLang(languageSettings);
         QtNotifyLanguageChanged();
-        QCOMPARE(files->model()->index(0, 0), parent);
-        QCOMPARE(files->rowCount(), 2);
-        QCOMPARE(parent.data(Qt::ToolTipRole).toString(), QStringLiteral("Родительская папка"));
+        QCOMPARE(files->model()->index(0, 0), child);
+        QCOMPARE(files->rowCount(), 1);
         QCOMPARE(files->accessibleName(), QStringLiteral("Список файлов"));
         SaveRegLang(UString("-"), languageSettings);
         ReloadLang(languageSettings);
         QtNotifyLanguageChanged();
-        QCOMPARE(parent.data(Qt::ToolTipRole).toString(), QString("Parent folder"));
         QCOMPARE(files->accessibleName(), QString("File list"));
-        QCOMPARE(files->model()->index(1, 0).data(Qt::ToolTipRole).toString().section('\n', 0, 0),
+        QCOMPARE(child.data(Qt::ToolTipRole).toString().section('\n', 0, 0),
                  QFileInfo(temp.filePath(QStringLiteral("child.txt"))).canonicalFilePath());
-        files->sortItems(0, Qt::DescendingOrder);
-        QCOMPARE(files->model()->index(0, 0).data().toString(), QStringLiteral(".."));
-        files->sortItems(0, Qt::AscendingOrder);
 
-        files->selectRow(1);
+        files->selectRow(0);
         if (qEnvironmentVariableIntValue("SEVENZIP_CAPTURE_SCREENSHOTS") == 1)
             QVERIFY(files->viewport()->grab().save(
                 screenshotPath(QStringLiteral("list-settings-full-row.png"))));
@@ -363,14 +357,13 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
             menu->close();
         });
         inspectMenu.start(5);
-        QVERIFY(QMetaObject::invokeMethod(
-            files, "customContextMenuRequested", Qt::DirectConnection,
-            Q_ARG(QPoint, files->visualRect(files->model()->index(1, 0)).center())));
+        QVERIFY(QMetaObject::invokeMethod(files, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, files->visualRect(child).center())));
         QVERIFY(menuInspected);
         QVERIFY(action(window, "settingsAction")->isEnabled());
 
         MainWindow reopened;
-        QCOMPARE(table(reopened)->rowCount(), 2);
+        QCOMPARE(table(reopened)->rowCount(), 1);
         reopened.show();
         for (int width : {980, 640}) {
             reopened.resize(width, width == 980 ? 620 : 400);
@@ -383,12 +376,9 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         window.raise();
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
-
-        QVERIFY(setListOptions(window, action(window, "settingsAction"), false));
-        QCOMPARE(files->rowCount(), 1);
     }
 
-    void parentItemInArchiveAndVirtualRoot() {
+    void legacyParentPreferenceDoesNotAffectArchiveOrDriveNavigation() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
         CurrentDirectoryGuard directoryGuard;
@@ -400,21 +390,23 @@ class ListSettingsRuntimeTests final : public QObject, protected MainWindowTestS
         MainWindow window(&backend);
         openListedArchive(window, backend, temp.filePath("sample.zip"),
                           {ArchiveEntry{QStringLiteral("папка/имя.txt"), 4, 4}});
-        QTRY_VERIFY_WITH_TIMEOUT(table(window)->rowCount() >= 2, 1500);
+        QTRY_COMPARE_WITH_TIMEOUT(table(window)->rowCount(), 1, 1500);
         for (int mode : {0, 3}) {
             action(window, qPrintable(QStringLiteral("viewMode%1Action").arg(mode)))->trigger();
-            QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral(".."));
+            QCOMPARE(table(window)->model()->index(0, 0).data().toString(),
+                     QStringLiteral("папка"));
         }
-        openRow(window, 0);
+        auto *parent = action(window, "parentFolderAction");
+        QTRY_VERIFY(parent->isEnabled());
+        parent->trigger();
         QTRY_COMPARE_WITH_TIMEOUT(window.findChild<QLineEdit *>("archivePath")->text(),
                                   QFileInfo(temp.path()).canonicalFilePath(), 1500);
-        QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral(".."));
+        QCOMPARE(filesystemRow(window, QStringLiteral("..")), -1);
         auto *root = action(window, "openRootAction");
         QTRY_VERIFY(root->isEnabled());
         root->trigger();
         QTRY_VERIFY(table(window)->isEnabled());
-        QCOMPARE(table(window)->model()->index(0, 0).data().toString(), QStringLiteral(".."));
-        auto *parent = action(window, "parentFolderAction");
+        QCOMPARE(filesystemRow(window, QStringLiteral("..")), -1);
         QTRY_VERIFY(parent->isEnabled());
         parent->trigger();
         QTRY_VERIFY(table(window)->isEnabled() && filesystemRow(window, QStringLiteral("..")) < 0);

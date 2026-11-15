@@ -12,7 +12,6 @@ bool ReadLockMemoryEnable(const QString &settingsPath);
 void SaveLockMemoryEnable(bool enable, const QString &settingsPath);
 
 struct CFmSettings {
-    bool ShowDots;
     bool ShowHiddenFolders = true;
     // Qt presentation preference; Unknown follows the native system theme.
     Qt::ColorScheme ColorScheme = Qt::ColorScheme::Unknown;

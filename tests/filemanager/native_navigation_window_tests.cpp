@@ -335,7 +335,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
     }
     void openingFolderInPeerRecordsPreviousFolder_data() {
         QTest::addColumn<bool>("flat");
-        QTest::newRow("parent-row") << false;
+        QTest::newRow("direct-subfolder") << false;
         QTest::newRow("flat-subfolder") << true;
     }
     void openingFolderInPeerRecordsPreviousFolder() {
@@ -346,7 +346,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         const QString previous = fixture.filePath("previous");
         QVERIFY(QDir().mkpath(child));
         QVERIFY(QDir().mkpath(previous));
-        if (flat) {
+        {
             QFile payload(QDir(child).filePath("nested.txt"));
             QVERIFY(payload.open(QIODevice::WriteOnly));
         }
@@ -354,7 +354,6 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(entry.open(QIODevice::WriteOnly));
         entry.close();
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
-        CFmSettings{true}.Save(settings);
         SavePanelPath(1, ToUString(previous), settings);
         MainWindow window;
         window.show();
@@ -366,23 +365,20 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         auto *peerPanel = window.findChild<QWidget *>("filePanel1");
         auto *peer = peerPanel->findChild<FileTable *>("archiveTable");
         auto *address = peerPanel->findChild<QLineEdit *>("archivePath");
-        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(), QStringLiteral("previous.txt"));
+        QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("previous.txt"));
         const QString originalAddress = address->text();
         source->setFocus();
         QTRY_VERIFY(source->hasFocus());
-        window.openPath(flat ? fixture.filePath("parent") : child);
-        QTRY_COMPARE(source->rowCount(), flat ? 2 : 1);
-        QTRY_COMPARE(source->model()->index(0, 0).data().toString(), QStringLiteral(".."));
+        window.openPath(fixture.filePath("parent"));
+        QTRY_COMPARE(source->rowCount(), 1);
         if (flat) {
             source->sourcePanel->ChangeFlatMode();
-            QTRY_COMPARE(source->model()->index(2, 0).data().toString(), QStringLiteral("child"));
+            QTRY_COMPARE(source->model()->index(1, 0).data().toString(), QStringLiteral("child"));
         }
-        source->setCurrentCell(flat ? 2 : 0, 0);
+        source->setCurrentCell(flat ? 1 : 0, 0);
         PanelKeys::command(source, Qt::Key_Right, Qt::AltModifier | Qt::ShiftModifier);
-        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(),
-                     flat ? QStringLiteral("nested.txt") : QStringLiteral("child"));
-        const QString opened =
-            QFileInfo(flat ? child : fixture.filePath("parent")).canonicalFilePath();
+        QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("nested.txt"));
+        const QString opened = QFileInfo(child).canonicalFilePath();
         QCOMPARE(QDir::cleanPath(address->text()), opened);
         QCOMPARE(window.focusWidget(), static_cast<QWidget *>(source));
         PanelKeys::command(source, Qt::Key_Right, Qt::AltModifier | Qt::ShiftModifier);
@@ -393,12 +389,11 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_VERIFY(action(window, "backAction")->isEnabled());
         action(window, "backAction")->trigger();
         QTRY_COMPARE(address->text(), originalAddress);
-        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(), QStringLiteral("previous.txt"));
+        QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("previous.txt"));
         QTRY_VERIFY(action(window, "forwardAction")->isEnabled());
         action(window, "forwardAction")->trigger();
         QTRY_COMPARE(QDir::cleanPath(address->text()), opened);
-        QTRY_COMPARE(peer->model()->index(1, 0).data().toString(),
-                     flat ? QStringLiteral("nested.txt") : QStringLiteral("child"));
+        QTRY_COMPARE(peer->model()->index(0, 0).data().toString(), QStringLiteral("nested.txt"));
     }
     void openArchiveSubfolderInPeerKeepsParentChain() {
         QTemporaryDir fixture;
@@ -449,7 +444,6 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
     void archiveParentCanBeRetriedAfterDirectoryReturns_data() {
         QTest::addColumn<QString>("gesture");
         QTest::newRow("button") << QString("button");
-        QTest::newRow("parent-row") << QString("row");
         QTest::newRow("backspace") << QString("backspace");
         QTest::newRow("button-with-address-draft") << QString("address-draft");
     }
@@ -458,9 +452,6 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
 #ifndef Q_OS_UNIX
         QSKIP("Requires renaming a folder while its archive is open");
 #endif
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/ShowDots", true);
-        settings.sync();
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString folder = fixture.filePath(QStringLiteral("папка архива"));
@@ -473,11 +464,9 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QVERIFY(WindowActivation::waitForActive(window));
         window.openArchive(path);
         auto *list = table(window);
-        QTRY_COMPARE(list->rowCount(), 2);
-        QCOMPARE(list->model()->index(0, 0).data().toString(), QString(".."));
+        QTRY_COMPARE(list->rowCount(), 1);
         QVERIFY(WindowActivation::waitForActive(window));
-        const bool parentRow = gesture == "row";
-        list->setCurrentCell(parentRow ? 0 : 1, 0);
+        list->setCurrentCell(0, 0);
         list->selectRow(list->currentRow());
         list->setFocus();
         QTRY_VERIFY(list->hasFocus());
@@ -493,9 +482,7 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
             address->setSelection(0, 10);
         }
         const auto openParent = [&] {
-            if (parentRow)
-                PanelKeys::openSelection(list);
-            else if (gesture == "backspace")
+            if (gesture == "backspace")
                 QTest::keyClick(window.focusWidget(), Qt::Key_Backspace);
             else
                 QTest::mouseClick(button, Qt::LeftButton);
@@ -513,8 +500,8 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         openParent();
         QVERIFY(message.contains(folder));
         QVERIFY(list->sourcePanel->IsArcFolder());
-        QCOMPARE(list->model()->index(1, 0).data().toString(), QString("entry.txt"));
-        QCOMPARE(list->currentRow(), parentRow ? 0 : 1);
+        QCOMPARE(list->model()->index(0, 0).data().toString(), QString("entry.txt"));
+        QCOMPARE(list->currentRow(), 0);
         if (gesture == "address-draft") {
             QVERIFY(WindowActivation::waitForActive(window));
             QTRY_VERIFY(address->hasFocus());
@@ -533,7 +520,8 @@ class NativeNavigationWindowTests : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(window.focusWidget(), list);
         PanelKeys::openSelection(window.focusWidget());
         QTRY_VERIFY(list->sourcePanel->IsArcFolder());
-        QTRY_COMPARE(list->model()->index(1, 0).data().toString(), QString("entry.txt"));
+        QTRY_COMPARE(list->rowCount(), 1);
+        QCOMPARE(list->model()->index(0, 0).data().toString(), QString("entry.txt"));
     }
     void parentButtonBelongsToItsPanel_data() {
         QTest::addColumn<unsigned>("pane");

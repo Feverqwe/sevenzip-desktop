@@ -165,8 +165,6 @@ routes, source provider choice, parent/back restoration, selection and input byt
 Current namespace consumers are recorded in the
 [address/Root acceptance](../archive/qt-port/upstream-port-audit/p3-05-address-root-2026-10-17.md).
 Full native/rendered parent acceptance remains separate.
-The Show '..' preference exposes a parent row in the drive list, while the
-virtual root has no parent row.
 The integrated Qt command/key consumers use the retained source drive transition.
 The separate root namespace is reached through Parent; Back from a filesystem
 location restores its actual stored namespace prefix. After source selection
@@ -314,16 +312,17 @@ Reference: upstream `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17`,
 is active for long/super/device paths; it is distinct from the normal native
 folder/file picker. Preserve Parent, Create Folder, current folder on the top
 row; single-selection Name/Modified/Size list; editable path, filter, accept/Cancel.
-Folder mode hides the filter; zero/one file filter disables it. Parent and
-directories remain before files regardless of sorting direction. Changing the
+Folder mode hides the filter; zero/one file filter disables it. Directories
+remain before files regardless of sorting direction. Changing the
 filter reloads the list, keeping the source-selected filename where possible.
 Backspace/Control+R/F7 and list Enter retain source parent/reload/create/open
 handlers. OK outside the list resolves raw input through source GetFullPath;
 Cancel preserves the caller's FilePath/filter. Folder acceptance adds a separator.
 Ordinary native pickers use source CommonDialog flags: Open permits a new name,
 Save does not add an overwrite prompt; callers own subsequent validation.
-Source settings control the parent row. A single click selects an item and a
-double click opens it. Qt layouts, icons,
+The Qt file lists and picker omit the synthetic `..` row regardless of the
+legacy setting. Use the Up button or Backspace to open the parent folder.
+A single click selects an item and a double click opens it. Qt layouts, icons,
 accessible button names and locale time presentation replace Win32 services.
 The current-folder caption elides in the middle; tooltip and accessible name
 retain the full source prefix, while the editable path keeps the raw value.

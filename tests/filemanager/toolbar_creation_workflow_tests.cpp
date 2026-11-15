@@ -77,10 +77,6 @@ class ToolbarCreationWorkflowTests final : public QObject, protected MainWindowT
   private slots:
     void init() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        CFmSettings preferences;
-        preferences.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        preferences.ShowDots = false;
-        preferences.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
     void cleanup() { QVERIFY(CleanupOperationTestTemps()); }
     void pendingOutputFollowsNavigation_data() {

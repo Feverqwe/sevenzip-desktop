@@ -43,11 +43,6 @@ void CSettingsPage::BuildControls(bool embedded) {
         }
     });
     auto *listLayout = group(_listControls);
-    _showDots = new QCheckBox(this);
-    QtBindResourceText(_showDots, IDX_SETTINGS_SHOW_DOTS, "Show \"..\" item");
-    _showDots->setObjectName(QStringLiteral("showDotsOption"));
-    listLayout->addWidget(_showDots);
-    connect(_showDots, &QCheckBox::toggled, this, &CSettingsPage::OnButtonClicked);
     _showHiddenFolders = new QCheckBox(this);
     _showHiddenFolders->setObjectName("showHiddenFoldersOption");
     QtBindLocalText(_showHiddenFolders, "SettingsRedesign",

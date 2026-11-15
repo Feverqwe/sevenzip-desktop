@@ -26,10 +26,6 @@ class RenameLifecycleTests final : public QObject, protected MainWindowTestSuppo
     void init() {
         const QString path = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(path);
-        CFmSettings settings;
-        settings.Load(path);
-        settings.ShowDots = false;
-        settings.Save(path);
     }
     void displayRefreshKeepsEditorDecision_data() {
         QTest::addColumn<unsigned>("pane");

@@ -23,14 +23,14 @@ class PanelSelectionTests final : public QObject {
     }
 
     static void populate(QTableWidget &view) {
+        const auto fixture = items();
         view.setColumnCount(1);
-        view.setRowCount(5);
+        view.setRowCount(int(fixture.Size()));
         view.setSelectionBehavior(QAbstractItemView::SelectRows);
         view.setSelectionMode(QAbstractItemView::ExtendedSelection);
-        for (int row = 0; row < 5; ++row) {
-            auto *item = new QTableWidgetItem(row == 0 ? QStringLiteral("..")
-                                                       : items()[unsigned(row - 1)].RelPath);
-            item->setData(Qt::UserRole + 6, row == 0 ? quint64(UInt32(-1)) : quint64(row - 1));
+        for (int row = 0; row < view.rowCount(); ++row) {
+            auto *item = new QTableWidgetItem(fixture[unsigned(row)].RelPath);
+            item->setData(Qt::UserRole + 6, quint64(row));
             view.setItem(row, 0, item);
         }
     }
@@ -65,39 +65,32 @@ class PanelSelectionTests final : public QObject {
                                                QItemSelectionModel::NoUpdate);
         panel.SelectAll(true);
         QCOMPARE(view.selectionModel()->selectedRows().size(), 4);
-        QVERIFY(!selected(view, 0));
+        QVERIFY(selected(view, 0));
         QCOMPARE(view.currentRow(), 1);
         panel.KillSelection();
         QCOMPARE(view.selectionModel()->selectedRows().size(), 0);
     }
 
-    void explicitParentNameRestoresFocus() {
+    void explicitItemNameRestoresFocus() {
         CPanel panel(QStringLiteral("/tmp/"), items());
         QTableWidget view;
         populate(view);
         panel.AttachSelectionView(&view);
-        panel._showDots = true;
         CSelectedState state;
-        state.FocusedName = UString("..");
+        state.FocusedName = UString("a.tar.gz");
         state.FocusedName_Defined = true;
         state.FocusedItem = 3;
         state.SelectFocused = true;
         QCOMPARE(panel.RefreshListCtrl(state), S_OK);
         QCOMPARE(view.currentRow(), 0);
         QVERIFY(selected(view, 0));
-        CRecordVector<UInt32> indices;
-        panel.Get_ItemIndices_Selected(indices);
-        QVERIFY(indices.IsEmpty());
-        panel.Get_ItemIndices_Operated(indices);
-        QVERIFY(indices.IsEmpty());
     }
 
-    void refreshKeepsParentFocusSeparateFromSelection() {
+    void refreshKeepsFocusSeparateFromSelection() {
         CPanel panel(QStringLiteral("/tmp/"), items());
         QTableWidget view;
         populate(view);
         panel.AttachSelectionView(&view);
-        panel._showDots = true;
         view.selectRow(1);
         view.setCurrentCell(0, 0, QItemSelectionModel::NoUpdate);
         QVERIFY(!selected(view, 0));
@@ -108,8 +101,7 @@ class PanelSelectionTests final : public QObject {
         QCOMPARE(view.currentRow(), 0);
         QVERIFY(!selected(view, 0));
         QCOMPARE(view.selectionModel()->selectedRows().size(), 1);
-        QCOMPARE(view.selectionModel()->selectedRows().first().data().toString(),
-                 QString("a.tar.gz"));
+        QCOMPARE(view.selectionModel()->selectedRows().first().data().toString(), QString("b.GZ"));
     }
 };
 QTEST_MAIN(PanelSelectionTests)

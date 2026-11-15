@@ -36,10 +36,6 @@ class SourceSelectionTests final : public QObject, protected MainWindowTestSuppo
     void refreshKeepsEachPanelsSelection() {
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QStringList folders{fixture.filePath(QStringLiteral("левая папка 空")),

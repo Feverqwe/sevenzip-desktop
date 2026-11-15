@@ -211,12 +211,9 @@ HRESULT CApp::CreateOnePanel(unsigned panelIndex, const UString &mainPath, const
 void CApp::SetListSettings() {
     CFmSettings st;
     st.Load(_settingsPath);
-    for (unsigned i = 0; i < kNumPanelsMax; i++) {
-        CPanel &panel = Panels[i];
-        panel._showDots = st.ShowDots;
+    for (unsigned i = 0; i < kNumPanelsMax; i++)
         if (_presentation)
             _presentation->SetListSettings(i, st);
-    }
 }
 
 void CApp::MoveSubWindows() {

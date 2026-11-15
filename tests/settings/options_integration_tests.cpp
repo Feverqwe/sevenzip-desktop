@@ -186,7 +186,7 @@ class OptionsIntegrationTests final : public QObject {
         dialog.findChild<QRadioButton *>("workSpecified")->click();
         auto *workPath = dialog.findChild<QLineEdit *>("workPath");
         workPath->setText(fixture.path());
-        QVERIFY(OptionsPresentation::show(dialog, "showDotsOption"));
+        QVERIFY(OptionsPresentation::show(dialog, "showHiddenFoldersOption"));
         QVERIFY(UiInspection::writeReport(dialog, "settings-advanced-collapsed"));
         QVERIFY(OptionsPresentation::show(dialog, "languageChoice"));
         dialog.resize(780, 560);
@@ -331,8 +331,8 @@ class OptionsIntegrationTests final : public QObject {
         dialog.findChild<QRadioButton *>("workSpecified")->click();
         const QString work = fixture.filePath("рабочая папка");
         dialog.findChild<QLineEdit *>("workPath")->setText(work);
-        OptionsPresentation::show(dialog, "showDotsOption");
-        dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(true);
+        OptionsPresentation::show(dialog, "showHiddenFoldersOption");
+        dialog.findChild<QCheckBox *>("showHiddenFoldersOption")->setChecked(false);
         OptionsPresentation::show(dialog, "languageChoice");
         auto *language = dialog.findChild<QComboBox *>("languageChoice");
         QVERIFY(language->count() > 1);
@@ -381,7 +381,7 @@ class OptionsIntegrationTests final : public QObject {
                 apply->click();
                 QVERIFY(!apply->isEnabled());
                 dialog.findChild<QLineEdit *>("workPath")->setText("discarded folder");
-                dialog.findChild<QCheckBox *>("showDotsOption")->setChecked(false);
+                dialog.findChild<QCheckBox *>("showHiddenFoldersOption")->setChecked(true);
                 language->setCurrentIndex(0);
                 dialog.findChild<QCheckBox *>("cascadedMenu")->setChecked(true);
                 QVERIFY(apply->isEnabled());
@@ -409,7 +409,7 @@ class OptionsIntegrationTests final : public QObject {
                  finish == 0 ? QString() : work);
         CFmSettings settings;
         settings.Load(path);
-        QCOMPARE(settings.ShowDots, finish != 0);
+        QCOMPARE(settings.ShowHiddenFolders, finish == 0);
         CContextMenuInfo menu;
         menu.Load(path);
         QCOMPARE(menu.Cascaded.Val, finish == 0);

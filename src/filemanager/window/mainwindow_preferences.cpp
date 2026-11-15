@@ -39,8 +39,7 @@ void MainWindow::showSettings() {
     const auto apply = [this] {
         const auto previous = fileListSettings_;
         applyFileListSettings();
-        if (previous.ShowDots != fileListSettings_.ShowDots ||
-            previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
+        if (previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
             if (auto *application = QtWorkspaceApplication::Find())
                 application->FileListSettingsChanged(*this);
     };
@@ -58,9 +57,7 @@ void MainWindow::showSettings() {
 void MainWindow::applyFileListSettings() {
     const auto previous = fileListSettings_;
     app_.SetListSettings();
-    if (previous.ShowDots != fileListSettings_.ShowDots)
-        app_.RefreshAllPanels(true);
-    else if (previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
+    if (previous.ShowHiddenFolders != fileListSettings_.ShowHiddenFolders)
         for (auto &panel : app_.Panels)
             if (panel.PanelCreated && panel.IsFSFolder())
                 panel.OnReload(true);

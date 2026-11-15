@@ -15,7 +15,6 @@ class CSettingsPage : public QDialog {
     bool _appearanceChanged = false;
     CFmSettings _settings;
     QString _settingsPath;
-    QCheckBox *_showDots;
     QCheckBox *_showHiddenFolders;
     QComboBox *_appearance;
     QWidget *_appearanceControls;

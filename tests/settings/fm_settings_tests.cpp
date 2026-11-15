@@ -14,17 +14,17 @@ class FmSettingsTests : public QObject {
         QTemporaryDir dir;
         const QString path = dir.filePath("настройки списка.ini");
         QSettings ini(path, QSettings::IniFormat);
-        ini.setValue("FM/ShowDots", "corrupt");
+        ini.setValue("FM/ShowHiddenFolders", "corrupt");
         ini.setValue("list/singleClick", true);
         ini.sync();
         CFmSettings st;
         st.Load(path);
-        QVERIFY(!st.ShowDots);
-        st.ShowDots = true;
+        QVERIFY(st.ShowHiddenFolders);
+        st.ShowHiddenFolders = false;
         st.Save(path);
         CFmSettings loaded;
         loaded.Load(path);
-        QVERIFY(loaded.ShowDots);
+        QVERIFY(!loaded.ShowHiddenFolders);
     }
     void confirmCancelAndPersistListFlags() {
         QTemporaryDir dir;
@@ -34,13 +34,13 @@ class FmSettingsTests : public QObject {
         st.Save(path);
         for (bool confirm : {false, true}) {
             CSettingsPage page(path);
-            page.findChild<QCheckBox *>("showDotsOption")->click();
+            page.findChild<QCheckBox *>("showHiddenFoldersOption")->click();
             if (confirm)
                 page.accept();
             else
                 page.reject();
             st.Load(path);
-            QCOMPARE(st.ShowDots, confirm);
+            QCOMPARE(st.ShowHiddenFolders, !confirm);
         }
     }
     void geometry() {
@@ -52,7 +52,8 @@ class FmSettingsTests : public QObject {
             QApplication::processEvents();
             auto *buttons = page.findChild<QDialogButtonBox *>("settingsButtons");
             QWidget *previous = nullptr;
-            for (const char *name : {"showDotsOption", "extractMemoryLabel", "extractMemorySpin"}) {
+            for (const char *name :
+                 {"showHiddenFoldersOption", "extractMemoryLabel", "extractMemorySpin"}) {
                 auto *control = page.findChild<QWidget *>(name);
                 QVERIFY(control);
                 QVERIFY(UiInspection::fullyVisible(*control, page));

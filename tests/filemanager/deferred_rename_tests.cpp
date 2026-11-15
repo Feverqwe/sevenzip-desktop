@@ -16,10 +16,6 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
     void archiveRenameKeepsItsOriginalPanel() {
         const QString settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settingsPath);
-        CFmSettings settings;
-        settings.Load(settingsPath);
-        settings.ShowDots = false;
-        settings.Save(settingsPath);
         QTemporaryDir source, peer;
         QVERIFY(source.isValid() && peer.isValid());
         const QString name = QStringLiteral("original 空.txt");
@@ -85,10 +81,6 @@ class DeferredRenameTests final : public QObject, protected MainWindowTestSuppor
         QFETCH(unsigned, pane);
         QFETCH(int, transition);
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        CFmSettings settings;
-        settings.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        settings.ShowDots = false;
-        settings.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         QTemporaryDir source, peer;
         QVERIFY(source.isValid() && peer.isValid());
         const QString name = QStringLiteral("original 空.txt");

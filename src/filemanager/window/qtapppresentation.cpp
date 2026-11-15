@@ -41,10 +41,8 @@ bool QtAppPresentation::CreatePanel(CPanel &panel, unsigned index) {
             window->withPanelProjection(index, [window, mode] { window->setViewMode(int(mode)); });
     });
     window_.createFilePanel(editMenu_, index);
-    if (!panel.PanelCreated) {
-        panel._showDots = window_.fileListSettings_.ShowDots;
+    if (!panel.PanelCreated)
         SetListSettings(index, window_.fileListSettings_);
-    }
     panel.AttachAddressFocus(
         [navigation = window_.panelUi_[index].navigation] { navigation->Edit(); });
     panel.AttachFileClipboard([window = QPointer<MainWindow>(&window_), index](unsigned command) {

@@ -226,7 +226,6 @@ class MainWindow : public QMainWindow {
                           bool updateAddress = true, bool refreshing = false);
     HRESULT renderRootFolder(bool updateAddress = true);
     HRESULT appendFilesystemEntry(const QString &baseDirectory, quint32 sourceIndex);
-    void appendParentEntry();
     void completeListSelection();
     void refreshCurrent(const CSelectedState *preserved = nullptr);
     HRESULT reloadPanelPresentation(unsigned index, const CSelectedState &selection);

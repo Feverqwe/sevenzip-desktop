@@ -42,7 +42,6 @@ HRESULT MainWindow::renderArchiveFolder(bool updateAddress) {
         static_cast<QtPanelAddressCombo *>(projectedUi().pathCombo)
             ->ShowCurrentPath(archiveDisplayPath());
     configureColumns();
-    appendParentEntry();
     if (archiveFolder->GetNumberOfItems() > 256) {
         // Finish the synchronous notification guard before retaining operation
         // guards. Otherwise an idle list reload saves disabled flags

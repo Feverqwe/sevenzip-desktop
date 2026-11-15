@@ -402,10 +402,6 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             SaveRegLang(L"-", settings);
             ReloadLang(settings);
         });
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture, peerDirectory;
         QVERIFY(fixture.isValid());
         QVERIFY(peerDirectory.isValid());
@@ -558,10 +554,6 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
             SaveRegLang(L"-", settings);
             ReloadLang(settings);
         });
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture, peerDirectory;
         QVERIFY(fixture.isValid());
         QVERIFY(peerDirectory.isValid());
@@ -770,10 +762,6 @@ class SourceDeleteTests final : public QObject, protected MainWindowTestSupport 
         QFETCH(bool, icons);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         for (int i = 0; i < 258; ++i) {

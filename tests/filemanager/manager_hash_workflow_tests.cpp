@@ -107,10 +107,6 @@ class ManagerHashWorkflowTests final : public QObject, protected MainWindowTestS
   private slots:
     void init() {
         QFile::remove(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        CFmSettings preferences;
-        preferences.Load(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
-        preferences.ShowDots = false;
-        preferences.Save(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
     }
     void cleanup() { QVERIFY(CleanupOperationTestTemps()); }
     void selectedPanelHashesWithoutBlockingManager_data() {

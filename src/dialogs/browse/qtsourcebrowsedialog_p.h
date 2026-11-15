@@ -19,7 +19,6 @@ class QtInlineFolderName;
 
 namespace NSourceBrowse {
 class CBrowseDialog : public QDialog {
-    static constexpr int kParentIndex = -1;
     QTreeWidget *_list = nullptr;
     QtInlineFolderName *_folderDraft = nullptr;
     QLineEdit *_pathEdit = nullptr;
@@ -29,7 +28,6 @@ class CBrowseDialog : public QDialog {
     CExtToIconMap _extToIconMap;
     int _sortIndex = 0;
     bool _ascending = true;
-    bool _showDots = false;
     bool _showHiddenFolders = true;
     UString _topDirPrefix;
     UString DirPrefix;
@@ -59,7 +57,7 @@ class CBrowseDialog : public QDialog {
     Controls CreateControls();
     void ConnectControls(const Controls &controls);
     void CompletePresentation(const Controls &controls);
-    int GetRealItemIndex(QTreeWidgetItem *item) const;
+    int GetRealItemIndex(const QTreeWidgetItem &item) const;
     QTreeWidgetItem *SelectedItem() const;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void changeEvent(QEvent *event) override;

@@ -44,7 +44,6 @@ HRESULT MainWindow::startFilesystemListing(bool sourceAlreadyBound, bool updateA
         return startFilesystemScan(folder);
     if (result == S_OK) {
         configureColumns();
-        appendParentEntry();
         for (UInt32 i = 0; i < spec->Files.Size(); ++i) {
             result = appendFilesystemEntry(projectedUi().directory, i);
             if (result != S_OK) {

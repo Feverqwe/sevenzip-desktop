@@ -135,13 +135,12 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
     }
 
 #ifndef Q_OS_WIN
-    void hidingTheLastFolderDoesNotSelectParent() {
+    void hidingTheLastFolderClearsSelection() {
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         CFmSettings preferences;
         preferences.Load(settings);
         const auto restorePreferences = qScopeGuard([&] { preferences.Save(settings); });
         auto options = preferences;
-        options.ShowDots = true;
         options.ShowHiddenFolders = false;
         options.Save(settings);
 
@@ -154,7 +153,7 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(QTest::qWaitForWindowActive(&window));
         window.openPath(fixture.path());
         auto *view = table(window);
-        QTRY_COMPARE(view->rowCount(), 2);
+        QTRY_COMPARE(view->rowCount(), 1);
         const int row = filesystemRow(window, "visible");
         QVERIFY(row >= 0);
         view->setCurrentCell(row, 0);
@@ -165,9 +164,9 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QVERIFY(editor && editor->isVisible());
         editor->setText(".hidden");
         QTest::keyClick(editor, Qt::Key_Return);
-        QTRY_COMPARE(view->rowCount(), 1);
+        QTRY_COMPARE(view->rowCount(), 0);
         QVERIFY(QFileInfo(fixture.filePath(".hidden")).isDir());
-        QCOMPARE(view->currentIndex().data().toString(), QString(".."));
+        QVERIFY(!view->currentIndex().isValid());
         QVERIFY(view->selectionModel()->selectedRows().isEmpty());
         QVERIFY(!action(window, "openItemAction")->isEnabled());
     }
@@ -190,10 +189,6 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QFETCH(bool, link);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
         QFile::remove(settings);
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString original = QStringLiteral("focused 文件.txt");
@@ -409,10 +404,6 @@ class PanelRenameStateTests final : public QObject, protected MainWindowTestSupp
         QFile::remove(settings);
         SaveRegLang(ToUString(language), settings);
         ReloadLang(settings);
-        CFmSettings preferences;
-        preferences.Load(settings);
-        preferences.ShowDots = false;
-        preferences.Save(settings);
         const auto reset = qScopeGuard([&] {
             SaveRegLang(L"-", settings);
             ReloadLang(settings);

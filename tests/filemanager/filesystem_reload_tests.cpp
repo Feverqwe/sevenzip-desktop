@@ -57,9 +57,6 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
     }
 
     void refreshKeepsTheFirstSurvivingVisibleFile() {
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/ShowDots", true);
-        settings.sync();
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         for (int i = 0; i < 90; ++i)
@@ -97,10 +94,10 @@ class FilesystemReloadTests final : public QObject, protected MainWindowTestSupp
         QTRY_COMPARE(nameAt(view->rowAt(0)), survivor);
         QTRY_COMPARE(window.focusWidget(), view);
         view->scrollToTop();
-        QCOMPARE(nameAt(view->rowAt(0)), QString(".."));
+        QCOMPARE(nameAt(view->rowAt(0)), QString("added-a.txt"));
         QTest::keySequence(view, action(window, "refreshAction")->shortcut());
         QTRY_VERIFY(view->isEnabled());
-        QCOMPARE(nameAt(view->rowAt(0)), QString(".."));
+        QCOMPARE(nameAt(view->rowAt(0)), QString("added-a.txt"));
     }
 
     void unreadableOpenFolderCanBeRefreshed_data() {

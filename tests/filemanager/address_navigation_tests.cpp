@@ -75,13 +75,10 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(window.statusBar()->currentMessage().isEmpty());
     }
 
-    void parentRowCanBeRetriedAfterAccessIsRestored() {
+    void parentNavigationCanBeRetriedAfterAccessIsRestored() {
 #ifndef Q_OS_UNIX
         QSKIP("Requires POSIX directory permissions");
 #endif
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/ShowDots", true);
-        settings.sync();
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString parent = fixture.filePath("parent");
@@ -94,7 +91,7 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         window.openPath(child);
         auto *view = table(window);
         QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "inside.txt") >= 0);
-        QCOMPARE(view->model()->index(0, 0).data().toString(), QString(".."));
+        QCOMPARE(view->rowCount(), 1);
         view->sourcePanel->Set_AutoRefresh_Mode(false);
         view->setCurrentCell(0, 0);
         view->selectRow(0);
@@ -105,14 +102,14 @@ class AddressNavigationTests final : public QObject, protected MainWindowTestSup
         QVERIFY(QFile::setPermissions(parent, QFile::ExeOwner));
         if (QFileInfo(parent).isReadable())
             QSKIP("Requires a directory that the current user cannot list");
-        PanelKeys::openSelection(view);
+        QTest::keyClick(view, Qt::Key_Backspace);
         QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "inside.txt") >= 0);
         QTRY_VERIFY(view->hasFocus());
-        QCOMPARE(view->currentIndex().data().toString(), QString(".."));
+        QCOMPARE(view->currentIndex().data().toString(), QString("inside.txt"));
         QVERIFY(!window.statusBar()->currentMessage().isEmpty());
 
         QVERIFY(QFile::setPermissions(parent, permissions));
-        PanelKeys::openSelection(window.focusWidget());
+        QTest::keyClick(view, Qt::Key_Backspace);
         QTRY_VERIFY(view->isEnabled() && filesystemRow(window, "child") >= 0);
         QTRY_VERIFY(view->hasFocus());
         QCOMPARE(view->currentIndex().data().toString(), QString("child"));

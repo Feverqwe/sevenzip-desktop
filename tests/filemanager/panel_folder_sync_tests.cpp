@@ -36,11 +36,6 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         QFETCH(bool, same);
         QFETCH(int, items);
         QFETCH(unsigned, sourcePane);
-        {
-            QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"),
-                               QSettings::IniFormat);
-            settings.setValue("FM/ShowDots", true);
-        }
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath(QStringLiteral("исходная 空 папка"));
@@ -85,11 +80,9 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         QTest::keyClick(sourceTable, Qt::Key(key), Qt::AltModifier | Qt::ShiftModifier);
         QTRY_COMPARE(QDir::cleanPath(destinationAddress->text()), expected);
         QTRY_VERIFY(destinationTable->isEnabled());
-        const int expectedRows = items + (same ? 2 : 1); // child and parent rows
+        const int expectedRows = items + int(same); // The source contains the child folder.
         QTRY_COMPARE(destinationTable->rowCount(), expectedRows);
         QTRY_VERIFY(destinationTable->currentIndex().isValid());
-        QVERIFY(
-            destinationTable->selectionModel()->isRowSelected(destinationTable->currentRow(), {}));
         QCOMPARE(QDir::cleanPath(sourceAddress->text()), source);
         QVERIFY(sourceTable->hasFocus());
         QVERIFY(destinationTable->updatesEnabled());
@@ -177,20 +170,11 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("bytes"));
     }
-    void parentAndVirtualRoot_data() {
-        QTest::addColumn<bool>("root");
-        QTest::newRow("parent") << false;
-        QTest::newRow("virtual-root") << true;
-    }
-    void parentAndVirtualRoot() {
-        QFETCH(bool, root);
+    void virtualRootCanBeOpenedInTheOtherPanel() {
         QTemporaryDir fixture;
         QVERIFY(fixture.isValid());
         const QString source = fixture.filePath("child");
         QVERIFY(QDir().mkdir(source));
-        QSettings settings(qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"), QSettings::IniFormat);
-        settings.setValue("FM/ShowDots", true);
-        settings.sync();
         SavePanelPath(1, ToUString(source), qEnvironmentVariable("SEVENZIP_SETTINGS_PATH"));
         ControlledBackend backend;
         MainWindow window(&backend);
@@ -204,31 +188,22 @@ class PanelFolderSyncTests final : public QObject, protected MainWindowTestSuppo
         action(window, "twoPanelsAction")->trigger();
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
-        if (root) {
-            action(window, "openRootAction")->trigger();
-            action(window, "parentFolderAction")->trigger();
-        } else {
-            const auto dots = PanelMatches(*table, "..");
-            QVERIFY(!dots.isEmpty());
-            table->setCurrentCell(dots.first().row(), 0);
-        }
+        action(window, "openRootAction")->trigger();
+        action(window, "parentFolderAction")->trigger();
         table->setFocus();
         QTRY_VERIFY(table->hasFocus());
-        QTest::keyClick(table, root ? Qt::Key_Up : Qt::Key_Right,
-                        Qt::AltModifier | Qt::ShiftModifier);
+        QTest::keyClick(table, Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier);
         auto *right = window.findChild<QWidget *>("filePanel1");
         auto *destinationAddress = right->findChild<QLineEdit *>("archivePath");
         auto *destinationTable = right->findChild<FileTable *>("archiveTable");
-        QTRY_COMPARE(destinationAddress->text(), root ? QString() : fixture.path());
+        QTRY_COMPARE(destinationAddress->text(), QString());
         QVERIFY(table->hasFocus());
         QVERIFY(destinationTable->isEnabled());
-        if (root) {
-            QVERIFY(static_cast<FileTable *>(destinationTable)->sourcePanel->IsRootFolder());
-            QCOMPARE(destinationTable->rowCount(), table->rowCount());
-            for (int row = 0; row < table->rowCount(); ++row)
-                QCOMPARE(destinationTable->model()->index(row, 0).data().toString(),
-                         table->model()->index(row, 0).data().toString());
-        }
+        QVERIFY(destinationTable->sourcePanel->IsRootFolder());
+        QCOMPARE(destinationTable->rowCount(), table->rowCount());
+        for (int row = 0; row < table->rowCount(); ++row)
+            QCOMPARE(destinationTable->model()->index(row, 0).data().toString(),
+                     table->model()->index(row, 0).data().toString());
     }
     void replacementCancelsOnlyDestinationPublication_data() {
         QTest::addColumn<bool>("closeInstead");

@@ -111,7 +111,6 @@ void CBrowseDialog::OnInit() {
     ConnectControls(controls);
     CFmSettings st;
     st.Load(FmSettingsPath());
-    _showDots = st.ShowDots;
     _showHiddenFolders = st.ShowHiddenFolders;
 
     unsigned rootSize = GetRootPrefixSize(FilePath);
@@ -224,10 +223,6 @@ bool CBrowseDialog::GetParentPath(const UString &path, UString &parentPrefix, US
 int CBrowseDialog::CompareItems(int lParam1, int lParam2) const {
     if (lParam1 == lParam2)
         return 0;
-    if (lParam1 == kParentIndex)
-        return -1;
-    if (lParam2 == kParentIndex)
-        return 1;
     const CFileInfo &f1 = _files[lParam1];
     const CFileInfo &f2 = _files[lParam2];
     const bool isDir2 = f2.IsDir();
@@ -321,11 +316,8 @@ HRESULT CBrowseDialog::Reload(UString pathPrefix, const UString &selectedName) {
 
 HRESULT CBrowseDialog::Reload() {
     UString selected;
-    if (auto *item = SelectedItem()) {
-        const int fileIndex = GetRealItemIndex(item);
-        if (fileIndex != kParentIndex)
-            selected = fs2us(_files[fileIndex].Name);
-    }
+    if (auto *item = SelectedItem())
+        selected = fs2us(_files[GetRealItemIndex(*item)].Name);
     return Reload(DirPrefix, selected);
 }
 
@@ -355,13 +347,7 @@ void CBrowseDialog::SetPathEditText() {
             _pathEdit->setText(ToQString(DirPrefix));
         return;
     }
-    const int fileIndex = GetRealItemIndex(item);
-    if (fileIndex == kParentIndex) {
-        if (FolderMode)
-            _pathEdit->setText(ToQString(UString(L".." WSTRING_PATH_SEPARATOR)));
-        return;
-    }
-    const CFileInfo &file = _files[fileIndex];
+    const CFileInfo &file = _files[GetRealItemIndex(*item)];
     if (file.IsDir()) {
         if (!FolderMode)
             return;
@@ -423,21 +409,16 @@ void CBrowseDialog::OnItemEnter() {
     auto *item = SelectedItem();
     if (!item)
         return;
-    const int fileIndex = GetRealItemIndex(item);
-    if (fileIndex == kParentIndex)
-        OpenParentFolder();
-    else {
-        const CFileInfo &file = _files[fileIndex];
-        if (!file.IsDir()) {
-            if (!FolderMode)
-                FinishOnOK();
-            return;
-        }
-        UString s = DirPrefix;
-        s += fs2us(file.Name);
-        s.Add_PathSepar();
-        NavigateFolder(s, UString());
+    const CFileInfo &file = _files[GetRealItemIndex(*item)];
+    if (!file.IsDir()) {
+        if (!FolderMode)
+            FinishOnOK();
+        return;
     }
+    UString s = DirPrefix;
+    s += fs2us(file.Name);
+    s.Add_PathSepar();
+    NavigateFolder(s, UString());
 }
 
 void CBrowseDialog::FinishOnOK() {
