@@ -8,7 +8,7 @@
 #include "ui/dialogs/qtdialogscreenservices.h"
 #include <algorithm>
 
-QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
+static QList<QAction *> GroupProgramFileCommands(QMenu &menu) {
     QList<QAction *> prefix, picker, open, modes, editors, frequent, create, hash, properties, exit;
     for (QAction *action : menu.actions()) {
         menu.removeAction(action);
@@ -18,8 +18,7 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
         if (action->objectName() == "openArchiveAction" ||
             action->objectName() == "openDeviceAction")
             picker.append(action);
-        else if (action->menu() && (action->menu()->objectName() == "hashMenu" ||
-                                    action->menu()->objectName() == "contextHashMenu"))
+        else if (action->menu() && action->menu()->objectName() == "hashMenu")
             hash.append(action);
         else {
             switch (id) {
@@ -80,33 +79,17 @@ QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu) {
         menu.addMenu(sub);
         disposable.append(sub->menuAction());
     };
-    if (contextMenu) {
-        picker.append(modes);
-        modes = picker;
-    } else
-        append(menu, picker);
+    append(menu, picker);
     append(menu, open);
     group("openAsMenu", QT_TRANSLATE_NOOP("CommandMenus", "Open as"), modes);
-    if (!contextMenu) {
-        separator();
-        append(menu, editors);
-    }
+    separator();
+    append(menu, editors);
     separator();
     append(menu, frequent);
     separator();
-    if (!contextMenu)
-        group("createMenu", QT_TRANSLATE_NOOP("CommandMenus", "Create"), create);
+    group("createMenu", QT_TRANSLATE_NOOP("CommandMenus", "Create"), create);
     append(menu, hash);
-    if (contextMenu) {
-        QList<QAction *> more = editors;
-        more.append(nullptr);
-        more.append(create);
-        more.append(nullptr);
-        more.append(prefix);
-        group("moreCommandsMenu", QT_TRANSLATE_NOOP("CommandMenus", "More"), more);
-    } else {
-        group("advancedCommandsMenu", QT_TRANSLATE_NOOP("CommandMenus", "Advanced"), prefix);
-    }
+    group("advancedCommandsMenu", QT_TRANSLATE_NOOP("CommandMenus", "Advanced"), prefix);
     separator();
     append(menu, properties);
     if (!exit.isEmpty()) {
@@ -197,7 +180,7 @@ void QtProgramFileMenu::Activate() {
         }
     }
     QtClarifyOpenCommands(_menu);
-    _dynamic.append(QtGroupFileCommands(_menu, false));
+    _dynamic.append(GroupProgramFileCommands(_menu));
     QAction *before = _menu.actions().isEmpty() ? nullptr : _menu.actions().first();
     for (auto *action : workspace)
         _menu.insertAction(before, action);

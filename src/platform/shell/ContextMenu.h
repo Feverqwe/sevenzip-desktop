@@ -105,6 +105,7 @@ class CZipContextMenu
 
   public:
     CZipContextMenu(const QString &settingsPath, IQtContextMenuServices *services);
+    static bool IsArchiveCandidate(const UString &name);
 #ifdef _WIN32
     CZipContextMenu();
     ~CZipContextMenu();

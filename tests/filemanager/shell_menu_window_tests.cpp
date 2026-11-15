@@ -133,6 +133,30 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         old->trigger();
         QVERIFY(QFileInfo(fixture.filePath(name)).isFile());
         QVERIFY(!QApplication::activeModalWidget());
+        QApplication::clipboard()->clear();
+        auto *view = table(window);
+        const int row = rowNamed(window, name);
+        QVERIFY(row >= 0);
+        const QPoint point = view->visualRect(view->model()->index(row, 0)).center();
+        QTimer::singleShot(0, &window, [&] {
+            auto *popup = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(popup);
+            const auto close = qScopeGuard([popup] { popup->close(); });
+            auto *systemAction = findCommand(*popup, "systemContextGroup");
+            QVERIFY(systemAction && popup->actions().contains(systemAction));
+            auto *nativeCopy = findVerb(*systemAction->menu(), "copy");
+            QVERIFY(nativeCopy && nativeCopy->isEnabled());
+            popup->setActiveAction(systemAction);
+            QTest::keyClick(popup, Qt::Key_Right);
+            QTRY_VERIFY(systemAction->menu()->isVisible());
+            systemAction->menu()->setActiveAction(nativeCopy);
+            QTest::keyClick(systemAction->menu(), Qt::Key_Return);
+        });
+        QVERIFY(QMetaObject::invokeMethod(view, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, point)));
+        QTRY_COMPARE(QApplication::clipboard()->mimeData()->urls(),
+                     QList<QUrl>{QUrl::fromLocalFile(fixture.filePath(name))});
+
         QFile::remove(fixture.filePath(name));
         QVERIFY(QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection));
         QVERIFY(!findCommand(*menu, "systemContextGroup"));
@@ -421,7 +445,8 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         CContextMenuInfo ci;
         ci.Load(settings);
         ci.Flags = NContextMenuFlags::kOpen | NContextMenuFlags::kOpenAs |
-                   NContextMenuFlags::kExtract | NContextMenuFlags::kTest |
+                   NContextMenuFlags::kExtract | NContextMenuFlags::kExtractHere |
+                   NContextMenuFlags::kExtractTo | NContextMenuFlags::kTest |
                    NContextMenuFlags::kCompress | NContextMenuFlags::kCRC_Cascaded;
         ci.Flags_Def = true;
         ci.Cascaded.SetTrueTrue();
@@ -440,13 +465,23 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             QVERIFY(menu);
             const auto closeMenu = qScopeGuard([menu] { menu->close(); });
             const auto command = [menu](const char *name) { return findCommand(*menu, name); };
-            auto *root = menu->findChild<QAction *>("sevenZipContextGroup");
+            auto *archiveGroup = menu->findChild<QMenu *>("contextArchiveMenu");
+            auto *root = program ? findCommand(*menu, "sevenZipContextGroup")
+                                 : (archiveGroup ? archiveGroup->menuAction() : nullptr);
             QVERIFY(root && root->menu() && root->isEnabled());
             QVERIFY(!root->icon().isNull());
             auto *open = findVerb(*menu, "SevenZip.Open.7z");
             auto *test = findVerb(*menu, "SevenZipTest");
             auto *compress = findVerb(*menu, "SevenZipCompress");
-            QVERIFY(findVerb(*menu, "SevenZip.Checksum.Calc.SHA256"));
+            if (program)
+                QVERIFY(findVerb(*menu, "SevenZip.Checksum.Calc.SHA256"));
+            else {
+                auto *hashes = menu->findChild<QMenu *>("contextHashMenu");
+                QVERIFY(hashes);
+                auto *sha256 = findCommand(*hashes, "hashSHA256Action");
+                QVERIFY(sha256 && sha256->isEnabled());
+                QVERIFY(!findVerb(*menu, "SevenZip.Checksum.Calc.SHA256"));
+            }
             for (const QString &removed :
                  {QString("SevenZip.Open.*"), QString("SevenZip.Open.#"),
                   QString("SevenZip.Open.#:e"), QString("SevenZip.Checksum.Calc.*"),
@@ -460,7 +495,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             auto *inside = command("openInsideAction");
             auto *outside = command("openOutsideAction");
             QVERIFY(inside && outside);
-            auto *opening = menu->findChild<QMenu *>("openAsMenu");
+            auto *opening = menu->findChild<QMenu *>(program ? "openAsMenu" : "moreCommandsMenu");
             QVERIFY(opening);
             QVERIFY(opening->actions().contains(inside));
             QVERIFY(opening->actions().contains(outside));
@@ -469,15 +504,27 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
                                              : QStringLiteral("Open as archive"));
             QCOMPARE(outside->text(), russian ? QStringLiteral("Открыть во внешнем приложении")
                                               : QStringLiteral("Open in external application"));
-            const QList<QAction *> expectedOpening =
-                program ? QList<QAction *>{inside, outside}
-                        : QList<QAction *>{command("openArchiveAction"),
-                                           command("openDeviceAction"), inside, outside};
-            QCOMPARE(opening->actions(), expectedOpening);
+            if (!program) {
+                QVERIFY(opening->actions().contains(command("openArchiveAction")));
+                QVERIFY(opening->actions().contains(command("openDeviceAction")));
+            }
             QVERIFY(command("openArchiveAction"));
             auto *newWindow = findVerb(*menu, "SevenZipOpen");
             auto *openAs = findVerb(*menu, "SevenZip.OpenWithType.");
             QVERIFY(newWindow && openAs && openAs->menu());
+            if (!program) {
+                QVERIFY(opening->actions().contains(newWindow));
+                QVERIFY(opening->actions().contains(openAs));
+                QVERIFY(archiveGroup->actions().contains(test));
+                QVERIFY(archiveGroup->actions().contains(compress));
+                for (const auto *verb :
+                     {"SevenZipExtract", "SevenZipExtractHere", "SevenZipExtractTo"}) {
+                    auto *extract = findVerb(*menu, verb);
+                    QVERIFY(extract && archiveGroup->actions().contains(extract));
+                }
+                QVERIFY(UiInspection::writeReport(
+                    *menu, QString("archive-on-disk-%1-%2").arg(language).arg(size.width())));
+            }
             QCOMPARE(newWindow->text(), russian ? QStringLiteral("Открыть архив в новом окне")
                                                 : QStringLiteral("Open archive in new window"));
             QVERIFY(openAs->text() != newWindow->text());
@@ -520,7 +567,12 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
                                     .arg(size.width());
             QVERIFY(UiInspection::writeReport(*child, tag));
             auto *formats = openAs->menu();
-            formats->popup(child->mapToGlobal(child->actionGeometry(openAs).topRight()));
+            auto *formatParent = program ? child : opening;
+            if (!program)
+                opening->popup(
+                    menu->mapToGlobal(menu->actionGeometry(opening->menuAction()).topRight()));
+            formats->popup(
+                formatParent->mapToGlobal(formatParent->actionGeometry(openAs).topRight()));
             QCoreApplication::processEvents();
             for (auto *format : formats->actions()) {
                 const QRect rect = formats->actionGeometry(format);
@@ -529,6 +581,7 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
             }
             QVERIFY(UiInspection::writeReport(*formats, tag + "-formats"));
             formats->close();
+            opening->close();
             child->close();
             menu->close();
             inspected = true;
@@ -668,5 +721,6 @@ class ShellMenuWindowTests final : public QObject, protected MainWindowTestSuppo
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     }
 };
-QTEST_MAIN(ShellMenuWindowTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(ShellMenuWindowTests)
 #include "shell_menu_window_tests.moc"

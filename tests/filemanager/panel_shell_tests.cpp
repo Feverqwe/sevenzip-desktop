@@ -215,14 +215,14 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
                 QVERIFY(!system);
 #endif
                 auto *sevenZip = menuAction(*menu, "sevenZipContextGroup");
-                QVERIFY(sevenZip && !sevenZip->isEnabled());
+                QVERIFY(!sevenZip);
                 auto *open = menuAction(*menu, "openItemAction");
                 auto *rename = menuAction(*menu, "renameAction");
-                auto *create = menuAction(*menu, "createFolderAction");
-                QVERIFY(open && rename && create);
+                QVERIFY(open && rename);
                 QVERIFY(menu->actions().indexOf(open) < menu->actions().indexOf(rename));
                 auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
-                QVERIFY(more && more->actions().contains(create));
+                auto *copyTo = menuAction(*menu, "copyAction");
+                QVERIFY(more && copyTo && more->actions().contains(copyTo));
                 QVERIFY(!menuAction(*menu, "exitAction"));
                 QVERIFY(UiInspection::writeReport(*menu, QStringLiteral("panel-context-disk")));
             });
@@ -344,5 +344,6 @@ class PanelShellTests final : public QObject, protected MainWindowTestSupport {
     }
 };
 
-QTEST_MAIN(PanelShellTests)
+#include "ui/support/review_test_main.h"
+SEVENZIP_UI_TEST_MAIN(PanelShellTests)
 #include "panel_shell_tests.moc"

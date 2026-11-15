@@ -125,18 +125,23 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                         const QPoint origin = view->viewport()->mapToGlobal(QPoint());
                         QVERIFY(menu->geometry().contains(origin));
                     }
+                    if (!offscreen)
+                        QVERIFY(UiInspection::writeReport(*menu,
+                                                          icons ? "source-context-multiple-icons"
+                                                                : "source-context-multiple-table"));
                     QTest::keyClick(menu, Qt::Key_Escape);
                 } else {
-                    auto *rename = menuAction(*menu, "renameAction");
-                    QVERIFY(rename && rename->isEnabled());
-                    menu->setActiveAction(rename);
-                    QTest::keyClick(menu, Qt::Key_Return);
+                    QVERIFY(!menuAction(*menu, "renameAction"));
+                    QTest::keyClick(menu, Qt::Key_Escape);
                 }
             }
         });
         QContextMenuEvent event(keyboard ? QContextMenuEvent::Keyboard : QContextMenuEvent::Mouse,
                                 point, view->viewport()->mapToGlobal(point));
-        QApplication::sendEvent(view->viewport(), &event);
+        if (keyboard && !offscreen)
+            QTest::keyClick(view, Qt::Key_F10, Qt::ShiftModifier);
+        else
+            QApplication::sendEvent(view->viewport(), &event);
         QVERIFY(menuShown);
         QCOMPARE(view->verticalScrollBar()->value(), scroll);
         QCOMPARE(selection->currentIndex(), keyboard ? focused : hit);
@@ -155,19 +160,36 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             for (const auto &url : expected)
                 QVERIFY(copied.contains(url));
         } else {
+            // Right-clicking an unselected row replaces the group selection.
+            const QModelIndex single = index("c.txt");
+            const QPoint singlePoint = view->visualRect(single).center();
+            QTimer::singleShot(0, &window, [&] {
+                auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                QVERIFY(menu);
+                const auto close = qScopeGuard([&] { menu->close(); });
+                auto *rename = menuAction(*menu, "renameAction");
+                QVERIFY(rename && rename->isEnabled());
+                menu->setActiveAction(rename);
+                QTest::keyClick(menu, Qt::Key_Return);
+            });
+            QContextMenuEvent singleEvent(QContextMenuEvent::Mouse, singlePoint,
+                                          view->viewport()->mapToGlobal(singlePoint));
+            QApplication::sendEvent(view->viewport(), &singleEvent);
             auto *editor = view->findChild<QLineEdit *>();
             QVERIFY(editor);
-            QCOMPARE(editor->text(), QString("b.txt"));
+            QCOMPARE(editor->text(), QString("c.txt"));
             editor->setText("renamed.txt");
             QTest::keyClick(editor, Qt::Key_Return);
             QFile renamed(fixture.filePath("renamed.txt"));
             QTRY_VERIFY(renamed.exists());
             QVERIFY(renamed.open(QIODevice::ReadOnly));
-            QCOMPARE(renamed.readAll(), QByteArray("b.txt"));
-            QVERIFY(!QFileInfo::exists(fixture.filePath("b.txt")));
-            QFile peer(fixture.filePath("a.txt"));
-            QVERIFY(peer.open(QIODevice::ReadOnly));
-            QCOMPARE(peer.readAll(), QByteArray("a.txt"));
+            QCOMPARE(renamed.readAll(), QByteArray("c.txt"));
+            QVERIFY(!QFileInfo::exists(fixture.filePath("c.txt")));
+            for (const auto *name : {"a.txt", "b.txt"}) {
+                QFile peer(fixture.filePath(name));
+                QVERIFY(peer.open(QIODevice::ReadOnly));
+                QCOMPARE(peer.readAll(), QByteArray(name));
+            }
         }
     }
 
@@ -242,20 +264,21 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                 clipboard->setData("application/x-kde-cutselection", "1");
             QApplication::clipboard()->setMimeData(clipboard);
         };
-        publishFiles();
+        QApplication::clipboard()->setText("plain text");
         const QString pasteLabel = action(window, "pasteFilesAction")->text();
         bool pasteChosen = false;
+        bool initiallyVisible = false;
         const auto choosePaste = [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             QVERIFY(menu);
             const auto close = qScopeGuard([&] { menu->close(); });
             for (auto *item : menu->actions())
                 if (item->text() == pasteLabel) {
-                    QVERIFY(item->isEnabled());
+                    QCOMPARE(item->isVisible(), initiallyVisible);
                     QApplication::clipboard()->setText("plain text");
-                    QTRY_VERIFY(!item->isEnabled());
+                    QTRY_VERIFY(!item->isVisible());
                     publishFiles();
-                    QTRY_VERIFY(item->isEnabled());
+                    QTRY_VERIFY(item->isVisible() && item->isEnabled());
                     pasteChosen = true;
                     menu->setActiveAction(item);
                     QTest::keyClick(menu, Qt::Key_Return);
@@ -325,6 +348,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         const QString peerStatus = QStringLiteral("Peer status");
         window.statusBar()->showMessage(peerStatus, 10000);
         pasteChosen = false;
+        initiallyVisible = true;
         QTimer::singleShot(0, &window, choosePaste);
         const QPoint retryPoint =
             owner->visualRect(owner->model()->index(row(*owner, "control.txt"), 0)).center();
@@ -397,6 +421,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             QVERIFY(file.open(QIODevice::WriteOnly));
             QCOMPARE(file.write("protected"), qint64(9));
         }
+        const auto publishPeerFile = [&] {
+            auto *mime = new QMimeData;
+            mime->setUrls({QUrl::fromLocalFile(peerDirectory.filePath(original))});
+            QApplication::clipboard()->setMimeData(mime);
+        };
         ControlledBackend backend;
         MainWindow window(&backend);
         window.show();
@@ -479,38 +508,44 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                     QVERIFY(window.isVisible());
                     auto *open = menuAction(*menu, "openItemAction");
                     auto *rename = menuAction(*menu, "renameAction");
-                    auto *create = menuAction(*menu, "createFolderAction");
-                    QVERIFY(open && rename && create);
+                    QVERIFY(open && rename);
+                    QVERIFY(!menuAction(*menu, "createFolderAction"));
                     QVERIFY(rename->isEnabled());
                     QVERIFY(menu->actions().indexOf(open) >= 0);
                     QVERIFY(menu->actions().indexOf(open) < menu->actions().indexOf(rename));
                     auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
-                    QVERIFY(more && more->actions().contains(create));
-                    const auto hashes = menu->findChildren<QMenu *>("contextHashMenu");
+                    QVERIFY(more);
+                    for (const auto *name : {"copyAction", "moveAction"}) {
+                        auto *command = menuAction(*menu, name);
+                        QVERIFY(command && more->actions().contains(command));
+                    }
+                    const auto hashes = more->findChildren<QMenu *>("contextHashMenu");
                     QCOMPARE(hashes.size(), 1);
-                    QVERIFY(!hashes.first()->actions().isEmpty());
+                    QVERIFY(more->actions().contains(hashes.first()->menuAction()));
                     const auto archives = menu->findChildren<QMenu *>("contextArchiveMenu");
                     QCOMPARE(archives.size(), 1);
-                    const QStringList archiveCaptions =
-                        language == "ru"
-                            ? QStringList{QStringLiteral("Добавить"), QStringLiteral("Извлечь"),
-                                          QStringLiteral("Тестировать")}
-                            : QStringList{"Add", "Extract", "Test"};
-                    QStringList actualCaptions;
-                    for (auto *command : archives.first()->actions())
-                        actualCaptions.append(command->text());
-                    QCOMPARE(actualCaptions, archiveCaptions);
+                    QVERIFY(menu->actions().contains(archives.first()->menuAction()));
+                    QVERIFY(menuAction(*archives.first(), "toolbarAddAction"));
+                    QVERIFY(!menuAction(*archives.first(), "extractArchiveAction"));
+                    QVERIFY(!menuAction(*archives.first(), "testArchiveAction"));
                     if (!keyboard && width == 980 && pane == 0 && !icons) {
-                        for (auto *sub : {hashes.first(), archives.first()}) {
-                            const QPoint position = menu->mapToGlobal(
-                                menu->actionGeometry(sub->menuAction()).topRight());
-                            sub->popup(position);
+                        for (auto *sub : {archives.first(), more, hashes.first()}) {
+                            auto *parent = sub == hashes.first() ? more : menu;
+                            parent->setActiveAction(sub->menuAction());
+                            QTest::keyClick(parent, Qt::Key_Right);
                             QTRY_VERIFY(sub->isVisible());
                             QVERIFY(UiInspection::writeReport(
                                 *sub, QString("source-context-submenu-%1-%2")
                                           .arg(sub->objectName(), language)));
-                            sub->hide();
+                            if (sub != more) {
+                                QTest::keyClick(sub, Qt::Key_Left);
+                                QTRY_VERIFY(!sub->isVisible());
+                                QVERIFY(parent->isVisible());
+                            }
                         }
+                        QTest::keyClick(more, Qt::Key_Escape);
+                        QTRY_VERIFY(!more->isVisible());
+                        QVERIFY(menu->isVisible());
                     }
                     QVERIFY(
                         UiInspection::writeReport(*menu, QString("source-context-%1-%2-%3-%4-%5")
@@ -519,6 +554,13 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                                                              .arg(icons)
                                                              .arg(width)
                                                              .arg(keyboard)));
+                    if (!keyboard && width == 640 && pane == 0 && !icons && language == "ru") {
+                        const auto clear = qScopeGuard([] { QApplication::clipboard()->clear(); });
+                        publishPeerFile();
+                        auto *paste = menuAction(*menu, "pasteFilesAction");
+                        QTRY_VERIFY(paste && paste->isVisible());
+                        QVERIFY(UiInspection::writeReport(*menu, "source-context-paste-ru-640"));
+                    }
                     if (!keyboard && width == 980 && pane == 0 && !icons && language == "-") {
                         auto *cut = action(window, "cutFilesAction");
                         QVERIFY(!cut->isEnabled());
@@ -537,8 +579,11 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
                 const QPoint point = keyboard
                                          ? QPoint(-1, -1)
                                          : view->visualRect(view->model()->index(0, 0)).center();
-                QVERIFY(QMetaObject::invokeMethod(view, "customContextMenuRequested",
-                                                  Qt::DirectConnection, Q_ARG(QPoint, point)));
+                if (keyboard && view->hasFocus())
+                    QTest::keyClick(view, Qt::Key_F10, Qt::ShiftModifier);
+                else
+                    QVERIFY(QMetaObject::invokeMethod(view, "customContextMenuRequested",
+                                                      Qt::DirectConnection, Q_ARG(QPoint, point)));
                 QVERIFY(cancelled);
                 QVERIFY(!QTest::currentTestFailed());
                 if (!keyboard && width == 980 && pane == 0 && !icons && language == "-") {
@@ -561,24 +606,30 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             const auto close = qScopeGuard([&] { menu->close(); });
             menuObserved = true;
             QCOMPARE(menu->objectName(), QString("panelContextMenu"));
+            QVERIFY(!view->selectionModel()->hasSelection());
+            QVERIFY(!view->currentIndex().isValid());
+            QVERIFY(!menuAction(*menu, "openItemAction"));
+            QVERIFY(!menuAction(*menu, "renameAction"));
             auto *create = menuAction(*menu, "createFolderAction");
-            QVERIFY(create);
-            auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
-            QVERIFY(more && more->actions().contains(create));
-            QVERIFY(create->isEnabled());
-            menu->setActiveAction(more->menuAction());
-            QTest::keyClick(menu, Qt::Key_Right);
-            QApplication::processEvents();
-            QVERIFY(more->isVisible());
+            QVERIFY(create && menu->actions().contains(create) && create->isEnabled());
+            const auto clear = qScopeGuard([] { QApplication::clipboard()->clear(); });
+            if (language == "ru" && pane == 0 && !icons) {
+                publishPeerFile();
+                auto *paste = menuAction(*menu, "pasteFilesAction");
+                QTRY_VERIFY(paste && paste->isVisible());
+            }
             QVERIFY(UiInspection::writeReport(
-                *more, QString("source-context-more-%1-%2-%3").arg(pane).arg(language).arg(icons)));
-            more->setActiveAction(create);
-            QTest::keyClick(more, Qt::Key_Return);
+                *menu,
+                QString("source-context-background-%1-%2-%3").arg(pane).arg(language).arg(icons)));
+            menu->setActiveAction(create);
+            QTest::keyClick(menu, Qt::Key_Return);
         });
-        const QModelIndex index = view->model()->index(0, 0);
-        const QPoint point = view->visualRect(index).center();
-        QVERIFY(QMetaObject::invokeMethod(view, "customContextMenuRequested", Qt::DirectConnection,
-                                          Q_ARG(QPoint, point)));
+        QVERIFY(view->selectionModel()->hasSelection());
+        const QPoint point = view->viewport()->rect().bottomRight() - QPoint(5, 5);
+        QVERIFY(!view->indexAt(point).isValid());
+        QContextMenuEvent blank(QContextMenuEvent::Mouse, point,
+                                view->viewport()->mapToGlobal(point));
+        QApplication::sendEvent(view->viewport(), &blank);
         QVERIFY(menuObserved);
         auto *name = ownerUi->findChild<QLineEdit *>("inlineFolderName");
         QVERIFY(name && name->isVisible());
@@ -616,6 +667,70 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
         for (const QString language : {"-", "ru"})
             QTest::newRow(qPrintable(language)) << language;
     }
+    void readOnlyFolderHidesWrites() {
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        const auto path = fixture.filePath("selected.txt");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("content"), qint64(7));
+        file.close();
+        QFile folder(fixture.path());
+        const auto permissions = folder.permissions();
+        const auto restore = qScopeGuard([&] { folder.setPermissions(permissions); });
+        QVERIFY(folder.setPermissions(QFileDevice::ReadOwner | QFileDevice::ExeOwner));
+        if (QFileInfo(fixture.path()).isWritable())
+            QSKIP("The current user can still write to the fixture directory");
+        auto *mime = new QMimeData;
+        mime->setUrls({QUrl::fromLocalFile(path)});
+        QApplication::clipboard()->setMimeData(mime);
+        const auto clear = qScopeGuard([] { QApplication::clipboard()->clear(); });
+
+        ControlledBackend backend;
+        MainWindow window(&backend);
+        window.show();
+        QVERIFY(WindowActivation::waitForActive(window));
+        auto *view = openPanel(window, 0, fixture.path());
+        QVERIFY(view);
+        QTRY_VERIFY(row(*view, "selected.txt") >= 0);
+        const QPoint point =
+            view->visualRect(view->model()->index(row(*view, "selected.txt"), 0)).center();
+        bool observed = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            const auto close = qScopeGuard([&] { menu->close(); });
+            observed = true;
+            QVERIFY(menuAction(*menu, "copyFilesAction"));
+            QVERIFY(menuAction(*menu, "selectedPropertiesAction"));
+            for (const auto *name :
+                 {"cutFilesAction", "pasteFilesAction", "renameAction", "moveAction",
+                  "deleteAction", "createFolderAction", "toolbarAddAction"}) {
+                const auto *action = menuAction(*menu, name);
+                QVERIFY2(!action || !action->isVisible(), name);
+            }
+        });
+        QContextMenuEvent item(QContextMenuEvent::Mouse, point,
+                               view->viewport()->mapToGlobal(point));
+        QApplication::sendEvent(view->viewport(), &item);
+        QVERIFY(observed);
+        QVERIFY(view->selectionModel()->hasSelection());
+        observed = false;
+        QTimer::singleShot(0, &window, [&] {
+            if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                observed = true;
+                menu->close();
+            }
+        });
+        const QPoint blank = view->viewport()->rect().bottomRight() - QPoint(5, 5);
+        QVERIFY(!view->indexAt(blank).isValid());
+        QContextMenuEvent background(QContextMenuEvent::Mouse, blank,
+                                     view->viewport()->mapToGlobal(blank));
+        QApplication::sendEvent(view->viewport(), &background);
+        QApplication::processEvents();
+        QVERIFY(!observed);
+        QVERIFY(!view->selectionModel()->hasSelection());
+    }
     void emptyPanel() {
         QFETCH(QString, language);
         const QString settings = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
@@ -652,8 +767,7 @@ class SourceContextMenuTests final : public QObject, protected MainWindowTestSup
             observed = true;
             auto *rename = menuAction(*menu, "renameAction");
             auto *create = menuAction(*menu, "createFolderAction");
-            QVERIFY(rename && create);
-            QVERIFY(!rename->isEnabled());
+            QVERIFY(!rename && create);
             QVERIFY(create->isEnabled());
             QVERIFY(
                 UiInspection::writeReport(*menu, QString("source-context-empty-%1").arg(language)));

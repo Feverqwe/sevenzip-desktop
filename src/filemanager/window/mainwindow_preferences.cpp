@@ -15,15 +15,22 @@
 void MainWindow::showItemContextMenu(unsigned owner, QAbstractItemView *view, const QPoint &pos) {
     withPanelProjection(owner, [this, view, pos] {
         const bool keyboard = pos == QPoint(-1, -1);
+        auto *selection = view->selectionModel();
         if (!keyboard) {
             const QModelIndex index = view->indexAt(pos);
             if (index.isValid()) {
-                auto *selection = view->selectionModel();
                 if (!selection->isRowSelected(index.row(), QModelIndex()))
                     selection->select(index, QItemSelectionModel::ClearAndSelect |
                                                  QItemSelectionModel::Rows);
                 selection->setCurrentIndex(index, QItemSelectionModel::NoUpdate);
-            }
+            } else
+                selection->clear();
+        } else if (!selection->hasSelection()) {
+            selection->select(view->currentIndex(),
+                              QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        } else if (!view->currentIndex().isValid()) {
+            selection->setCurrentIndex(selection->selectedRows().value(0),
+                                       QItemSelectionModel::NoUpdate);
         }
         refreshActions();
         const QPoint point = keyboard ? pos : view->viewport()->mapToGlobal(pos);

@@ -10,9 +10,6 @@ class QtFileManagerShellMenu;
 
 // Presentation only; actions retain their source command IDs and dispatch.
 void QtClarifyOpenCommands(QMenu &menu);
-// Group an already filtered source projection. Returned rows are owned by the
-// menu and must join its existing disposable-row lifecycle.
-QList<QAction *> QtGroupFileCommands(QMenu &menu, bool contextMenu);
 
 // Retains the original program-menu plugin context through source dispatch.
 // Static resource actions and disposable shell rows have separate ownership.

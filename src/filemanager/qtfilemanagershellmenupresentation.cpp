@@ -110,11 +110,13 @@ void QtFileManagerShellMenu::RenderItems(QMenu &menu, const NQtShellMenu::CMenuH
             action = menu.addAction(ToQString(entry.Text));
             action->setEnabled(Available(command));
             const quint64 generation = _generation;
-            QObject::connect(action, &QAction::triggered, &menu, [this, offset, generation] {
-                // Deferred deletion keeps the QAction alive while its menu is
-                // rebuilt; that old action must not invoke a new context.
-                Dispatch(offset + kMenuCmdID_Plugin_Start, generation);
-            });
+            QObject::connect(action, &QAction::triggered, &_commandLifetime,
+                             [this, offset, generation] {
+                                 // QMenu disconnects its own slots when a row is moved.
+                                 // Deferred deletion keeps the QAction alive while its menu is
+                                 // rebuilt; that old action must not invoke a new context.
+                                 Dispatch(offset + kMenuCmdID_Plugin_Start, generation);
+                             });
         }
         if (command.CommandInternalID == CZipContextMenu::kOpen) {
             if (command.ArcType.IsEmpty())

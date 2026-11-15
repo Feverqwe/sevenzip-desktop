@@ -2,6 +2,7 @@
 #include "filemanager/panels/qtpanelpluginservices.h"
 #include "platform/shell/ContextMenu.h"
 #include "platform/shell/qtshellarchiveservices.h"
+#include <QObject>
 #include <functional>
 
 class MainWindow;
@@ -23,6 +24,7 @@ class QtFileManagerShellMenu final : public IQtPanelPluginServices,
     std::unique_ptr<QtNativeShellMenu> _system;
 #endif
     quint64 _generation = 0;
+    QObject _commandLifetime;
     std::function<void(unsigned)> _dispatch;
     void Render(QMenu &menu, const NQtShellMenu::CMenuHandle &tree);
     void RenderItems(QMenu &menu, const NQtShellMenu::CMenuHandle &tree, const QIcon &icon);

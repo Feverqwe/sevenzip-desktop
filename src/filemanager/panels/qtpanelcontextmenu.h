@@ -8,6 +8,7 @@ class QAbstractItemView;
 class QtPanelContextMenu final : public IQtPanelContextMenuServices {
     struct Impl;
     std::unique_ptr<Impl> impl_;
+    void Populate(unsigned owner);
 
   public:
     QtPanelContextMenu(MainWindow &window, QAbstractItemView &view);

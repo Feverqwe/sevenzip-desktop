@@ -12,6 +12,10 @@
 #include <windows.h>
 #endif
 
+static bool IsPanelContextMenuKey(const QKeyEvent &key) {
+    return key.key() == Qt::Key_F10 && key.modifiers() == Qt::ShiftModifier;
+}
+
 MainWindow::PanelInputTarget MainWindow::panelInputTarget(QObject *object, unsigned panel) const {
     const auto &ui = panelUi_[panel];
     if (object == ui.path || object == ui.pathCombo)
@@ -152,7 +156,7 @@ void MainWindow::updatePanelModifier(const QKeyEvent &key) {
 }
 
 bool MainWindow::overridePanelKey(const QKeyEvent &key) const {
-    if (panelShortcut(key) || reservedPanelKey(key))
+    if (IsPanelContextMenuKey(key) || panelShortcut(key) || reservedPanelKey(key))
         return true;
     const auto mods = key.modifiers();
     if (mods.testFlag(Qt::MetaModifier))
@@ -240,6 +244,11 @@ bool MainWindow::handlePanelListKey(QKeyEvent *key) {
     // notifications while a source reload/update owns the provider.
     if (!panel.ShouldProcessNotifications())
         return true;
+    if (IsPanelContextMenuKey(*key)) {
+        auto *view = static_cast<QAbstractItemView *>(projectedUi().viewStack->currentWidget());
+        showItemContextMenu(projectedPanel_, view, QPoint(-1, -1));
+        return true;
+    }
     if (QAction *action = panelShortcut(*key)) {
         if (action->property("workspaceViewContext").toBool()) {
             // The View menu keeps its source pane until its selected action

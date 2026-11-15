@@ -7,8 +7,6 @@
 #include <utility>
 
 void MainWindow::showSelectedProperties() {
-    if (!properties_->isEnabled())
-        return;
     CPanel &panel = app_.GetFocusedPanel();
     panel.LoadFullPath();
     panel.Properties();

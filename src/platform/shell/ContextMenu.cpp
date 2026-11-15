@@ -305,6 +305,11 @@ static bool DoNeedExtract(const UString &name, CStringFinder &finder) {
     return !FindExt(kExtractExcludeExtensions, name, finder);
 }
 
+bool CZipContextMenu::IsArchiveCandidate(const UString &name) {
+    CStringFinder finder;
+    return DoNeedExtract(name, finder);
+}
+
 // we must use diferent Verbs for Popup subMenu.
 void CZipContextMenu::AddMapItem_ForSubMenu(const char *verb) {
     CCommandMapItem cmi;

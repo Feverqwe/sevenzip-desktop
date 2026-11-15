@@ -12,6 +12,7 @@
 #include "support/widget_dialogs.h"
 #include "ui/progress/ProgressDialog2.h"
 #include "ui/support/layout_inspection.h"
+#include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QToolButton>
@@ -153,6 +154,65 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
                 QTest::newRow(qPrintable(QString("%1-%2").arg(language).arg(size.width())))
                     << language << size;
     }
+    void archiveExtractionKeepsDestinations_data() {
+        QTest::addColumn<QString>("verb");
+        QTest::addColumn<bool>("showDialog");
+        QTest::addColumn<bool>("subfolder");
+        QTest::newRow("dialog") << QString("SevenZipExtract") << true << true;
+        QTest::newRow("here") << QString("SevenZipExtractHere") << false << false;
+        QTest::newRow("subfolder") << QString("SevenZipExtractTo") << false << true;
+    }
+    void archiveExtractionKeepsDestinations() {
+        QFETCH(QString, verb);
+        QFETCH(bool, showDialog);
+        QFETCH(bool, subfolder);
+        QTemporaryDir fixture;
+        QVERIFY(fixture.isValid());
+        CCurrentDirectory guard;
+        const QString name = QStringLiteral("архив with space.7z");
+        const QString path = fixture.filePath(name);
+        QVERIFY(SourceExtractFixture::writeFile(path, "transport fixture"));
+        QVERIFY(QDir::setCurrent(fixture.path()));
+        prepareSettings();
+        CContextMenuInfo settings;
+        const auto settingsPath = qEnvironmentVariable("SEVENZIP_SETTINGS_PATH");
+        settings.Load(settingsPath);
+        settings.Flags |= NContextMenuFlags::kExtract | NContextMenuFlags::kExtractHere |
+                          NContextMenuFlags::kExtractTo;
+        settings.Save(settingsPath);
+        ControlledBackend backend;
+        QCOMPARE(backend.loadCodecCatalog(_module, _version), S_OK);
+        MainWindow window(&backend);
+        window.show();
+        auto *view = table(window);
+        QTRY_VERIFY(rowNamed(window, name) >= 0);
+        const int row = rowNamed(window, name);
+        const QPoint point = view->visualRect(view->model()->index(row, 0)).center();
+        QTimer::singleShot(0, &window, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            const auto close = qScopeGuard([menu] { menu->close(); });
+            auto *archives = menu->findChild<QMenu *>("contextArchiveMenu");
+            QVERIFY(archives);
+            auto *extract = findVerb(*archives, verb);
+            QVERIFY(extract && extract->isEnabled());
+            menu->setActiveAction(archives->menuAction());
+            QTest::keyClick(menu, Qt::Key_Right);
+            QTRY_VERIFY(archives->isVisible());
+            archives->setActiveAction(extract);
+            QTest::keyClick(archives, Qt::Key_Return);
+        });
+        QVERIFY(QMetaObject::invokeMethod(view, "customContextMenuRequested", Qt::DirectConnection,
+                                          Q_ARG(QPoint, point)));
+        QTRY_COMPARE(backend.GuiRequests.size(), 1);
+        const auto &job = backend.GuiRequests.first();
+        QCOMPARE(job.Operation, QtOperationJob::Command::Extract);
+        QCOMPARE(job.ShowDialog, showDialog);
+        QCOMPARE(job.Paths, QStringList{path});
+        const QString destination =
+            subfolder ? fixture.filePath(QFileInfo(path).completeBaseName()) : fixture.path();
+        QCOMPARE(QDir::cleanPath(QDir::fromNativeSeparators(job.Destination)), destination);
+    }
     void updateCommandGeometry() {
         QFETCH(QString, language);
         QFETCH(QSize, size);
@@ -176,16 +236,15 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
         QTimer::singleShot(0, [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             QVERIFY(menu);
-            auto *root = menu->findChild<QAction *>("sevenZipContextGroup");
-            QVERIFY(root && root->menu());
+            auto *child = menu->findChild<QMenu *>("contextArchiveMenu");
+            QVERIFY(child);
+            auto *root = child->menuAction();
             auto *compress = findVerb(*menu, "SevenZipCompress");
             auto *sevenZip = findVerb(*menu, "SevenZipCompressTo7z");
             auto *zip = findVerb(*menu, "SevenZipCompressToZip");
-            auto *checksum = findVerb(*menu, "SevenZip.Checksum.Calc.SHA256");
-            QVERIFY(compress && sevenZip && zip && checksum);
+            QVERIFY(compress && sevenZip && zip);
             QVERIFY(compress->isEnabled());
-            QVERIFY(sevenZip->isEnabled() && zip->isEnabled() && checksum->isEnabled());
-            QMenu *child = root->menu();
+            QVERIFY(sevenZip->isEnabled() && zip->isEnabled());
             child->popup(menu->mapToGlobal(menu->actionGeometry(root).topRight()));
             QCoreApplication::processEvents();
             const QString tag =
@@ -197,13 +256,14 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
                     QVERIFY(child->fontMetrics().horizontalAdvance(action->text()) < rect.width());
             }
             QVERIFY(UiInspection::writeReport(*child, tag));
-            QMenu *hashMenu = nullptr;
-            for (auto *action : child->actions())
-                if (action->menu() && action->menu()->actions().contains(checksum))
-                    hashMenu = action->menu();
-            QVERIFY(hashMenu);
+            auto *more = menu->findChild<QMenu *>("moreCommandsMenu");
+            QVERIFY(more);
+            auto *hashMenu = more->findChild<QMenu *>("contextHashMenu");
+            QVERIFY(hashMenu && more->actions().contains(hashMenu->menuAction()));
+            more->popup(menu->mapToGlobal(menu->actionGeometry(more->menuAction()).topRight()));
+            QApplication::processEvents();
             hashMenu->popup(
-                child->mapToGlobal(child->actionGeometry(hashMenu->menuAction()).topRight()));
+                more->mapToGlobal(more->actionGeometry(hashMenu->menuAction()).topRight()));
             QCoreApplication::processEvents();
             for (auto *action : hashMenu->actions()) {
                 QVERIFY(hashMenu->rect().contains(hashMenu->actionGeometry(action)));
@@ -213,6 +273,7 @@ class ShellUpdateWindowTests final : public QObject, protected MainWindowTestSup
             }
             QVERIFY(UiInspection::writeReport(*hashMenu, tag + "-hash"));
             hashMenu->close();
+            more->close();
             child->close();
             menu->close();
             inspected = true;

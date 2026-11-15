@@ -584,6 +584,26 @@
             <translation>По убыванию</translation>
         </message>
         <message>
+            <source>Copy to…</source>
+            <translation>Копировать в…</translation>
+        </message>
+        <message>
+            <source>Move to…</source>
+            <translation>Переместить в…</translation>
+        </message>
+        <message>
+            <source>Add to archive…</source>
+            <translation>Добавить в архив…</translation>
+        </message>
+        <message>
+            <source>Extract…</source>
+            <translation>Распаковать…</translation>
+        </message>
+        <message>
+            <source>Create folder</source>
+            <translation>Создать папку</translation>
+        </message>
+        <message>
             <location filename="../src/filemanager/window/mainwindow_menus.cpp" line="+90" />
             <location filename="../src/filemanager/panels/qtpanelcontextmenu.cpp" line="+108" />
             <source>Checksums</source>
